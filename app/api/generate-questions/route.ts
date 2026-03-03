@@ -67,19 +67,63 @@ Para todos os tipos:
 Retorne SOMENTE o objeto JSON válido com o array "questions", sem nenhum texto adicional.`
 
 // ─── Route handler ────────────────────────────────────────────────────────────
+import { parseOffice } from "officeparser"
+import PDFParser from "pdf2json"
 
 export async function POST(req: Request) {
   try {
-    const { discipline, count, types } = (await req.json()) as {
-      discipline: string
-      count: number
-      types: string[]
+    const isFormData = req.headers.get("content-type")?.includes("multipart/form-data")
+
+    let discipline = ""
+    let count = 0
+    let types: string[] = []
+    let fileText = ""
+
+    if (isFormData) {
+      const formData = await req.formData()
+      discipline = formData.get("discipline") as string
+      count = parseInt(formData.get("count") as string, 10)
+      const typesStr = formData.get("types") as string
+      if (typesStr) {
+        types = JSON.parse(typesStr)
+      }
+
+      const file = formData.get("file") as File | null
+      if (file) {
+        const arrayBuffer = await file.arrayBuffer()
+        const buffer = Buffer.from(arrayBuffer)
+        if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
+          const pdfParser = new PDFParser(null, true);
+          fileText = await new Promise<string>((resolve, reject) => {
+            pdfParser.on("pdfParser_dataError", (errData: any) => reject(errData.parserError));
+            pdfParser.on("pdfParser_dataReady", () => {
+              resolve(pdfParser.getRawTextContent() || "");
+            });
+            pdfParser.parseBuffer(buffer);
+          });
+        } else if (
+          file.type.includes("presentation") ||
+          file.name.endsWith(".pptx") ||
+          file.name.endsWith(".ppt")
+        ) {
+          fileText = (await parseOffice(buffer)) as unknown as string
+        }
+      }
+    } else {
+      const body = (await req.json()) as {
+        discipline: string
+        count: number
+        types: string[]
+      }
+      discipline = body.discipline
+      count = body.count
+      types = body.types
     }
 
     const safeCount = Math.min(Math.max(1, count), 20)
     const typesList = types.length > 0 ? types : ["multiple-choice", "true-false", "discursive"]
 
-    const userPrompt = `Gere exatamente ${safeCount} questão(ões) de avaliação teológica para a disciplina: "${discipline}".
+    let userPrompt = `Gere exatamente ${safeCount} questão(ões) de avaliação teológica para a disciplina: "${discipline}".
 
 Modalidades solicitadas: ${typesList.map((t) => {
       if (t === "multiple-choice") return "múltipla escolha"
@@ -88,11 +132,15 @@ Modalidades solicitadas: ${typesList.map((t) => {
     }).join(", ")
       }.
 
-Distribua as questões de forma equilibrada entre as modalidades solicitadas.Se houver apenas uma modalidade, gere todas nessa modalidade.
+Distribua as questões de forma equilibrada entre as modalidades solicitadas. Se houver apenas uma modalidade, gere todas nessa modalidade.
 
-Varie os temas abordados dentro da disciplina "${discipline}", cobrindo diferentes aspectos e níveis cognitivos(conhecimento, compreensão, análise, aplicação).
+Varie os temas abordados dentro da disciplina "${discipline}", cobrindo diferentes aspectos e níveis cognitivos (conhecimento, compreensão, análise, aplicação).
 
 Retorne um JSON com exatamente ${safeCount} questões no array "questions".`
+
+    if (fileText) {
+      userPrompt += `\n\nBaseie-se ESTRITAMENTE no conteúdo do seguinte texto extraído do material de apoio do professor:\n\n---\n${fileText.substring(0, 15000)}\n---`
+    }
 
     const { object: parsed } = await generateObject({
       model: openai("gpt-4o"),
@@ -106,7 +154,7 @@ Retorne um JSON com exatamente ${safeCount} questões no array "questions".`
   } catch (error) {
     console.error("[generate-questions] Error:", error)
     return Response.json(
-      { error: "Erro ao gerar questões. Tente novamente." },
+      { error: "Erro ao gerar questões. Verifique se o arquivo anexado é legível e tente novamente." },
       { status: 500 }
     )
   }

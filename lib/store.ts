@@ -95,7 +95,7 @@ export function checkPassword(plain: string, hash: string): boolean {
 // ─── Storage Keys ─────────────────────────────────────────────────────────────
 
 const KEYS = {
-  DISCIPLINES: "ibad_disciplines",
+  DISCIPLINES: "ibad_disciplines_v2",
   QUESTIONS: "ibad_question_bank",
   ASSESSMENTS: "ibad_assessments",
   SUBMISSIONS: "ibad_submissions_v2",
@@ -397,19 +397,32 @@ export function calculateScore(
 // ─── Seed Data ────────────────────────────────────────────────────────────────
 
 function defaultDisciplines(): Discipline[] {
+  const now = "2024-01-01T00:00:00.000Z"
   return [
-    {
-      id: "disc-1",
-      name: "Livros Poéticos",
-      description: "Jó, Salmos, Provérbios, Eclesiastes e Cânticos",
-      createdAt: "2024-01-01T00:00:00.000Z",
-    },
-    {
-      id: "disc-2",
-      name: "Novo Testamento",
-      description: "Evangelhos, Atos, Epístolas e Apocalipse",
-      createdAt: "2024-01-01T00:00:00.000Z",
-    },
+    { id: "disc-1", name: "Cristologia", createdAt: now },
+    { id: "disc-2", name: "Epístolas Paulinas", createdAt: now },
+    { id: "disc-3", name: "Escatologia", createdAt: now },
+    { id: "disc-4", name: "Escola Dominical", createdAt: now },
+    { id: "disc-5", name: "Evangelhos e Atos", createdAt: now },
+    { id: "disc-6", name: "Evangelismo", createdAt: now },
+    { id: "disc-7", name: "Evidência Cristã", createdAt: now },
+    { id: "disc-8", name: "Fundamentos da Psicologia e do Aconselhamento", createdAt: now },
+    { id: "disc-9", name: "Geografia Bíblica", createdAt: now },
+    { id: "disc-10", name: "Hebreus e Epístolas Gerais", createdAt: now },
+    { id: "disc-11", name: "Hermenêutica", createdAt: now },
+    { id: "disc-12", name: "História da Igreja", createdAt: now },
+    { id: "disc-13", name: "Homilética", createdAt: now },
+    { id: "disc-14", name: "Introdução ao Novo Testamento", createdAt: now },
+    { id: "disc-15", name: "Introdução Bíblica", createdAt: now },
+    { id: "disc-16", name: "Livros Históricos", createdAt: now },
+    { id: "disc-17", name: "Livros Poéticos", createdAt: now },
+    { id: "disc-18", name: "Maneiras e Costumes Bíblicos", createdAt: now },
+    { id: "disc-19", name: "Missiologia", createdAt: now },
+    { id: "disc-20", name: "Pentateuco", createdAt: now },
+    { id: "disc-21", name: "Profetas Maiores e Menores", createdAt: now },
+    { id: "disc-22", name: "Religiões Comparadas", createdAt: now },
+    { id: "disc-23", name: "Teologia Pastoral", createdAt: now },
+    { id: "disc-24", name: "Teologia Sistemática", createdAt: now },
   ]
 }
 

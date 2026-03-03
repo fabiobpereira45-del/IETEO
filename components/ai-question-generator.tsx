@@ -59,21 +59,19 @@ function QuestionPreviewCard({
 
   return (
     <div
-      className={`border rounded-xl transition-colors ${
-        selected
-          ? "border-primary bg-primary/5"
-          : "border-border bg-card hover:border-primary/50"
-      }`}
+      className={`border rounded-xl transition-colors ${selected
+        ? "border-primary bg-primary/5"
+        : "border-border bg-card hover:border-primary/50"
+        }`}
     >
       <div className="flex items-start gap-3 p-4">
         {/* Checkbox */}
         <button
           onClick={onToggle}
-          className={`mt-0.5 flex-shrink-0 h-5 w-5 rounded border-2 flex items-center justify-center transition-colors ${
-            selected
-              ? "bg-primary border-primary text-primary-foreground"
-              : "border-border bg-background"
-          }`}
+          className={`mt-0.5 flex-shrink-0 h-5 w-5 rounded border-2 flex items-center justify-center transition-colors ${selected
+            ? "bg-primary border-primary text-primary-foreground"
+            : "border-border bg-background"
+            }`}
           aria-label={selected ? "Desselecionar questão" : "Selecionar questão"}
         >
           {selected && <Check className="h-3 w-3" />}
@@ -95,11 +93,10 @@ function QuestionPreviewCard({
               {q.choices.map((c) => (
                 <div
                   key={c.id}
-                  className={`flex items-start gap-2 text-sm rounded-lg px-3 py-2 ${
-                    c.id === q.correctAnswer
-                      ? "bg-green-50 text-green-800 border border-green-200"
-                      : "bg-muted/50 text-muted-foreground"
-                  }`}
+                  className={`flex items-start gap-2 text-sm rounded-lg px-3 py-2 ${c.id === q.correctAnswer
+                    ? "bg-green-50 text-green-800 border border-green-200"
+                    : "bg-muted/50 text-muted-foreground"
+                    }`}
                 >
                   {c.id === q.correctAnswer && (
                     <Check className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-green-600" />
@@ -113,11 +110,10 @@ function QuestionPreviewCard({
           {/* True/False */}
           {q.type === "true-false" && (
             <div className="mt-3">
-              <span className={`text-sm px-3 py-1.5 rounded-lg font-semibold ${
-                q.correctAnswer === "true"
-                  ? "bg-green-50 text-green-700 border border-green-200"
-                  : "bg-red-50 text-red-700 border border-red-200"
-              }`}>
+              <span className={`text-sm px-3 py-1.5 rounded-lg font-semibold ${q.correctAnswer === "true"
+                ? "bg-green-50 text-green-700 border border-green-200"
+                : "bg-red-50 text-red-700 border border-red-200"
+                }`}>
                 Resposta: {q.correctAnswer === "true" ? "Verdadeiro" : "Falso"}
               </span>
             </div>
@@ -164,6 +160,7 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded }: Props) {
   const [generated, setGenerated] = useState<GeneratedQuestion[]>([])
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [saved, setSaved] = useState(false)
+  const [file, setFile] = useState<File | null>(null)
 
   const selectedDiscipline = disciplines.find((d) => d.id === disciplineId)
 
@@ -202,14 +199,18 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded }: Props) {
     setSaved(false)
 
     try {
+      const formData = new FormData()
+      formData.append("discipline", selectedDiscipline?.name ?? disciplineId)
+      formData.append("count", count.toString())
+      formData.append("types", JSON.stringify(types))
+
+      if (file) {
+        formData.append("file", file)
+      }
+
       const res = await fetch("/api/generate-questions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          discipline: selectedDiscipline?.name ?? disciplineId,
-          count,
-          types,
-        }),
+        body: formData,
       })
 
       if (!res.ok) {
@@ -297,6 +298,22 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded }: Props) {
           </div>
         </div>
 
+        <div className="flex flex-col gap-2">
+          <Label className="text-sm font-semibold">Material de Apoio (Opcional)</Label>
+          <p className="text-xs text-muted-foreground">Envie um arquivo PDF ou PPTX para basear as questões nele.</p>
+          <Input
+            type="file"
+            accept=".pdf,.pptx,.ppt"
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            className="text-sm cursor-pointer"
+          />
+          {file && (
+            <p className="text-xs text-primary font-medium flex items-center gap-1 mt-1">
+              <Check className="h-3 w-3" /> Arquivo anexado: {file.name}
+            </p>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="flex flex-col gap-2">
             <Label className="flex items-center gap-1.5">
@@ -308,11 +325,10 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded }: Props) {
                 <button
                   key={t}
                   onClick={() => toggleType(t)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    types.includes(t)
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background text-muted-foreground border-border hover:border-primary/50"
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${types.includes(t)
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:border-primary/50"
+                    }`}
                 >
                   {TYPE_LABELS[t]}
                 </button>
