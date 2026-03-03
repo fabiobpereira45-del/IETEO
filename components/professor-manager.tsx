@@ -137,25 +137,50 @@ export function ProfessorManager() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
-  function refresh() {
+  async function refresh() {
+    // In a full implementation, you'd fetch from Supabase.
+    // For now, we mix stored accounts + Supabase via API, but we'll stick to a basic local list syncing
     setAccounts(getProfessorAccounts())
   }
 
   useEffect(() => { refresh() }, [])
 
-  function handleAdd(data: FormState) {
-    // Check for duplicate email (against stored accounts and master)
+  async function handleAdd(data: FormState) {
     if (data.email.toLowerCase() === MASTER_CREDENTIALS.email) {
-      return // silently ignore — handled by form error ideally
+      return
     }
-    addProfessorAccount({
-      name: data.name,
-      email: data.email,
-      password: data.password,
-      role: data.role,
-    })
-    setAdding(false)
-    refresh()
+
+    try {
+      setAdding(false)
+      // Call our API route to use the Service Role Key
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+          name: data.name,
+          role: data.role
+        })
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        alert("Erro ao criar professor no Supabase: " + (err.error || "Desconhecido"))
+      }
+
+      // We still save locally for UI rendering if needed, or rely purely on Supabase.
+      // Keeping local sync for compatibility with existing app flow:
+      addProfessorAccount({
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        role: data.role,
+      })
+      refresh()
+    } catch (e: any) {
+      alert("Falha na criação: " + e.message)
+    }
   }
 
   function handleEdit(id: string, data: FormState) {
@@ -250,9 +275,8 @@ export function ProfessorManager() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-muted/40 transition-colors group">
-                    <div className={`h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      account.role === "master" ? "bg-primary/20" : "bg-muted"
-                    }`}>
+                    <div className={`h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0 ${account.role === "master" ? "bg-primary/20" : "bg-muted"
+                      }`}>
                       {account.role === "master"
                         ? <ShieldCheck className="h-4 w-4 text-primary" />
                         : <User className="h-4 w-4 text-muted-foreground" />
@@ -262,11 +286,10 @@ export function ProfessorManager() {
                       <p className="text-sm font-medium text-foreground truncate">{account.name}</p>
                       <p className="text-xs text-muted-foreground truncate">{account.email}</p>
                     </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
-                      account.role === "master"
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${account.role === "master"
                         ? "bg-primary/15 text-primary"
                         : "bg-muted text-muted-foreground"
-                    }`}>
+                      }`}>
                       {account.role === "master" ? "Master" : "Professor"}
                     </span>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">

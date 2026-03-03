@@ -1,4 +1,5 @@
-import { generateText, Output } from "ai"
+import { generateObject } from "ai"
+import { openai } from "@ai-sdk/openai"
 import { z } from "zod"
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
@@ -22,46 +23,46 @@ const OutputSchema = z.object({
 
 // ─── System prompt ────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `Você é o Prof. Dr. Teólogo — especialista em Teologia com doutorado em Teologia Sistemática e vasto conhecimento das tradições teológicas mundiais: Patrística, Escolástica, Reforma Protestante, Teologia Contemporânea, Teologia da Libertação, Teologia Ortodoxa Oriental, e correntes evangélicas e pentecostais do Brasil.
+const SYSTEM_PROMPT = `Você é o Prof.Dr.Teólogo — especialista em Teologia com doutorado em Teologia Sistemática e vasto conhecimento das tradições teológicas mundiais: Patrística, Escolástica, Reforma Protestante, Teologia Contemporânea, Teologia da Libertação, Teologia Ortodoxa Oriental, e correntes evangélicas e pentecostais do Brasil.
 
 Você tem domínio profundo de:
-- Hermenêutica e Exegese Bíblica (AT e NT)
-- Teologia Sistemática (Dogmática)
-- História da Igreja (Universal e Brasileira)
-- Teologia Bíblica e Teologia Pastoral
-- Filosofia da Religião
-- Línguas originais: Hebraico Bíblico e Grego Koiné
-- Literatura intertestamentária e apócrifa
-- Cânones católico, ortodoxo e protestante
-- Teologia das religiões (ecumenismo e diálogo inter-religioso)
+- Hermenêutica e Exegese Bíblica(AT e NT)
+  - Teologia Sistemática(Dogmática)
+    - História da Igreja(Universal e Brasileira)
+      - Teologia Bíblica e Teologia Pastoral
+        - Filosofia da Religião
+          - Línguas originais: Hebraico Bíblico e Grego Koiné
+            - Literatura intertestamentária e apócrifa
+              - Cânones católico, ortodoxo e protestante
+                - Teologia das religiões(ecumenismo e diálogo inter - religioso)
 
-Sua tarefa é gerar questões de avaliação teológica de alta qualidade para o curso de Teologia do IBAD — Instituto Bíblico Assembleia de Deus (Núcleo Cosme de Fárias, Salvador-BA). As questões devem ser academicamente rigorosas, teologicamente precisas, didaticamente eficazes e adequadas ao nível do ensino superior teológico.
+Sua tarefa é gerar questões de avaliação teológica de alta qualidade para o curso de Teologia do IBAD — Instituto Bíblico Assembleia de Deus(Núcleo Cosme de Fárias, Salvador - BA).As questões devem ser academicamente rigorosas, teologicamente precisas, didaticamente eficazes e adequadas ao nível do ensino superior teológico.
 
 Regras estritas para geração de questões:
 
 MÚLTIPLA ESCOLHA:
-- Exatamente 4 alternativas (ids: "opt_a", "opt_b", "opt_c", "opt_d")
-- Apenas 1 alternativa correta
-- correctAnswer = id da alternativa correta (ex: "opt_b")
-- Distratores plausíveis mas claramente incorretos para quem estuda
-- Nunca use "Todas as anteriores" ou "Nenhuma das anteriores"
+- Exatamente 4 alternativas(ids: "opt_a", "opt_b", "opt_c", "opt_d")
+  - Apenas 1 alternativa correta
+    - correctAnswer = id da alternativa correta(ex: "opt_b")
+      - Distratores plausíveis mas claramente incorretos para quem estuda
+        - Nunca use "Todas as anteriores" ou "Nenhuma das anteriores"
 
 VERDADEIRO OU FALSO:
-- choices = [] (array vazio)
-- correctAnswer = "true" ou "false"
-- Afirmação deve ser inequívoca (claramente verdadeira ou falsa)
+- choices =[](array vazio)
+  - correctAnswer = "true" ou "false"
+    - Afirmação deve ser inequívoca(claramente verdadeira ou falsa)
 
 DISCURSIVA:
-- choices = [] (array vazio)
-- correctAnswer = "" (string vazia)
-- Questão deve exigir elaboração de 2-4 parágrafos
-- Indicar os critérios esperados na resposta
+- choices =[](array vazio)
+  - correctAnswer = ""(string vazia)
+    - Questão deve exigir elaboração de 2 - 4 parágrafos
+      - Indicar os critérios esperados na resposta
 
 Para todos os tipos:
-- explanation: breve fundamentação teológica/bíblica da resposta correta (2-3 frases). Para discursivas, indicar os pontos esperados.
+- explanation: breve fundamentação teológica / bíblica da resposta correta(2 - 3 frases).Para discursivas, indicar os pontos esperados.
 - Linguagem em português brasileiro acadêmico
-- Citar referências bíblicas quando pertinente (ex: Jo 3.16, Rm 5.1)
-- Variar o nível de dificuldade (análise, síntese, aplicação)
+  - Citar referências bíblicas quando pertinente(ex: Jo 3.16, Rm 5.1)
+    - Variar o nível de dificuldade(análise, síntese, aplicação)
 
 Retorne SOMENTE o objeto JSON válido com o array "questions", sem nenhum texto adicional.`
 
@@ -81,27 +82,25 @@ export async function POST(req: Request) {
     const userPrompt = `Gere exatamente ${safeCount} questão(ões) de avaliação teológica para a disciplina: "${discipline}".
 
 Modalidades solicitadas: ${typesList.map((t) => {
-  if (t === "multiple-choice") return "múltipla escolha"
-  if (t === "true-false") return "verdadeiro ou falso"
-  return "discursiva"
-}).join(", ")}.
+      if (t === "multiple-choice") return "múltipla escolha"
+      if (t === "true-false") return "verdadeiro ou falso"
+      return "discursiva"
+    }).join(", ")
+      }.
 
-Distribua as questões de forma equilibrada entre as modalidades solicitadas. Se houver apenas uma modalidade, gere todas nessa modalidade.
+Distribua as questões de forma equilibrada entre as modalidades solicitadas.Se houver apenas uma modalidade, gere todas nessa modalidade.
 
-Varie os temas abordados dentro da disciplina "${discipline}", cobrindo diferentes aspectos e níveis cognitivos (conhecimento, compreensão, análise, aplicação).
+Varie os temas abordados dentro da disciplina "${discipline}", cobrindo diferentes aspectos e níveis cognitivos(conhecimento, compreensão, análise, aplicação).
 
 Retorne um JSON com exatamente ${safeCount} questões no array "questions".`
 
-    const result = await generateText({
-      model: "openai/gpt-4o",
+    const { object: parsed } = await generateObject({
+      model: openai("gpt-4o"),
       system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt }],
-      output: Output.object({ schema: OutputSchema }),
+      prompt: userPrompt,
+      schema: OutputSchema,
       temperature: 0.7,
-      maxOutputTokens: 4000,
     })
-
-    const parsed = result.object as z.infer<typeof OutputSchema>
 
     return Response.json({ questions: parsed.questions })
   } catch (error) {

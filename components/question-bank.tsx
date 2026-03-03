@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import {
-  Plus, Pencil, Trash2, ChevronRight, BookOpen, CheckSquare, AlignLeft, X, Check
+  Plus, Pencil, Trash2, ChevronRight, BookOpen, CheckSquare, AlignLeft, X, Check, Sparkles
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,6 +23,7 @@ import {
   getDisciplines, saveDisciplines, addDiscipline, updateDiscipline, deleteDiscipline,
   getQuestionsByDiscipline, addQuestion, updateQuestion, deleteQuestion, uid,
 } from "@/lib/store"
+import { AIQuestionGenerator } from "./ai-question-generator"
 
 // ─── Type Labels ──────────────────────────────────────────────────────────────
 
@@ -256,11 +257,10 @@ function QuestionModal({
                   <button
                     type="button"
                     onClick={() => setCorrectAnswer(c.id)}
-                    className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
-                      correctAnswer === c.id
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border hover:border-primary"
-                    }`}
+                    className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${correctAnswer === c.id
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border hover:border-primary"
+                      }`}
                     aria-label={`Marcar alternativa ${i + 1} como correta`}
                   >
                     {correctAnswer === c.id && <Check className="h-3 w-3" />}
@@ -301,11 +301,10 @@ function QuestionModal({
                     key={val}
                     type="button"
                     onClick={() => setCorrectAnswer(val)}
-                    className={`flex-1 py-3 rounded-lg border-2 font-semibold text-sm transition-colors ${
-                      correctAnswer === val
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border hover:border-primary/50"
-                    }`}
+                    className={`flex-1 py-3 rounded-lg border-2 font-semibold text-sm transition-colors ${correctAnswer === val
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:border-primary/50"
+                      }`}
                   >
                     {val === "true" ? "Verdadeiro" : "Falso"}
                   </button>
@@ -345,6 +344,8 @@ export function QuestionBank() {
   const [qModal, setQModal] = useState(false)
   const [editingQ, setEditingQ] = useState<Question | null>(null)
   const [deleteQId, setDeleteQId] = useState<string | null>(null)
+
+  const [aiModal, setAiModal] = useState(false)
 
   function reload() {
     const discs = getDisciplines()
@@ -419,9 +420,8 @@ export function QuestionBank() {
               return (
                 <div
                   key={d.id}
-                  className={`group flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-colors ${
-                    active ? "bg-primary/10 text-primary" : "hover:bg-muted text-foreground"
-                  }`}
+                  className={`group flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-colors ${active ? "bg-primary/10 text-primary" : "hover:bg-muted text-foreground"
+                    }`}
                   onClick={() => handleSelectDisc(d)}
                 >
                   <BookOpen className={`h-4 w-4 flex-shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} />
@@ -465,12 +465,22 @@ export function QuestionBank() {
             )}
           </div>
           {selectedDiscipline && (
-            <Button
-              size="sm"
-              onClick={() => { setEditingQ(null); setQModal(true) }}
-            >
-              <Plus className="h-4 w-4 mr-1.5" /> Nova Questão
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200"
+                onClick={() => setAiModal(true)}
+              >
+                <Sparkles className="h-4 w-4 mr-1.5" /> Gerar com IA
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => { setEditingQ(null); setQModal(true) }}
+              >
+                <Plus className="h-4 w-4 mr-1.5" /> Nova Questão
+              </Button>
+            </div>
           )}
         </div>
 
@@ -499,11 +509,10 @@ export function QuestionBank() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
-                      q.type === "multiple-choice" ? "bg-blue-100 text-blue-700" :
+                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${q.type === "multiple-choice" ? "bg-blue-100 text-blue-700" :
                       q.type === "true-false" ? "bg-amber-100 text-amber-700" :
-                      "bg-purple-100 text-purple-700"
-                    }`}>
+                        "bg-purple-100 text-purple-700"
+                      }`}>
                       {TYPE_ICONS[q.type]}
                       {TYPE_LABELS[q.type]}
                     </span>
@@ -515,11 +524,10 @@ export function QuestionBank() {
                       {q.choices.map((c) => (
                         <span
                           key={c.id}
-                          className={`text-xs px-2 py-0.5 rounded ${
-                            c.id === q.correctAnswer
-                              ? "bg-green-100 text-green-700 font-semibold"
-                              : "bg-muted text-muted-foreground"
-                          }`}
+                          className={`text-xs px-2 py-0.5 rounded ${c.id === q.correctAnswer
+                            ? "bg-green-100 text-green-700 font-semibold"
+                            : "bg-muted text-muted-foreground"
+                            }`}
                         >
                           {c.id === q.correctAnswer && <Check className="inline h-3 w-3 mr-0.5" />}
                           {c.text}
@@ -579,6 +587,21 @@ export function QuestionBank() {
           }}
         />
       )}
+
+      {/* AI Generator Modal */}
+      <Dialog open={aiModal} onOpenChange={setAiModal}>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-background border-border max-h-[90vh]">
+          <div className="overflow-y-auto max-h-[90vh]">
+            <AIQuestionGenerator
+              disciplines={disciplines}
+              onQuestionsAdded={() => {
+                setAiModal(false)
+                reload()
+              }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Discipline Confirm */}
       <AlertDialog open={!!deleteDiscId} onOpenChange={(o) => !o && setDeleteDiscId(null)}>

@@ -24,6 +24,7 @@ import { printStudentPDF } from "@/lib/pdf"
 import { QuestionBank } from "@/components/question-bank"
 import { AssessmentBuilder } from "@/components/assessment-builder"
 import { ProfessorManager } from "@/components/professor-manager"
+import { createClient } from "@/lib/supabase/client"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -306,9 +307,8 @@ function AssessmentsTab({ assessments, onRefresh }: { assessments: Assessment[];
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <h3 className="font-semibold text-foreground">{a.title}</h3>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      a.isPublished ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"
-                    }`}>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${a.isPublished ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"
+                      }`}>
                       {a.isPublished ? "Publicada" : "Rascunho"}
                     </span>
                   </div>
@@ -371,6 +371,13 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
   onLogout: () => void
 }) {
   const active = assessments[0]
+  const supabase = createClient()
+
+  async function handleLogout() {
+    clearProfessorSession()
+    await supabase.auth.signOut()
+    onLogout()
+  }
 
   function handleToggle() {
     if (!active) return
@@ -438,7 +445,7 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
         </p>
         <Button
           variant="outline"
-          onClick={() => { clearProfessorSession(); onLogout() }}
+          onClick={handleLogout}
           className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
         >
           <LogOut className="h-4 w-4 mr-2" /> Sair do painel
@@ -454,28 +461,43 @@ export function AdminDashboard({ onLogout }: Props) {
   const [tab, setTab] = useState<Tab>("overview")
   const [assessments, setAssessments] = useState<Assessment[]>([])
   const [submissions, setSubmissions] = useState<StudentSubmission[]>([])
+  const [username, setUsername] = useState("")
+  const [userEmail, setUserEmail] = useState("")
 
   // Detect if current session is master
   const session = typeof window !== "undefined" ? getProfessorSession() : null
   const isMaster = session?.role === "master"
-  const currentProfName = isMaster
-    ? MASTER_CREDENTIALS.name
-    : MASTER_CREDENTIALS.name // will be replaced with account lookup if needed
+  const supabase = createClient()
 
   function refresh() {
     setAssessments(getAssessments())
     setSubmissions(getSubmissions())
   }
 
-  useEffect(() => { refresh() }, [])
+  useEffect(() => {
+    refresh()
+
+    // Fetch current user from Supabase
+    async function fetchUser() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUsername(user.user_metadata?.full_name || "Professor")
+        setUserEmail(user.email || "")
+      } else if (session?.professorId === "master") {
+        setUsername(MASTER_CREDENTIALS.name)
+        setUserEmail(MASTER_CREDENTIALS.email)
+      }
+    }
+    fetchUser()
+  }, [supabase.auth, session?.professorId])
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode; masterOnly?: boolean }[] = [
-    { id: "overview",     label: "Visão Geral",       icon: <BarChart3 className="h-4 w-4" /> },
-    { id: "students",     label: "Alunos",             icon: <Users className="h-4 w-4" /> },
-    { id: "questions",    label: "Banco de Questões",  icon: <BookOpen className="h-4 w-4" /> },
-    { id: "assessments",  label: "Provas",             icon: <FileText className="h-4 w-4" /> },
-    { id: "professors",   label: "Professores",        icon: <ShieldCheck className="h-4 w-4" />, masterOnly: true },
-    { id: "settings",     label: "Configurações",      icon: <Settings className="h-4 w-4" /> },
+    { id: "overview", label: "Visão Geral", icon: <BarChart3 className="h-4 w-4" /> },
+    { id: "students", label: "Alunos", icon: <Users className="h-4 w-4" /> },
+    { id: "questions", label: "Banco de Questões", icon: <BookOpen className="h-4 w-4" /> },
+    { id: "assessments", label: "Provas", icon: <FileText className="h-4 w-4" /> },
+    { id: "professors", label: "Professores", icon: <ShieldCheck className="h-4 w-4" />, masterOnly: true },
+    { id: "settings", label: "Configurações", icon: <Settings className="h-4 w-4" /> },
   ]
 
   const visibleTabs = tabs.filter((t) => !t.masterOnly || isMaster)
@@ -497,9 +519,9 @@ export function AdminDashboard({ onLogout }: Props) {
                   Master
                 </span>
               )}
-              <p className="text-sm font-semibold">{currentProfName}</p>
+              <p className="text-sm font-semibold">{username || "Professor"}</p>
             </div>
-            <p className="text-xs text-primary-foreground/70">{MASTER_CREDENTIALS.email}</p>
+            <p className="text-xs text-primary-foreground/70">{userEmail}</p>
           </div>
         </div>
       </header>
@@ -510,11 +532,10 @@ export function AdminDashboard({ onLogout }: Props) {
             <button
               key={id}
               onClick={() => setTab(id)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
-                tab === id
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${tab === id
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
-              }`}
+                }`}
             >
               {icon}
               <span className="hidden sm:inline">{label}</span>
@@ -522,12 +543,12 @@ export function AdminDashboard({ onLogout }: Props) {
           ))}
         </div>
 
-        {tab === "overview"    && <OverviewTab assessments={assessments} submissions={submissions} />}
-        {tab === "students"    && <StudentsTab assessments={assessments} allSubmissions={submissions} onRefresh={refresh} />}
-        {tab === "questions"   && <QuestionBank />}
+        {tab === "overview" && <OverviewTab assessments={assessments} submissions={submissions} />}
+        {tab === "students" && <StudentsTab assessments={assessments} allSubmissions={submissions} onRefresh={refresh} />}
+        {tab === "questions" && <QuestionBank />}
         {tab === "assessments" && <AssessmentsTab assessments={assessments} onRefresh={refresh} />}
-        {tab === "professors"  && isMaster && <ProfessorManager />}
-        {tab === "settings"    && <SettingsTab assessments={assessments} onRefresh={refresh} onLogout={onLogout} />}
+        {tab === "professors" && isMaster && <ProfessorManager />}
+        {tab === "settings" && <SettingsTab assessments={assessments} onRefresh={refresh} onLogout={onLogout} />}
       </div>
     </div>
   )
