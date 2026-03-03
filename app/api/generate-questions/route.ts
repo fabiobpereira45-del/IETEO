@@ -1,6 +1,10 @@
 import { generateObject } from "ai"
-import { google } from "@ai-sdk/google"
+import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { z } from "zod"
+
+const google = createGoogleGenerativeAI({
+  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+})
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
