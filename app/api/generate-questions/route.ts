@@ -147,7 +147,7 @@ Retorne um JSON com exatamente ${safeCount} questões no array "questions".`
     }
 
     const { object: parsed } = await generateObject({
-      model: google("gemini-1.5-flash"),
+      model: google("gemini-1.5-pro-latest"),
       system: SYSTEM_PROMPT,
       prompt: userPrompt,
       schema: OutputSchema,
