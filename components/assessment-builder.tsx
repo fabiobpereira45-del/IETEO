@@ -1,7 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Check, ChevronLeft, ChevronRight, Shuffle, List } from "lucide-react"
+import {
+  Users, FileText, BookOpen, Settings, BarChart3, Download, LogOut,
+  Plus, Pencil, Trash2, Eye, EyeOff, Trophy, Clock, CheckCircle2,
+  ShieldCheck, Sparkles, AlertCircle, ChevronRight, ChevronLeft, Shuffle, Check, ListChecks, Search, HelpCircle, Variable,
+  ArrowUp, ArrowDown, RefreshCw, List
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -140,6 +145,36 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
       handleAutoSelect()
     }
     setStep((s) => s + 1)
+  }
+
+  function moveQuestion(index: number, direction: 'up' | 'down') {
+    const arr = [...selectedIds]
+    if (direction === 'up' && index > 0) {
+      const temp = arr[index - 1]
+      arr[index - 1] = arr[index]
+      arr[index] = temp
+      setSelectedIds(new Set(arr))
+    } else if (direction === 'down' && index < arr.length - 1) {
+      const temp = arr[index + 1]
+      arr[index + 1] = arr[index]
+      arr[index] = temp
+      setSelectedIds(new Set(arr))
+    }
+  }
+
+  function swapQuestionRandomly(idToReplace: string) {
+    const arr = [...selectedIds]
+    const unselected = availableQuestions.filter(q => !selectedIds.has(q.id))
+    if (unselected.length === 0) {
+      alert("Não há mais questões disponíveis no banco desta disciplina para realizar a troca.")
+      return
+    }
+    const replacement = unselected[Math.floor(Math.random() * unselected.length)]
+    const index = arr.indexOf(idToReplace)
+    if (index !== -1) {
+      arr[index] = replacement.id
+      setSelectedIds(new Set(arr))
+    }
   }
 
   function handleSave() {
@@ -475,7 +510,18 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
                     const previewQs = previewIds.map(id => availableQuestions.find(q => q.id === id)).filter(Boolean) as Question[]
 
                     return previewQs.map((q, idx) => (
-                      <div key={idx} className="flex flex-col gap-2">
+                      <div key={idx} className="flex flex-col gap-2 group relative">
+                        <div className="absolute -left-3 -top-2 md:-left-12 flex-col items-center gap-1 hidden group-hover:flex bg-white shadow-sm border rounded-md p-1 z-10">
+                          <button onClick={() => moveQuestion(idx, 'up')} disabled={idx === 0} className="p-1 hover:bg-muted rounded text-muted-foreground disabled:opacity-30" title="Mover para Cima">
+                            <ArrowUp className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => moveQuestion(idx, 'down')} disabled={idx === previewQs.length - 1} className="p-1 hover:bg-muted rounded text-muted-foreground disabled:opacity-30" title="Mover para Baixo">
+                            <ArrowDown className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => swapQuestionRandomly(q.id)} className="p-1 hover:bg-muted rounded text-blue-500" title="Trocar por outra questão aleatória">
+                            <RefreshCw className="w-4 h-4" />
+                          </button>
+                        </div>
                         <div className="flex gap-2">
                           <span className="font-bold">{idx + 1}.</span>
                           <span className="text-sm font-medium">{q.text}</span>
