@@ -275,9 +275,51 @@ export function deleteDiscipline(id: string): void {
 // ─── Questions ────────────────────────────────────────────────────────────────
 
 export function getQuestions(): Question[] {
-  const stored = read<Question[] | null>(KEYS.QUESTIONS, null)
-  if (stored !== null) return stored
+  let stored = read<Question[] | null>(KEYS.QUESTIONS, null)
   const defaults = defaultQuestions()
+  if (stored !== null) {
+    const storedIds = new Set(stored.map((q) => q.id))
+    const missingDefaults = defaults.filter((q) => !storedIds.has(q.id))
+    let needsSave = false
+
+    if (missingDefaults.length > 0) {
+      stored = [...stored, ...missingDefaults]
+      needsSave = true
+    }
+
+    // Migration: fix Livros Poéticos questions wrongly assigned to Cristologia and strip unwanted prefixes
+    stored = stored.map(q => {
+      let modified = false
+      let newDisciplineId = q.disciplineId
+      let newText = q.text
+
+      const isPoeticos = q.id.includes("livros - poeticos") || ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8"].includes(q.id)
+      if (isPoeticos && q.disciplineId !== "disc-17") {
+        newDisciplineId = "disc-17"
+        modified = true
+      }
+
+      // Remove prefixes
+      const prefixes = ["Múltipla Escolha: ", "MÃºltipla Escolha: ", "Alternativa INCORRETA: "]
+      for (const prefix of prefixes) {
+        if (newText.startsWith(prefix)) {
+          newText = newText.substring(prefix.length).trim()
+          modified = true
+        }
+      }
+
+      if (modified) {
+        needsSave = true
+        return { ...q, disciplineId: newDisciplineId, text: newText }
+      }
+      return q
+    })
+
+    if (needsSave) {
+      write(KEYS.QUESTIONS, stored)
+    }
+    return stored
+  }
   write(KEYS.QUESTIONS, defaults)
   return defaults
 }
@@ -430,11 +472,14 @@ function defaultDisciplines(): Discipline[] {
   ]
 }
 
+import seedLivrosPoeticos from "../public/seed_livros_poeticos.json"
+
 function defaultQuestions(): Question[] {
   return [
+    ...(seedLivrosPoeticos as Question[]),
     {
       id: "q1",
-      disciplineId: "disc-1",
+      disciplineId: "disc-17",
       type: "multiple-choice",
       text: "Qual livro do Antigo Testamento é considerado o mais longo poema hebraico de louvor?",
       choices: [
@@ -449,7 +494,7 @@ function defaultQuestions(): Question[] {
     },
     {
       id: "q2",
-      disciplineId: "disc-1",
+      disciplineId: "disc-17",
       type: "multiple-choice",
       text: "O livro de Jó pertence ao gênero literário conhecido como:",
       choices: [
@@ -464,7 +509,7 @@ function defaultQuestions(): Question[] {
     },
     {
       id: "q3",
-      disciplineId: "disc-1",
+      disciplineId: "disc-17",
       type: "true-false",
       text: "O paralelismo é uma das principais características da poesia hebraica, onde ideias são expressas em pares de versos que se completam ou se contrastam.",
       choices: [],
@@ -474,7 +519,7 @@ function defaultQuestions(): Question[] {
     },
     {
       id: "q4",
-      disciplineId: "disc-1",
+      disciplineId: "disc-17",
       type: "multiple-choice",
       text: "Qual é a principal mensagem teológica do livro de Eclesiastes?",
       choices: [
@@ -489,7 +534,7 @@ function defaultQuestions(): Question[] {
     },
     {
       id: "q5",
-      disciplineId: "disc-1",
+      disciplineId: "disc-17",
       type: "true-false",
       text: "O Cântico dos Cânticos é um livro que trata exclusivamente de amor romântico, sem nenhuma dimensão teológica ou alegórica.",
       choices: [],
@@ -499,7 +544,7 @@ function defaultQuestions(): Question[] {
     },
     {
       id: "q6",
-      disciplineId: "disc-1",
+      disciplineId: "disc-17",
       type: "multiple-choice",
       text: "Qual personagem bíblico é tradicionalmente associado à autoria do livro de Provérbios?",
       choices: [
@@ -514,7 +559,7 @@ function defaultQuestions(): Question[] {
     },
     {
       id: "q7",
-      disciplineId: "disc-1",
+      disciplineId: "disc-17",
       type: "true-false",
       text: "O Salmo 119 é o mais longo capítulo da Bíblia e está estruturado como um acróstico do alfabeto hebraico.",
       choices: [],
@@ -524,7 +569,7 @@ function defaultQuestions(): Question[] {
     },
     {
       id: "q8",
-      disciplineId: "disc-1",
+      disciplineId: "disc-17",
       type: "discursive",
       text: "Explique o conceito de 'temor do Senhor' nos livros de sabedoria e sua importância para a vida cristã.",
       choices: [],

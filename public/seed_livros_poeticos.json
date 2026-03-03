@@ -1,0 +1,1790 @@
+[
+  {
+    "id": "q - livros - poeticos - 0 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "De acordo com a etimologia do nome Jó, quais são os dois principais sentidos atribuídos ao termo derivado do hebraico 'iyvov'?",
+    "choices": [
+      {
+        "id": "c-0 -a",
+        "text": "\"Abençoado\" e \"Restaurado\"."
+      },
+      {
+        "id": "c - 0 -b",
+        "text": "\"Retorno\" (arrependimento) e \"Odiado\" (perseguido)."
+      },
+      {
+        "id": "c - 0 -c",
+        "text": "\"Justo\" e \"Provado\"."
+      },
+      {
+        "id": "c - 0 -d",
+        "text": "\"Guerreiro\" e \"Vitorioso\"."
+      }
+    ],
+    "correctAnswer": "c - 0 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.632Z"
+  },
+  {
+    "id": "q - livros - poeticos - 1 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Qual hipótese de autoria é tradicionalmente atribuída pela tradição judaica, sugerindo que o autor conheceu a história durante seu tempo em Midiã?",
+    "choices": [
+      {
+        "id": "c-1 -a",
+        "text": "Eliú."
+      },
+      {
+        "id": "c - 1 -b",
+        "text": "Salomão."
+      },
+      {
+        "id": "c - 1 -c",
+        "text": "Moisés."
+      },
+      {
+        "id": "c - 1 -d",
+        "text": "O próprio Jó."
+      }
+    ],
+    "correctAnswer": "c - 1 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 2 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "A estrutura literária do livro de Jó é composta por uma \"moldura\" e um \"núcleo\". Como esses elementos são divididos?",
+    "choices": [
+      {
+        "id": "c-2 -a",
+        "text": "Moldura em poesia e núcleo em prosa."
+      },
+      {
+        "id": "c - 2 -b",
+        "text": "Moldura em prosa (Prólogo/Epílogo) e núcleo em poesia (Diálogos)."
+      },
+      {
+        "id": "c - 2 -c",
+        "text": "Todo o livro é escrito em prosa histórica."
+      },
+      {
+        "id": "c - 2 -d",
+        "text": "O livro não possui divisões literárias claras."
+      }
+    ],
+    "correctAnswer": "c - 2 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 3 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Em qual seção do livro de Jó ocorre a manifestação divina através do redemoinho?",
+    "choices": [
+      {
+        "id": "c-3 -a",
+        "text": "Capítulos 1-2 (Provação)."
+      },
+      {
+        "id": "c - 3 -b",
+        "text": "Capítulos 3-27 (Diálogos)."
+      },
+      {
+        "id": "c - 3 -c",
+        "text": "Capítulos 38-41 (Resposta de Deus)."
+      },
+      {
+        "id": "c - 3 -d",
+        "text": "Capítulo 42 (Restauração)."
+      }
+    ],
+    "correctAnswer": "c - 3 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 4 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Sobre o contexto histórico e a composição de Jó, assinale a opção INCORRETA:",
+    "choices": [
+      {
+        "id": "c-4 -a",
+        "text": "Jó é situado no período patriarcal, evidenciado por sua longevidade e riqueza medida em gados."
+      },
+      {
+        "id": "c - 4 -b",
+        "text": "O livro apresenta um estilo de vida nômade, sem a estrutura do sacerdócio levítico."
+      },
+      {
+        "id": "c - 4 -c",
+        "text": "A obra utiliza recursos poéticos como antíteses e paralelismos complexos."
+      },
+      {
+        "id": "c - 4 -d",
+        "text": "O livro foi escrito obrigatoriamente durante o exílio babilônico para explicar o sofrimento do povo."
+      }
+    ],
+    "correctAnswer": "c - 4 -d",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 5 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Os termos hebraicos Tam e Yashar descrevem o caráter de Jó. O que eles significam, respectivamente?",
+    "choices": [
+      {
+        "id": "c-5 -a",
+        "text": "Próspero e Rico."
+      },
+      {
+        "id": "c - 5 -b",
+        "text": "Íntegro (sem dolo) e Reto (sem sinuosidades)."
+      },
+      {
+        "id": "c - 5 -c",
+        "text": "Sábio e Conhecido."
+      },
+      {
+        "id": "c - 5 -d",
+        "text": "Paciente e Resiliente."
+      }
+    ],
+    "correctAnswer": "c - 5 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 6 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Quais grupos foram responsáveis pelos ataques coordenados que dizimaram os bens e servos de Jó?",
+    "choices": [
+      {
+        "id": "c-6 -a",
+        "text": "Egípcios e Filisteus."
+      },
+      {
+        "id": "c - 6 -b",
+        "text": "Assírios e Babilônios."
+      },
+      {
+        "id": "c - 6 -c",
+        "text": "Sabeus e Caldeus."
+      },
+      {
+        "id": "c - 6 -d",
+        "text": "Midianitas e Amonitas."
+      }
+    ],
+    "correctAnswer": "c - 6 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 7 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Qual foi a atitude imediata de Jó após receber a notícia da morte de seus dez filhos?",
+    "choices": [
+      {
+        "id": "c-7 -a",
+        "text": "Ele amaldiçoou o dia de seu nascimento."
+      },
+      {
+        "id": "c - 7 -b",
+        "text": "Ele buscou vingança contra os sabeus."
+      },
+      {
+        "id": "c - 7 -c",
+        "text": "Ele prostrou-se em terra e adorou, reconhecendo a soberania de Deus."
+      },
+      {
+        "id": "c - 7 -d",
+        "text": "Ele questionou imediatamente a justiça divina com seus amigos."
+      }
+    ],
+    "correctAnswer": "c - 7 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 8 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Jó ensina que a verdadeira devoção transcende circunstâncias favoráveis. Qual frase resume sua teologia da soberania em meio à dor física?",
+    "choices": [
+      {
+        "id": "c-8 -a",
+        "text": "\"Pele por pele, e tudo quanto o homem tem dará pela sua vida.\""
+      },
+      {
+        "id": "c - 8 -b",
+        "text": "\"Receberemos o bem de Deus, e não receberíamos o mal?\""
+      },
+      {
+        "id": "c - 8 -c",
+        "text": "\"Onde estava Deus quando eu nasci?\""
+      },
+      {
+        "id": "c - 8 -d",
+        "text": "\"Minha justiça é maior que a de Deus.\""
+      }
+    ],
+    "correctAnswer": "c - 8 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 9 ",
+    "disciplineId": "disc-17",
+    "type": "true-false",
+    "text": "Diante da aflição física e do isolamento, Jó cedeu à sugestão de sua esposa e pecou com seus lábios contra Deus.",
+    "choices": [],
+    "correctAnswer": "false",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 10 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Qual é a chamada \"sétima calamidade\" enfrentada por Jó, segundo o material?",
+    "choices": [
+      {
+        "id": "c-10 -a",
+        "text": "A perda da saúde física."
+      },
+      {
+        "id": "c - 10 -b",
+        "text": "O julgamento teológico de seus amigos."
+      },
+      {
+        "id": "c - 10 -c",
+        "text": "O abandono de sua esposa."
+      },
+      {
+        "id": "c - 10 -d",
+        "text": "A destruição de sua casa pelo vento."
+      }
+    ],
+    "correctAnswer": "c - 10 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 11 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Qual era o argumento central de Elifaz em seus discursos?",
+    "choices": [
+      {
+        "id": "c-11 -a",
+        "text": "A Teologia da Graça Incondicional."
+      },
+      {
+        "id": "c - 11 -b",
+        "text": "A Teologia da Retribuição (sofrimento como resultado direto de pecados)."
+      },
+      {
+        "id": "c - 11 -c",
+        "text": "O Deísmo (Deus não se importa com os homens)."
+      },
+      {
+        "id": "c - 11 -d",
+        "text": "A Teologia da Restauração Imediata."
+      }
+    ],
+    "correctAnswer": "c - 11 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 12 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Qual foi a astuta acusação de Satanás contra Jó no conselho celestial?",
+    "choices": [
+      {
+        "id": "c-12 -a",
+        "text": "Que Jó era um pecador oculto."
+      },
+      {
+        "id": "c - 12 -b",
+        "text": "Que Jó odiava seus amigos."
+      },
+      {
+        "id": "c - 12 -c",
+        "text": "Que sua integridade era uma transação comercial baseada em favores divinos."
+      },
+      {
+        "id": "c - 12 -d",
+        "text": "Que Jó não cuidava dos órfãos e viúvas."
+      }
+    ],
+    "correctAnswer": "c - 12 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 13 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Como o material descreve a visão de Zofar sobre a relação entre Deus e o homem?",
+    "choices": [
+      {
+        "id": "c-13 -a",
+        "text": "M"
+      },
+      {
+        "id": "c - 13 -b",
+        "text": "M"
+      },
+      {
+        "id": "c - 13 -c",
+        "text": "M"
+      },
+      {
+        "id": "c - 13 -d",
+        "text": "últipla Escolha: Como o material descreve a visão de Zofar sobre a relação entre Deus e o homem?"
+      }
+    ],
+    "correctAnswer": "c - 13 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 14 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Sobre as acusações dos amigos de Jó, assinale a opção INCORRETA:",
+    "choices": [
+      {
+        "id": "c-14 -a",
+        "text": "Elifaz acusou Jó de cometer grandes maldades contra viúvas e órfãos sem base factual."
+      },
+      {
+        "id": "c - 14 -b",
+        "text": "Os amigos tentaram enquadrar a justiça de Deus em um sistema humano de mérito."
+      },
+      {
+        "id": "c - 14 -c",
+        "text": "Seus discursos eram repletos de empatia e consolo espiritual."
+      },
+      {
+        "id": "c - 14 -d",
+        "text": "As acusações assemelhavam-se, em natureza, às calúnias de Satanás."
+      }
+    ],
+    "correctAnswer": "c - 14 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 15 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Jó desafia a visão simplista de seus amigos. O que ele clama em Jó 6:2-3 ao sentir que sua dor foi ignorada?",
+    "choices": [
+      {
+        "id": "c-15 -a",
+        "text": "Por perdão por pecados ocultos."
+      },
+      {
+        "id": "c - 15 -b",
+        "text": "Por uma avaliação honesta de sua mágoa em uma balança."
+      },
+      {
+        "id": "c - 15 -c",
+        "text": "Pela morte imediata."
+      },
+      {
+        "id": "c - 15 -d",
+        "text": "Pela destruição de seus acusadores."
+      }
+    ],
+    "correctAnswer": "c - 15 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 16 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "No processo de seu sofrimento, Jó utiliza uma metáfora de mineração para descrever o resultado de sua provação. Qual é ela?",
+    "choices": [
+      {
+        "id": "c-16 -a",
+        "text": "\"Sairei como o ferro forjado.\""
+      },
+      {
+        "id": "c - 16 -b",
+        "text": "\"Sairei como a prata refinada.\""
+      },
+      {
+        "id": "c - 16 -c",
+        "text": "\"Provando-me ele, sairei como o ouro.\""
+      },
+      {
+        "id": "c - 16 -d",
+        "text": "\"Sairei como o diamante bruto.\""
+      }
+    ],
+    "correctAnswer": "c - 16 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 17 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Jó reconhece a limitação humana diante da majestade de Deus. Como ele descreve todo o conhecimento humano em relação ao poder divino?",
+    "choices": [
+      {
+        "id": "c-17 -a",
+        "text": "Como a sabedoria dos séculos."
+      },
+      {
+        "id": "c - 17 -b",
+        "text": "Como apenas a \"orla dos Seus caminhos\"."
+      },
+      {
+        "id": "c - 17 -c",
+        "text": "Como um livro aberto diante do Criador."
+      },
+      {
+        "id": "c - 17 -d",
+        "text": "Como uma luz que brilha nas trevas."
+      }
+    ],
+    "correctAnswer": "c - 17 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 18 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Segundo Jó 28:28, onde se encontra a verdadeira sabedoria e inteligência?",
+    "choices": [
+      {
+        "id": "c-18 -a",
+        "text": "M"
+      },
+      {
+        "id": "c - 18 -b",
+        "text": "M"
+      },
+      {
+        "id": "c - 18 -c",
+        "text": "M"
+      },
+      {
+        "id": "c - 18 -d",
+        "text": "últipla Escolha: Segundo Jó 28:28, onde se encontra a verdadeira sabedoria e inteligência?"
+      }
+    ],
+    "correctAnswer": "c - 18 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 19 ",
+    "disciplineId": "disc-17",
+    "type": "true-false",
+    "text": "Em sua defesa final (capítulos 29-31), Jó admite ter cometido pecados como opressão aos pobres e idolatria, justificando assim seu sofrimento.",
+    "choices": [],
+    "correctAnswer": "false",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 20 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Qual é o significado do nome de Eliú e qual sua principal contribuição teológica?",
+    "choices": [
+      {
+        "id": "c-20 -a",
+        "text": "\"Meu Deus é forte\"; defende a retribuição imediata."
+      },
+      {
+        "id": "c - 20 -b",
+        "text": "\"Ele é nosso Deus\"; defende o sofrimento como ferramenta pedagógica."
+      },
+      {
+        "id": "c - 20 -c",
+        "text": "\"Amigo de Deus\"; foca na restauração material."
+      },
+      {
+        "id": "c - 20 -d",
+        "text": "\"Filho de Barachel\"; foca na tradição dos anciãos."
+      }
+    ],
+    "correctAnswer": "c - 20 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 21 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Quando Deus finalmente responde a Jó, Ele o faz através de:",
+    "choices": [
+      {
+        "id": "c-21 -a",
+        "text": "Uma lista de pecados que Jó deveria confessar."
+      },
+      {
+        "id": "c - 21 -b",
+        "text": "Uma explicação lógica detalhada sobre o motivo de sua perda."
+      },
+      {
+        "id": "c - 21 -c",
+        "text": "Uma série de perguntas retóricas que revelam Sua majestade e a limitação humana."
+      },
+      {
+        "id": "c - 21 -d",
+        "text": "Um silêncio prolongado que confirma a inocência de Jó."
+      }
+    ],
+    "correctAnswer": "c - 21 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 22 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Qual foi a mudança radical na visão de Jó sobre Deus após a Teofania?",
+    "choices": [
+      {
+        "id": "c-22 -a",
+        "text": "M"
+      },
+      {
+        "id": "c - 22 -b",
+        "text": "M"
+      },
+      {
+        "id": "c - 22 -c",
+        "text": "M"
+      },
+      {
+        "id": "c - 22 -d",
+        "text": "últipla Escolha: Qual foi a mudança radical na visão de Jó sobre Deus após a Teofania?"
+      }
+    ],
+    "correctAnswer": "c - 22 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 23 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "O que Jó reconhece sobre os planos de Deus no capítulo 42:2?",
+    "choices": [
+      {
+        "id": "c-23 -a",
+        "text": "M"
+      },
+      {
+        "id": "c - 23 -b",
+        "text": "M"
+      },
+      {
+        "id": "c - 23 -c",
+        "text": "M"
+      },
+      {
+        "id": "c - 23 -d",
+        "text": "últipla Escolha: O que Jó reconhece sobre os planos de Deus no capítulo 42:2?"
+      }
+    ],
+    "correctAnswer": "c - 23 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 24 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Sobre a restauração final de Jó, assinale a opção INCORRETA:",
+    "choices": [
+      {
+        "id": "c-24 -a",
+        "text": "A"
+      },
+      {
+        "id": "c - 24 -b",
+        "text": "A"
+      },
+      {
+        "id": "c - 24 -c",
+        "text": "A"
+      },
+      {
+        "id": "c - 24 -d",
+        "text": "lternativa INCORRETA: Sobre a restauração final de Jó, assinale a opção INCORRETA:"
+      }
+    ],
+    "correctAnswer": "c - 24 -d",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 25 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "O Livro de Salmos ocupa a primeira posição em qual divisão da Bíblia Hebraica?",
+    "choices": [
+      {
+        "id": "c-25 -a",
+        "text": "Torá (Lei)."
+      },
+      {
+        "id": "c - 25 -b",
+        "text": "Nevi'im (Profetas)."
+      },
+      {
+        "id": "c - 25 -c",
+        "text": "Ketuvim (Escritos)."
+      },
+      {
+        "id": "c - 25 -d",
+        "text": "Pentateuco."
+      }
+    ],
+    "correctAnswer": "c - 25 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 26 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Qual é o significado do termo hebraico Tehillim?",
+    "choices": [
+      {
+        "id": "c-26 -a",
+        "text": "Cânticos de Lamento."
+      },
+      {
+        "id": "c - 26 -b",
+        "text": "Louvores ou Cântico de Louvores."
+      },
+      {
+        "id": "c - 26 -c",
+        "text": "Poemas Históricos."
+      },
+      {
+        "id": "c - 26 -d",
+        "text": "Instruções de Sabedoria."
+      }
+    ],
+    "correctAnswer": "c - 26 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 27 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "O Saltério é organizado em cinco livros menores. Essa estrutura é frequentemente comparada a qual outra seção da Bíblia?",
+    "choices": [
+      {
+        "id": "c-27 -a",
+        "text": "Aos quatro Evangelhos."
+      },
+      {
+        "id": "c - 27 -b",
+        "text": "Ao Pentateuco (Torá)."
+      },
+      {
+        "id": "c - 27 -c",
+        "text": "Aos Profetas Menores."
+      },
+      {
+        "id": "c - 27 -d",
+        "text": "Às Epístolas Paulinas."
+      }
+    ],
+    "correctAnswer": "c - 27 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 28 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Como são chamadas as expressões de adoração profunda que marcam o encerramento de cada um dos cinco livros de Salmos?",
+    "choices": [
+      {
+        "id": "c-28 -a",
+        "text": "Antífonas."
+      },
+      {
+        "id": "c - 28 -b",
+        "text": "Salmos de Ascensão."
+      },
+      {
+        "id": "c - 28 -c",
+        "text": "Doxologias."
+      },
+      {
+        "id": "c - 28 -d",
+        "text": "Mictão."
+      }
+    ],
+    "correctAnswer": "c - 28 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 29 ",
+    "disciplineId": "disc-17",
+    "type": "true-false",
+    "text": "Embora Davi seja a figura central com 73 salmos atribuídos a ele, o Livro de Salmos contém vozes de outros autores como Asafe, os Filhos de Coré, Salomão e até autores anônimos.",
+    "choices": [],
+    "correctAnswer": "true",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 30 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Qual é o mecanismo central da poesia hebraica, identificado por Robert Lowth?",
+    "choices": [
+      {
+        "id": "c-30 -a",
+        "text": "Rima sonora no final dos versos."
+      },
+      {
+        "id": "c - 30 -b",
+        "text": "Métrica rigorosa baseada em sílabas tônicas."
+      },
+      {
+        "id": "c - 30 -c",
+        "text": "Paralelismo (rima de pensamento/ideias)."
+      },
+      {
+        "id": "c - 30 -d",
+        "text": "Uso obrigatório de acrósticos alfabéticos."
+      }
+    ],
+    "correctAnswer": "c - 30 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 31 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "O termo técnico Selá, que ocorre 71 vezes no Saltério, indica:",
+    "choices": [
+      {
+        "id": "c-31 -a",
+        "text": "O fim de um salmo."
+      },
+      {
+        "id": "c - 31 -b",
+        "text": "Um interlúdio musical ou pausa para meditação."
+      },
+      {
+        "id": "c - 31 -c",
+        "text": "O nome do instrumento utilizado."
+      },
+      {
+        "id": "c - 31 -d",
+        "text": "Que o salmo deve ser cantado em voz alta."
+      }
+    ],
+    "correctAnswer": "c - 31 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 32 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Como é classificado o salmo focado na instrução espiritual e na transmissão de sabedoria?",
+    "choices": [
+      {
+        "id": "c-32 -a",
+        "text": "Mictão."
+      },
+      {
+        "id": "c - 32 -b",
+        "text": "Sigaiom."
+      },
+      {
+        "id": "c - 32 -c",
+        "text": "Masquil."
+      },
+      {
+        "id": "c - 32 -d",
+        "text": "Tefilah."
+      }
+    ],
+    "correctAnswer": "c - 32 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 33 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "O termo litúrgico Neginote refere-se ao acompanhamento por qual tipo de instrumento?",
+    "choices": [
+      {
+        "id": "c-33 -a",
+        "text": "Instrumentos de sopro (flautas)."
+      },
+      {
+        "id": "c - 33 -b",
+        "text": "Instrumentos de percussão (tambores)."
+      },
+      {
+        "id": "c - 33 -c",
+        "text": "Instrumentos de corda (harpas e liras)."
+      },
+      {
+        "id": "c - 33 -d",
+        "text": "Apenas vozes masculinas."
+      }
+    ],
+    "correctAnswer": "c - 33 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 34 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Sobre os tipos de paralelismo na poesia dos Salmos, assinale a opção INCORRETA:",
+    "choices": [
+      {
+        "id": "c-34 -a",
+        "text": "Sinonímico: A segunda linha reafirma o pensamento da primeira com termos diferentes."
+      },
+      {
+        "id": "c - 34 -b",
+        "text": "Antitético: Apresenta uma oposição direta para destacar uma verdade pelo contraste."
+      },
+      {
+        "id": "c - 34 -c",
+        "text": "Sintético: A segunda linha apenas repete as mesmas palavras da primeira sem adicionar informações."
+      },
+      {
+        "id": "c - 34 -d",
+        "text": "Climático: Eleva o pensamento até um ponto culminante de exaltação."
+      }
+    ],
+    "correctAnswer": "c - 34 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 35 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Qual termo hebraico refere-se especificamente à \"habilidade prática em diversas áreas\"?",
+    "choices": [
+      {
+        "id": "c-35 -a",
+        "text": "Binah"
+      },
+      {
+        "id": "c - 35 -b",
+        "text": "Da’at"
+      },
+      {
+        "id": "c - 35 -c",
+        "text": "Hokma"
+      },
+      {
+        "id": "c - 35 -d",
+        "text": "Sekel"
+      }
+    ],
+    "correctAnswer": "c - 35 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 36 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Segundo o documento, qual é o \"ponto de partida\" para a verdadeira sabedoria bíblica?",
+    "choices": [
+      {
+        "id": "c-36 -a",
+        "text": "O estudo das tradições do Egito e Babilônia"
+      },
+      {
+        "id": "c - 36 -b",
+        "text": "O Temor do Senhor (reverência e submissão)"
+      },
+      {
+        "id": "c - 36 -c",
+        "text": "A acumulação de riquezas como a de Salomão"
+      },
+      {
+        "id": "c - 36 -d",
+        "text": "A intuição moral e prudência"
+      }
+    ],
+    "correctAnswer": "c - 36 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 37 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Como é definida a sabedoria \"Contemplativa\"?",
+    "choices": [
+      {
+        "id": "c-37 -a",
+        "text": "Regras práticas para a felicidade diária"
+      },
+      {
+        "id": "c - 37 -b",
+        "text": "Reflexões sobre o sofrimento e o sentido da vida"
+      },
+      {
+        "id": "c - 37 -c",
+        "text": "Habilidade técnica para construção de templos"
+      },
+      {
+        "id": "c - 37 -d",
+        "text": "Conhecimento teórico sem aplicação prática"
+      }
+    ],
+    "correctAnswer": "c - 37 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.633Z"
+  },
+  {
+    "id": "q - livros - poeticos - 38 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Sobre a história da sabedoria em Israel, assinale a opção falsa:",
+    "choices": [
+      {
+        "id": "c-38 -a",
+        "text": "Evoluiu dos conselhos tribais para uma classe de sábios na corte real"
+      },
+      {
+        "id": "c - 38 -b",
+        "text": "É um fio condutor na Lei, nos Profetas e na esperança futura"
+      },
+      {
+        "id": "c - 38 -c",
+        "text": "A Queda foi a tentativa de obter entendimento dependente de Deus"
+      },
+      {
+        "id": "c - 38 -d",
+        "text": "José é citado como exemplo de sabedoria prática em crises"
+      }
+    ],
+    "correctAnswer": "c - 38 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 39 ",
+    "disciplineId": "disc-17",
+    "type": "true-false",
+    "text": "A sabedoria de Salomão era reconhecida como superior à de todos os homens do Oriente e de seus vizinhos.",
+    "choices": [],
+    "correctAnswer": "true",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 40 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Qual a missão principal do Livro de Provérbios segundo o PDF?",
+    "choices": [
+      {
+        "id": "c-40 -a",
+        "text": "Ensinar apenas técnicas de oratória"
+      },
+      {
+        "id": "c - 40 -b",
+        "text": "Anunciar o significado de estar à plena disposição de Deus"
+      },
+      {
+        "id": "c - 40 -c",
+        "text": "Catalogar leis civis exclusivas para o povo de Israel"
+      },
+      {
+        "id": "c - 40 -d",
+        "text": "Debater filosofias gregas sobre a virtude"
+      }
+    ],
+    "correctAnswer": "c - 40 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 41 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Além de Salomão, quem são citados como outros autores ou colaboradores de Provérbios?",
+    "choices": [
+      {
+        "id": "c-41 -a",
+        "text": "Davi e Moisés"
+      },
+      {
+        "id": "c - 41 -b",
+        "text": "Agur, Lemuel e os \"sábios\""
+      },
+      {
+        "id": "c - 41 -c",
+        "text": "Apenas os escribas de Ezequias"
+      },
+      {
+        "id": "c - 41 -d",
+        "text": "Profetas do exílio babilônico"
+      }
+    ],
+    "correctAnswer": "c - 41 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 42 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Na organização do livro, o que compreende os capítulos 1:1 a 9:18?",
+    "choices": [
+      {
+        "id": "c-42 -a",
+        "text": "Palavras de Agur"
+      },
+      {
+        "id": "c - 42 -b",
+        "text": "Coletânea de Ezequias"
+      },
+      {
+        "id": "c - 42 -c",
+        "text": "Título, Prólogo e Epílogo"
+      },
+      {
+        "id": "c - 42 -d",
+        "text": "Somente os provérbios de Lemuel"
+      }
+    ],
+    "correctAnswer": "c - 42 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 43 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Sobre a estrutura do livro, é incorreto afirmar:",
+    "choices": [
+      {
+        "id": "c-43 -a",
+        "text": "Contém palavras dos sábios (22:17-24:22)"
+      },
+      {
+        "id": "c - 43 -b",
+        "text": "Inclui uma coletânea organizada pelos homens de Ezequias"
+      },
+      {
+        "id": "c - 43 -c",
+        "text": "É um manual prático que aborda temas como língua, dinheiro e família"
+      },
+      {
+        "id": "c - 43 -d",
+        "text": "Foi escrito integralmente por Salomão sem ajuda de editores posteriores"
+      }
+    ],
+    "correctAnswer": "c - 43 -d",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 44 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Quem é o público-alvo principal mencionado para o livro?",
+    "choices": [
+      {
+        "id": "c-44 -a",
+        "text": "Apenas os idosos e governantes"
+      },
+      {
+        "id": "c - 44 -b",
+        "text": "Somente os pecadores que buscam arrependimento"
+      },
+      {
+        "id": "c - 44 -c",
+        "text": "Jovens e sábios que buscam crescer no conhecimento"
+      },
+      {
+        "id": "c - 44 -d",
+        "text": "Estrangeiros que não conhecem a lei mosaica"
+      }
+    ],
+    "correctAnswer": "c - 44 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 45 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "O termo \"YHWH\" (Senhor) é citado em quantos versículos no livro de Provérbios?",
+    "choices": [
+      {
+        "id": "c-45 -a",
+        "text": "50 versículos"
+      },
+      {
+        "id": "c - 45 -b",
+        "text": "94 versículos"
+      },
+      {
+        "id": "c - 45 -c",
+        "text": "120 versículos"
+      },
+      {
+        "id": "c - 45 -d",
+        "text": "35 versículos"
+      }
+    ],
+    "correctAnswer": "c - 45 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 46 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Qual conceito define Deus como \"pessoal e próximo de Sua criação\"?",
+    "choices": [
+      {
+        "id": "c-46 -a",
+        "text": "Transcendência"
+      },
+      {
+        "id": "c - 46 -b",
+        "text": "Onipotência"
+      },
+      {
+        "id": "c - 46 -c",
+        "text": "Imanência"
+      },
+      {
+        "id": "c - 46 -d",
+        "text": "Teontologia"
+      }
+    ],
+    "correctAnswer": "c - 46 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 47 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Na antropologia de Provérbios, qual termo representa o \"coração como centro de controle\"?",
+    "choices": [
+      {
+        "id": "c-47 -a",
+        "text": "Nephesh"
+      },
+      {
+        "id": "c - 47 -b",
+        "text": "Ruah"
+      },
+      {
+        "id": "c - 47 -c",
+        "text": "Lev"
+      },
+      {
+        "id": "c - 47 -d",
+        "text": "Adam"
+      }
+    ],
+    "correctAnswer": "c - 47 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 48 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "A \"unidade psicossomática\" do homem em Provérbios é composta por:",
+    "choices": [
+      {
+        "id": "c-48 -a",
+        "text": "Corpo e mente apenas"
+      },
+      {
+        "id": "c - 48 -b",
+        "text": "Nephesh, Lev e Ruah"
+      },
+      {
+        "id": "c - 48 -c",
+        "text": "Razão e emoção puras"
+      },
+      {
+        "id": "c - 48 -d",
+        "text": "Intelecto e força física"
+      }
+    ],
+    "correctAnswer": "c - 48 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 49 ",
+    "disciplineId": "disc-17",
+    "type": "true-false",
+    "text": "O termo \"Elohim\" em Provérbios é usado prioritariamente para representar o poder e a transcendência divina.",
+    "choices": [],
+    "correctAnswer": "true",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 50 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Como o livro descreve a insensatez do tipo \"simples\"?",
+    "choices": [
+      {
+        "id": "c-50 -a",
+        "text": "Como uma maldade premeditada"
+      },
+      {
+        "id": "c - 50 -b",
+        "text": "Como ingenuidade e falta de filtro para o que se ouve"
+      },
+      {
+        "id": "c - 50 -c",
+        "text": "Como uma sabedoria oculta"
+      },
+      {
+        "id": "c - 50 -d",
+        "text": "Como uma condição intelectual incurável"
+      }
+    ],
+    "correctAnswer": "c - 50 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 51 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Qual animal é usado como exemplo para envergonhar a negligência humana e ensinar diligência?",
+    "choices": [
+      {
+        "id": "c-51 -a",
+        "text": "O leão"
+      },
+      {
+        "id": "c - 51 -b",
+        "text": "A formiga"
+      },
+      {
+        "id": "c - 51 -c",
+        "text": "A águia"
+      },
+      {
+        "id": "c - 51 -d",
+        "text": "A ovelha"
+      }
+    ],
+    "correctAnswer": "c - 51 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 52 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Sobre o casamento e família em Provérbios, assinale a errada:",
+    "choices": [
+      {
+        "id": "c-52 -a",
+        "text": "Recomenda a união monogâmica e fidelidade exclusiva"
+      },
+      {
+        "id": "c - 52 -b",
+        "text": "A educação dos filhos exige unidade de discurso dos pais"
+      },
+      {
+        "id": "c - 52 -c",
+        "text": "A disciplina deve ser aplicada apenas com rigor físico, sem afeto"
+      },
+      {
+        "id": "c - 52 -d",
+        "text": "A mulher sábia é descrita como pilar de estabilidade para o lar"
+      }
+    ],
+    "correctAnswer": "c - 52 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 53 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "O que caracteriza a insensatez do tipo \"Kesil\"?",
+    "choices": [
+      {
+        "id": "c-53 -a",
+        "text": "Simplicidade infantil"
+      },
+      {
+        "id": "c - 53 -b",
+        "text": "Obstinação e crença de que sua visão é absoluta"
+      },
+      {
+        "id": "c - 53 -c",
+        "text": "Desejo sincero de aprender"
+      },
+      {
+        "id": "c - 53 -d",
+        "text": "Timidez social excessiva"
+      }
+    ],
+    "correctAnswer": "c - 53 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 54 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Qual é o objetivo central do amadurecimento do crente segundo este PDF?",
+    "choices": [
+      {
+        "id": "c-54 -a",
+        "text": "Apenas o crescimento financeiro"
+      },
+      {
+        "id": "c - 54 -b",
+        "text": "O desenvolvimento relacional, ético e espiritual"
+      },
+      {
+        "id": "c - 54 -c",
+        "text": "A conquista de cargos políticos"
+      },
+      {
+        "id": "c - 54 -d",
+        "text": "O isolamento do mundo secular"
+      }
+    ],
+    "correctAnswer": "c - 54 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 55 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "O que significa o termo hebraico \"Qoheleth\"?",
+    "choices": [
+      {
+        "id": "c-55 -a",
+        "text": "Rei de Israel"
+      },
+      {
+        "id": "c - 55 -b",
+        "text": "Aquele que convoca uma congregação ou Pregador"
+      },
+      {
+        "id": "c - 55 -c",
+        "text": "O buscador de tesouros"
+      },
+      {
+        "id": "c - 55 -d",
+        "text": "O profeta do deserto"
+      }
+    ],
+    "correctAnswer": "c - 55 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 56 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Quantas vezes a expressão \"debaixo do sol\" aparece no livro?",
+    "choices": [
+      {
+        "id": "c-56 -a",
+        "text": "12 vezes"
+      },
+      {
+        "id": "c - 56 -b",
+        "text": "29 vezes"
+      },
+      {
+        "id": "c - 56 -c",
+        "text": "35 vezes"
+      },
+      {
+        "id": "c - 56 -d",
+        "text": "7 vezes"
+      }
+    ],
+    "correctAnswer": "c - 56 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 57 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Qual o significado da palavra \"Hebel\" (vaidade) no contexto de Eclesiastes?",
+    "choices": [
+      {
+        "id": "c-57 -a",
+        "text": "Orgulho e arrogância humana"
+      },
+      {
+        "id": "c - 57 -b",
+        "text": "Sopro, vapor ou algo passageiro e frágil"
+      },
+      {
+        "id": "c - 57 -c",
+        "text": "Pecado imperdoável"
+      },
+      {
+        "id": "c - 57 -d",
+        "text": "Mentira e falsidade"
+      }
+    ],
+    "correctAnswer": "c - 57 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 58 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Segundo o PDF, qual a conclusão de Eclesiastes 2:24 sobre o trabalho e o prazer?",
+    "choices": [
+      {
+        "id": "c-58 -a",
+        "text": "São distrações inúteis"
+      },
+      {
+        "id": "c - 58 -b",
+        "text": "São fardos impostos pelo pecado"
+      },
+      {
+        "id": "c - 58 -c",
+        "text": "São dons de Deus para serem desfrutados com gratidão"
+      },
+      {
+        "id": "c - 58 -d",
+        "text": "Devem ser evitados em busca da espiritualidade"
+      }
+    ],
+    "correctAnswer": "c - 58 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 59 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Sobre a autoria de Eclesiastes, o texto afirma que:",
+    "choices": [
+      {
+        "id": "c-59 -a",
+        "text": "A tradição identifica o Rei Salomão em sua maturidade"
+      },
+      {
+        "id": "c - 59 -b",
+        "text": "O autor se apresenta como \"filho de Davi, rei em Jerusalém\""
+      },
+      {
+        "id": "c - 59 -c",
+        "text": "A evidência interna de grande riqueza e obras coincide com Salomão"
+      },
+      {
+        "id": "c - 59 -d",
+        "text": "O livro foi escrito por um autor desconhecido que nunca viveu em Jerusalém"
+      }
+    ],
+    "correctAnswer": "c - 59 -d",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 60 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Como o Pregador descreve o ciclo da natureza para enfatizar a transitoriedade?",
+    "choices": [
+      {
+        "id": "c-60 -a",
+        "text": "Como algo que evolui constantemente"
+      },
+      {
+        "id": "c - 60 -b",
+        "text": "Através do sol, vento e rios que giram continuamente sem novidade"
+      },
+      {
+        "id": "c - 60 -c",
+        "text": "Como um caos sem ordem divina"
+      },
+      {
+        "id": "c - 60 -d",
+        "text": "Como uma prova da evolução das espécies"
+      }
+    ],
+    "correctAnswer": "c - 60 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 61 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Qual a advertência dada ao jovem em Eclesiastes 11:9?",
+    "choices": [
+      {
+        "id": "c-61 -a",
+        "text": "Que ele deve evitar qualquer tipo de alegria"
+      },
+      {
+        "id": "c - 61 -b",
+        "text": "Que Deus trará a juízo todas as suas ações"
+      },
+      {
+        "id": "c - 61 -c",
+        "text": "Que a juventude nunca termina"
+      },
+      {
+        "id": "c - 61 -d",
+        "text": "Que ele não precisa prestar contas de nada"
+      }
+    ],
+    "correctAnswer": "c - 61 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 62 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Na metáfora da velhice (Ecl 12), o que representam as \"janelas\" que se escurecem?",
+    "choices": [
+      {
+        "id": "c-62 -a",
+        "text": "As portas da casa"
+      },
+      {
+        "id": "c - 62 -b",
+        "text": "Os olhos que perdem a visão"
+      },
+      {
+        "id": "c - 62 -c",
+        "text": "A falta de luz nas cidades"
+      },
+      {
+        "id": "c - 62 -d",
+        "text": "O esquecimento mental"
+      }
+    ],
+    "correctAnswer": "c - 62 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 63 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "O que o termo \"cordão de prata\" e \"copo de ouro\" simbolizam em Ecl 12:6?",
+    "choices": [
+      {
+        "id": "c-63 -a",
+        "text": "A riqueza acumulada pelo homem"
+      },
+      {
+        "id": "c - 63 -b",
+        "text": "O valor da vida e a fragilidade de sua sustentação"
+      },
+      {
+        "id": "c - 63 -c",
+        "text": "Presentes dados a reis"
+      },
+      {
+        "id": "c - 63 -d",
+        "text": "Instrumentos de culto no templo"
+      }
+    ],
+    "correctAnswer": "c - 63 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 64 ",
+    "disciplineId": "disc-17",
+    "type": "true-false",
+    "text": "De acordo com o PDF, a mente humana é perfeitamente capaz de transpor todas as anomalias da vida e criar um sistema explicativo perfeito sem Deus.",
+    "choices": [],
+    "correctAnswer": "false",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 65 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Qual é o \"antídoto para a frustração existencial\" mencionado no texto?",
+    "choices": [
+      {
+        "id": "c-65 -a",
+        "text": "O acúmulo de bens materiais"
+      },
+      {
+        "id": "c - 65 -b",
+        "text": "O Temor do Senhor"
+      },
+      {
+        "id": "c - 65 -c",
+        "text": "O isolamento social"
+      },
+      {
+        "id": "c - 65 -d",
+        "text": "A busca pelo prazer sem limites"
+      }
+    ],
+    "correctAnswer": "c - 65 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 66 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Como o trabalho é redefinido nesta perspectiva teológica?",
+    "choices": [
+      {
+        "id": "c-66 -a",
+        "text": "Como uma punição divina"
+      },
+      {
+        "id": "c - 66 -b",
+        "text": "Como um fardo pesado para o homem"
+      },
+      {
+        "id": "c - 66 -c",
+        "text": "Como um dom divino e ato de adoração"
+      },
+      {
+        "id": "c - 66 -d",
+        "text": "Como um meio de alcançar autonomia egoísta"
+      }
+    ],
+    "correctAnswer": "c - 66 -c",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 67 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "O que significa dizer que Deus \"pôs a eternidade no coração do homem\"?",
+    "choices": [
+      {
+        "id": "c-67 -a",
+        "text": "Que o homem viverá para sempre na terra"
+      },
+      {
+        "id": "c - 67 -b",
+        "text": "Que existe um anseio intrínseco pelo que é transcendente"
+      },
+      {
+        "id": "c - 67 -c",
+        "text": "Que o homem sabe tudo o que vai acontecer"
+      },
+      {
+        "id": "c - 67 -d",
+        "text": "Que a memória humana é infinita"
+      }
+    ],
+    "correctAnswer": "c - 67 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 68 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Qual é o segredo para lidar com as riquezas de forma saudável?",
+    "choices": [
+      {
+        "id": "c-68 -a",
+        "text": "Escondê-las de todos"
+      },
+      {
+        "id": "c - 68 -b",
+        "text": "Crer que tudo depende da generosidade de Deus e usá-las para Seus propósitos"
+      },
+      {
+        "id": "c - 68 -c",
+        "text": "Gastá-las o mais rápido possível"
+      },
+      {
+        "id": "c - 68 -d",
+        "text": "Considerá-las fruto exclusivo do esforço próprio"
+      }
+    ],
+    "correctAnswer": "c - 68 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  },
+  {
+    "id": "q - livros - poeticos - 69 ",
+    "disciplineId": "disc-17",
+    "type": "multiple-choice",
+    "text": "Qual a conclusão final de todo o livro (Ecl 12:13) apresentada no PDF?",
+    "choices": [
+      {
+        "id": "c-69 -a",
+        "text": "Buscar a felicidade a qualquer custo"
+      },
+      {
+        "id": "c - 69 -b",
+        "text": "Temer a Deus e guardar Seus mandamentos"
+      },
+      {
+        "id": "c - 69 -c",
+        "text": "Estudar todas as filosofias do mundo"
+      },
+      {
+        "id": "c - 69 -d",
+        "text": "Fugir das responsabilidades da vida sob o sol"
+      }
+    ],
+    "correctAnswer": "c - 69 -b",
+    "points": 1,
+    "createdAt": "2026-03-03T21:32:13.634Z"
+  }
+]

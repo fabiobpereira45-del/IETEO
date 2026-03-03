@@ -136,18 +136,15 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
   }
 
   function handleNext() {
-    if (step === 2 && selectionMode === "auto") {
+    if (step === 3 && selectionMode === "auto") {
       handleAutoSelect()
     }
     setStep((s) => s + 1)
   }
 
   function handleSave() {
-    let finalIds = [...selectedIds]
-    if (selectionMode === "auto") {
-      const shuffled = [...availableQuestions].sort(() => Math.random() - 0.5)
-      finalIds = shuffled.slice(0, Math.min(questionCount, shuffled.length)).map((q) => q.id)
-    }
+    // We already selected IDs asynchronously when moving to step 4, so selectedIds holds the exact preview.
+    const finalIds = [...selectedIds]
 
     const totalPoints = finalIds.length * pointsPerQuestion
 
@@ -193,19 +190,19 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
         </DialogHeader>
 
         {/* Step indicator */}
-        <div className="flex items-center gap-2 px-1 py-2">
-          {[1, 2, 3].map((s) => (
-            <div key={s} className="flex items-center gap-2 flex-1">
+        <div className="flex items-center gap-2 px-1 py-4 sm:py-2 flex-wrap sm:flex-nowrap">
+          {[1, 2, 3, 4].map((s) => (
+            <div key={s} className="flex items-center gap-2 flex-1 min-w-[120px]">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors ${step > s ? "bg-primary text-primary-foreground" :
                 step === s ? "bg-primary text-primary-foreground" :
                   "bg-muted text-muted-foreground"
                 }`}>
                 {step > s ? <Check className="h-3.5 w-3.5" /> : s}
               </div>
-              <span className={`text-xs font-medium ${step === s ? "text-foreground" : "text-muted-foreground"}`}>
-                {s === 1 ? "Título e Disciplina" : s === 2 ? "Formato" : "Questões"}
+              <span className={`text-[11px] sm:text-xs font-medium ${step === s ? "text-foreground" : "text-muted-foreground"}`}>
+                {s === 1 ? "Título" : s === 2 ? "Formato" : s === 3 ? "Questões" : "Visualizar"}
               </span>
-              {s < 3 && <div className={`h-px flex-1 ${step > s ? "bg-primary" : "bg-border"}`} />}
+              {s < 4 && <div className={`hidden sm:block h-px flex-1 ${step > s ? "bg-primary" : "bg-border"}`} />}
             </div>
           ))}
         </div>
@@ -369,7 +366,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
                       </Button>
                     )}
                   </div>
-                  <div className="flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
+                  <div className="flex flex-col gap-2 max-h-[55vh] overflow-y-auto pr-1">
                     {availableQuestions.length === 0 ? (
                       <p className="text-sm text-muted-foreground text-center py-6">
                         Nenhuma questão disponível para este formato e disciplina.
@@ -398,7 +395,12 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
                               onChange={() => toggleQuestion(q.id)}
                             />
                             <div className="flex-1 min-w-0">
-                              <span className="text-xs text-muted-foreground mr-2">Q{i + 1}</span>
+                              <div className="flex items-center mb-1">
+                                <span className="text-xs font-semibold text-muted-foreground mr-2">Q{i + 1}</span>
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                  {FORMAT_LABELS[q.type as AssessmentFormat] || q.type}
+                                </span>
+                              </div>
                               <span className="text-sm">{q.text}</span>
                             </div>
                           </label>
@@ -416,27 +418,126 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
               )}
             </div>
           )}
+
+          {/* Step 4 */}
+          {step === 4 && (
+            <div className="flex flex-col px-1">
+              <div className="bg-white border rounded shadow-sm text-black p-6 md:p-8 max-h-[60vh] overflow-y-auto">
+                {/* Cabeçalho */}
+                <div className="flex items-center gap-4 border-b-2 border-black pb-4 mb-6">
+                  {logoBase64 && (
+                    <img src={logoBase64} alt="Logo" className="w-20 h-20 object-contain" />
+                  )}
+                  <div className="flex-1 flex flex-col items-center justify-center text-center">
+                    <h1 className="text-xl md:text-2xl font-bold uppercase tracking-wide">Instituto de Ensino Teológico — IETEO</h1>
+                    <p className="text-sm font-semibold uppercase mt-1">
+                      Avaliação {selectedDisc ? `— ${selectedDisc.name}` : ""}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-6 text-sm mb-6 border-b border-gray-300 pb-4">
+                  <div className="flex gap-2">
+                    <span className="font-semibold whitespace-nowrap">Aluno (a):</span>
+                    <div className="border-b border-black flex-1" />
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="font-semibold whitespace-nowrap">Data:</span>
+                    <div className="border-b border-black w-24" />
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="font-semibold whitespace-nowrap">Professor:</span>
+                    <span className="flex-1 truncate">{PROFESSOR_CREDENTIALS.name}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="font-semibold whitespace-nowrap">Nota:</span>
+                    <div className="border-b border-black w-24" />
+                  </div>
+                </div>
+
+                {rules && (
+                  <div className="mb-6 p-4 border border-gray-300 rounded bg-gray-50/50">
+                    <h3 className="text-xs font-bold uppercase mb-2 text-gray-500">Regras & Instruções</h3>
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{rules}</p>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-6">
+                  {(() => {
+                    let previewIds = [...selectedIds]
+                    if (selectionMode === "auto") {
+                      // We generate a deterministic preview based on random but we should lock it so it doesn't shuffle on every render
+                      // To simplify, if it's auto and we reached step 4, we just show the first `questionCount` available questions if selectedIds is empty or we re-pick
+                      if (previewIds.length === 0) {
+                        previewIds = availableQuestions.slice(0, questionCount).map(q => q.id)
+                      }
+                    }
+                    const previewQs = previewIds.map(id => availableQuestions.find(q => q.id === id)).filter(Boolean) as Question[]
+
+                    return previewQs.map((q, idx) => (
+                      <div key={idx} className="flex flex-col gap-2">
+                        <div className="flex gap-2">
+                          <span className="font-bold">{idx + 1}.</span>
+                          <span className="text-sm font-medium">{q.text}</span>
+                        </div>
+                        {q.type === "multiple-choice" && (
+                          <div className="flex flex-col gap-2 ml-6 mt-1">
+                            {q.choices.map((c, cIdx) => {
+                              const letter = String.fromCharCode(97 + cIdx)
+                              return (
+                                <div key={c.id} className="flex items-start gap-2 text-sm">
+                                  <span className="font-semibold">({letter})</span>
+                                  <span>{c.text}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                        {q.type === "true-false" && (
+                          <div className="flex gap-4 ml-6 mt-1 text-sm">
+                            <span>( ) V</span>
+                            <span>( ) F</span>
+                          </div>
+                        )}
+                        {q.type === "discursive" && (
+                          <div className="mt-3 ml-6 space-y-4">
+                            <div className="border-b border-gray-300 w-full" />
+                            <div className="border-b border-gray-300 w-full" />
+                            <div className="border-b border-gray-300 w-full" />
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  })()}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer navigation */}
-        <div className="flex items-center justify-between pt-4 border-t border-border">
+        <div className="flex items-center justify-between pt-4 border-t border-border mt-2">
           <Button
             variant="outline"
-            onClick={() => step === 1 ? onClose() : setStep((s) => s - 1)}
+            onClick={() => {
+              if (step === 1) onClose()
+              else if (step === 4 && selectionMode === "auto") setStep(2) // Skip manual picker step if auto
+              else setStep((s) => s - 1)
+            }}
           >
             {step === 1 ? "Cancelar" : <><ChevronLeft className="h-4 w-4 mr-1" /> Voltar</>}
           </Button>
-          {step < 3 ? (
+          {step < 4 ? (
             <Button
               onClick={handleNext}
-              disabled={step === 1 ? !canProceedStep1() : !canProceedStep2()}
+              disabled={step === 1 ? !canProceedStep1() : step === 2 ? !canProceedStep2() : (selectionMode === "manual" && !canProceedStep3())}
             >
               Próximo <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           ) : (
-            <Button onClick={handleSave} disabled={selectionMode === "manual" && !canProceedStep3()}>
+            <Button onClick={handleSave}>
               <Check className="h-4 w-4 mr-1.5" />
-              {assessment ? "Salvar Alterações" : "Criar Prova"}
+              {assessment ? "Salvar Alterações" : "Publicar Prova"}
             </Button>
           )}
         </div>

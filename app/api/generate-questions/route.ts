@@ -124,7 +124,7 @@ export async function POST(req: Request) {
       types = body.types
     }
 
-    const safeCount = Math.min(Math.max(1, count), 20)
+    const safeCount = Math.min(Math.max(1, count), 50)
     const typesList = types.length > 0 ? types : ["multiple-choice", "true-false", "discursive"]
 
     let userPrompt = `Gere exatamente ${safeCount} questão(ões) de avaliação teológica para a disciplina: "${discipline}".
