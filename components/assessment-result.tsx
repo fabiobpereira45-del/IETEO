@@ -1,0 +1,208 @@
+"use client"
+
+import { Download, CheckCircle2, XCircle, Clock, Award, Minus } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import {
+  getAssessmentById, getQuestions, getDisciplines,
+  type StudentSubmission,
+} from "@/lib/store"
+import { printStudentPDF } from "@/lib/pdf"
+import { cn } from "@/lib/utils"
+
+interface Props {
+  submission: StudentSubmission
+}
+
+export function AssessmentResult({ submission }: Props) {
+  const assessment = getAssessmentById(submission.assessmentId)
+  const allQuestions = getQuestions()
+  const questions = assessment
+    ? assessment.questionIds.map((id) => allQuestions.find((q) => q.id === id)).filter(Boolean) as typeof allQuestions
+    : []
+  const disciplines = getDisciplines()
+  const disc = assessment ? disciplines.find((d) => d.id === assessment.disciplineId) : null
+
+  const passed = submission.percentage >= 60
+
+  function formatTime(secs: number) {
+    const h = Math.floor(secs / 3600)
+    const m = Math.floor((secs % 3600) / 60)
+    const s = secs % 60
+    if (h > 0) return `${h}h ${m}min ${s}s`
+    if (m > 0) return `${m}min ${s}s`
+    return `${s}s`
+  }
+
+  function formatDate(iso: string) {
+    return new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+    }).format(new Date(iso))
+  }
+
+  function handlePDF() {
+    if (!assessment) return
+    printStudentPDF({ submission, assessment, questions })
+  }
+
+  // Build answer key (gabarito) — only for non-discursive
+  const gabaritoItems = questions
+    .filter((q) => q.type !== "discursive")
+    .map((q, i) => {
+      const globalIdx = questions.findIndex((gq) => gq.id === q.id)
+      const studentAns = submission.answers.find((a) => a.questionId === q.id)
+      const isCorrect = studentAns?.answer === q.correctAnswer
+      const correctLabel = q.type === "true-false"
+        ? (q.correctAnswer === "true" ? "Verdadeiro" : "Falso")
+        : q.choices.find((c) => c.id === q.correctAnswer)?.text ?? "—"
+      return { num: globalIdx + 1, text: q.text, correctLabel, isCorrect }
+    })
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Score card */}
+      <div className={cn(
+        "rounded-2xl p-8 text-center shadow-lg flex flex-col items-center gap-4",
+        passed ? "bg-primary text-primary-foreground" : "bg-destructive text-destructive-foreground"
+      )}>
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/20">
+          <Award className="h-8 w-8 text-white" />
+        </div>
+        <div>
+          <p className="text-sm font-medium opacity-80 uppercase tracking-wider mb-1">Avaliação Concluída</p>
+          <p className="text-5xl font-bold font-serif">{submission.score.toFixed(1)}</p>
+          <p className="text-lg opacity-80">de {submission.totalPoints.toFixed(1)} pontos</p>
+        </div>
+        <div className="rounded-full px-4 py-1.5 text-sm font-semibold bg-white/20 text-white">
+          {submission.percentage}% de acerto · {passed ? "Aprovado" : "Reprovado"}
+        </div>
+        <Button
+          variant="outline"
+          onClick={handlePDF}
+          className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white"
+        >
+          <Download className="h-4 w-4 mr-2" />
+          Salvar como PDF
+        </Button>
+      </div>
+
+      {/* Metadata */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Aluno</p>
+          <p className="text-sm font-semibold text-foreground">{submission.studentName}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Envio</p>
+          <p className="text-sm font-semibold text-foreground">{formatDate(submission.submittedAt)}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4 col-span-2 sm:col-span-1">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Tempo Total</p>
+          <div className="flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+            <p className="text-sm font-semibold text-foreground">{formatTime(submission.timeElapsedSeconds)}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Question review */}
+      <div className="flex flex-col gap-3">
+        <h2 className="text-base font-semibold text-foreground">Revisão das Respostas</h2>
+        {questions.map((q, idx) => {
+          const studentAns = submission.answers.find((a) => a.questionId === q.id)
+          const isDiscursive = q.type === "discursive"
+          const isCorrect = !isDiscursive && studentAns?.answer === q.correctAnswer
+
+          const studentLabel = isDiscursive
+            ? (studentAns?.answer || "Sem resposta")
+            : q.type === "true-false"
+              ? (studentAns?.answer === "true" ? "Verdadeiro" : studentAns?.answer === "false" ? "Falso" : "—")
+              : q.choices.find((c) => c.id === studentAns?.answer)?.text ?? "Não respondida"
+
+          const correctLabel = q.type === "true-false"
+            ? (q.correctAnswer === "true" ? "Verdadeiro" : "Falso")
+            : q.choices.find((c) => c.id === q.correctAnswer)?.text
+
+          return (
+            <div
+              key={q.id}
+              className={cn(
+                "rounded-xl border p-5 bg-card",
+                isDiscursive ? "border-border" :
+                isCorrect ? "border-green-200 bg-green-50/50" :
+                "border-red-200 bg-red-50/50"
+              )}
+            >
+              <div className="flex items-start gap-3">
+                {isDiscursive ? (
+                  <Minus className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                ) : isCorrect ? (
+                  <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+                ) : (
+                  <XCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">
+                    Questão {idx + 1} · {assessment?.pointsPerQuestion ?? 1} pt
+                    {isDiscursive && " · Correção manual"}
+                  </p>
+                  <p className="text-sm font-medium text-foreground leading-relaxed mb-3 text-pretty">{q.text}</p>
+
+                  {isDiscursive ? (
+                    <div className="rounded-lg bg-muted p-3 text-sm text-foreground">
+                      {studentLabel}
+                    </div>
+                  ) : (
+                    <>
+                      <p className={cn("text-xs", isCorrect ? "text-green-700" : "text-red-600")}>
+                        Sua resposta: <strong>{studentLabel}</strong>
+                      </p>
+                      {!isCorrect && correctLabel && (
+                        <p className="text-xs text-green-700 mt-1">
+                          Resposta correta: <strong>{correctLabel}</strong>
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Gabarito table */}
+      {gabaritoItems.length > 0 && (
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-border bg-muted/40">
+            <h2 className="font-semibold text-foreground text-sm">Gabarito Oficial</h2>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground uppercase w-12">Nº</th>
+                <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground uppercase">Questão</th>
+                <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground uppercase">Resposta Correta</th>
+                <th className="text-center px-4 py-2 text-xs font-semibold text-muted-foreground uppercase w-20">Resultado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {gabaritoItems.map(({ num, text, correctLabel, isCorrect }) => (
+                <tr key={num} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                  <td className="px-4 py-2.5 font-bold text-muted-foreground">{num}</td>
+                  <td className="px-4 py-2.5 text-foreground text-xs max-w-xs truncate">{text}</td>
+                  <td className="px-4 py-2.5 text-green-700 font-semibold text-xs">{correctLabel}</td>
+                  <td className="px-4 py-2.5 text-center">
+                    {isCorrect
+                      ? <CheckCircle2 className="h-4 w-4 text-green-600 mx-auto" />
+                      : <XCircle className="h-4 w-4 text-red-500 mx-auto" />
+                    }
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
