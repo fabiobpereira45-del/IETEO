@@ -245,10 +245,12 @@ export function saveDraftAnswers(answers: StudentAnswer[]): void {
 
 export function getDisciplines(): Discipline[] {
   const stored = read<Discipline[] | null>(KEYS.DISCIPLINES, null)
-  if (stored !== null) return stored
+  if (stored !== null) {
+    return stored.sort((a, b) => a.name.localeCompare(b.name))
+  }
   const defaults = defaultDisciplines()
   write(KEYS.DISCIPLINES, defaults)
-  return defaults
+  return defaults.sort((a, b) => a.name.localeCompare(b.name))
 }
 
 export function saveDisciplines(d: Discipline[]): void {

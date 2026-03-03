@@ -19,11 +19,12 @@ import {
 } from "@/lib/store"
 
 type SelectionMode = "auto" | "manual"
-type AssessmentFormat = QuestionType | "mixed"
+type AssessmentFormat = QuestionType | "mixed" | "objective-only"
 
 const FORMAT_LABELS: Record<AssessmentFormat, string> = {
   "multiple-choice": "Múltipla Escolha",
   "true-false": "Verdadeiro ou Falso",
+  "objective-only": "Múltipla Escolha + V/F",
   discursive: "Discursiva",
   mixed: "Mista (todos os tipos)",
 }
@@ -88,7 +89,9 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
   useEffect(() => {
     if (!disciplineId) return
     let qs = getQuestionsByDiscipline(disciplineId)
-    if (format !== "mixed") {
+    if (format === "objective-only") {
+      qs = qs.filter((q) => q.type === "multiple-choice" || q.type === "true-false")
+    } else if (format !== "mixed") {
       qs = qs.filter((q) => q.type === format)
     }
     setAvailableQuestions(qs)
