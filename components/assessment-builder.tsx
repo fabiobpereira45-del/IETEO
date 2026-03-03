@@ -5,6 +5,7 @@ import { Check, ChevronLeft, ChevronRight, Shuffle, List } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
@@ -41,6 +42,8 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
   const [title, setTitle] = useState("")
   const [disciplineId, setDisciplineId] = useState("")
   const [disciplines, setDisciplines] = useState<Discipline[]>([])
+  const [logoBase64, setLogoBase64] = useState("")
+  const [rules, setRules] = useState("")
 
   // Step 2
   const [format, setFormat] = useState<AssessmentFormat>("multiple-choice")
@@ -61,6 +64,8 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
       // Edit mode
       setTitle(assessment.title)
       setDisciplineId(assessment.disciplineId)
+      setLogoBase64(assessment.logoBase64 ?? "")
+      setRules(assessment.rules ?? "")
       setPointsPerQuestion(assessment.pointsPerQuestion)
       setQuestionCount(assessment.questionIds.length)
       setSelectedIds(new Set(assessment.questionIds))
@@ -69,6 +74,8 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
       // Create mode
       setTitle("")
       setDisciplineId(discs[0]?.id ?? "")
+      setLogoBase64("")
+      setRules("")
       setFormat("multiple-choice")
       setQuestionCount(10)
       setPointsPerQuestion(1)
@@ -106,6 +113,16 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
     return title.trim().length > 0 && disciplineId.length > 0
   }
 
+  function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      setLogoBase64(event.target?.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
   function canProceedStep2() {
     return questionCount >= 1 && pointsPerQuestion > 0
   }
@@ -135,6 +152,8 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
       updateAssessment(assessment.id, {
         title: title.trim(),
         disciplineId,
+        logoBase64,
+        rules: rules.trim(),
         questionIds: finalIds,
         pointsPerQuestion,
         totalPoints,
@@ -144,7 +163,9 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
         title: title.trim(),
         disciplineId,
         professor: PROFESSOR_CREDENTIALS.name,
-        institution: "IBAD — Núcleo Cosme de Fárias",
+        institution: "Instituto de Ensino Teológico - IETEO",
+        logoBase64,
+        rules: rules.trim(),
         questionIds: finalIds,
         pointsPerQuestion,
         totalPoints,
@@ -172,11 +193,10 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
         <div className="flex items-center gap-2 px-1 py-2">
           {[1, 2, 3].map((s) => (
             <div key={s} className="flex items-center gap-2 flex-1">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors ${
-                step > s ? "bg-primary text-primary-foreground" :
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-colors ${step > s ? "bg-primary text-primary-foreground" :
                 step === s ? "bg-primary text-primary-foreground" :
-                "bg-muted text-muted-foreground"
-              }`}>
+                  "bg-muted text-muted-foreground"
+                }`}>
                 {step > s ? <Check className="h-3.5 w-3.5" /> : s}
               </div>
               <span className={`text-xs font-medium ${step === s ? "text-foreground" : "text-muted-foreground"}`}>
@@ -217,6 +237,34 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
                   <p className="text-xs text-muted-foreground">{selectedDisc.description}</p>
                 )}
               </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="assess-logo">Logo da Instituição (Opcional)</Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    id="assess-logo"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className="flex-1"
+                  />
+                  {logoBase64 && (
+                    <div className="w-10 h-10 border rounded-md overflow-hidden flex items-center justify-center bg-muted">
+                      <img src={logoBase64} alt="Logo preview" className="max-w-full max-h-full object-contain" />
+                    </div>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground">Esta imagem aparecerá apenas no cabeçalho ao imprimir a prova física.</p>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="assess-rules">Regras da Prova (Opcional)</Label>
+                <Textarea
+                  id="assess-rules"
+                  value={rules}
+                  onChange={(e) => setRules(e.target.value)}
+                  placeholder="Ex: Não é permitido o uso de celular..."
+                  className="resize-none h-20"
+                />
+              </div>
             </div>
           )}
 
@@ -231,11 +279,10 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
                       key={f}
                       type="button"
                       onClick={() => setFormat(f)}
-                      className={`text-left p-3 rounded-lg border-2 text-sm font-medium transition-colors ${
-                        format === f
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border hover:border-primary/40"
-                      }`}
+                      className={`text-left p-3 rounded-lg border-2 text-sm font-medium transition-colors ${format === f
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:border-primary/40"
+                        }`}
                     >
                       {FORMAT_LABELS[f]}
                     </button>
@@ -280,11 +327,10 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
                 <button
                   type="button"
                   onClick={() => setSelectionMode("auto")}
-                  className={`flex-1 flex items-center gap-2.5 p-3 rounded-lg border-2 text-sm font-medium transition-colors ${
-                    selectionMode === "auto"
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:border-primary/40"
-                  }`}
+                  className={`flex-1 flex items-center gap-2.5 p-3 rounded-lg border-2 text-sm font-medium transition-colors ${selectionMode === "auto"
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border hover:border-primary/40"
+                    }`}
                 >
                   <Shuffle className="h-4 w-4" />
                   <div className="text-left">
@@ -295,11 +341,10 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
                 <button
                   type="button"
                   onClick={() => setSelectionMode("manual")}
-                  className={`flex-1 flex items-center gap-2.5 p-3 rounded-lg border-2 text-sm font-medium transition-colors ${
-                    selectionMode === "manual"
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border hover:border-primary/40"
-                  }`}
+                  className={`flex-1 flex items-center gap-2.5 p-3 rounded-lg border-2 text-sm font-medium transition-colors ${selectionMode === "manual"
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border hover:border-primary/40"
+                    }`}
                 >
                   <List className="h-4 w-4" />
                   <div className="text-left">
@@ -333,15 +378,13 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
                         return (
                           <label
                             key={q.id}
-                            className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                              checked ? "border-primary bg-primary/5" :
+                            className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${checked ? "border-primary bg-primary/5" :
                               disabled ? "border-border opacity-40 cursor-not-allowed" :
-                              "border-border hover:border-primary/40"
-                            }`}
+                                "border-border hover:border-primary/40"
+                              }`}
                           >
-                            <div className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                              checked ? "border-primary bg-primary" : "border-muted-foreground"
-                            }`}>
+                            <div className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${checked ? "border-primary bg-primary" : "border-muted-foreground"
+                              }`}>
                               {checked && <Check className="h-3 w-3 text-primary-foreground" />}
                             </div>
                             <input

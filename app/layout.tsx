@@ -16,8 +16,8 @@ const merriweather = Merriweather({
 })
 
 export const metadata: Metadata = {
-  title: "Avaliação Teológica — IBAD Núcleo Cosme de Fárias",
-  description: "Sistema de Avaliação Teológica do IBAD — Curso de Teologia, Disciplina: Livros Poéticos",
+  title: "Avaliação Teológica — Instituto de Ensino Teológico - IETEO",
+  description: "Sistema de Avaliação Teológica do IETEO — Curso de Teologia, Disciplina: Livros Poéticos",
   generator: "v0.app",
 }
 

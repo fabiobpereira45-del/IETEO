@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* IBAD Brand Colors */
+  /* IETEO Brand Colors */
   --navy: oklch(0.22 0.08 250);
   --navy-light: oklch(0.28 0.07 250);
   --navy-dark: oklch(0.15 0.08 250);

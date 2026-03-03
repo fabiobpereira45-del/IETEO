@@ -20,7 +20,7 @@ import {
   getQuestions, getDisciplines, clearProfessorSession, MASTER_CREDENTIALS,
   getProfessorSession,
 } from "@/lib/store"
-import { printStudentPDF } from "@/lib/pdf"
+import { printStudentPDF, printBlankAssessmentPDF } from "@/lib/pdf"
 import { QuestionBank } from "@/components/question-bank"
 import { AssessmentBuilder } from "@/components/assessment-builder"
 import { ProfessorManager } from "@/components/professor-manager"
@@ -274,6 +274,7 @@ function AssessmentsTab({ assessments, onRefresh }: { assessments: Assessment[];
   const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const disciplines = getDisciplines()
+  const questions = getQuestions()
 
   function handleDelete() {
     if (deleteId) { deleteAssessment(deleteId); onRefresh(); setDeleteId(null) }
@@ -282,6 +283,10 @@ function AssessmentsTab({ assessments, onRefresh }: { assessments: Assessment[];
   function handleTogglePublish(a: Assessment) {
     updateAssessment(a.id, { isPublished: !a.isPublished })
     onRefresh()
+  }
+
+  function handlePrint(a: Assessment) {
+    printBlankAssessmentPDF({ assessment: a, questions })
   }
 
   return (
@@ -320,6 +325,9 @@ function AssessmentsTab({ assessments, onRefresh }: { assessments: Assessment[];
                   </div>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="Imprimir Prova em Branco" onClick={() => handlePrint(a)}>
+                    <Download className="h-3.5 w-3.5" />
+                  </Button>
                   <Button size="sm" variant="ghost" className="h-8 px-3 text-xs" onClick={() => handleTogglePublish(a)}>
                     {a.isPublished ? <EyeOff className="h-3.5 w-3.5 mr-1" /> : <Eye className="h-3.5 w-3.5 mr-1" />}
                     {a.isPublished ? "Despublicar" : "Publicar"}
@@ -508,7 +516,7 @@ export function AdminDashboard({ onLogout }: Props) {
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
             <p className="text-xs text-primary-foreground/70 uppercase tracking-widest font-sans">
-              IBAD — Núcleo Cosme de Fárias
+              Instituto de Ensino Teológico - IETEO
             </p>
             <h1 className="text-xl font-bold font-serif">Painel do Professor</h1>
           </div>
@@ -533,8 +541,8 @@ export function AdminDashboard({ onLogout }: Props) {
               key={id}
               onClick={() => setTab(id)}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${tab === id
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
                 }`}
             >
               {icon}

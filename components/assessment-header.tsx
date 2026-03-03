@@ -20,7 +20,7 @@ export function AssessmentHeader({ studentName, studentEmail, onAdminClick }: As
             </div>
             <div>
               <p className="text-xs font-medium text-primary-foreground/70 uppercase tracking-widest">
-                IBAD — Núcleo Cosme de Fárias
+                Instituto de Ensino Teológico - IETEO
               </p>
               <p className="text-sm font-bold leading-tight text-primary-foreground">
                 Curso de Teologia

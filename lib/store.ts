@@ -37,6 +37,8 @@ export interface Assessment {
   openAt: string | null
   closeAt: string | null
   isPublished: boolean
+  logoBase64?: string
+  rules?: string
   createdAt: string
 }
 
@@ -108,8 +110,8 @@ const KEYS = {
 // ─── Master credentials (hardcoded fallback) ──────────────────────────────────
 
 export const MASTER_CREDENTIALS = {
-  email: "professor@ibad.com",
-  password: "ibad2024",
+  email: "professor@ieteo.com",
+  password: "ieteo2026",
   name: "Pb. Fábio Barreto",
   role: "master" as const,
 }

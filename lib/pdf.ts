@@ -69,15 +69,15 @@ export function printStudentPDF({ submission, assessment, questions }: PDFData):
         q.type === "multiple-choice"
           ? `<ul style="margin:4px 0 0 0;padding:0;list-style:none;">
               ${q.choices
-                .map(
-                  (c) =>
-                    `<li style="margin:2px 0;padding:3px 6px;border-radius:4px;font-size:12px;
+            .map(
+              (c) =>
+                `<li style="margin:2px 0;padding:3px 6px;border-radius:4px;font-size:12px;
                     background:${c.id === q.correctAnswer ? "#dcfce7" : c.id === studentAns?.answer && !isCorrect ? "#fee2e2" : "#f9fafb"};
                     color:${c.id === q.correctAnswer ? "#166534" : c.id === studentAns?.answer && !isCorrect ? "#991b1b" : "#374151"}">
                     ${c.text}${c.id === q.correctAnswer ? " ✓" : ""}${c.id === studentAns?.answer && !isCorrect ? " ✗" : ""}
                     </li>`
-                )
-                .join("")}
+            )
+            .join("")}
              </ul>`
           : ""
 
@@ -99,21 +99,19 @@ export function printStudentPDF({ submission, assessment, questions }: PDFData):
           <p style="margin:0 0 6px 0;font-size:13px;color:#111827;line-height:1.5;">${q.text}</p>
           ${choicesHTML}
           ${discursiveHTML}
-          ${
-            q.type === "true-false"
-              ? `<div style="margin-top:6px;display:flex;gap:8px;">
+          ${q.type === "true-false"
+          ? `<div style="margin-top:6px;display:flex;gap:8px;">
                   <span style="padding:3px 10px;border-radius:4px;font-size:12px;background:${studentAns?.answer === "true" && !isCorrect ? "#fee2e2" : studentAns?.answer === "true" ? "#dcfce7" : "#f3f4f6"};color:${studentAns?.answer === "true" && !isCorrect ? "#991b1b" : studentAns?.answer === "true" ? "#166534" : "#374151"}">Verdadeiro${q.correctAnswer === "true" ? " ✓" : ""}${studentAns?.answer === "true" && !isCorrect ? " ✗" : ""}</span>
                   <span style="padding:3px 10px;border-radius:4px;font-size:12px;background:${studentAns?.answer === "false" && !isCorrect ? "#fee2e2" : studentAns?.answer === "false" ? "#dcfce7" : "#f3f4f6"};color:${studentAns?.answer === "false" && !isCorrect ? "#991b1b" : studentAns?.answer === "false" ? "#166534" : "#374151"}">Falso${q.correctAnswer === "false" ? " ✓" : ""}${studentAns?.answer === "false" && !isCorrect ? " ✗" : ""}</span>
                  </div>`
-              : ""
-          }
-          ${
-            !isDiscursive
-              ? `<div style="margin-top:8px;font-size:12px;color:#166534;font-weight:600;">
+          : ""
+        }
+          ${!isDiscursive
+          ? `<div style="margin-top:8px;font-size:12px;color:#166534;font-weight:600;">
                   Gabarito: ${correctLabel}
                 </div>`
-              : ""
-          }
+          : ""
+        }
         </div>`
     })
     .join("")
@@ -177,8 +175,7 @@ export function printStudentPDF({ submission, assessment, questions }: PDFData):
   ${rows}
 
   <!-- Gabarito table -->
-  ${
-    gabaritoRows
+  ${gabaritoRows
       ? `<div style="margin-top:24px;page-break-before:always;">
           <h2 style="font-size:14px;font-weight:700;color:#1e3a5f;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;border-bottom:2px solid #1e3a5f;padding-bottom:8px;">Gabarito Oficial</h2>
           <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -193,10 +190,10 @@ export function printStudentPDF({ submission, assessment, questions }: PDFData):
           </table>
         </div>`
       : ""
-  }
+    }
 
   <div style="margin-top:32px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;text-align:center;">
-    Documento gerado pelo Sistema de Avaliações IBAD — ${new Date().toLocaleDateString("pt-BR")}
+    Documento gerado pelo Sistema de Avaliações IETEO — ${new Date().toLocaleDateString("pt-BR")}
   </div>
 </body>
 </html>`
@@ -207,3 +204,124 @@ export function printStudentPDF({ submission, assessment, questions }: PDFData):
   win.document.close()
   win.onload = () => win.print()
 }
+
+export function printBlankAssessmentPDF({ assessment, questions }: Omit<PDFData, "submission">): void {
+  const orderedQuestions = assessment.questionIds
+    .map((id) => questions.find((q) => q.id === id))
+    .filter(Boolean) as Question[]
+
+  const rows = orderedQuestions
+    .map((q, i) => {
+      const isDiscursive = q.type === "discursive"
+
+      const choicesHTML =
+        q.type === "multiple-choice"
+          ? `<ul style="margin:8px 0 0 0;padding:0;list-style:none;">
+              ${q.choices
+            .map(
+              (c) =>
+                `<li style="margin:4px 0;padding:4px 6px;font-size:13px;color:#374151;">
+                      <span style="display:inline-block;width:14px;height:14px;border:1px solid #9ca3af;border-radius:50%;margin-right:8px;vertical-align:middle;"></span>
+                      ${c.text}
+                    </li>`
+            )
+            .join("")}
+             </ul>`
+          : ""
+
+      const discursiveSpaceHTML =
+        q.type === "discursive"
+          ? `<div style="margin-top:10px;height:100px;border-bottom:1px solid #d1d5db;background:repeating-linear-gradient(transparent,transparent 24px,#e5e7eb 24px,#e5e7eb 25px);"></div>`
+          : ""
+
+      const tfSpaceHTML =
+        q.type === "true-false"
+          ? `<div style="margin-top:10px;display:flex;gap:12px;font-size:13px;color:#374151;">
+              <span>(&nbsp;&nbsp;&nbsp;) Verdadeiro</span>
+              <span>(&nbsp;&nbsp;&nbsp;) Falso</span>
+             </div>`
+          : ""
+
+      return `
+        <div style="margin-bottom:24px;break-inside:avoid;">
+          <div style="font-size:14px;font-weight:600;color:#111827;line-height:1.5;margin-bottom:4px;">
+            ${i + 1}. ${q.text} <span style="font-weight:normal;color:#6b7280;font-size:11px;">(${assessment.pointsPerQuestion} pt${assessment.pointsPerQuestion !== 1 ? "s" : ""})</span>
+          </div>
+          ${choicesHTML}
+          ${tfSpaceHTML}
+          ${discursiveSpaceHTML}
+        </div>`
+    })
+    .join("")
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${assessment.title} - Em Branco</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; color: #111827; background: #fff; padding: 24px; max-width:800px; margin: 0 auto; }
+    @media print { body { padding: 0; margin: 0; } }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div style="border:1px solid #cbd5e1;border-radius:8px;padding:16px;margin-bottom:24px;">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;">
+      ${assessment.logoBase64
+      ? `<img src="${assessment.logoBase64}" style="max-width:80px;max-height:80px;object-fit:contain;" alt="Logo"/>`
+      : ""
+    }
+      <div style="flex:1;">
+        <div style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">${assessment.institution || 'Instituto de Ensino Teológico - IETEO'}</div>
+        <h1 style="font-size:22px;font-weight:800;color:#0f172a;margin:0 0 4px 0;">${assessment.title}</h1>
+        <div style="font-size:13px;color:#475569;">Professor(a): <span style="font-weight:600;">${assessment.professor}</span></div>
+      </div>
+    </div>
+    
+    <div style="border-top:1px solid #e2e8f0;margin-top:12px;padding-top:12px;">
+      <div style="display:flex;gap:16px;margin-bottom:12px;">
+        <div style="flex:1;font-size:14px;color:#334155;">
+          Aluno(a): ______________________________________________________________
+        </div>
+        <div style="font-size:14px;color:#334155;white-space:nowrap;">
+          Data: ___/___/_______
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;">
+        <div style="font-size:14px;color:#334155;white-space:nowrap;">
+          Polo: ___________________________________
+        </div>
+        <div style="font-size:14px;color:#334155;white-space:nowrap;">
+          Nota: __________
+        </div>
+      </div>
+    </div>
+
+    ${assessment.rules
+      ? `<div style="margin-top:16px;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;color:#475569;">
+             <strong style="color:#0f172a;">Instruções:</strong> ${assessment.rules.replace(/\n/g, '<br/>')}
+           </div>`
+      : ""
+    }
+  </div>
+
+  <!-- Questions -->
+  <div style="margin-top:24px;">
+    ${rows}
+  </div>
+
+  <div style="margin-top:40px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:10px;color:#9ca3af;text-align:center;">
+    Documento gerado pelo Sistema de Avaliações IETEO — Bom desempenho!
+  </div>
+</body>
+</html>`
+
+  const win = window.open("", "_blank", "width=900,height=700")
+  if (!win) return
+  win.document.write(html)
+  win.document.close()
+  win.onload = () => win.print()
+}
+

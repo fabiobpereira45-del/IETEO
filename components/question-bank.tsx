@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import {
-  Plus, Pencil, Trash2, ChevronRight, BookOpen, CheckSquare, AlignLeft, X, Check, Sparkles
+  Plus, Pencil, Trash2, ChevronRight, BookOpen, CheckSquare, AlignLeft, X, Check, Sparkles, Upload
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,12 +12,13 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import {
   type Discipline, type Question, type QuestionType, type Choice,
   getDisciplines, saveDisciplines, addDiscipline, updateDiscipline, deleteDiscipline,
@@ -329,6 +330,101 @@ function QuestionModal({
   )
 }
 
+// ─── Bulk Import Modal ────────────────────────────────────────────────────────
+function BulkImportModal({
+  open, disciplineId, onClose, onSave,
+}: {
+  open: boolean
+  disciplineId: string
+  onClose: () => void
+  onSave: () => void
+}) {
+  const [text, setText] = useState("")
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    if (open) {
+      setText("")
+      setError("")
+    }
+  }, [open])
+
+  function handleImport() {
+    if (!text.trim()) return
+    const lines = text.split("\n").map((l) => l.trim()).filter(Boolean)
+    let addedCount = 0
+
+    try {
+      for (const line of lines) {
+        if (line.toLowerCase().startsWith("pergunta;")) continue
+
+        const parts = line.split(";")
+        if (parts.length >= 6) {
+          const [qText, a, b, c, d, correctLetter] = parts
+          const choices = [
+            { id: uid(), text: a.trim() },
+            { id: uid(), text: b.trim() },
+            { id: uid(), text: c.trim() },
+            { id: uid(), text: d.trim() },
+          ]
+          let correctId = choices[0].id
+          const letter = correctLetter.trim().toUpperCase()
+          if (letter === "B") correctId = choices[1].id
+          else if (letter === "C") correctId = choices[2].id
+          else if (letter === "D") correctId = choices[3].id
+
+          addQuestion({
+            disciplineId,
+            type: "multiple-choice",
+            text: qText.trim(),
+            choices,
+            correctAnswer: correctId,
+            points: 1,
+          })
+          addedCount++
+        }
+      }
+      if (addedCount > 0) {
+        onSave()
+        onClose()
+      } else {
+        setError("Nenhuma questão válida encontrada. Verifique o uso de ponto e vírgula (;)")
+      }
+    } catch (err) {
+      setError("Erro ao processar as questões. Verifique o formato.")
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Importar Lote de Questões</DialogTitle>
+          <p className="text-sm text-muted-foreground mt-1 text-left">
+            Cole as questões no formato CSV (separado por ponto e vírgula):<br />
+            <code className="bg-muted px-1.5 py-0.5 rounded text-xs border border-border mt-2 inline-block">
+              Pergunta; Alternativa A; Alternativa B; Alternativa C; Alternativa D; Letra Correta
+            </code>
+          </p>
+        </DialogHeader>
+        <div className="flex flex-col gap-3 py-2">
+          {error && <div className="text-destructive text-sm font-semibold">{error}</div>}
+          <Textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={`Exemplo:\nEm que ano o Brasil foi descoberto?; 1492; 1500; 1532; 1822; B\nQual o primeiro livro da Bíblia?; Gênesis; Êxodo; Levítico; Números; A`}
+            className="font-mono text-sm h-64 whitespace-pre"
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={handleImport} disabled={!text.trim()}>Importar Questões</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function QuestionBank() {
@@ -346,6 +442,7 @@ export function QuestionBank() {
   const [deleteQId, setDeleteQId] = useState<string | null>(null)
 
   const [aiModal, setAiModal] = useState(false)
+  const [importModal, setImportModal] = useState(false)
 
   function reload() {
     const discs = getDisciplines()
@@ -476,6 +573,13 @@ export function QuestionBank() {
               </Button>
               <Button
                 size="sm"
+                variant="outline"
+                onClick={() => setImportModal(true)}
+              >
+                <Upload className="h-4 w-4 mr-1.5" /> Importar Lote
+              </Button>
+              <Button
+                size="sm"
                 onClick={() => { setEditingQ(null); setQModal(true) }}
               >
                 <Plus className="h-4 w-4 mr-1.5" /> Nova Questão
@@ -591,17 +695,32 @@ export function QuestionBank() {
       {/* AI Generator Modal */}
       <Dialog open={aiModal} onOpenChange={setAiModal}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden bg-background border-border max-h-[90vh]">
+          <VisuallyHidden>
+            <DialogTitle>Gerador de Questões com IA</DialogTitle>
+          </VisuallyHidden>
           <div className="overflow-y-auto max-h-[90vh]">
             <AIQuestionGenerator
               disciplines={disciplines}
               onQuestionsAdded={() => {
                 setAiModal(false)
-                reload()
+                if (selectedDiscipline) {
+                  setQuestions(getQuestionsByDiscipline(selectedDiscipline.id))
+                }
               }}
             />
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Import Modal */}
+      <BulkImportModal
+        open={importModal}
+        disciplineId={selectedDiscipline?.id ?? ""}
+        onClose={() => setImportModal(false)}
+        onSave={() => {
+          if (selectedDiscipline) setQuestions(getQuestionsByDiscipline(selectedDiscipline.id))
+        }}
+      />
 
       {/* Delete Discipline Confirm */}
       <AlertDialog open={!!deleteDiscId} onOpenChange={(o) => !o && setDeleteDiscId(null)}>

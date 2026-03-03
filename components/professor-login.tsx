@@ -68,7 +68,7 @@ export function ProfessorLogin({ onLogin, onBack }: Props) {
 
         if (data.session) {
           // Explicitly check for master fallback if metadata is missing/delayed
-          const isMasterEmail = email.toLowerCase().trim() === "professor@ibad.com"
+          const isMasterEmail = email.toLowerCase().trim() === "professor@ieteo.com"
           const role = isMasterEmail ? "master" : (data.user.user_metadata?.role || "professor")
           saveProfessorSession(data.user.id, role)
           onLogin()
@@ -90,7 +90,7 @@ export function ProfessorLogin({ onLogin, onBack }: Props) {
         </div>
         <h1 className="text-2xl font-bold text-foreground font-serif">Painel do Professor</h1>
         <p className="text-muted-foreground text-sm mt-1 font-sans">
-          IBAD — Núcleo Cosme de Fárias
+          Instituto de Ensino Teológico - IETEO
         </p>
       </div>
 
@@ -125,7 +125,7 @@ export function ProfessorLogin({ onLogin, onBack }: Props) {
               <Input
                 id="prof-email"
                 type="email"
-                placeholder="professor@ibad.com"
+                placeholder="professor@ieteo.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="pl-9"

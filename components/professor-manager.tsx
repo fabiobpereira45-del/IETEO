@@ -75,7 +75,7 @@ function ProfessorForm({
             type="email"
             value={form.email}
             onChange={(e) => set("email", e.target.value)}
-            placeholder="professor@ibad.com"
+            placeholder="professor@ieteo.com"
           />
         </div>
       </div>
@@ -287,8 +287,8 @@ export function ProfessorManager() {
                       <p className="text-xs text-muted-foreground truncate">{account.email}</p>
                     </div>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${account.role === "master"
-                        ? "bg-primary/15 text-primary"
-                        : "bg-muted text-muted-foreground"
+                      ? "bg-primary/15 text-primary"
+                      : "bg-muted text-muted-foreground"
                       }`}>
                       {account.role === "master" ? "Master" : "Professor"}
                     </span>

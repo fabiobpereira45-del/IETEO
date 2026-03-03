@@ -218,15 +218,19 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded }: Props) {
           throw new Error("O arquivo enviado é muito grande. O limite geralmente é de 4MB.")
         }
         const data = await res.json().catch(() => null)
-        throw new Error(data?.error ?? `Erro no servidor (${res.status}). O arquivo pode ser muito grande ou a chave da IA está ausente.`)
+        throw new Error(data?.error ?? `Erro no servidor (${res.status}). O arquivo pode ser muito grande ou a chave GOOGLE_GENERATIVE_AI_API_KEY está ausente.`)
       }
 
       const data = await res.json()
       const qs: GeneratedQuestion[] = data.questions ?? []
       setGenerated(qs)
       setSelected(new Set(qs.map((_, i) => i))) // select all by default
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erro ao gerar questões.")
+    } catch (e: any) {
+      let msg = e.message || "Erro ao gerar questões."
+      if (msg.includes("API key not valid") || msg.includes("API_KEY_INVALID")) {
+        msg = "Chave da Google API inválida ou não encontrada. Obtenha uma em: aistudio.google.com/app/apikey"
+      }
+      setError(msg)
     } finally {
       setLoading(false)
     }

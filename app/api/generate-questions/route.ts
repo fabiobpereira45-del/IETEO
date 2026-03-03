@@ -1,5 +1,5 @@
 import { generateObject } from "ai"
-import { openai } from "@ai-sdk/openai"
+import { google } from "@ai-sdk/google"
 import { z } from "zod"
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
@@ -36,7 +36,7 @@ Você tem domínio profundo de:
               - Cânones católico, ortodoxo e protestante
                 - Teologia das religiões(ecumenismo e diálogo inter - religioso)
 
-Sua tarefa é gerar questões de avaliação teológica de alta qualidade para o curso de Teologia do IBAD — Instituto Bíblico Assembleia de Deus(Núcleo Cosme de Fárias, Salvador - BA).As questões devem ser academicamente rigorosas, teologicamente precisas, didaticamente eficazes e adequadas ao nível do ensino superior teológico.
+Sua tarefa é gerar questões de avaliação teológica de alta qualidade para o curso de Teologia do Instituto de Ensino Teológico - IETEO. As questões devem ser academicamente rigorosas, teologicamente precisas, didaticamente eficazes e adequadas ao nível do ensino superior teológico.
 
 Regras estritas para geração de questões:
 
@@ -143,7 +143,7 @@ Retorne um JSON com exatamente ${safeCount} questões no array "questions".`
     }
 
     const { object: parsed } = await generateObject({
-      model: openai("gpt-4o"),
+      model: google("gemini-1.5-flash"),
       system: SYSTEM_PROMPT,
       prompt: userPrompt,
       schema: OutputSchema,
