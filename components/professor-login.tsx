@@ -67,7 +67,10 @@ export function ProfessorLogin({ onLogin, onBack }: Props) {
         if (signInError) throw signInError
 
         if (data.session) {
-          saveProfessorSession(data.user.id, data.user.user_metadata.role || "professor")
+          // Explicitly check for master fallback if metadata is missing/delayed
+          const isMasterEmail = email.toLowerCase().trim() === "professor@ibad.com"
+          const role = isMasterEmail ? "master" : (data.user.user_metadata?.role || "professor")
+          saveProfessorSession(data.user.id, role)
           onLogin()
         }
       }
