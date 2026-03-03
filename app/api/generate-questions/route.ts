@@ -151,10 +151,10 @@ Retorne um JSON com exatamente ${safeCount} questões no array "questions".`
     })
 
     return Response.json({ questions: parsed.questions })
-  } catch (error) {
+  } catch (error: any) {
     console.error("[generate-questions] Error:", error)
     return Response.json(
-      { error: "Erro ao gerar questões. Verifique se o arquivo anexado é legível e tente novamente." },
+      { error: error?.message || "Erro desconhecido no servidor." },
       { status: 500 }
     )
   }

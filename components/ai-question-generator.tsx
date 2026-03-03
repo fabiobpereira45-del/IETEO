@@ -214,8 +214,11 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded }: Props) {
       })
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.error ?? "Erro desconhecido")
+        if (res.status === 413) {
+          throw new Error("O arquivo enviado é muito grande. O limite geralmente é de 4MB.")
+        }
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error ?? `Erro no servidor (${res.status}). O arquivo pode ser muito grande ou a chave da IA está ausente.`)
       }
 
       const data = await res.json()
