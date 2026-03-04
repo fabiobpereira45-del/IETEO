@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
-import { saveProfessorSession } from "@/lib/store"
+import { saveProfessorSession, MASTER_CREDENTIALS } from "@/lib/store"
 
 interface Props {
   onLogin: () => void
@@ -59,6 +59,15 @@ export function ProfessorLogin({ onLogin, onBack }: Props) {
           setIsSignUp(false) // switch to login
         }
       } else {
+        const normalizedEmail = email.toLowerCase().trim()
+        const isMaster = (normalizedEmail === MASTER_CREDENTIALS.email || normalizedEmail === "professor@ibad.com")
+
+        if (isMaster && password === MASTER_CREDENTIALS.password) {
+          saveProfessorSession("master", "master")
+          onLogin()
+          return
+        }
+
         const { data, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -68,8 +77,7 @@ export function ProfessorLogin({ onLogin, onBack }: Props) {
 
         if (data.session) {
           // Explicitly check for master fallback if metadata is missing/delayed
-          const isMasterEmail = email.toLowerCase().trim() === "professor@ieteo.com"
-          const role = isMasterEmail ? "master" : (data.user.user_metadata?.role || "professor")
+          const role = isMaster ? "master" : (data.user.user_metadata?.role || "professor")
           saveProfessorSession(data.user.id, role)
           onLogin()
         }

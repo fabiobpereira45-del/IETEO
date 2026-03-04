@@ -12,9 +12,10 @@ import { cn } from "@/lib/utils"
 
 interface Props {
   submission: StudentSubmission
+  onBack?: () => void
 }
 
-export function AssessmentResult({ submission }: Props) {
+export function AssessmentResult({ submission, onBack }: Props) {
   const [assessment, setAssessment] = useState<Assessment | null>(null)
   const [questions, setQuestions] = useState<Question[]>([])
   const [disc, setDisc] = useState<Discipline | null>(null)
@@ -255,6 +256,18 @@ export function AssessmentResult({ submission }: Props) {
             </div>
           )}
         </>
+      )}
+
+      {onBack && (
+        <div className="flex justify-center mt-6">
+          <Button
+            variant="outline"
+            onClick={onBack}
+            className="w-full sm:w-auto font-medium"
+          >
+            Sair e Voltar ao Início
+          </Button>
+        </div>
       )}
     </div>
   )

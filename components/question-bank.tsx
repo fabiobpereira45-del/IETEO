@@ -22,7 +22,7 @@ import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import {
   type Discipline, type Question, type QuestionType, type Choice,
   getDisciplines, addDiscipline, updateDiscipline, deleteDiscipline,
-  getQuestionsByDiscipline, addQuestion, updateQuestion, deleteQuestion, uid,
+  getQuestionsByDiscipline, addQuestion, updateQuestion, deleteQuestion, uid, getDisciplineQuestionCounts,
 } from "@/lib/store"
 import { AIQuestionGenerator } from "./ai-question-generator"
 
@@ -449,11 +449,7 @@ export function QuestionBank() {
     const discs = await getDisciplines()
     setDisciplines(discs)
 
-    const counts: Record<string, number> = {}
-    for (const d of discs) {
-      const qs = await getQuestionsByDiscipline(d.id)
-      counts[d.id] = qs.length
-    }
+    const counts = await getDisciplineQuestionCounts()
     setQuestionCounts(counts)
 
     let toSelect = selectedDiscipline

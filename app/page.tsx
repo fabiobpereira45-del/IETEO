@@ -114,7 +114,7 @@ export default function HomePage() {
           <AssessmentForm session={session} onSubmit={handleSubmit} />
         )}
         {view === "student-result" && submission && (
-          <AssessmentResult submission={submission} />
+          <AssessmentResult submission={submission} onBack={handleLogout} />
         )}
       </main>
     </div>

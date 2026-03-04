@@ -115,6 +115,18 @@ export async function getQuestionsByDiscipline(disciplineId: string): Promise<Qu
   const { data } = await supabase.from('questions').select('*').eq('discipline_id', disciplineId)
   return (data || []).map(mapQuestion)
 }
+
+export async function getDisciplineQuestionCounts(): Promise<Record<string, number>> {
+  const supabase = createClient()
+  const { data } = await supabase.from('questions').select('discipline_id')
+  const counts: Record<string, number> = {}
+  if (data) {
+    for (const q of data) {
+      counts[q.discipline_id] = (counts[q.discipline_id] || 0) + 1
+    }
+  }
+  return counts
+}
 export async function addQuestion(data: Omit<Question, "id" | "createdAt">): Promise<Question> {
   const q = { id: uid(), discipline_id: data.disciplineId, type: data.type, text: data.text, choices: data.choices, correct_answer: data.correctAnswer, points: data.points, created_at: new Date().toISOString() }
   const supabase = createClient()
