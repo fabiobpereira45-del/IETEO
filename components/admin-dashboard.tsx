@@ -408,10 +408,10 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
     setMigrating(true)
     try {
       const getLocal = (key: string) => JSON.parse(localStorage.getItem(key) || "[]")
-      const d = getLocal("ibad_disciplines")
-      const q = getLocal("ibad_questions")
+      const d = getLocal("ibad_disciplines_v2")
+      const q = getLocal("ibad_question_bank")
       const a = getLocal("ibad_assessments")
-      const s = getLocal("ibad_submissions")
+      const s = getLocal("ibad_submissions_v2")
 
       if (d.length > 0) {
         await supabase.from("disciplines").upsert(d.map((item: any) => ({
