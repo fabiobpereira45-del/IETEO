@@ -9,7 +9,7 @@
     "icons": [
         {
             "src": "/apple-icon.png",
-            "sizes": "180x180",
+            "sizes": "180x180 192x192 512x512 any",
             "type": "image/png"
         }
     ]
