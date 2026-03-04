@@ -9,9 +9,10 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
 import {
-  getAssessmentById, getQuestions, saveDraftAnswers, getDraftAnswers,
+  getAssessmentById, getQuestionsByDiscipline, saveDraftAnswers, getDraftAnswers,
   saveSubmission, calculateScore, clearStudentSession,
   type StudentSession, type StudentAnswer, type StudentSubmission, uid,
+  type Assessment, type Question,
 } from "@/lib/store"
 import { cn } from "@/lib/utils"
 
@@ -21,16 +22,32 @@ interface Props {
 }
 
 export function AssessmentForm({ session, onSubmit }: Props) {
-  const assessment = getAssessmentById(session.assessmentId)
-  const allQuestions = getQuestions()
-  const questions = assessment
-    ? assessment.questionIds.map((id) => allQuestions.find((q) => q.id === id)).filter(Boolean) as typeof allQuestions
-    : []
+  const [assessment, setAssessment] = useState<Assessment | null>(null)
+  const [questions, setQuestions] = useState<Question[]>([])
+  const [isInitializing, setIsInitializing] = useState(true)
 
   const [answers, setAnswers] = useState<StudentAnswer[]>(() => getDraftAnswers())
   const [showConfirm, setShowConfirm] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const startedAt = useRef<Date>(new Date(session.startedAt))
+
+  useEffect(() => {
+    let mounted = true
+    async function load() {
+      const a = await getAssessmentById(session.assessmentId)
+      if (!mounted) return
+      setAssessment(a)
+      if (a) {
+        const allQs = await getQuestionsByDiscipline(a.disciplineId)
+        if (!mounted) return
+        const selectedQs = a.questionIds.map(id => allQs.find(q => q.id === id)).filter(Boolean) as Question[]
+        setQuestions(selectedQs)
+      }
+      setIsInitializing(false)
+    }
+    load()
+    return () => { mounted = false }
+  }, [session.assessmentId])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -40,13 +57,13 @@ export function AssessmentForm({ session, onSubmit }: Props) {
   }, [])
 
   useEffect(() => {
-    if (!assessment?.closeAt) return
+    if (isInitializing || !assessment?.closeAt) return
     const ms = new Date(assessment.closeAt).getTime() - Date.now()
     if (ms <= 0) { handleFinalize(); return }
     const t = setTimeout(() => handleFinalize(), ms)
     return () => clearTimeout(t)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assessment, isInitializing])
 
   const getAnswer = (questionId: string) =>
     answers.find((a) => a.questionId === questionId)?.answer ?? ""
@@ -60,7 +77,7 @@ export function AssessmentForm({ session, onSubmit }: Props) {
     })
   }, [])
 
-  const handleFinalize = useCallback(() => {
+  const handleFinalize = useCallback(async () => {
     if (!assessment) return
     const elapsedSecs = Math.floor((Date.now() - startedAt.current.getTime()) / 1000)
     const { score, totalPoints, percentage } = calculateScore(answers, questions, assessment.pointsPerQuestion)
@@ -77,10 +94,14 @@ export function AssessmentForm({ session, onSubmit }: Props) {
       submittedAt: new Date().toISOString(),
       timeElapsedSeconds: elapsedSecs,
     }
-    saveSubmission(sub)
+    await saveSubmission(sub)
     clearStudentSession()
     onSubmit(sub)
   }, [answers, assessment, questions, session, onSubmit])
+
+  if (isInitializing) {
+    return <div className="rounded-2xl border border-border bg-card p-10 text-center text-muted-foreground animate-pulse">Carregando avaliação...</div>
+  }
 
   if (!assessment) {
     return (

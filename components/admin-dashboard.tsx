@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react"
 import {
   Users, FileText, BookOpen, Settings, BarChart3, Download, LogOut,
-  Plus, Pencil, Trash2, Eye, EyeOff, Trophy, Clock, CheckCircle2,
-  ShieldCheck, Sparkles,
+  Plus, Pencil, Trash2, Eye, EyeOff, Trophy, CheckCircle2,
+  ShieldCheck, Loader2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,9 +14,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
-  type Assessment, type StudentSubmission,
+  type Assessment, type StudentSubmission, type Question, type Discipline,
   getAssessments, updateAssessment, deleteAssessment,
-  getSubmissions, getSubmissionsByAssessment, deleteSubmission,
+  getSubmissions, deleteSubmission,
   getQuestions, getDisciplines, clearProfessorSession, MASTER_CREDENTIALS,
   getProfessorSession,
 } from "@/lib/store"
@@ -42,18 +42,6 @@ function formatTime(s: number) {
   return `${m}m${sec.toString().padStart(2, "0")}s`
 }
 
-function gradeBg(pct: number) {
-  if (pct >= 70) return "bg-green-100 text-green-700"
-  if (pct >= 50) return "bg-amber-100 text-amber-700"
-  return "bg-red-100 text-red-700"
-}
-
-function gradeColor(pct: number) {
-  if (pct >= 70) return "text-green-600"
-  if (pct >= 50) return "text-amber-600"
-  return "text-red-600"
-}
-
 type Tab = "overview" | "students" | "questions" | "assessments" | "professors" | "settings"
 
 interface Props {
@@ -62,8 +50,7 @@ interface Props {
 
 // ─── Overview Tab ─────────────────────────────────────────────────────────────
 
-function OverviewTab({ assessments, submissions }: { assessments: Assessment[]; submissions: StudentSubmission[] }) {
-  const questions = getQuestions()
+function OverviewTab({ assessments, submissions, questions }: { assessments: Assessment[]; submissions: StudentSubmission[]; questions: Question[] }) {
   const totalStudents = submissions.length
   const avgScore = totalStudents > 0
     ? Math.round(submissions.reduce((acc, s) => acc + s.percentage, 0) / totalStudents)
@@ -71,7 +58,7 @@ function OverviewTab({ assessments, submissions }: { assessments: Assessment[]; 
   const passing = submissions.filter((s) => s.percentage >= 70).length
 
   const activeAssessment = assessments[0]
-  const activeSubs = activeAssessment ? getSubmissionsByAssessment(activeAssessment.id) : []
+  const activeSubs = activeAssessment ? submissions.filter(s => s.assessmentId === activeAssessment.id) : []
   const activeQuestions = activeAssessment
     ? activeAssessment.questionIds.map((id) => questions.find((q) => q.id === id)).filter(Boolean)
     : []
@@ -146,14 +133,14 @@ function OverviewTab({ assessments, submissions }: { assessments: Assessment[]; 
 
 // ─── Students Tab ─────────────────────────────────────────────────────────────
 
-function StudentsTab({ assessments, allSubmissions, onRefresh }: {
+function StudentsTab({ assessments, allSubmissions, questions, onRefresh }: {
   assessments: Assessment[]
   allSubmissions: StudentSubmission[]
+  questions: Question[]
   onRefresh: () => void
 }) {
   const [selectedAssessmentId, setSelectedAssessmentId] = useState(assessments[0]?.id ?? "")
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const questions = getQuestions()
 
   const submissions = allSubmissions
     .filter((s) => s.assessmentId === selectedAssessmentId)
@@ -173,8 +160,12 @@ function StudentsTab({ assessments, allSubmissions, onRefresh }: {
     printStudentPDF({ submission: sub, assessment: selectedAssessment, questions: qs })
   }
 
-  function handleDelete() {
-    if (deleteId) { deleteSubmission(deleteId); onRefresh(); setDeleteId(null) }
+  async function handleDelete() {
+    if (deleteId) {
+      await deleteSubmission(deleteId)
+      onRefresh()
+      setDeleteId(null)
+    }
   }
 
   return (
@@ -249,28 +240,23 @@ function StudentsTab({ assessments, allSubmissions, onRefresh }: {
                     <div className="text-xs text-muted-foreground">{sub.studentEmail}</div>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${gradeBg(sub.percentage)}`}>
-                      {sub.score.toFixed(1)} / {sub.totalPoints.toFixed(1)}
+                    <span className={`px-2 py-0.5 rounded flex items-center justify-center font-bold font-mono text-sm max-w-[80px] mx-auto ` + (sub.percentage >= 70 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700')}>
+                      {sub.score.toFixed(1)}
                     </span>
-                    <div className={`text-xs font-semibold mt-0.5 ${gradeColor(sub.percentage)}`}>{sub.percentage}%</div>
                   </td>
-                  <td className="px-4 py-3 text-center text-muted-foreground hidden md:table-cell">
-                    <Clock className="h-3.5 w-3.5 inline mr-1 opacity-60" />
+                  <td className="px-4 py-3 text-center hidden md:table-cell text-muted-foreground">
                     {formatTime(sub.timeElapsedSeconds)}
                   </td>
-                  <td className="px-4 py-3 text-center text-muted-foreground text-xs hidden lg:table-cell">
+                  <td className="px-4 py-3 text-center hidden lg:table-cell text-muted-foreground">
                     {formatDate(sub.submittedAt)}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => handlePDF(sub)} title="Baixar PDF">
+                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="Baixar PDF" onClick={() => handlePDF(sub)}>
                         <Download className="h-3.5 w-3.5" />
                       </Button>
-                      <Button
-                        size="sm" variant="ghost"
-                        className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => setDeleteId(sub.id)} title="Excluir"
-                      >
+                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        title="Excluir Envio" onClick={() => setDeleteId(sub.id)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
@@ -285,8 +271,8 @@ function StudentsTab({ assessments, allSubmissions, onRefresh }: {
       <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir resultado</AlertDialogTitle>
-            <AlertDialogDescription>Tem certeza que deseja excluir o resultado deste aluno? Esta ação não pode ser desfeita.</AlertDialogDescription>
+            <AlertDialogTitle>Excluir envio</AlertDialogTitle>
+            <AlertDialogDescription>Tem certeza que deseja apagar a resposta deste aluno? Esta ação não pode ser desfeita.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -300,19 +286,21 @@ function StudentsTab({ assessments, allSubmissions, onRefresh }: {
 
 // ─── Assessments Tab ──────────────────────────────────────────────────────────
 
-function AssessmentsTab({ assessments, onRefresh }: { assessments: Assessment[]; onRefresh: () => void }) {
+function AssessmentsTab({ assessments, submissions, questions, disciplines, onRefresh }: { assessments: Assessment[]; submissions: StudentSubmission[]; questions: Question[]; disciplines: Discipline[]; onRefresh: () => void }) {
   const [builderOpen, setBuilderOpen] = useState(false)
   const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const disciplines = getDisciplines()
-  const questions = getQuestions()
 
-  function handleDelete() {
-    if (deleteId) { deleteAssessment(deleteId); onRefresh(); setDeleteId(null) }
+  async function handleDelete() {
+    if (deleteId) {
+      await deleteAssessment(deleteId)
+      onRefresh()
+      setDeleteId(null)
+    }
   }
 
-  function handleTogglePublish(a: Assessment) {
-    updateAssessment(a.id, { isPublished: !a.isPublished })
+  async function handleTogglePublish(a: Assessment) {
+    await updateAssessment(a.id, { isPublished: !a.isPublished })
     onRefresh()
   }
 
@@ -337,7 +325,7 @@ function AssessmentsTab({ assessments, onRefresh }: { assessments: Assessment[];
         <div className="flex flex-col gap-3">
           {assessments.map((a) => {
             const disc = disciplines.find((d) => d.id === a.disciplineId)
-            const subCount = getSubmissionsByAssessment(a.id).length
+            const subCount = submissions.filter(s => s.assessmentId === a.id).length
             return (
               <div key={a.id} className="bg-card border border-border rounded-xl p-4 flex items-start gap-4">
                 <div className="flex-1 min-w-0">
@@ -413,6 +401,46 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
 }) {
   const active = assessments[0]
   const supabase = createClient()
+  const [migrating, setMigrating] = useState(false)
+
+  async function handleMigrateLocalData() {
+    if (!confirm("Certeza que deseja migrar os dados antigos criados localmente para a Nuvem (Supabase)?")) return;
+    setMigrating(true)
+    try {
+      const getLocal = (key: string) => JSON.parse(localStorage.getItem(key) || "[]")
+      const d = getLocal("ibad_disciplines")
+      const q = getLocal("ibad_questions")
+      const a = getLocal("ibad_assessments")
+      const s = getLocal("ibad_submissions")
+
+      if (d.length > 0) {
+        await supabase.from("disciplines").upsert(d.map((item: any) => ({
+          id: item.id, name: item.name, description: item.description, created_at: item.createdAt || new Date().toISOString()
+        })))
+      }
+      if (q.length > 0) {
+        await supabase.from("questions").upsert(q.map((item: any) => ({
+          id: item.id, discipline_id: item.disciplineId, type: item.type, text: item.text, choices: item.choices, correct_answer: item.correctAnswer, points: item.points, created_at: item.createdAt || new Date().toISOString()
+        })))
+      }
+      if (a.length > 0) {
+        await supabase.from("assessments").upsert(a.map((item: any) => ({
+          id: item.id, title: item.title, discipline_id: item.disciplineId, professor: item.professor, institution: item.institution, question_ids: item.questionIds, points_per_question: item.pointsPerQuestion, total_points: item.totalPoints, open_at: item.openAt || null, close_at: item.closeAt || null, is_published: item.isPublished || false, shuffle_variants: item.shuffleVariants || false, logo_base64: item.logoBase64 || null, rules: item.rules || null, created_at: item.createdAt || new Date().toISOString()
+        })))
+      }
+      if (s.length > 0) {
+        await supabase.from("student_submissions").upsert(s.map((item: any) => ({
+          id: item.id, assessment_id: item.assessmentId, student_name: item.studentName, student_email: item.studentEmail, answers: item.answers, score: item.score, total_points: item.totalPoints, percentage: item.percentage, submitted_at: item.submittedAt || new Date().toISOString(), time_elapsed_seconds: item.timeElapsedSeconds || 0
+        })))
+      }
+
+      onRefresh()
+      alert("Migração Concluída com Sucesso!")
+    } catch (err: any) {
+      alert("Erro ao migrar dados: " + err.message)
+    }
+    setMigrating(false)
+  }
 
   async function handleLogout() {
     clearProfessorSession()
@@ -420,15 +448,21 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
     onLogout()
   }
 
-  function handleToggle() {
+  async function handleToggle() {
     if (!active) return
-    updateAssessment(active.id, { isPublished: !active.isPublished })
+    await updateAssessment(active.id, { isPublished: !active.isPublished })
     onRefresh()
   }
 
-  function handleSchedule(field: "openAt" | "closeAt", value: string) {
+  async function handleSchedule(field: "openAt" | "closeAt", value: string) {
     if (!active) return
-    updateAssessment(active.id, { [field]: value ? new Date(value).toISOString() : null })
+    await updateAssessment(active.id, { [field]: value ? new Date(value).toISOString() : null })
+    onRefresh()
+  }
+
+  async function handleShuffleToggle() {
+    if (!active) return
+    await updateAssessment(active.id, { shuffleVariants: !active.shuffleVariants })
     onRefresh()
   }
 
@@ -448,59 +482,69 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
               className={`flex-shrink-0 w-12 h-6 rounded-full transition-colors ${active.isPublished ? "bg-primary" : "bg-muted-foreground/40"}`}
               aria-pressed={active.isPublished}
             >
-              <span className={`block w-5 h-5 rounded-full bg-white shadow transition-transform mx-0.5 ${active.isPublished ? "translate-x-6" : "translate-x-0"}`} />
+              <div className={`w-4 h-4 rounded-full bg-primary-foreground transform transition-transform ${active.isPublished ? "translate-x-7" : "translate-x-1"}`} />
             </button>
           </div>
 
           <div className="flex items-center justify-between py-3 border-b border-border">
             <div>
-              <div className="text-sm font-medium">Variações Múltiplas</div>
-              <div className="text-xs text-muted-foreground">Gerar Tipos A, B e C embaralhadas na impressão</div>
+              <div className="text-sm font-medium">Modelos de Provas Multíplas (A, B, C)</div>
+              <div className="text-xs text-muted-foreground">Ativa criação de provas embaralhadas ao gerar PDF</div>
             </div>
             <button
-              onClick={() => {
-                if (!active) return
-                updateAssessment(active.id, { shuffleVariants: !active.shuffleVariants })
-                onRefresh()
-              }}
+              onClick={handleShuffleToggle}
               className={`flex-shrink-0 w-12 h-6 rounded-full transition-colors ${active.shuffleVariants ? "bg-primary" : "bg-muted-foreground/40"}`}
               aria-pressed={active.shuffleVariants}
             >
-              <span className={`block w-5 h-5 rounded-full bg-white shadow transition-transform mx-0.5 ${active.shuffleVariants ? "translate-x-6" : "translate-x-0"}`} />
+              <div className={`w-4 h-4 rounded-full bg-primary-foreground transform transition-transform ${active.shuffleVariants ? "translate-x-7" : "translate-x-1"}`} />
             </button>
           </div>
 
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="open-at">Abertura agendada</Label>
-              <Input
-                id="open-at"
-                type="datetime-local"
-                defaultValue={active.openAt ? active.openAt.slice(0, 16) : ""}
-                onBlur={(e) => handleSchedule("openAt", e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="close-at">Encerramento agendado</Label>
-              <Input
-                id="close-at"
-                type="datetime-local"
-                defaultValue={active.closeAt ? active.closeAt.slice(0, 16) : ""}
-                onBlur={(e) => handleSchedule("closeAt", e.target.value)}
-              />
-            </div>
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">Abertura Automática (Opcional)</Label>
+            <Input
+              type="datetime-local"
+              value={active.openAt ? active.openAt.slice(0, 16) : ""}
+              onChange={(e) => handleSchedule("openAt", e.target.value)}
+              className="text-sm"
+            />
+          </div>
+
+          <div>
+            <Label className="text-xs text-muted-foreground mb-1 block">Fechamento Automático (Opcional)</Label>
+            <Input
+              type="datetime-local"
+              value={active.closeAt ? active.closeAt.slice(0, 16) : ""}
+              onChange={(e) => handleSchedule("closeAt", e.target.value)}
+              className="text-sm"
+            />
           </div>
         </div>
       ) : (
-        <div className="bg-card border border-border rounded-xl p-6 text-center text-muted-foreground text-sm">
-          Nenhuma prova criada. Acesse a aba <strong>Provas</strong> para criar a primeira.
-        </div>
+        <div className="text-sm text-muted-foreground italic">Crie e ative uma prova na aba Provas.</div>
       )}
+
+      {/* Migration Tool */}
+      <div className="bg-card border border-border rounded-xl p-5">
+        <h3 className="font-semibold text-foreground mb-1">Migração de Dados</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Transfira provas, alunos e questões criadas anteriormente (no localhost) para o banco em nuvem atual (Supabase Vercel).
+        </p>
+        <Button
+          variant="secondary"
+          onClick={handleMigrateLocalData}
+          disabled={migrating}
+          className="w-full bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20"
+        >
+          {migrating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+          Migrar Dados Locais (LocalStorage)
+        </Button>
+      </div>
 
       <div className="bg-card border border-border rounded-xl p-5">
         <h3 className="font-semibold text-foreground mb-1">Conta do Professor</h3>
         <p className="text-sm text-muted-foreground mb-4">
-          {MASTER_CREDENTIALS.name} — {MASTER_CREDENTIALS.email}
+          Painel Administrativo
         </p>
         <Button
           variant="outline"
@@ -520,6 +564,10 @@ export function AdminDashboard({ onLogout }: Props) {
   const [tab, setTab] = useState<Tab>("overview")
   const [assessments, setAssessments] = useState<Assessment[]>([])
   const [submissions, setSubmissions] = useState<StudentSubmission[]>([])
+  const [questions, setQuestions] = useState<Question[]>([])
+  const [disciplines, setDisciplines] = useState<Discipline[]>([])
+  const [loading, setLoading] = useState(true)
+
   const [username, setUsername] = useState("")
   const [userEmail, setUserEmail] = useState("")
 
@@ -528,9 +576,19 @@ export function AdminDashboard({ onLogout }: Props) {
   const isMaster = session?.role === "master"
   const supabase = createClient()
 
-  function refresh() {
-    setAssessments(getAssessments())
-    setSubmissions(getSubmissions())
+  async function refresh() {
+    setLoading(true)
+    const [a, s, q, d] = await Promise.all([
+      getAssessments(),
+      getSubmissions(),
+      getQuestions(),
+      getDisciplines()
+    ])
+    setAssessments(a)
+    setSubmissions(s)
+    setQuestions(q)
+    setDisciplines(d)
+    setLoading(false)
   }
 
   useEffect(() => {
@@ -562,7 +620,7 @@ export function AdminDashboard({ onLogout }: Props) {
   const visibleTabs = tabs.filter((t) => !t.masterOnly || isMaster)
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <header className="bg-primary text-primary-foreground border-b border-primary/80">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
@@ -585,7 +643,7 @@ export function AdminDashboard({ onLogout }: Props) {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4 py-6 flex-1 w-full">
         <div className="flex gap-1 mb-6 bg-muted rounded-xl p-1 overflow-x-auto">
           {visibleTabs.map(({ id, label, icon }) => (
             <button
@@ -602,12 +660,21 @@ export function AdminDashboard({ onLogout }: Props) {
           ))}
         </div>
 
-        {tab === "overview" && <OverviewTab assessments={assessments} submissions={submissions} />}
-        {tab === "students" && <StudentsTab assessments={assessments} allSubmissions={submissions} onRefresh={refresh} />}
-        {tab === "questions" && <QuestionBank />}
-        {tab === "assessments" && <AssessmentsTab assessments={assessments} onRefresh={refresh} />}
-        {tab === "professors" && isMaster && <ProfessorManager />}
-        {tab === "settings" && <SettingsTab assessments={assessments} onRefresh={refresh} onLogout={onLogout} />}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center p-20 opacity-50">
+            <Loader2 className="h-8 w-8 animate-spin mb-4" />
+            <p>Carregando dados da nuvem...</p>
+          </div>
+        ) : (
+          <>
+            {tab === "overview" && <OverviewTab assessments={assessments} submissions={submissions} questions={questions} />}
+            {tab === "students" && <StudentsTab assessments={assessments} allSubmissions={submissions} questions={questions} onRefresh={refresh} />}
+            {tab === "questions" && <QuestionBank />}
+            {tab === "assessments" && <AssessmentsTab assessments={assessments} submissions={submissions} questions={questions} disciplines={disciplines} onRefresh={refresh} />}
+            {tab === "professors" && isMaster && <ProfessorManager />}
+            {tab === "settings" && <SettingsTab assessments={assessments} onRefresh={refresh} onLogout={onLogout} />}
+          </>
+        )}
       </div>
     </div>
   )

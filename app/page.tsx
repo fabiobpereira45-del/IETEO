@@ -34,16 +34,21 @@ export default function HomePage() {
     }
 
     // Restore student session
-    const studentSession = getStudentSession()
-    if (studentSession) {
-      const existing = getSubmissionByEmailAndAssessment(studentSession.email, studentSession.assessmentId)
-      if (existing) {
-        setSession(studentSession)
-        setSubmission(existing)
-        setView(existing.submittedAt ? "student-result" : "student-assessment")
-        return
+    async function checkStudentSession() {
+      const studentSession = getStudentSession()
+      if (studentSession) {
+        const existing = await getSubmissionByEmailAndAssessment(studentSession.email, studentSession.assessmentId)
+        if (existing) {
+          setSession(studentSession)
+          setSubmission(existing)
+          setView(existing.submittedAt ? "student-result" : "student-assessment")
+        } else {
+          setSession(studentSession)
+          setView("student-assessment")
+        }
       }
     }
+    checkStudentSession()
   }, [])
 
   // Hash routing for admin panel: /admin

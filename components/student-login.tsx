@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Mail, User, ArrowRight, BookOpenCheck, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,9 +9,11 @@ import {
   getActiveAssessment,
   hasStudentSubmitted,
   saveStudentSession,
-  getDraftAnswers,
-  getQuestions,
+  getQuestionsByDiscipline,
   getDisciplines,
+  type Assessment,
+  type Question,
+  type Discipline,
   type StudentSession,
 } from "@/lib/store"
 
@@ -25,7 +27,33 @@ export function StudentLogin({ onLogin }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  function handleSubmit(e: React.FormEvent) {
+  const [assessment, setAssessment] = useState<Assessment | null>(null)
+  const [questions, setQuestions] = useState<Question[]>([])
+  const [disc, setDisc] = useState<Discipline | null>(null)
+  const [isInitializing, setIsInitializing] = useState(true)
+
+  useEffect(() => {
+    let mounted = true
+    async function init() {
+      const a = await getActiveAssessment()
+      if (!mounted) return
+      setAssessment(a)
+      if (a) {
+        const [allQs, allDs] = await Promise.all([
+          getQuestionsByDiscipline(a.disciplineId),
+          getDisciplines()
+        ])
+        if (!mounted) return
+        setQuestions(allQs.filter(q => a.questionIds.includes(q.id)))
+        setDisc(allDs.find(d => d.id === a.disciplineId) || null)
+      }
+      setIsInitializing(false)
+    }
+    init()
+    return () => { mounted = false }
+  }, [])
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
 
@@ -43,14 +71,14 @@ export function StudentLogin({ onLogin }: Props) {
 
     setLoading(true)
 
-    const assessment = getActiveAssessment()
     if (!assessment) {
       setError("A avaliação não está disponível no momento. Aguarde o professor publicá-la.")
       setLoading(false)
       return
     }
 
-    if (hasStudentSubmitted(trimEmail, assessment.id)) {
+    const submitted = await hasStudentSubmitted(trimEmail, assessment.id)
+    if (submitted) {
       setError("Este e-mail já foi utilizado para enviar esta avaliação. Cada e-mail pode enviar apenas uma vez.")
       setLoading(false)
       return
@@ -68,10 +96,6 @@ export function StudentLogin({ onLogin }: Props) {
   }
 
   // Assessment info for the hero card
-  const assessment = getActiveAssessment()
-  const questions = assessment ? getQuestions().filter((q) => assessment.questionIds.includes(q.id)) : []
-  const disciplines = getDisciplines()
-  const disc = assessment ? disciplines.find((d) => d.id === assessment.disciplineId) : null
 
   const hasDiscursive = questions.some((q) => q.type === "discursive")
   const hasTrueFalse = questions.some((q) => q.type === "true-false")
@@ -81,6 +105,14 @@ export function StudentLogin({ onLogin }: Props) {
     hasTrueFalse && "V/F",
     hasDiscursive && "Discursiva",
   ].filter(Boolean).join(" · ")
+
+  if (isInitializing) {
+    return (
+      <div className="flex justify-center items-center py-20">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col items-center gap-8">

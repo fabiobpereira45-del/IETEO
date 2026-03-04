@@ -63,43 +63,56 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
 
   useEffect(() => {
     if (!open) return
-    const discs = getDisciplines()
-    setDisciplines(discs)
+    let mounted = true
 
-    if (assessment) {
-      // Edit mode
-      setTitle(assessment.title)
-      setDisciplineId(assessment.disciplineId)
-      setLogoBase64(assessment.logoBase64 ?? "")
-      setRules(assessment.rules ?? "")
-      setPointsPerQuestion(assessment.pointsPerQuestion)
-      setQuestionCount(assessment.questionIds.length)
-      setSelectedIds(new Set(assessment.questionIds))
-      setStep(1)
-    } else {
-      // Create mode
-      setTitle("")
-      setDisciplineId(discs[0]?.id ?? "")
-      setLogoBase64("")
-      setRules("")
-      setFormat("multiple-choice")
-      setQuestionCount(10)
-      setPointsPerQuestion(1)
-      setSelectionMode("auto")
-      setSelectedIds(new Set())
-      setStep(1)
+    async function init() {
+      const discs = await getDisciplines()
+      if (!mounted) return
+      setDisciplines(discs)
+
+      if (assessment) {
+        setTitle(assessment.title)
+        setDisciplineId(assessment.disciplineId)
+        setLogoBase64(assessment.logoBase64 ?? "")
+        setRules(assessment.rules ?? "")
+        setPointsPerQuestion(assessment.pointsPerQuestion)
+        setQuestionCount(assessment.questionIds.length)
+        setSelectedIds(new Set(assessment.questionIds))
+        setStep(1)
+      } else {
+        setTitle("")
+        setDisciplineId(discs[0]?.id ?? "")
+        setLogoBase64("")
+        setRules("")
+        setFormat("multiple-choice")
+        setQuestionCount(10)
+        setPointsPerQuestion(1)
+        setSelectionMode("auto")
+        setSelectedIds(new Set())
+        setStep(1)
+      }
     }
+    init()
+
+    return () => { mounted = false }
   }, [open, assessment])
 
   useEffect(() => {
     if (!disciplineId) return
-    let qs = getQuestionsByDiscipline(disciplineId)
-    if (format === "objective-only") {
-      qs = qs.filter((q) => q.type === "multiple-choice" || q.type === "true-false")
-    } else if (format !== "mixed") {
-      qs = qs.filter((q) => q.type === format)
+    let mounted = true
+    async function loadQs() {
+      let qs = await getQuestionsByDiscipline(disciplineId)
+      if (!mounted) return
+      if (format === "objective-only") {
+        qs = qs.filter((q) => q.type === "multiple-choice" || q.type === "true-false")
+      } else if (format !== "mixed") {
+        qs = qs.filter((q) => q.type === format)
+      }
+      setAvailableQuestions(qs)
     }
-    setAvailableQuestions(qs)
+    loadQs()
+
+    return () => { mounted = false }
   }, [disciplineId, format])
 
   function handleAutoSelect() {
@@ -188,14 +201,14 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
     }
   }
 
-  function handleSave() {
+  async function handleSave() {
     // We already selected IDs asynchronously when moving to step 4, so selectedIds holds the exact preview.
     const finalIds = [...selectedIds]
 
     const totalPoints = finalIds.length * pointsPerQuestion
 
     if (assessment) {
-      updateAssessment(assessment.id, {
+      await updateAssessment(assessment.id, {
         title: title.trim(),
         disciplineId,
         logoBase64,
@@ -205,7 +218,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
         totalPoints,
       })
     } else {
-      addAssessment({
+      await addAssessment({
         title: title.trim(),
         disciplineId,
         professor: PROFESSOR_CREDENTIALS.name,

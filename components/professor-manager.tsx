@@ -138,9 +138,7 @@ export function ProfessorManager() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
   async function refresh() {
-    // In a full implementation, you'd fetch from Supabase.
-    // For now, we mix stored accounts + Supabase via API, but we'll stick to a basic local list syncing
-    setAccounts(getProfessorAccounts())
+    setAccounts(await getProfessorAccounts())
   }
 
   useEffect(() => { refresh() }, [])
@@ -171,34 +169,34 @@ export function ProfessorManager() {
 
       // We still save locally for UI rendering if needed, or rely purely on Supabase.
       // Keeping local sync for compatibility with existing app flow:
-      addProfessorAccount({
+      await addProfessorAccount({
         name: data.name,
         email: data.email,
         password: data.password,
         role: data.role,
       })
-      refresh()
+      await refresh()
     } catch (e: any) {
       alert("Falha na criação: " + e.message)
     }
   }
 
-  function handleEdit(id: string, data: FormState) {
-    updateProfessorAccount(id, {
+  async function handleEdit(id: string, data: FormState) {
+    await updateProfessorAccount(id, {
       name: data.name,
       email: data.email,
       role: data.role,
       ...(data.password ? { password: data.password } : {}),
     })
     setEditingId(null)
-    refresh()
+    await refresh()
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (deleteId) {
-      deleteProfessorAccount(deleteId)
+      await deleteProfessorAccount(deleteId)
       setDeleteId(null)
-      refresh()
+      await refresh()
     }
   }
 

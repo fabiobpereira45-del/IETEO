@@ -1,10 +1,11 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Download, CheckCircle2, XCircle, Clock, Award, Minus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
-  getAssessmentById, getQuestions, getDisciplines, getSubmissionsByAssessment,
-  type StudentSubmission,
+  getAssessmentById, getQuestionsByDiscipline, getDisciplines, getSubmissionsByAssessment,
+  type StudentSubmission, type Assessment, type Question, type Discipline,
 } from "@/lib/store"
 import { printStudentPDF } from "@/lib/pdf"
 import { cn } from "@/lib/utils"
@@ -14,20 +15,42 @@ interface Props {
 }
 
 export function AssessmentResult({ submission }: Props) {
-  const assessment = getAssessmentById(submission.assessmentId)
-  const allQuestions = getQuestions()
-  const questions = assessment
-    ? assessment.questionIds.map((id) => allQuestions.find((q) => q.id === id)).filter(Boolean) as typeof allQuestions
-    : []
-  const disciplines = getDisciplines()
-  const disc = assessment ? disciplines.find((d) => d.id === assessment.disciplineId) : null
+  const [assessment, setAssessment] = useState<Assessment | null>(null)
+  const [questions, setQuestions] = useState<Question[]>([])
+  const [disc, setDisc] = useState<Discipline | null>(null)
+  const [classAverageScore, setClassAverageScore] = useState<number>(submission.score)
+  const [classSubmissions, setClassSubmissions] = useState<StudentSubmission[]>([])
+  const [isInitializing, setIsInitializing] = useState(true)
+
+  useEffect(() => {
+    let mounted = true
+    async function load() {
+      const [a, subs] = await Promise.all([
+        getAssessmentById(submission.assessmentId),
+        getSubmissionsByAssessment(submission.assessmentId)
+      ])
+      if (!mounted) return
+      setAssessment(a)
+      if (a) {
+        const [allQs, allDs] = await Promise.all([
+          getQuestionsByDiscipline(a.disciplineId),
+          getDisciplines()
+        ])
+        if (!mounted) return
+        setQuestions(allQs.filter(q => a.questionIds.includes(q.id)))
+        setDisc(allDs.find(d => d.id === a.disciplineId) || null)
+      }
+      setClassSubmissions(subs)
+      if (subs.length > 0) {
+        setClassAverageScore(subs.reduce((acc, curr) => acc + curr.score, 0) / subs.length)
+      }
+      setIsInitializing(false)
+    }
+    load()
+    return () => { mounted = false }
+  }, [submission.assessmentId, submission.score])
 
   const passed = submission.percentage >= 60
-
-  const classSubmissions = getSubmissionsByAssessment(submission.assessmentId)
-  const classAverageScore = classSubmissions.length > 0
-    ? classSubmissions.reduce((acc, curr) => acc + curr.score, 0) / classSubmissions.length
-    : submission.score
 
   function formatTime(secs: number) {
     const h = Math.floor(secs / 3600)
@@ -61,6 +84,10 @@ export function AssessmentResult({ submission }: Props) {
         : q.choices.find((c) => c.id === q.correctAnswer)?.text ?? "—"
       return { num: globalIdx + 1, text: q.text, correctLabel, isCorrect }
     })
+
+  if (isInitializing) {
+    return <div className="p-10 text-center text-muted-foreground animate-pulse">Carregando resultado...</div>
+  }
 
   return (
     <div className="flex flex-col gap-6">

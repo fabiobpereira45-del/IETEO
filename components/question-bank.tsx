@@ -21,7 +21,7 @@ import {
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import {
   type Discipline, type Question, type QuestionType, type Choice,
-  getDisciplines, saveDisciplines, addDiscipline, updateDiscipline, deleteDiscipline,
+  getDisciplines, addDiscipline, updateDiscipline, deleteDiscipline,
   getQuestionsByDiscipline, addQuestion, updateQuestion, deleteQuestion, uid,
 } from "@/lib/store"
 import { AIQuestionGenerator } from "./ai-question-generator"
@@ -60,12 +60,12 @@ function DisciplineModal({
     }
   }, [open, discipline])
 
-  function handleSave() {
+  async function handleSave() {
     if (!name.trim()) return
     if (discipline) {
-      updateDiscipline(discipline.id, { name: name.trim(), description: description.trim() || undefined })
+      await updateDiscipline(discipline.id, { name: name.trim(), description: description.trim() || undefined })
     } else {
-      addDiscipline(name.trim(), description.trim() || undefined)
+      await addDiscipline(name.trim(), description.trim() || undefined)
     }
     onSave()
     onClose()
@@ -184,7 +184,7 @@ function QuestionModal({
     return true // discursive
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!isValid()) return
     const data = {
       disciplineId,
@@ -195,9 +195,9 @@ function QuestionModal({
       points,
     }
     if (question) {
-      updateQuestion(question.id, data)
+      await updateQuestion(question.id, data)
     } else {
-      addQuestion(data)
+      await addQuestion(data)
     }
     onSave()
     onClose()
@@ -349,7 +349,7 @@ function BulkImportModal({
     }
   }, [open])
 
-  function handleImport() {
+  async function handleImport() {
     if (!text.trim()) return
     const lines = text.split("\n").map((l) => l.trim()).filter(Boolean)
     let addedCount = 0
@@ -373,7 +373,7 @@ function BulkImportModal({
           else if (letter === "C") correctId = choices[2].id
           else if (letter === "D") correctId = choices[3].id
 
-          addQuestion({
+          await addQuestion({
             disciplineId,
             type: "multiple-choice",
             text: qText.trim(),
@@ -431,6 +431,7 @@ export function QuestionBank() {
   const [disciplines, setDisciplines] = useState<Discipline[]>([])
   const [selectedDiscipline, setSelectedDiscipline] = useState<Discipline | null>(null)
   const [questions, setQuestions] = useState<Question[]>([])
+  const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({})
 
   // Modals
   const [discModal, setDiscModal] = useState(false)
@@ -444,14 +445,35 @@ export function QuestionBank() {
   const [aiModal, setAiModal] = useState(false)
   const [importModal, setImportModal] = useState(false)
 
-  function reload() {
-    const discs = getDisciplines()
+  async function reload(discIdToSelect?: string) {
+    const discs = await getDisciplines()
     setDisciplines(discs)
-    if (selectedDiscipline) {
-      const updated = discs.find((d) => d.id === selectedDiscipline.id)
-      setSelectedDiscipline(updated ?? discs[0] ?? null)
+
+    const counts: Record<string, number> = {}
+    for (const d of discs) {
+      const qs = await getQuestionsByDiscipline(d.id)
+      counts[d.id] = qs.length
+    }
+    setQuestionCounts(counts)
+
+    let toSelect = selectedDiscipline
+    if (discIdToSelect) {
+      toSelect = discs.find((d) => d.id === discIdToSelect) || null
+    } else if (selectedDiscipline) {
+      toSelect = discs.find((d) => d.id === selectedDiscipline.id) || null
+    }
+
+    if (!toSelect && discs.length > 0) {
+      toSelect = discs[0]
+    }
+
+    setSelectedDiscipline(toSelect)
+
+    if (toSelect) {
+      const qs = await getQuestionsByDiscipline(toSelect.id)
+      setQuestions(qs)
     } else {
-      setSelectedDiscipline(discs[0] ?? null)
+      setQuestions([])
     }
   }
 
@@ -459,30 +481,23 @@ export function QuestionBank() {
     reload()
   }, [])
 
-  useEffect(() => {
-    if (selectedDiscipline) {
-      setQuestions(getQuestionsByDiscipline(selectedDiscipline.id))
-    } else {
-      setQuestions([])
-    }
-  }, [selectedDiscipline, disciplines])
-
-  function handleSelectDisc(d: Discipline) {
+  async function handleSelectDisc(d: Discipline) {
     setSelectedDiscipline(d)
-    setQuestions(getQuestionsByDiscipline(d.id))
+    const qs = await getQuestionsByDiscipline(d.id)
+    setQuestions(qs)
   }
 
-  function handleDeleteDisc(id: string) {
-    deleteDiscipline(id)
-    const remaining = getDisciplines()
-    setDisciplines(remaining)
-    setSelectedDiscipline(remaining[0] ?? null)
+  async function handleDeleteDisc(id: string) {
+    await deleteDiscipline(id)
+    await reload()
     setDeleteDiscId(null)
   }
 
-  function handleDeleteQ(id: string) {
-    deleteQuestion(id)
-    setQuestions(getQuestionsByDiscipline(selectedDiscipline!.id))
+  async function handleDeleteQ(id: string) {
+    await deleteQuestion(id)
+    if (selectedDiscipline) {
+      reload(selectedDiscipline.id)
+    }
     setDeleteQId(null)
   }
 
@@ -512,7 +527,7 @@ export function QuestionBank() {
             </div>
           ) : (
             disciplines.map((d) => {
-              const count = getQuestionsByDiscipline(d.id).length
+              const count = questionCounts[d.id]
               const active = selectedDiscipline?.id === d.id
               return (
                 <div
@@ -524,7 +539,7 @@ export function QuestionBank() {
                   <BookOpen className={`h-4 w-4 flex-shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{d.name}</p>
-                    <p className="text-xs text-muted-foreground">{count} questão{count !== 1 ? "ões" : ""}</p>
+                    <p className="text-xs text-muted-foreground">{count === undefined ? "Carregando" : count} questão{count !== 1 ? "ões" : ""}</p>
                   </div>
                   {active && <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-primary" />}
                   <div className={`flex-shrink-0 flex gap-0.5 ${active ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}>
@@ -687,7 +702,7 @@ export function QuestionBank() {
           disciplineId={selectedDiscipline.id}
           onClose={() => setQModal(false)}
           onSave={() => {
-            setQuestions(getQuestionsByDiscipline(selectedDiscipline.id))
+            if (selectedDiscipline) reload(selectedDiscipline.id)
           }}
         />
       )}
@@ -704,7 +719,7 @@ export function QuestionBank() {
               onQuestionsAdded={() => {
                 setAiModal(false)
                 if (selectedDiscipline) {
-                  setQuestions(getQuestionsByDiscipline(selectedDiscipline.id))
+                  reload(selectedDiscipline.id)
                 }
               }}
             />
@@ -718,7 +733,7 @@ export function QuestionBank() {
         disciplineId={selectedDiscipline?.id ?? ""}
         onClose={() => setImportModal(false)}
         onSave={() => {
-          if (selectedDiscipline) setQuestions(getQuestionsByDiscipline(selectedDiscipline.id))
+          if (selectedDiscipline) reload(selectedDiscipline.id)
         }}
       />
 
