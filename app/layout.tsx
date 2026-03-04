@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Inter, Merriweather } from "next/font/google"
 import "./globals.css"
 
@@ -15,10 +15,26 @@ const merriweather = Merriweather({
   display: "swap",
 })
 
+export const viewport: Viewport = {
+  themeColor: "#09090b",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+}
+
 export const metadata: Metadata = {
   title: "Avaliação Teológica — Instituto de Ensino Teológico - IETEO",
   description: "Sistema de Avaliação Teológica do IETEO — Curso de Teologia, Disciplina: Livros Poéticos",
   generator: "v0.app",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "IETEO",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 }
 
 export default function RootLayout({

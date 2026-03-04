@@ -177,6 +177,17 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
     }
   }
 
+  function removeQuestionPreview(idToRemove: string) {
+    const arr = [...selectedIds]
+    const index = arr.indexOf(idToRemove)
+    if (index !== -1) {
+      arr.splice(index, 1)
+      setSelectedIds(new Set(arr))
+      // Decrease question_count as well to match reality
+      setQuestionCount(prev => Math.max(1, prev - 1))
+    }
+  }
+
   function handleSave() {
     // We already selected IDs asynchronously when moving to step 4, so selectedIds holds the exact preview.
     const finalIds = [...selectedIds]
@@ -510,21 +521,24 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
                     const previewQs = previewIds.map(id => availableQuestions.find(q => q.id === id)).filter(Boolean) as Question[]
 
                     return previewQs.map((q, idx) => (
-                      <div key={idx} className="flex flex-col gap-2 group relative">
-                        <div className="absolute -left-3 -top-2 md:-left-12 flex-col items-center gap-1 hidden group-hover:flex bg-white shadow-sm border rounded-md p-1 z-10">
-                          <button onClick={() => moveQuestion(idx, 'up')} disabled={idx === 0} className="p-1 hover:bg-muted rounded text-muted-foreground disabled:opacity-30" title="Mover para Cima">
-                            <ArrowUp className="w-4 h-4" />
+                      <div key={idx} className="flex flex-col gap-2 relative border border-gray-200 rounded-md p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex justify-end gap-1 mb-2 border-b border-gray-100 pb-2">
+                          <button onClick={() => moveQuestion(idx, 'up')} disabled={idx === 0} className="p-1 px-2 flex items-center gap-1 hover:bg-muted rounded text-muted-foreground disabled:opacity-30 border text-xs font-medium" title="Mover para Cima">
+                            <ArrowUp className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Subir</span>
                           </button>
-                          <button onClick={() => moveQuestion(idx, 'down')} disabled={idx === previewQs.length - 1} className="p-1 hover:bg-muted rounded text-muted-foreground disabled:opacity-30" title="Mover para Baixo">
-                            <ArrowDown className="w-4 h-4" />
+                          <button onClick={() => moveQuestion(idx, 'down')} disabled={idx === previewQs.length - 1} className="p-1 px-2 flex items-center gap-1 hover:bg-muted rounded text-muted-foreground disabled:opacity-30 border text-xs font-medium" title="Mover para Baixo">
+                            <ArrowDown className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Descer</span>
                           </button>
-                          <button onClick={() => swapQuestionRandomly(q.id)} className="p-1 hover:bg-muted rounded text-blue-500" title="Trocar por outra questão aleatória">
-                            <RefreshCw className="w-4 h-4" />
+                          <button onClick={() => swapQuestionRandomly(q.id)} className="p-1 px-2 flex items-center gap-1 hover:bg-blue-50 rounded text-blue-600 border border-blue-200 ml-auto transition-colors text-xs font-medium" title="Trocar por outra (Aleatório)">
+                            <RefreshCw className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Trocar</span>
+                          </button>
+                          <button onClick={() => removeQuestionPreview(q.id)} className="p-1 px-2 flex items-center gap-1 hover:bg-red-50 hover:text-red-600 rounded text-red-500 border border-red-200 transition-colors text-xs font-medium" title="Excluir Questão">
+                            <Trash2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Excluir</span>
                           </button>
                         </div>
                         <div className="flex gap-2">
-                          <span className="font-bold">{idx + 1}.</span>
-                          <span className="text-sm font-medium">{q.text}</span>
+                          <span className="font-bold text-gray-700">{idx + 1}.</span>
+                          <span className="text-sm font-medium text-gray-900 leading-relaxed">{q.text}</span>
                         </div>
                         {q.type === "multiple-choice" && (
                           <div className="flex flex-col gap-2 ml-6 mt-1">

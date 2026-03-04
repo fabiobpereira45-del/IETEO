@@ -37,6 +37,7 @@ export interface Assessment {
   openAt: string | null
   closeAt: string | null
   isPublished: boolean
+  shuffleVariants?: boolean
   logoBase64?: string
   rules?: string
   createdAt: string

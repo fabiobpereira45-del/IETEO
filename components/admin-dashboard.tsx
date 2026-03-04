@@ -21,6 +21,7 @@ import {
   getProfessorSession,
 } from "@/lib/store"
 import { printStudentPDF, printBlankAssessmentPDF } from "@/lib/pdf"
+import { ErrorBoundary } from "@/components/error-boundary"
 import { QuestionBank } from "@/components/question-bank"
 import { AssessmentBuilder } from "@/components/assessment-builder"
 import { ProfessorManager } from "@/components/professor-manager"
@@ -160,6 +161,10 @@ function StudentsTab({ assessments, allSubmissions, onRefresh }: {
 
   const selectedAssessment = assessments.find((a) => a.id === selectedAssessmentId)
 
+  const averageScore = submissions.length > 0
+    ? submissions.reduce((acc, curr) => acc + curr.score, 0) / submissions.length
+    : 0
+
   function handlePDF(sub: StudentSubmission) {
     if (!selectedAssessment) return
     const qs = selectedAssessment.questionIds
@@ -186,6 +191,32 @@ function StudentsTab({ assessments, allSubmissions, onRefresh }: {
               <option key={a.id} value={a.id}>{a.title}</option>
             ))}
           </select>
+        </div>
+      )}
+
+      {selectedAssessment && submissions.length > 0 && (
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-card border border-border rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase font-medium">Envios Totais</p>
+              <p className="text-2xl font-bold">{submissions.length}</p>
+            </div>
+            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+              <Users className="h-5 w-5" />
+            </div>
+          </div>
+          <div className="bg-card border border-border rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase font-medium">Média da Turma</p>
+              <div className="flex items-baseline gap-1">
+                <p className="text-2xl font-bold">{averageScore.toFixed(1)}</p>
+                <p className="text-sm text-muted-foreground">/ {selectedAssessment.totalPoints.toFixed(1)} pts</p>
+              </div>
+            </div>
+            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+              <BarChart3 className="h-5 w-5" />
+            </div>
+          </div>
         </div>
       )}
 
@@ -348,12 +379,14 @@ function AssessmentsTab({ assessments, onRefresh }: { assessments: Assessment[];
         </div>
       )}
 
-      <AssessmentBuilder
-        open={builderOpen}
-        assessment={editingAssessment}
-        onClose={() => setBuilderOpen(false)}
-        onSave={onRefresh}
-      />
+      <ErrorBoundary>
+        <AssessmentBuilder
+          open={builderOpen}
+          assessment={editingAssessment}
+          onClose={() => setBuilderOpen(false)}
+          onSave={onRefresh}
+        />
+      </ErrorBoundary>
 
       <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>
@@ -416,6 +449,24 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
               aria-pressed={active.isPublished}
             >
               <span className={`block w-5 h-5 rounded-full bg-white shadow transition-transform mx-0.5 ${active.isPublished ? "translate-x-6" : "translate-x-0"}`} />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between py-3 border-b border-border">
+            <div>
+              <div className="text-sm font-medium">Variações Múltiplas</div>
+              <div className="text-xs text-muted-foreground">Gerar Tipos A, B e C embaralhadas na impressão</div>
+            </div>
+            <button
+              onClick={() => {
+                if (!active) return
+                updateAssessment(active.id, { shuffleVariants: !active.shuffleVariants })
+                onRefresh()
+              }}
+              className={`flex-shrink-0 w-12 h-6 rounded-full transition-colors ${active.shuffleVariants ? "bg-primary" : "bg-muted-foreground/40"}`}
+              aria-pressed={active.shuffleVariants}
+            >
+              <span className={`block w-5 h-5 rounded-full bg-white shadow transition-transform mx-0.5 ${active.shuffleVariants ? "translate-x-6" : "translate-x-0"}`} />
             </button>
           </div>
 

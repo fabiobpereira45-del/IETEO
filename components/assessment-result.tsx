@@ -3,7 +3,7 @@
 import { Download, CheckCircle2, XCircle, Clock, Award, Minus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
-  getAssessmentById, getQuestions, getDisciplines,
+  getAssessmentById, getQuestions, getDisciplines, getSubmissionsByAssessment,
   type StudentSubmission,
 } from "@/lib/store"
 import { printStudentPDF } from "@/lib/pdf"
@@ -23,6 +23,11 @@ export function AssessmentResult({ submission }: Props) {
   const disc = assessment ? disciplines.find((d) => d.id === assessment.disciplineId) : null
 
   const passed = submission.percentage >= 60
+
+  const classSubmissions = getSubmissionsByAssessment(submission.assessmentId)
+  const classAverageScore = classSubmissions.length > 0
+    ? classSubmissions.reduce((acc, curr) => acc + curr.score, 0) / classSubmissions.length
+    : submission.score
 
   function formatTime(secs: number) {
     const h = Math.floor(secs / 3600)
@@ -72,8 +77,11 @@ export function AssessmentResult({ submission }: Props) {
           <p className="text-5xl font-bold font-serif">{submission.score.toFixed(1)}</p>
           <p className="text-lg opacity-80">de {submission.totalPoints.toFixed(1)} pontos</p>
         </div>
-        <div className="rounded-full px-4 py-1.5 text-sm font-semibold bg-white/20 text-white">
-          {submission.percentage}% de acerto · {passed ? "Aprovado" : "Reprovado"}
+        <div className="rounded-full px-4 py-1.5 text-sm font-semibold bg-white/20 text-white flex flex-col items-center">
+          <span>{submission.percentage}% de acerto · {passed ? "Aprovado" : "Reprovado"}</span>
+          {classSubmissions.length > 1 && (
+            <span className="text-xs font-medium opacity-90 mt-0.5">Média da turma: {classAverageScore.toFixed(1)} pt{classAverageScore !== 1 ? 's' : ''}</span>
+          )}
         </div>
         <Button
           variant="outline"
@@ -128,8 +136,8 @@ export function AssessmentResult({ submission }: Props) {
               className={cn(
                 "rounded-xl border p-5 bg-card",
                 isDiscursive ? "border-border" :
-                isCorrect ? "border-green-200 bg-green-50/50" :
-                "border-red-200 bg-red-50/50"
+                  isCorrect ? "border-green-200 bg-green-50/50" :
+                    "border-red-200 bg-red-50/50"
               )}
             >
               <div className="flex items-start gap-3">
