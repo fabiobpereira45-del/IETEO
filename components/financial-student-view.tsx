@@ -291,7 +291,10 @@ export function FinancialStudentView({ studentId }: Props) {
                                 <button
                                     onClick={handleCheckPixStatus}
                                     disabled={pixVerifying}
-                                    className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-bold px-4 py-3 rounded-xl transition-colors"
+                                    className={`w-full flex items-center justify-center gap-2 font-bold px-4 py-3 rounded-xl transition-colors disabled:opacity-60 text-white ${pixVerifyMsg === "pending"
+                                            ? "bg-red-600 hover:bg-red-700"
+                                            : "bg-green-600 hover:bg-green-700"
+                                        }`}
                                 >
                                     {pixVerifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                                     {pixVerifying ? "Verificando..." : "Já Paguei — Verificar Pagamento"}
