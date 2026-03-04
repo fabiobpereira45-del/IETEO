@@ -466,6 +466,12 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
     onRefresh()
   }
 
+  async function handleReleaseResultsToggle() {
+    if (!active) return
+    await updateAssessment(active.id, { releaseResults: !active.releaseResults })
+    onRefresh()
+  }
+
   return (
     <div className="flex flex-col gap-5 max-w-xl">
       {active ? (
@@ -497,6 +503,20 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
               aria-pressed={active.shuffleVariants}
             >
               <div className={`w-4 h-4 rounded-full bg-primary-foreground transform transition-transform ${active.shuffleVariants ? "translate-x-7" : "translate-x-1"}`} />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between py-3 border-b border-border">
+            <div>
+              <div className="text-sm font-medium">Liberar Resultados para os Alunos</div>
+              <div className="text-xs text-muted-foreground">Exibe nota e gabarito na tela final do aluno</div>
+            </div>
+            <button
+              onClick={handleReleaseResultsToggle}
+              className={`flex-shrink-0 w-12 h-6 rounded-full transition-colors ${active.releaseResults ? "bg-primary" : "bg-muted-foreground/40"}`}
+              aria-pressed={active.releaseResults}
+            >
+              <div className={`w-4 h-4 rounded-full bg-primary-foreground transform transition-transform ${active.releaseResults ? "translate-x-7" : "translate-x-1"}`} />
             </button>
           </div>
 

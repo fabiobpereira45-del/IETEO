@@ -59,9 +59,15 @@ export default function HomePage() {
     }
   }, [])
 
-  const handleStudentLogin = useCallback((sess: StudentSession) => {
+  const handleStudentLogin = useCallback(async (sess: StudentSession) => {
     setSession(sess)
-    setView("student-assessment")
+    const existing = await getSubmissionByEmailAndAssessment(sess.email, sess.assessmentId)
+    if (existing && existing.submittedAt) {
+      setSubmission(existing)
+      setView("student-result")
+    } else {
+      setView("student-assessment")
+    }
   }, [])
 
   const handleSubmit = useCallback((sub: StudentSubmission) => {

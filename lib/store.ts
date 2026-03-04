@@ -5,7 +5,7 @@ export type QuestionType = "multiple-choice" | "true-false" | "discursive"
 export interface Choice { id: string; text: string }
 export interface Discipline { id: string; name: string; description?: string; createdAt: string }
 export interface Question { id: string; disciplineId: string; type: QuestionType; text: string; choices: Choice[]; correctAnswer: string; points: number; createdAt: string }
-export interface Assessment { id: string; title: string; disciplineId: string; professor: string; institution: string; questionIds: string[]; pointsPerQuestion: number; totalPoints: number; openAt: string | null; closeAt: string | null; isPublished: boolean; shuffleVariants?: boolean; logoBase64?: string; rules?: string; createdAt: string }
+export interface Assessment { id: string; title: string; disciplineId: string; professor: string; institution: string; questionIds: string[]; pointsPerQuestion: number; totalPoints: number; openAt: string | null; closeAt: string | null; isPublished: boolean; shuffleVariants?: boolean; logoBase64?: string; rules?: string; releaseResults?: boolean; createdAt: string }
 export interface StudentAnswer { questionId: string; answer: string }
 export interface StudentSubmission { id: string; assessmentId: string; studentName: string; studentEmail: string; answers: StudentAnswer[]; score: number; totalPoints: number; percentage: number; submittedAt: string; timeElapsedSeconds: number }
 export interface ProfessorAccount { id: string; name: string; email: string; passwordHash: string; role: "master" | "professor"; createdAt: string }
@@ -79,7 +79,7 @@ export function saveDraftAnswers(answers: StudentAnswer[]): void { writeLocal(KE
 // DB Mappers
 function mapDiscipline(row: any): Discipline { return { id: row.id, name: row.name, description: row.description || undefined, createdAt: row.created_at } }
 function mapQuestion(row: any): Question { return { id: row.id, disciplineId: row.discipline_id, type: row.type, text: row.text, choices: row.choices, correctAnswer: row.correct_answer, points: row.points, createdAt: row.created_at } }
-function mapAssessment(row: any): Assessment { return { id: row.id, title: row.title, disciplineId: row.discipline_id, professor: row.professor, institution: row.institution, questionIds: row.question_ids, pointsPerQuestion: row.points_per_question, totalPoints: row.total_points, openAt: row.open_at, closeAt: row.close_at, isPublished: row.is_published, shuffleVariants: row.shuffle_variants, logoBase64: row.logo_base64, rules: row.rules, createdAt: row.created_at } }
+function mapAssessment(row: any): Assessment { return { id: row.id, title: row.title, disciplineId: row.discipline_id, professor: row.professor, institution: row.institution, questionIds: row.question_ids, pointsPerQuestion: row.points_per_question, totalPoints: row.total_points, openAt: row.open_at, closeAt: row.close_at, isPublished: row.is_published, shuffleVariants: row.shuffle_variants, logoBase64: row.logo_base64, rules: row.rules, releaseResults: row.release_results, createdAt: row.created_at } }
 function mapSubmission(row: any): StudentSubmission { return { id: row.id, assessmentId: row.assessment_id, studentName: row.student_name, studentEmail: row.student_email, answers: row.answers, score: row.score, totalPoints: row.total_points, percentage: row.percentage, submittedAt: row.submitted_at, timeElapsedSeconds: row.time_elapsed_seconds } }
 function mapProfessor(row: any): ProfessorAccount { return { id: row.id, name: row.name, email: row.email, passwordHash: row.password_hash, role: row.role as any, createdAt: row.created_at } }
 
@@ -139,17 +139,17 @@ export async function deleteQuestion(id: string): Promise<void> {
 
 export async function getAssessments(): Promise<Assessment[]> {
   const supabase = createClient()
-  const { data } = await supabase.from('assessments').select('*')
+  const { data, error } = await supabase.from('assessments').select('*').order('created_at', { ascending: false })
   return (data || []).map(mapAssessment)
 }
 export async function getAssessmentById(id: string): Promise<Assessment | null> {
   const supabase = createClient()
-  const { data } = await supabase.from('assessments').select('*').eq('id', id).maybeSingle()
+  const { data, error } = await supabase.from('assessments').select('*').eq('id', id).single()
   return data ? mapAssessment(data) : null
 }
 export async function getActiveAssessment(): Promise<Assessment | null> {
-  const assessments = await getAssessments()
   const now = new Date()
+  const assessments = await getAssessments()
   return assessments.find((a) => {
     if (!a.isPublished) return false
     if (a.openAt && new Date(a.openAt) > now) return false
@@ -157,29 +157,32 @@ export async function getActiveAssessment(): Promise<Assessment | null> {
     return true
   }) ?? null
 }
-export async function addAssessment(data: Omit<Assessment, "id" | "createdAt">): Promise<Assessment> {
-  const a = { id: uid(), title: data.title, discipline_id: data.disciplineId, professor: data.professor, institution: data.institution, question_ids: data.questionIds, points_per_question: data.pointsPerQuestion, total_points: data.totalPoints, open_at: data.openAt || null, close_at: data.closeAt || null, is_published: data.isPublished, shuffle_variants: data.shuffleVariants ?? false, logo_base64: data.logoBase64 || null, rules: data.rules || null, created_at: new Date().toISOString() }
+export async function addAssessment(data: Omit<Assessment, "id" | "createdAt" | "releaseResults">): Promise<Assessment> {
+  const a = { ...data, id: uid(), createdAt: new Date().toISOString(), releaseResults: false }
+  const dbData = { id: a.id, title: a.title, discipline_id: a.disciplineId, professor: a.professor, institution: a.institution, question_ids: a.questionIds, points_per_question: a.pointsPerQuestion, total_points: a.totalPoints, open_at: a.openAt, close_at: a.closeAt, is_published: a.isPublished, shuffle_variants: a.shuffleVariants, logo_base64: a.logoBase64, rules: a.rules, release_results: a.releaseResults, created_at: a.createdAt }
   const supabase = createClient()
-  await supabase.from('assessments').insert(a)
-  return mapAssessment(a)
+  await supabase.from('assessments').insert(dbData)
+  return a
 }
 export async function updateAssessment(id: string, data: Partial<Omit<Assessment, "id" | "createdAt">>): Promise<void> {
-  const updateData: any = {}
-  if (data.title !== undefined) updateData.title = data.title
-  if (data.disciplineId !== undefined) updateData.discipline_id = data.disciplineId
-  if (data.professor !== undefined) updateData.professor = data.professor
-  if (data.institution !== undefined) updateData.institution = data.institution
-  if (data.questionIds !== undefined) updateData.question_ids = data.questionIds
-  if (data.pointsPerQuestion !== undefined) updateData.points_per_question = data.pointsPerQuestion
-  if (data.totalPoints !== undefined) updateData.total_points = data.totalPoints
-  if (data.openAt !== undefined) updateData.open_at = data.openAt
-  if (data.closeAt !== undefined) updateData.close_at = data.closeAt
-  if (data.isPublished !== undefined) updateData.is_published = data.isPublished
-  if (data.shuffleVariants !== undefined) updateData.shuffle_variants = data.shuffleVariants
-  if (data.logoBase64 !== undefined) updateData.logo_base64 = data.logoBase64
-  if (data.rules !== undefined) updateData.rules = data.rules
+  const dbData: any = {}
+  if (data.title !== undefined) dbData.title = data.title
+  if (data.disciplineId !== undefined) dbData.discipline_id = data.disciplineId
+  if (data.professor !== undefined) dbData.professor = data.professor
+  if (data.institution !== undefined) dbData.institution = data.institution
+  if (data.questionIds !== undefined) dbData.question_ids = data.questionIds
+  if (data.pointsPerQuestion !== undefined) dbData.points_per_question = data.pointsPerQuestion
+  if (data.totalPoints !== undefined) dbData.total_points = data.totalPoints
+  if (data.openAt !== undefined) dbData.open_at = data.openAt
+  if (data.closeAt !== undefined) dbData.close_at = data.closeAt
+  if (data.isPublished !== undefined) dbData.is_published = data.isPublished
+  if (data.shuffleVariants !== undefined) dbData.shuffle_variants = data.shuffleVariants
+  if (data.logoBase64 !== undefined) dbData.logo_base64 = data.logoBase64
+  if (data.rules !== undefined) dbData.rules = data.rules
+  if (data.releaseResults !== undefined) dbData.release_results = data.releaseResults
+
   const supabase = createClient()
-  await supabase.from('assessments').update(updateData).eq('id', id)
+  await supabase.from('assessments').update(dbData).eq('id', id)
 }
 export async function deleteAssessment(id: string): Promise<void> {
   const supabase = createClient()

@@ -53,8 +53,7 @@ export function StudentLogin({ onLogin }: Props) {
     return () => { mounted = false }
   }, [])
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function processLogin(isQuery: boolean) {
     setError(null)
 
     const trimName = name.trim()
@@ -78,8 +77,15 @@ export function StudentLogin({ onLogin }: Props) {
     }
 
     const submitted = await hasStudentSubmitted(trimEmail, assessment.id)
-    if (submitted) {
-      setError("Este e-mail já foi utilizado para enviar esta avaliação. Cada e-mail pode enviar apenas uma vez.")
+
+    if (isQuery && !submitted) {
+      setError("Nenhuma avaliação finalizada foi encontrada para este e-mail.")
+      setLoading(false)
+      return
+    }
+
+    if (!isQuery && submitted) {
+      setError("Este e-mail já foi utilizado. Para consultar sua nota, clique em 'Ver Resultado Anterior'.")
       setLoading(false)
       return
     }
@@ -150,7 +156,7 @@ export function StudentLogin({ onLogin }: Props) {
           Informe seus dados abaixo. Cada e-mail pode submeter a avaliação apenas uma vez.
         </p>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <form onSubmit={(e) => { e.preventDefault(); processLogin(false) }} className="flex flex-col gap-5">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="student-name" className="text-sm font-medium">Nome Completo</Label>
             <div className="relative">
@@ -188,14 +194,25 @@ export function StudentLogin({ onLogin }: Props) {
             </div>
           )}
 
-          <Button
-            type="submit"
-            disabled={loading || !assessment}
-            className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold h-11 text-base"
-          >
-            Iniciar Avaliação
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-3 mt-2">
+            <Button
+              type="submit"
+              disabled={loading || !assessment}
+              className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold h-11 text-base flex-1"
+            >
+              Iniciar Avaliação
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={loading || !assessment}
+              onClick={() => processLogin(true)}
+              className="h-11 font-medium sm:w-[200px]"
+            >
+              Ver Resultado Anterior
+            </Button>
+          </div>
         </form>
       </div>
 
