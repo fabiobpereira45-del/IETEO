@@ -537,16 +537,16 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
                       <div key={idx} className="flex flex-col gap-2 relative border border-gray-200 rounded-md p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex justify-end gap-1 mb-2 border-b border-gray-100 pb-2">
                           <button onClick={() => moveQuestion(idx, 'up')} disabled={idx === 0} className="p-1 px-2 flex items-center gap-1 hover:bg-muted rounded text-muted-foreground disabled:opacity-30 border text-xs font-medium" title="Mover para Cima">
-                            <ArrowUp className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Subir</span>
+                            <ArrowUp className="w-3.5 h-3.5" /> <span>Subir</span>
                           </button>
                           <button onClick={() => moveQuestion(idx, 'down')} disabled={idx === previewQs.length - 1} className="p-1 px-2 flex items-center gap-1 hover:bg-muted rounded text-muted-foreground disabled:opacity-30 border text-xs font-medium" title="Mover para Baixo">
-                            <ArrowDown className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Descer</span>
+                            <ArrowDown className="w-3.5 h-3.5" /> <span>Descer</span>
                           </button>
                           <button onClick={() => swapQuestionRandomly(q.id)} className="p-1 px-2 flex items-center gap-1 hover:bg-blue-50 rounded text-blue-600 border border-blue-200 ml-auto transition-colors text-xs font-medium" title="Trocar por outra (Aleatório)">
-                            <RefreshCw className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Trocar</span>
+                            <RefreshCw className="w-3.5 h-3.5" /> <span>Trocar</span>
                           </button>
                           <button onClick={() => removeQuestionPreview(q.id)} className="p-1 px-2 flex items-center gap-1 hover:bg-red-50 hover:text-red-600 rounded text-red-500 border border-red-200 transition-colors text-xs font-medium" title="Excluir Questão">
-                            <Trash2 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Excluir</span>
+                            <Trash2 className="w-3.5 h-3.5" /> <span>Excluir</span>
                           </button>
                         </div>
                         <div className="flex gap-2">

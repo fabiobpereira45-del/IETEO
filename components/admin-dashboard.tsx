@@ -664,7 +664,7 @@ export function AdminDashboard({ onLogout }: Props) {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-6 flex-1 w-full">
-        <div className="flex gap-1 mb-6 bg-muted rounded-xl p-1 overflow-x-auto">
+        <div className="flex gap-1 mb-6 bg-muted rounded-xl p-1 overflow-x-auto pb-2 scrollbar-thin">
           {visibleTabs.map(({ id, label, icon }) => (
             <button
               key={id}
@@ -675,7 +675,7 @@ export function AdminDashboard({ onLogout }: Props) {
                 }`}
             >
               {icon}
-              <span className="hidden sm:inline">{label}</span>
+              <span>{label}</span>
             </button>
           ))}
         </div>
