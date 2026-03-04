@@ -1,6 +1,6 @@
 "use client"
 
-import { BookOpen, GraduationCap, LayoutDashboard } from "lucide-react"
+import { BookOpen, GraduationCap, LayoutDashboard, User } from "lucide-react"
 
 interface AssessmentHeaderProps {
   studentName?: string
@@ -55,9 +55,10 @@ export function AssessmentHeader({ studentName, studentEmail, onAdminClick, onSt
             {onStudentAreaClick && (
               <button
                 onClick={onStudentAreaClick}
-                className="flex items-center gap-1.5 rounded-md bg-white/15 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/25 transition-colors"
-                title="Painel do Aluno"
+                className="flex items-center gap-1.5 rounded-md bg-accent text-accent-foreground px-3 py-1.5 text-xs font-bold hover:bg-accent/90 transition-colors shadow-sm"
+                title="Área do Aluno"
               >
+                <User className="h-3.5 w-3.5 shrink-0" />
                 <span className="hidden sm:inline">Área do Aluno</span>
               </button>
             )}
