@@ -3,7 +3,13 @@ import { createClient } from "@/lib/supabase/client"
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type QuestionType = "multiple-choice" | "true-false" | "discursive"
 export interface Choice { id: string; text: string }
-export interface Discipline { id: string; name: string; description?: string; createdAt: string }
+export interface Semester { id: string; name: string; order: number; shift?: string; createdAt: string }
+export interface Discipline { id: string; name: string; description?: string; semesterId?: string; professorName?: string; createdAt: string }
+export interface StudyMaterial { id: string; disciplineId: string; title: string; description?: string; fileUrl: string; createdAt: string }
+export interface FinancialSettings { id: string; enrollmentFee: number; monthlyFee: number; secondCallFee: number; finalExamFee: number; totalMonths: number; updatedAt: string; }
+export interface PaypalConfig { id: string; clientId: string; secret: string; mode: "sandbox" | "live"; updatedAt: string; }
+export interface AsaasConfig { id: string; apiKey: string; mode: "sandbox" | "production"; updatedAt: string; }
+export interface FinancialCharge { id: string; studentId: string; type: "enrollment" | "monthly" | "second_call" | "final_exam" | "other"; description: string; amount: number; dueDate: string; status: "pending" | "paid" | "cancelled" | "late"; paymentDate?: string; paypalOrderId?: string; asaasPaymentId?: string; pixQrcode?: string; pixCopyPaste?: string; createdAt: string; }
 export interface Question { id: string; disciplineId: string; type: QuestionType; text: string; choices: Choice[]; correctAnswer: string; points: number; createdAt: string }
 export interface Assessment { id: string; title: string; disciplineId: string; professor: string; institution: string; questionIds: string[]; pointsPerQuestion: number; totalPoints: number; openAt: string | null; closeAt: string | null; isPublished: boolean; shuffleVariants?: boolean; logoBase64?: string; rules?: string; releaseResults?: boolean; createdAt: string }
 export interface StudentAnswer { questionId: string; answer: string }
@@ -11,6 +17,9 @@ export interface StudentSubmission { id: string; assessmentId: string; studentNa
 export interface ProfessorAccount { id: string; name: string; email: string; passwordHash: string; role: "master" | "professor"; createdAt: string }
 export interface ProfessorSession { loggedIn: boolean; professorId: string; role: "master" | "professor"; expiresAt: string }
 export interface StudentSession { name: string; email: string; assessmentId: string; startedAt: string }
+export interface StudentProfile { id: string; auth_user_id: string; name: string; cpf: string; enrollment_number: string; created_at: string; }
+export interface ChatMessage { id: string; studentId: string; disciplineId: string; message: string; isFromStudent: boolean; read: boolean; createdAt: string; }
+export interface Attendance { id: string; studentId: string; disciplineId: string; date: string; isPresent: boolean; createdAt: string; }
 
 export function hashPassword(plain: string): string {
   if (typeof window !== "undefined") return btoa(unescape(encodeURIComponent(plain)))
@@ -64,6 +73,64 @@ export function clearProfessorSession(): void {
   if (typeof window !== "undefined") localStorage.removeItem(KEYS.PROFESSOR_SESSION)
 }
 
+export async function registerStudentAuth(name: string, cpf: string, password: string) {
+  const supabase = createClient()
+  const cleanCpf = cpf.replace(/\D/g, '')
+  const email = `${cleanCpf}@student.ieteo.com`
+
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { name, type: 'student' } }
+  })
+  if (authError) throw new Error(authError.message)
+  if (!authData.user) throw new Error("Erro ao criar usuário na base de dados.")
+
+  const matricula = `2026${Math.floor(1000 + Math.random() * 9000)}`
+
+  const { error: dbError } = await supabase.from('students').insert({
+    auth_user_id: authData.user.id,
+    name,
+    cpf: cleanCpf,
+    enrollment_number: matricula
+  })
+
+  if (dbError) throw new Error(dbError.message)
+  return { matricula, name }
+}
+
+export async function loginStudentAuth(identifier: string, password: string) {
+  const supabase = createClient()
+  const cleanId = identifier.replace(/\D/g, '')
+  let email = ''
+
+  if (cleanId.length === 11) {
+    email = `${cleanId}@student.ieteo.com`
+  } else {
+    const { data } = await supabase.from('students').select('cpf').eq('enrollment_number', cleanId).maybeSingle()
+    if (!data) throw new Error("Matrícula não encontrada.")
+    email = `${data.cpf.replace(/\D/g, '')}@student.ieteo.com`
+  }
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) throw new Error("Credenciais inválidas.")
+  return data
+}
+
+export async function getStudentProfileAuth(): Promise<StudentProfile | null> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user || user.user_metadata?.type !== 'student') return null
+
+  const { data } = await supabase.from('students').select('*').eq('auth_user_id', user.id).maybeSingle()
+  return data as StudentProfile | null
+}
+
+export async function logoutStudentAuth() {
+  const supabase = createClient()
+  await supabase.auth.signOut()
+}
+
 export function getStudentSession(): StudentSession | null { return readLocal<StudentSession | null>(KEYS.STUDENT_SESSION, null) }
 export function saveStudentSession(s: StudentSession): void { writeLocal(KEYS.STUDENT_SESSION, s) }
 export function clearStudentSession(): void {
@@ -77,32 +144,190 @@ export function getDraftAnswers(): StudentAnswer[] { return readLocal<StudentAns
 export function saveDraftAnswers(answers: StudentAnswer[]): void { writeLocal(KEYS.DRAFT_ANSWERS, answers) }
 
 // DB Mappers
-function mapDiscipline(row: any): Discipline { return { id: row.id, name: row.name, description: row.description || undefined, createdAt: row.created_at } }
+function mapSemester(row: any): Semester { return { id: row.id, name: row.name, order: row.order, shift: row.shift || undefined, createdAt: row.created_at } }
+function mapStudyMaterial(row: any): StudyMaterial { return { id: row.id, disciplineId: row.discipline_id, title: row.title, description: row.description || undefined, fileUrl: row.file_url, createdAt: row.created_at } }
+function mapDiscipline(row: any): Discipline { return { id: row.id, name: row.name, description: row.description || undefined, semesterId: row.semester_id || undefined, professorName: row.professor_name || undefined, createdAt: row.created_at } }
 function mapQuestion(row: any): Question { return { id: row.id, disciplineId: row.discipline_id, type: row.type, text: row.text, choices: row.choices, correctAnswer: row.correct_answer, points: row.points, createdAt: row.created_at } }
 function mapAssessment(row: any): Assessment { return { id: row.id, title: row.title, disciplineId: row.discipline_id, professor: row.professor, institution: row.institution, questionIds: row.question_ids, pointsPerQuestion: row.points_per_question, totalPoints: row.total_points, openAt: row.open_at, closeAt: row.close_at, isPublished: row.is_published, shuffleVariants: row.shuffle_variants, logoBase64: row.logo_base64, rules: row.rules, releaseResults: row.release_results, createdAt: row.created_at } }
 function mapSubmission(row: any): StudentSubmission { return { id: row.id, assessmentId: row.assessment_id, studentName: row.student_name, studentEmail: row.student_email, answers: row.answers, score: row.score, totalPoints: row.total_points, percentage: row.percentage, submittedAt: row.submitted_at, timeElapsedSeconds: row.time_elapsed_seconds } }
 function mapProfessor(row: any): ProfessorAccount { return { id: row.id, name: row.name, email: row.email, passwordHash: row.password_hash, role: row.role as any, createdAt: row.created_at } }
+function mapFinancialSettings(row: any): FinancialSettings { return { id: row.id, enrollmentFee: Number(row.enrollment_fee), monthlyFee: Number(row.monthly_fee), secondCallFee: Number(row.second_call_fee), finalExamFee: Number(row.final_exam_fee), totalMonths: Number(row.total_months), updatedAt: row.updated_at } }
+function mapPaypalConfig(row: any): PaypalConfig { return { id: row.id, clientId: row.client_id, secret: row.secret, mode: row.mode as "sandbox" | "live", updatedAt: row.updated_at } }
+function mapAsaasConfig(row: any): AsaasConfig { return { id: row.id, apiKey: row.api_key, mode: row.mode as "sandbox" | "production", updatedAt: row.updated_at } }
+function mapFinancialCharge(row: any): FinancialCharge { return { id: row.id, studentId: row.student_id, type: row.type, description: row.description, amount: Number(row.amount), dueDate: row.due_date, status: row.status, paymentDate: row.payment_date || undefined, paypalOrderId: row.paypal_order_id || undefined, asaasPaymentId: row.asaas_payment_id || undefined, pixQrcode: row.pix_qrcode || undefined, pixCopyPaste: row.pix_copy_paste || undefined, createdAt: row.created_at } }
+function mapStudentProfile(row: any): StudentProfile { return { id: row.id, auth_user_id: row.auth_user_id, name: row.name, cpf: row.cpf, enrollment_number: row.enrollment_number, created_at: row.created_at } }
+function mapChatMessage(row: any): ChatMessage { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, message: row.message, isFromStudent: row.is_from_student, read: row.read, createdAt: row.created_at } }
+function mapAttendance(row: any): Attendance { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, date: row.date, isPresent: row.is_present, createdAt: row.created_at } }
 
 // ─── Async Supabase Operations ───────────────────────────────────────────────
+
+export async function getFinancialSettings(): Promise<FinancialSettings | null> {
+  const supabase = createClient()
+  const { data } = await supabase.from('financial_settings').select('*').limit(1).maybeSingle()
+  return data ? mapFinancialSettings(data) : null
+}
+export async function updateFinancialSettings(settings: Omit<FinancialSettings, "id" | "updatedAt">): Promise<void> {
+  const supabase = createClient()
+  const dbData = {
+    enrollment_fee: settings.enrollmentFee,
+    monthly_fee: settings.monthlyFee,
+    second_call_fee: settings.secondCallFee,
+    final_exam_fee: settings.finalExamFee,
+    total_months: settings.totalMonths,
+    updated_at: new Date().toISOString()
+  }
+  const { data: existing } = await supabase.from('financial_settings').select('id').limit(1).maybeSingle()
+  if (existing) {
+    await supabase.from('financial_settings').update(dbData).eq('id', existing.id)
+  } else {
+    await supabase.from('financial_settings').insert(dbData)
+  }
+}
+
+export async function getPaypalConfig(): Promise<PaypalConfig | null> {
+  const supabase = createClient()
+  const { data } = await supabase.from('paypal_config').select('*').limit(1).maybeSingle()
+  return data ? mapPaypalConfig(data) : null
+}
+export async function updatePaypalConfig(config: Omit<PaypalConfig, "id" | "updatedAt">): Promise<void> {
+  const supabase = createClient()
+  const dbData = {
+    client_id: config.clientId,
+    secret: config.secret,
+    mode: config.mode,
+    updated_at: new Date().toISOString()
+  }
+  const { data: existing } = await supabase.from('paypal_config').select('id').limit(1).maybeSingle()
+  if (existing) {
+    await supabase.from('paypal_config').update(dbData).eq('id', existing.id)
+  } else {
+    await supabase.from('paypal_config').insert(dbData)
+  }
+}
+
+export async function getAsaasConfig(): Promise<AsaasConfig | null> {
+  const supabase = createClient()
+  const { data } = await supabase.from('asaas_config').select('*').limit(1).maybeSingle()
+  return data ? mapAsaasConfig(data) : null
+}
+export async function updateAsaasConfig(config: Omit<AsaasConfig, "id" | "updatedAt">): Promise<void> {
+  const supabase = createClient()
+  const dbData = {
+    api_key: config.apiKey,
+    mode: config.mode,
+    updated_at: new Date().toISOString()
+  }
+  const { data: existing } = await supabase.from('asaas_config').select('id').limit(1).maybeSingle()
+  if (existing) {
+    await supabase.from('asaas_config').update(dbData).eq('id', existing.id)
+  } else {
+    await supabase.from('asaas_config').insert(dbData)
+  }
+}
+export async function getFinancialCharges(studentId?: string): Promise<FinancialCharge[]> {
+  const supabase = createClient()
+  let query = supabase.from('financial_charges').select('*').order('due_date', { ascending: false })
+  if (studentId) query = query.eq('student_id', studentId)
+
+  const { data } = await query
+  return (data || []).map(mapFinancialCharge)
+}
+export async function addFinancialCharge(charge: Omit<FinancialCharge, "id" | "createdAt" | "status" | "paymentDate">): Promise<FinancialCharge> {
+  const supabase = createClient()
+  const dbData = {
+    student_id: charge.studentId,
+    type: charge.type,
+    description: charge.description,
+    amount: charge.amount,
+    due_date: charge.dueDate,
+    status: 'pending',
+    paypal_order_id: charge.paypalOrderId || null,
+    created_at: new Date().toISOString()
+  }
+  const { data, error } = await supabase.from('financial_charges').insert(dbData).select().single()
+  if (error) throw new Error(error.message)
+  return mapFinancialCharge(data)
+}
+export async function updateFinancialChargeStatus(id: string, status: FinancialCharge["status"]): Promise<void> {
+  const supabase = createClient()
+  const dbData: any = { status }
+  if (status === 'paid') dbData.payment_date = new Date().toISOString()
+  if (status === 'pending') dbData.payment_date = null
+  await supabase.from('financial_charges').update(dbData).eq('id', id)
+}
+export async function deleteFinancialCharge(id: string): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('financial_charges').delete().eq('id', id)
+}
+
+export async function getSemesters(): Promise<Semester[]> {
+  const supabase = createClient()
+  const { data } = await supabase.from('semesters').select('*').order('order', { ascending: true })
+  return (data || []).map(mapSemester)
+}
+export async function addSemester(name: string, order: number, shift?: string): Promise<Semester> {
+  const s = { name, order, shift: shift || null, created_at: new Date().toISOString() }
+  const supabase = createClient()
+  const { data, error } = await supabase.from('semesters').insert(s).select().single()
+  if (error) throw new Error(error.message)
+  return mapSemester(data)
+}
+export async function updateSemester(id: string, data: Partial<Pick<Semester, "name" | "order" | "shift">>): Promise<void> {
+  const supabase = createClient()
+  const updatePayload: any = {}
+  if (data.name !== undefined) updatePayload.name = data.name
+  if (data.order !== undefined) updatePayload.order = data.order
+  if (data.shift !== undefined) updatePayload.shift = data.shift || null
+  await supabase.from('semesters').update(updatePayload).eq('id', id)
+}
+export async function deleteSemester(id: string): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('semesters').delete().eq('id', id)
+}
 
 export async function getDisciplines(): Promise<Discipline[]> {
   const supabase = createClient()
   const { data, error } = await supabase.from('disciplines').select('*')
   return (data || []).map(mapDiscipline).sort((a, b) => a.name.localeCompare(b.name))
 }
-export async function addDiscipline(name: string, description?: string): Promise<Discipline> {
-  const d = { id: uid(), name, description: description || null, created_at: new Date().toISOString() }
+export async function addDiscipline(name: string, description?: string, semesterId?: string, professorName?: string): Promise<Discipline> {
+  const d = { id: uid(), name, description: description || null, semester_id: semesterId || null, professor_name: professorName || null, created_at: new Date().toISOString() }
   const supabase = createClient()
   await supabase.from('disciplines').insert(d)
   return mapDiscipline(d)
 }
-export async function updateDiscipline(id: string, data: Partial<Pick<Discipline, "name" | "description">>): Promise<void> {
+export async function updateDiscipline(id: string, data: Partial<Pick<Discipline, "name" | "description" | "semesterId" | "professorName">>): Promise<void> {
+  const updateData: any = {}
+  if (data.name !== undefined) updateData.name = data.name
+  if (data.description !== undefined) updateData.description = data.description || null
+  if (data.semesterId !== undefined) updateData.semester_id = data.semesterId || null
+  if (data.professorName !== undefined) updateData.professor_name = data.professorName || null
   const supabase = createClient()
-  await supabase.from('disciplines').update(data).eq('id', id)
+  await supabase.from('disciplines').update(updateData).eq('id', id)
 }
 export async function deleteDiscipline(id: string): Promise<void> {
   const supabase = createClient()
   await supabase.from('disciplines').delete().eq('id', id)
+}
+
+export async function getStudyMaterials(disciplineId?: string): Promise<StudyMaterial[]> {
+  const supabase = createClient()
+  let query = supabase.from('study_materials').select('*').order('created_at', { ascending: false })
+  if (disciplineId) query = query.eq('discipline_id', disciplineId)
+
+  const { data } = await query
+  return (data || []).map(mapStudyMaterial)
+}
+export async function addStudyMaterial(material: Omit<StudyMaterial, "id" | "createdAt">): Promise<StudyMaterial> {
+  const supabase = createClient()
+  const dbData = { discipline_id: material.disciplineId, title: material.title, description: material.description, file_url: material.fileUrl, created_at: new Date().toISOString() }
+  const { data, error } = await supabase.from('study_materials').insert(dbData).select().single()
+  if (error) throw new Error(error.message)
+  return mapStudyMaterial(data)
+}
+export async function deleteStudyMaterial(id: string): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('study_materials').delete().eq('id', id)
 }
 
 export async function getQuestions(): Promise<Question[]> {
@@ -280,4 +505,46 @@ export function calculateScore(answers: StudentAnswer[], questions: Question[], 
   }
   const percentage = totalPoints > 0 ? Math.round((score / totalPoints) * 100) : 0
   return { score, totalPoints, percentage }
+}
+
+export async function getStudents(): Promise<StudentProfile[]> {
+  const supabase = createClient()
+  const { data } = await supabase.from('students').select('*').order('name', { ascending: true })
+  return (data || []).map(mapStudentProfile)
+}
+
+export async function getChatMessages(disciplineId: string, studentId: string): Promise<ChatMessage[]> {
+  const supabase = createClient()
+  const { data } = await supabase.from('chats').select('*').match({ discipline_id: disciplineId, student_id: studentId }).order('created_at', { ascending: true })
+  return (data || []).map(mapChatMessage)
+}
+
+export async function sendChatMessage(studentId: string, disciplineId: string, message: string, isFromStudent: boolean): Promise<ChatMessage> {
+  const supabase = createClient()
+  const dbData = { student_id: studentId, discipline_id: disciplineId, message, is_from_student: isFromStudent, read: false, created_at: new Date().toISOString() }
+  const { data, error } = await supabase.from('chats').insert(dbData).select().single()
+  if (error) throw new Error(error.message)
+  return mapChatMessage(data)
+}
+
+export async function markChatAsRead(id: string): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('chats').update({ read: true }).eq('id', id)
+}
+
+export async function getAttendances(disciplineId: string): Promise<Attendance[]> {
+  const supabase = createClient()
+  const { data } = await supabase.from('attendances').select('*').eq('discipline_id', disciplineId).order('date', { ascending: false })
+  return (data || []).map(mapAttendance)
+}
+
+export async function saveAttendance(studentId: string, disciplineId: string, date: string, isPresent: boolean): Promise<void> {
+  const supabase = createClient()
+  const { data: existing } = await supabase.from('attendances').select('id').match({ student_id: studentId, discipline_id: disciplineId, date }).maybeSingle()
+  if (existing) {
+    await supabase.from('attendances').update({ is_present: isPresent }).eq('id', existing.id)
+  } else {
+    const dbData = { student_id: studentId, discipline_id: disciplineId, date, is_present: isPresent, created_at: new Date().toISOString() }
+    await supabase.from('attendances').insert(dbData)
+  }
 }

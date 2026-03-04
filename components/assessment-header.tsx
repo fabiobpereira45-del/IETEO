@@ -6,9 +6,10 @@ interface AssessmentHeaderProps {
   studentName?: string
   studentEmail?: string
   onAdminClick?: () => void
+  onStudentAreaClick?: () => void
 }
 
-export function AssessmentHeader({ studentName, studentEmail, onAdminClick }: AssessmentHeaderProps) {
+export function AssessmentHeader({ studentName, studentEmail, onAdminClick, onStudentAreaClick }: AssessmentHeaderProps) {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-primary text-primary-foreground shadow-md">
       <div className="mx-auto max-w-5xl px-4 py-3">
@@ -51,6 +52,15 @@ export function AssessmentHeader({ studentName, studentEmail, onAdminClick }: As
               <LayoutDashboard className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Painel</span>
             </button>
+            {onStudentAreaClick && (
+              <button
+                onClick={onStudentAreaClick}
+                className="flex items-center gap-1.5 rounded-md bg-white/15 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/25 transition-colors"
+                title="Painel do Aluno"
+              >
+                <span className="hidden sm:inline">Área do Aluno</span>
+              </button>
+            )}
           </div>
         </div>
 

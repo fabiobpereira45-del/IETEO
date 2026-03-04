@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import {
   Users, FileText, BookOpen, Settings, BarChart3, Download, LogOut,
   Plus, Pencil, Trash2, Eye, EyeOff, Trophy, CheckCircle2,
-  ShieldCheck, Loader2
+  ShieldCheck, Loader2, DollarSign, MessageSquare, CalendarCheck
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,6 +25,12 @@ import { ErrorBoundary } from "@/components/error-boundary"
 import { QuestionBank } from "@/components/question-bank"
 import { AssessmentBuilder } from "@/components/assessment-builder"
 import { ProfessorManager } from "@/components/professor-manager"
+import { SemesterManager } from "@/components/semester-manager"
+import { StudyMaterialManager } from "@/components/study-material-manager"
+import { FinancialConfig } from "@/components/financial-config"
+import { FinancialManager } from "@/components/financial-manager"
+import { ProfessorChatView } from "@/components/professor-chat-view"
+import { AttendanceManager } from "@/components/attendance-manager"
 import { createClient } from "@/lib/supabase/client"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -42,7 +48,7 @@ function formatTime(s: number) {
   return `${m}m${sec.toString().padStart(2, "0")}s`
 }
 
-type Tab = "overview" | "students" | "questions" | "assessments" | "professors" | "settings"
+type Tab = "overview" | "students" | "questions" | "assessments" | "professors" | "semesters" | "materials" | "financial" | "settings" | "chat" | "attendance"
 
 interface Props {
   onLogout: () => void
@@ -402,6 +408,8 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
   const active = assessments[0]
   const supabase = createClient()
   const [migrating, setMigrating] = useState(false)
+  const session = typeof window !== "undefined" ? getProfessorSession() : null
+  const isMaster = session?.role === "master"
 
   async function handleMigrateLocalData() {
     if (!confirm("Certeza que deseja migrar os dados antigos criados localmente para a Nuvem (Supabase)?")) return;
@@ -442,12 +450,6 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
     setMigrating(false)
   }
 
-  async function handleLogout() {
-    clearProfessorSession()
-    await supabase.auth.signOut()
-    onLogout()
-  }
-
   async function handleToggle() {
     if (!active) return
     await updateAssessment(active.id, { isPublished: !active.isPublished })
@@ -473,106 +475,106 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
   }
 
   return (
-    <div className="flex flex-col gap-5 max-w-xl">
-      {active ? (
-        <div className="bg-card border border-border rounded-xl p-5 flex flex-col gap-5">
-          <h3 className="font-semibold text-foreground">Prova Ativa: {active.title}</h3>
-
-          <div className="flex items-center justify-between py-3 border-b border-border">
-            <div>
-              <div className="text-sm font-medium">Aberta para alunos</div>
-              <div className="text-xs text-muted-foreground">Alunos podem acessar e enviar respostas</div>
-            </div>
-            <button
-              onClick={handleToggle}
-              className={`flex-shrink-0 w-12 h-6 rounded-full transition-colors ${active.isPublished ? "bg-primary" : "bg-muted-foreground/40"}`}
-              aria-pressed={active.isPublished}
-            >
-              <div className={`w-4 h-4 rounded-full bg-primary-foreground transform transition-transform ${active.isPublished ? "translate-x-7" : "translate-x-1"}`} />
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between py-3 border-b border-border">
-            <div>
-              <div className="text-sm font-medium">Modelos de Provas Multíplas (A, B, C)</div>
-              <div className="text-xs text-muted-foreground">Ativa criação de provas embaralhadas ao gerar PDF</div>
-            </div>
-            <button
-              onClick={handleShuffleToggle}
-              className={`flex-shrink-0 w-12 h-6 rounded-full transition-colors ${active.shuffleVariants ? "bg-primary" : "bg-muted-foreground/40"}`}
-              aria-pressed={active.shuffleVariants}
-            >
-              <div className={`w-4 h-4 rounded-full bg-primary-foreground transform transition-transform ${active.shuffleVariants ? "translate-x-7" : "translate-x-1"}`} />
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between py-3 border-b border-border">
-            <div>
-              <div className="text-sm font-medium">Liberar Resultados para os Alunos</div>
-              <div className="text-xs text-muted-foreground">Exibe nota e gabarito na tela final do aluno</div>
-            </div>
-            <button
-              onClick={handleReleaseResultsToggle}
-              className={`flex-shrink-0 w-12 h-6 rounded-full transition-colors ${active.releaseResults ? "bg-primary" : "bg-muted-foreground/40"}`}
-              aria-pressed={active.releaseResults}
-            >
-              <div className={`w-4 h-4 rounded-full bg-primary-foreground transform transition-transform ${active.releaseResults ? "translate-x-7" : "translate-x-1"}`} />
-            </button>
-          </div>
-
-          <div>
-            <Label className="text-xs text-muted-foreground mb-1 block">Abertura Automática (Opcional)</Label>
-            <Input
-              type="datetime-local"
-              value={active.openAt ? active.openAt.slice(0, 16) : ""}
-              onChange={(e) => handleSchedule("openAt", e.target.value)}
-              className="text-sm"
-            />
-          </div>
-
-          <div>
-            <Label className="text-xs text-muted-foreground mb-1 block">Fechamento Automático (Opcional)</Label>
-            <Input
-              type="datetime-local"
-              value={active.closeAt ? active.closeAt.slice(0, 16) : ""}
-              onChange={(e) => handleSchedule("closeAt", e.target.value)}
-              className="text-sm"
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="text-sm text-muted-foreground italic">Crie e ative uma prova na aba Provas.</div>
-      )}
-
-      {/* Migration Tool */}
-      <div className="bg-card border border-border rounded-xl p-5">
-        <h3 className="font-semibold text-foreground mb-1">Migração de Dados</h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          Transfira provas, alunos e questões criadas anteriormente (no localhost) para o banco em nuvem atual (Supabase Vercel).
-        </p>
-        <Button
-          variant="secondary"
-          onClick={handleMigrateLocalData}
-          disabled={migrating}
-          className="w-full bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20"
-        >
-          {migrating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
-          Migrar Dados Locais (LocalStorage)
-        </Button>
+    <div className="flex flex-col gap-6 w-full max-w-5xl mx-auto">
+      <div>
+        <h2 className="text-xl font-bold font-serif text-foreground">Configurações do Sistema</h2>
+        <p className="text-muted-foreground text-sm">Gerencie preferências e configurações gerais da plataforma.</p>
       </div>
 
-      <div className="bg-card border border-border rounded-xl p-5">
-        <h3 className="font-semibold text-foreground mb-1">Conta do Professor</h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          Painel Administrativo
-        </p>
-        <Button
-          variant="outline"
-          onClick={handleLogout}
-          className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
-        >
-          <LogOut className="h-4 w-4 mr-2" /> Sair do painel
-        </Button>
+      {isMaster && (
+        <FinancialConfig />
+      )}
+
+      {/* Legacy Settings content logic - keeping the migration tool for now */}
+      <div className="flex flex-col md:flex-row gap-6">
+        <div className="flex flex-col gap-5 flex-1 max-w-xl">
+          {active ? (
+            <div className="bg-card border border-border rounded-xl p-5 flex flex-col gap-5">
+              <h3 className="font-semibold text-foreground">Prova Ativa: {active.title}</h3>
+
+              <div className="flex items-center justify-between py-3 border-b border-border">
+                <div>
+                  <div className="text-sm font-medium">Aberta para alunos</div>
+                  <div className="text-xs text-muted-foreground">Alunos podem acessar e enviar respostas</div>
+                </div>
+                <button
+                  onClick={handleToggle}
+                  className={`flex-shrink-0 w-12 h-6 rounded-full transition-colors ${active.isPublished ? "bg-primary" : "bg-muted-foreground/40"}`}
+                  aria-pressed={active.isPublished}
+                >
+                  <div className={`w-4 h-4 rounded-full bg-primary-foreground transform transition-transform ${active.isPublished ? "translate-x-7" : "translate-x-1"}`} />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between py-3 border-b border-border">
+                <div>
+                  <div className="text-sm font-medium">Modelos de Provas Multíplas (A, B, C)</div>
+                  <div className="text-xs text-muted-foreground">Ativa criação de provas embaralhadas ao gerar PDF</div>
+                </div>
+                <button
+                  onClick={handleShuffleToggle}
+                  className={`flex-shrink-0 w-12 h-6 rounded-full transition-colors ${active.shuffleVariants ? "bg-primary" : "bg-muted-foreground/40"}`}
+                  aria-pressed={active.shuffleVariants}
+                >
+                  <div className={`w-4 h-4 rounded-full bg-primary-foreground transform transition-transform ${active.shuffleVariants ? "translate-x-7" : "translate-x-1"}`} />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between py-3 border-b border-border">
+                <div>
+                  <div className="text-sm font-medium">Liberar Resultados para os Alunos</div>
+                  <div className="text-xs text-muted-foreground">Exibe nota e gabarito na tela final do aluno</div>
+                </div>
+                <button
+                  onClick={handleReleaseResultsToggle}
+                  className={`flex-shrink-0 w-12 h-6 rounded-full transition-colors ${active.releaseResults ? "bg-primary" : "bg-muted-foreground/40"}`}
+                  aria-pressed={active.releaseResults}
+                >
+                  <div className={`w-4 h-4 rounded-full bg-primary-foreground transform transition-transform ${active.releaseResults ? "translate-x-7" : "translate-x-1"}`} />
+                </button>
+              </div>
+
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Abertura Automática (Opcional)</Label>
+                <Input
+                  type="datetime-local"
+                  value={active.openAt ? active.openAt.slice(0, 16) : ""}
+                  onChange={(e) => handleSchedule("openAt", e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Fechamento Automático (Opcional)</Label>
+                <Input
+                  type="datetime-local"
+                  value={active.closeAt ? active.closeAt.slice(0, 16) : ""}
+                  onChange={(e) => handleSchedule("closeAt", e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground italic">Crie e ative uma prova na aba Provas.</div>
+          )}
+
+          {/* Migration Tool */}
+          <div className="bg-card border border-border rounded-xl p-5">
+            <h3 className="font-semibold text-foreground mb-1">Migração de Dados</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Transfira provas, alunos e questões criadas anteriormente (no localhost) para o banco em nuvem atual (Supabase Vercel).
+            </p>
+            <Button
+              variant="secondary"
+              onClick={handleMigrateLocalData}
+              disabled={migrating}
+              className="w-full bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20"
+            >
+              {migrating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+              Migrar Dados Locais (LocalStorage)
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -611,6 +613,12 @@ export function AdminDashboard({ onLogout }: Props) {
     setLoading(false)
   }
 
+  async function handleLogout() {
+    clearProfessorSession()
+    await supabase.auth.signOut()
+    onLogout()
+  }
+
   useEffect(() => {
     refresh()
 
@@ -633,6 +641,11 @@ export function AdminDashboard({ onLogout }: Props) {
     { id: "students", label: "Alunos", icon: <Users className="h-4 w-4" /> },
     { id: "questions", label: "Banco de Questões", icon: <BookOpen className="h-4 w-4" /> },
     { id: "assessments", label: "Provas", icon: <FileText className="h-4 w-4" /> },
+    { id: "materials", label: "Biblioteca (PDFs)", icon: <BookOpen className="h-4 w-4" /> },
+    { id: "semesters", label: "Grade Curricular", icon: <BookOpen className="h-4 w-4" />, masterOnly: true },
+    { id: "attendance", label: "Frequência", icon: <CalendarCheck className="h-4 w-4" /> },
+    { id: "chat", label: "Chat Alunos", icon: <MessageSquare className="h-4 w-4" /> },
+    { id: "financial", label: "Financeiro", icon: <DollarSign className="h-4 w-4" />, masterOnly: true },
     { id: "professors", label: "Professores", icon: <ShieldCheck className="h-4 w-4" />, masterOnly: true },
     { id: "settings", label: "Configurações", icon: <Settings className="h-4 w-4" /> },
   ]
@@ -650,21 +663,34 @@ export function AdminDashboard({ onLogout }: Props) {
             <h1 className="text-xl font-bold font-serif">Painel do Professor</h1>
           </div>
           <div className="text-right hidden sm:block">
-            <div className="flex items-center gap-2 justify-end">
-              {isMaster && (
-                <span className="text-xs bg-primary-foreground/20 text-primary-foreground px-2 py-0.5 rounded-full font-semibold">
-                  Master
-                </span>
-              )}
-              <p className="text-sm font-semibold">{username || "Professor"}</p>
+            <div className="flex items-center gap-4 justify-end">
+              <div className="flex flex-col items-end">
+                <div className="flex items-center gap-2">
+                  {isMaster && (
+                    <span className="text-xs bg-primary-foreground/20 text-primary-foreground px-2 py-0.5 rounded-full font-semibold">
+                      Master
+                    </span>
+                  )}
+                  <p className="text-sm font-semibold">{username || "Professor"}</p>
+                </div>
+                <p className="text-xs text-primary-foreground/70">{userEmail}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className="h-9 px-3 text-primary-foreground hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                title="Sair"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
             </div>
-            <p className="text-xs text-primary-foreground/70">{userEmail}</p>
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-6 flex-1 w-full">
-        <div className="flex gap-1 mb-6 bg-muted rounded-xl p-1 overflow-x-auto pb-2 scrollbar-thin">
+        <div className="flex flex-wrap gap-1 mb-6 bg-muted rounded-xl p-1">
           {visibleTabs.map(({ id, label, icon }) => (
             <button
               key={id}
@@ -691,6 +717,11 @@ export function AdminDashboard({ onLogout }: Props) {
             {tab === "students" && <StudentsTab assessments={assessments} allSubmissions={submissions} questions={questions} onRefresh={refresh} />}
             {tab === "questions" && <QuestionBank />}
             {tab === "assessments" && <AssessmentsTab assessments={assessments} submissions={submissions} questions={questions} disciplines={disciplines} onRefresh={refresh} />}
+            {tab === "materials" && <StudyMaterialManager />}
+            {tab === "semesters" && <SemesterManager />}
+            {tab === "attendance" && <AttendanceManager />}
+            {tab === "chat" && <ProfessorChatView />}
+            {tab === "financial" && <FinancialManager />}
             {tab === "professors" && isMaster && <ProfessorManager />}
             {tab === "settings" && <SettingsTab assessments={assessments} onRefresh={refresh} onLogout={onLogout} />}
           </>

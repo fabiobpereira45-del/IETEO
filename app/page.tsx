@@ -7,6 +7,7 @@ import { AssessmentForm } from "@/components/assessment-form"
 import { AssessmentResult } from "@/components/assessment-result"
 import { ProfessorLogin } from "@/components/professor-login"
 import { AdminDashboard } from "@/components/admin-dashboard"
+import { StudentDashboard } from "@/components/student-dashboard"
 import {
   getStudentSession,
   getSubmissionByEmailAndAssessment,
@@ -15,7 +16,7 @@ import {
   type StudentSubmission,
 } from "@/lib/store"
 
-type View = "student-login" | "student-assessment" | "student-result" | "professor-login" | "admin"
+type View = "student-login" | "student-assessment" | "student-result" | "professor-login" | "admin" | "student-dashboard"
 
 export default function HomePage() {
   const [view, setView] = useState<View>("student-login")
@@ -107,6 +108,7 @@ export default function HomePage() {
         studentName={session?.name}
         studentEmail={session?.email}
         onAdminClick={() => setView("professor-login")}
+        onStudentAreaClick={() => setView("student-dashboard")}
       />
       <main className="mx-auto max-w-3xl px-4 py-8">
         {view === "student-login" && <StudentLogin onLogin={handleStudentLogin} />}
@@ -115,6 +117,21 @@ export default function HomePage() {
         )}
         {view === "student-result" && submission && (
           <AssessmentResult submission={submission} onBack={handleLogout} />
+        )}
+        {view === "student-dashboard" && (
+          <StudentDashboard
+            session={session}
+            onBack={() => {
+              if (submission && submission.submittedAt) {
+                setView("student-result")
+              } else if (session) {
+                setView("student-assessment")
+              } else {
+                setView("student-login")
+              }
+            }}
+            onLogout={handleLogout}
+          />
         )}
       </main>
     </div>
