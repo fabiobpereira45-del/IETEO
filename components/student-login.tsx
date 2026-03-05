@@ -12,18 +12,21 @@ import {
   saveStudentSession,
   getQuestionsByDiscipline,
   getDisciplines,
+  getSubmissionByEmailAndAssessment,
   type Assessment,
   type Question,
   type Discipline,
   type StudentSession,
+  type StudentSubmission,
 } from "@/lib/store"
 
 interface Props {
   onLogin: (session: StudentSession) => void
+  onResult?: (submission: StudentSubmission) => void
   preloadedAssessmentId?: string
 }
 
-export function StudentLogin({ onLogin, preloadedAssessmentId }: Props) {
+export function StudentLogin({ onLogin, onResult, preloadedAssessmentId }: Props) {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -99,6 +102,20 @@ export function StudentLogin({ onLogin, preloadedAssessmentId }: Props) {
       setError("Este e-mail já foi utilizado. Para consultar sua nota, clique em 'Ver Resultado Anterior'.")
       setLoading(false); return
     }
+
+    // ── Ver resultado: fetch submission and show result directly ──────────────
+    if (isQuery && submitted) {
+      const sub = await getSubmissionByEmailAndAssessment(trimEmail, assessment.id)
+      if (!sub) {
+        setError("Não foi possível carregar o resultado. Tente novamente.")
+        setLoading(false); return
+      }
+      setLoading(false)
+      if (onResult) onResult(sub)
+      return
+    }
+
+    // ── Normal login: start assessment ────────────────────────────────────────
     const session: StudentSession = { name: trimName, email: trimEmail, assessmentId: assessment.id, startedAt: new Date().toISOString() }
     saveStudentSession(session)
     onLogin(session)

@@ -76,6 +76,11 @@ export default function HomePage() {
     }
   }, [])
 
+  const handleResult = useCallback((sub: StudentSubmission) => {
+    setSubmission(sub)
+    setView("student-result")
+  }, [])
+
   const handleSubmit = useCallback((sub: StudentSubmission) => {
     setSubmission(sub)
     setView("student-result")
@@ -170,7 +175,7 @@ export default function HomePage() {
           </div>
         )}
 
-        {view === "student-login" && <StudentLogin onLogin={handleStudentLogin} />}
+        {view === "student-login" && <StudentLogin onLogin={handleStudentLogin} onResult={handleResult} />}
         {view === "student-assessment" && session && (
           <AssessmentForm session={session} onSubmit={handleSubmit} />
         )}

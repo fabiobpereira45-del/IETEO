@@ -22,6 +22,11 @@ function ProvaPageContent() {
         setView("assessment")
     }, [])
 
+    const handleResult = useCallback((sub: StudentSubmission) => {
+        setSubmission(sub)
+        setView("result")
+    }, [])
+
     const handleSubmit = useCallback((sub: StudentSubmission) => {
         setSubmission(sub)
         setView("result")
@@ -34,6 +39,7 @@ function ProvaPageContent() {
                 {view === "login" && (
                     <StudentLogin
                         onLogin={handleLogin}
+                        onResult={handleResult}
                         preloadedAssessmentId={assessmentId}
                     />
                 )}
