@@ -45,7 +45,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className={`${inter.variable} ${merriweather.variable}`}>
-      <body className="font-sans antialiased bg-background text-foreground">
+      <body className="font-sans antialiased bg-background text-foreground" suppressHydrationWarning>
         {children}
       </body>
     </html>
