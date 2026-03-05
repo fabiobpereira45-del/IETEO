@@ -54,7 +54,35 @@ function DaySelector({ value, onChange }: { value: string; onChange: (v: string)
     )
 }
 
-// ─── Main component ────────────────────────────────────────────────────────────
+// ─── Shifts (Turnos) ──────────────────────────────────────────────────────────
+
+const SHIFTS = [
+    { value: "matutino", label: "Matutino", color: "bg-sky-50 border-sky-200 text-sky-800" },
+    { value: "vespertino", label: "Vespertino", color: "bg-green-50 border-green-200 text-green-800" },
+    { value: "noturno", label: "Noturno", color: "bg-indigo-50 border-indigo-200 text-indigo-800" },
+    { value: "ead", label: "EAD", color: "bg-fuchsia-50 border-fuchsia-200 text-fuchsia-800" },
+]
+
+function getShiftInfo(value?: string) {
+    return SHIFTS.find(s => s.value === value) ?? null
+}
+
+function ShiftSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+    return (
+        <div className="flex flex-wrap gap-2">
+            {SHIFTS.map(s => (
+                <button key={s.value} type="button" onClick={() => onChange(s.value)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all ${value === s.value
+                        ? `${s.color} border-current scale-105 shadow-sm`
+                        : "bg-muted/50 border-transparent text-muted-foreground hover:border-border"
+                        }`}
+                >
+                    {s.label}
+                </button>
+            ))}
+        </div>
+    )
+}
 
 export function SemesterManager() {
     const [semesters, setSemesters] = useState<Semester[]>([])
@@ -78,6 +106,7 @@ export function SemesterManager() {
     const [discDesc, setDiscDesc] = useState("")
     const [discSemId, setDiscSemId] = useState("")
     const [discDay, setDiscDay] = useState("segunda")
+    const [discShift, setDiscShift] = useState("matutino")
     const [discProfName, setDiscProfName] = useState("none")
 
     // Delete confirmations
@@ -129,7 +158,7 @@ export function SemesterManager() {
     function openNewDisc(semId?: string, day?: string) {
         setEditingDisc(null); setSelectedPoolDisc(null); setDiscSearch("")
         setDiscName(""); setDiscDesc(""); setDiscSemId(semId || semesters[0]?.id || "")
-        setDiscDay(day || "segunda"); setDiscProfName("none")
+        setDiscDay(day || "segunda"); setDiscShift("matutino"); setDiscProfName("none")
         setDiscModal(true)
     }
 
@@ -137,6 +166,7 @@ export function SemesterManager() {
         setEditingDisc(disc); setSelectedPoolDisc(null); setDiscSearch("")
         setDiscName(disc.name); setDiscDesc(disc.description || "")
         setDiscSemId(disc.semesterId || ""); setDiscDay(disc.dayOfWeek || "segunda")
+        setDiscShift(disc.shift || "matutino")
         setDiscProfName(disc.professorName || "none")
         setDiscModal(true)
     }
@@ -146,6 +176,7 @@ export function SemesterManager() {
         setSelectedPoolDisc(disc)
         setDiscName(disc.name)
         setDiscDesc(disc.description || "")
+        setDiscShift(disc.shift || "matutino")
         setDiscProfName(disc.professorName || "none")
         setDiscSearch("")
     }
@@ -155,24 +186,21 @@ export function SemesterManager() {
     }
 
     async function handleSaveDisc() {
-        if (!discName.trim()) return
+        if (!discName.trim() && !selectedPoolDisc) return
         const semId = discSemId || undefined
         const prof = discProfName === "none" ? undefined : discProfName
 
         if (selectedPoolDisc) {
-            // Link existing discipline from pool to this semester + day
             await updateDiscipline(selectedPoolDisc.id, {
-                semesterId: semId, dayOfWeek: discDay, professorName: prof
+                semesterId: semId, dayOfWeek: discDay, shift: discShift, professorName: prof
             })
         } else if (editingDisc) {
-            // Update existing linked discipline
             await updateDiscipline(editingDisc.id, {
                 name: discName.trim(), description: discDesc.trim() || undefined,
-                semesterId: semId, dayOfWeek: discDay, professorName: prof
+                semesterId: semId, dayOfWeek: discDay, shift: discShift, professorName: prof
             })
         } else {
-            // Create new discipline
-            await addDiscipline(discName.trim(), discDesc.trim() || undefined, semId, prof, discDay)
+            await addDiscipline(discName.trim(), discDesc.trim() || undefined, semId, prof, discDay, discShift)
         }
         setDiscModal(false); load()
     }
@@ -312,6 +340,7 @@ export function SemesterManager() {
                                                                         </button>
                                                                     </div>
                                                                     <h4 className="font-semibold text-sm pr-14 leading-snug">{disc.name}</h4>
+                                                                    {disc.shift && (() => { const s = getShiftInfo(disc.shift); return s ? <span className={`inline-block text-[10px] font-bold px-1.5 py-0.5 rounded border mt-1 ${s.color}`}>{s.label}</span> : null })()}
                                                                     {disc.professorName && <p className="text-xs text-primary font-medium mt-1 truncate">Prof. {disc.professorName}</p>}
                                                                     {disc.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{disc.description}</p>}
                                                                 </div>
@@ -518,6 +547,10 @@ export function SemesterManager() {
                             {!editingDisc && !selectedPoolDisc && (
                                 <p className="text-xs text-muted-foreground">💡 Para o mesmo nome em outro dia, salve e adicione novamente escolhendo o outro dia.</p>
                             )}
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Label>Turno *</Label>
+                            <ShiftSelector value={discShift} onChange={setDiscShift} />
                         </div>
                         <div className="flex flex-col gap-1.5">
                             <Label>Professor / Docente</Label>
