@@ -101,10 +101,10 @@ export function GradeViewer({ onClose }: GradeViewerProps) {
                                 )}
                             </section>
 
-                            {/* Disciplinas por Semestre */}
+                            {/* Disciplinas por Semestre e Dia */}
                             <section>
                                 <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
-                                    <BookOpen className="h-4 w-4" /> Disciplinas por Semestre e Turno
+                                    <BookOpen className="h-4 w-4" /> Grade por Semestre e Dia da Semana
                                 </h3>
                                 {semesters.length === 0 ? (
                                     <p className="text-sm text-muted-foreground italic">Nenhuma grade cadastrada.</p>
@@ -113,8 +113,13 @@ export function GradeViewer({ onClose }: GradeViewerProps) {
                                         {semesters.map(sem => {
                                             const semDiscs = disciplines.filter(d => d.semesterId === sem.id)
                                             const isOpen = openSem === sem.id
-                                            // Group by shift
-                                            const shifts = [...new Set(semDiscs.map(d => d.shift || "Sem Turno"))].sort()
+                                            const DAY_ORDER = ["segunda", "terca", "quarta", "quinta", "sexta", "sabado"]
+                                            const DAY_LABEL_MAP: Record<string, string> = {
+                                                segunda: "Segunda-feira", terca: "Terça-feira", quarta: "Quarta-feira",
+                                                quinta: "Quinta-feira", sexta: "Sexta-feira", sabado: "Sábado"
+                                            }
+                                            const usedDays = [...new Set(semDiscs.map(d => d.dayOfWeek).filter(Boolean) as string[])]
+                                                .sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))
                                             return (
                                                 <div key={sem.id} className="border border-border rounded-xl overflow-hidden">
                                                     <button
@@ -132,15 +137,17 @@ export function GradeViewer({ onClose }: GradeViewerProps) {
                                                             <p className="text-sm text-muted-foreground px-4 py-3 italic">Nenhuma disciplina neste semestre.</p>
                                                         ) : (
                                                             <div className="divide-y divide-border">
-                                                                {shifts.map(shiftName => {
-                                                                    const shiftDiscs = semDiscs.filter(d => (d.shift || "Sem Turno") === shiftName)
+                                                                {usedDays.map(day => {
+                                                                    const dayDiscs = semDiscs.filter(d => d.dayOfWeek === day)
                                                                     return (
-                                                                        <div key={shiftName}>
-                                                                            <div className="px-4 py-1.5 bg-muted/20 flex items-center gap-2">
-                                                                                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{shiftName}</span>
-                                                                                <span className="text-xs text-muted-foreground">({shiftDiscs.length})</span>
+                                                                        <div key={day}>
+                                                                            <div className="px-4 py-1.5 bg-muted/20">
+                                                                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                                                                                    {DAY_LABEL_MAP[day] ?? day}
+                                                                                </span>
+                                                                                <span className="text-xs text-muted-foreground ml-2">({dayDiscs.length})</span>
                                                                             </div>
-                                                                            {shiftDiscs.map(d => (
+                                                                            {dayDiscs.map(d => (
                                                                                 <div key={d.id} className="px-4 py-2.5 flex items-center gap-3 hover:bg-muted/20 transition-colors">
                                                                                     <BookOpen className="h-3.5 w-3.5 text-accent shrink-0" />
                                                                                     <div className="flex-1 min-w-0">
@@ -152,6 +159,19 @@ export function GradeViewer({ onClose }: GradeViewerProps) {
                                                                         </div>
                                                                     )
                                                                 })}
+                                                                {semDiscs.some(d => !d.dayOfWeek) && (
+                                                                    <div>
+                                                                        <div className="px-4 py-1.5 bg-amber-50/60">
+                                                                            <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">Sem dia definido</span>
+                                                                        </div>
+                                                                        {semDiscs.filter(d => !d.dayOfWeek).map(d => (
+                                                                            <div key={d.id} className="px-4 py-2.5 flex items-center gap-3">
+                                                                                <BookOpen className="h-3.5 w-3.5 text-accent shrink-0" />
+                                                                                <span className="text-sm">{d.name}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         )
                                                     )}
