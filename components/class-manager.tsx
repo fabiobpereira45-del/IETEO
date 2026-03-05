@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Plus, Trash2, Pencil, Save, X, Users, Clock, GraduationCap, Loader2, Calendar } from "lucide-react"
-import { getClasses, addClass, updateClass, deleteClass, type ClassRoom } from "@/lib/store"
+import { getClasses, addClass, updateClass, deleteClass, getStudents, type ClassRoom, type StudentProfile } from "@/lib/store"
 
 const SHIFTS = [
     { value: "morning", label: "Manhã" },
@@ -93,6 +93,7 @@ function ClassForm({ val, onChange }: ClassFormProps) {
 
 export function ClassManager() {
     const [classes, setClasses] = useState<ClassRoom[]>([])
+    const [students, setStudents] = useState<StudentProfile[]>([])
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [editingId, setEditingId] = useState<string | null>(null)
@@ -102,7 +103,9 @@ export function ClassManager() {
 
     async function load() {
         setLoading(true)
-        setClasses(await getClasses())
+        const [cls, stds] = await Promise.all([getClasses(), getStudents()])
+        setClasses(cls)
+        setStudents(stds)
         setLoading(false)
     }
 
@@ -206,37 +209,62 @@ export function ClassManager() {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="flex items-center justify-between gap-4">
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-semibold text-foreground truncate">{c.name}</p>
-                                        <div className="flex flex-wrap items-center gap-3 mt-1">
-                                            {c.dayOfWeek && (
+                                <>
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-semibold text-foreground truncate">{c.name}</p>
+                                            <div className="flex flex-wrap items-center gap-3 mt-1">
+                                                {c.dayOfWeek && (
+                                                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                                        <Calendar className="h-3 w-3" />{DAY_LABEL[c.dayOfWeek] || c.dayOfWeek}
+                                                    </span>
+                                                )}
                                                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                    <Calendar className="h-3 w-3" />{DAY_LABEL[c.dayOfWeek] || c.dayOfWeek}
+                                                    <Clock className="h-3 w-3" />{SHIFT_LABEL[c.shift] || c.shift}
                                                 </span>
-                                            )}
-                                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                <Clock className="h-3 w-3" />{SHIFT_LABEL[c.shift] || c.shift}
-                                            </span>
-                                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                <Users className="h-3 w-3" />{c.maxStudents} vagas
-                                            </span>
+                                                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                                    <Users className="h-3 w-3" />{c.maxStudents} vagas
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2 shrink-0">
+                                            <button onClick={() => startEdit(c)} className="p-2 rounded-lg border border-border hover:bg-muted transition-colors" title="Editar">
+                                                <Pencil className="h-4 w-4 text-muted-foreground" />
+                                            </button>
+                                            <button onClick={() => handleDelete(c.id)} className="p-2 rounded-lg border border-red-200 hover:bg-red-50 transition-colors" title="Excluir">
+                                                <Trash2 className="h-4 w-4 text-red-500" />
+                                            </button>
                                         </div>
                                     </div>
-                                    <div className="flex gap-2 shrink-0">
-                                        <button onClick={() => startEdit(c)} className="p-2 rounded-lg border border-border hover:bg-muted transition-colors" title="Editar">
-                                            <Pencil className="h-4 w-4 text-muted-foreground" />
-                                        </button>
-                                        <button onClick={() => handleDelete(c.id)} className="p-2 rounded-lg border border-red-200 hover:bg-red-50 transition-colors" title="Excluir">
-                                            <Trash2 className="h-4 w-4 text-red-500" />
-                                        </button>
+
+                                    {/* Lista de Alunos Matriculados */}
+                                    <div className="mt-4 pt-4 border-t border-border/50">
+                                        <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
+                                            <Users className="h-3.5 w-3.5" />
+                                            Alunos Matriculados ({students.filter(s => s.class_id === c.id).length})
+                                        </h4>
+                                        <div className="flex flex-col gap-1.5 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+                                            {students.filter(s => s.class_id === c.id).length === 0 ? (
+                                                <span className="text-xs text-muted-foreground italic px-1">Nenhum aluno matriculado ainda.</span>
+                                            ) : (
+                                                students.filter(s => s.class_id === c.id).map(student => (
+                                                    <div key={student.id} className="flex justify-between items-center text-sm py-1.5 px-2 rounded-lg hover:bg-muted/50 transition-colors">
+                                                        <span className="font-medium text-foreground">{student.name}</span>
+                                                        <span className="text-xs text-muted-foreground font-mono bg-muted border border-border px-2 py-0.5 rounded-md">
+                                                            {student.enrollment_number || "Sem Registro"}
+                                                        </span>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
+                                </>
                             )}
                         </div>
                     ))}
-                </div>
-            )}
-        </div>
+                </div >
+            )
+            }
+        </div >
     )
 }

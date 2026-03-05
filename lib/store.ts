@@ -21,6 +21,7 @@ export interface StudentProfile { id: string; auth_user_id: string; name: string
 export interface ChatMessage { id: string; studentId: string; disciplineId: string; message: string; isFromStudent: boolean; read: boolean; createdAt: string; }
 export interface Attendance { id: string; studentId: string; disciplineId: string; date: string; isPresent: boolean; createdAt: string; }
 export interface ClassRoom { id: string; name: string; shift: "morning" | "afternoon" | "evening" | "ead"; dayOfWeek?: string; maxStudents: number; studentCount?: number; createdAt: string; }
+export interface ClassSchedule { id: string; classId: string; disciplineId: string; professorName: string; dayOfWeek: string; timeStart: string; timeEnd: string; createdAt: string; }
 
 export function hashPassword(plain: string): string {
   if (typeof window !== "undefined") return btoa(unescape(encodeURIComponent(plain)))
@@ -193,6 +194,7 @@ function mapStudentProfile(row: any): StudentProfile { return { id: row.id, auth
 function mapChatMessage(row: any): ChatMessage { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, message: row.message, isFromStudent: row.is_from_student, read: row.read, createdAt: row.created_at } }
 function mapAttendance(row: any): Attendance { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, date: row.date, isPresent: row.is_present, createdAt: row.created_at } }
 function mapClassRoom(row: any): ClassRoom { return { id: row.id, name: row.name, shift: row.shift as ClassRoom['shift'], dayOfWeek: row.day_of_week || undefined, maxStudents: Number(row.max_students), studentCount: row.student_count !== undefined ? Number(row.student_count) : undefined, createdAt: row.created_at } }
+function mapClassSchedule(row: any): ClassSchedule { return { id: row.id, classId: row.class_id, disciplineId: row.discipline_id, professorName: row.professor_name, dayOfWeek: row.day_of_week, timeStart: row.time_start, timeEnd: row.time_end, createdAt: row.created_at } }
 
 // ─── Async Supabase Operations ───────────────────────────────────────────────
 
@@ -586,6 +588,31 @@ export function calculateScore(answers: StudentAnswer[], questions: Question[], 
   }
   const percentage = totalPoints > 0 ? Math.round((score / totalPoints) * 100) : 0
   return { score, totalPoints, percentage }
+}
+
+export async function getClassSchedules(): Promise<ClassSchedule[]> {
+  const supabase = createClient()
+  const { data } = await supabase.from('class_schedules').select('*').order('day_of_week', { ascending: true })
+  return (data || []).map(mapClassSchedule)
+}
+
+export async function addClassSchedule(data: Omit<ClassSchedule, "id" | "createdAt">): Promise<void> {
+  const supabase = createClient()
+  const dbData = {
+    class_id: data.classId,
+    discipline_id: data.disciplineId,
+    professor_name: data.professorName,
+    day_of_week: data.dayOfWeek,
+    time_start: data.timeStart,
+    time_end: data.timeEnd
+  }
+  const { error } = await supabase.from('class_schedules').insert(dbData)
+  if (error) throw new Error(error.message)
+}
+
+export async function deleteClassSchedule(id: string): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('class_schedules').delete().eq('id', id)
 }
 
 export async function getStudents(): Promise<StudentProfile[]> {

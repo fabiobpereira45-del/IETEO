@@ -26,63 +26,7 @@ import {
     getProfessorAccounts, MASTER_CREDENTIALS
 } from "@/lib/store"
 
-// ─── Days of week ─────────────────────────────────────────────────────────────
-
-const DAYS_OF_WEEK = [
-    { value: "segunda", label: "Segunda-feira", short: "SEG", color: "bg-blue-50 border-blue-200 text-blue-800" },
-    { value: "terca", label: "Terça-feira", short: "TER", color: "bg-purple-50 border-purple-200 text-purple-800" },
-    { value: "quarta", label: "Quarta-feira", short: "QUA", color: "bg-green-50 border-green-200 text-green-800" },
-    { value: "quinta", label: "Quinta-feira", short: "QUI", color: "bg-amber-50 border-amber-200 text-amber-800" },
-    { value: "sexta", label: "Sexta-feira", short: "SEX", color: "bg-orange-50 border-orange-200 text-orange-800" },
-    { value: "sabado", label: "Sábado", short: "SÁB", color: "bg-rose-50 border-rose-200 text-rose-800" },
-]
-
-function DaySelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-    return (
-        <div className="flex flex-wrap gap-2">
-            {DAYS_OF_WEEK.map(d => (
-                <button key={d.value} type="button" onClick={() => onChange(d.value)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all ${value === d.value
-                        ? `${d.color} border-current scale-105 shadow-sm`
-                        : "bg-muted/50 border-transparent text-muted-foreground hover:border-border"
-                        }`}
-                >
-                    {d.short}
-                </button>
-            ))}
-        </div>
-    )
-}
-
-// ─── Shifts (Turnos) ──────────────────────────────────────────────────────────
-
-const SHIFTS = [
-    { value: "matutino", label: "Matutino", color: "bg-sky-50 border-sky-200 text-sky-800" },
-    { value: "vespertino", label: "Vespertino", color: "bg-green-50 border-green-200 text-green-800" },
-    { value: "noturno", label: "Noturno", color: "bg-indigo-50 border-indigo-200 text-indigo-800" },
-    { value: "ead", label: "EAD", color: "bg-fuchsia-50 border-fuchsia-200 text-fuchsia-800" },
-]
-
-function getShiftInfo(value?: string) {
-    return SHIFTS.find(s => s.value === value) ?? null
-}
-
-function ShiftSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-    return (
-        <div className="flex flex-wrap gap-2">
-            {SHIFTS.map(s => (
-                <button key={s.value} type="button" onClick={() => onChange(s.value)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all ${value === s.value
-                        ? `${s.color} border-current scale-105 shadow-sm`
-                        : "bg-muted/50 border-transparent text-muted-foreground hover:border-border"
-                        }`}
-                >
-                    {s.label}
-                </button>
-            ))}
-        </div>
-    )
-}
+// ─── Componente Removido: Dias e Turnos agora vivem no Quadro de Horários ─────
 
 export function SemesterManager() {
     const [semesters, setSemesters] = useState<Semester[]>([])
@@ -100,13 +44,11 @@ export function SemesterManager() {
     // Discipline modal
     const [discModal, setDiscModal] = useState(false)
     const [editingDisc, setEditingDisc] = useState<Discipline | null>(null)
-    const [selectedPoolDisc, setSelectedPoolDisc] = useState<Discipline | null>(null) // picked from pool
+    const [selectedPoolDisc, setSelectedPoolDisc] = useState<Discipline | null>(null)
     const [discSearch, setDiscSearch] = useState("")
     const [discName, setDiscName] = useState("")
     const [discDesc, setDiscDesc] = useState("")
     const [discSemId, setDiscSemId] = useState("")
-    const [discDay, setDiscDay] = useState("segunda")
-    const [discShift, setDiscShift] = useState("matutino")
     const [discProfName, setDiscProfName] = useState("none")
 
     // Delete confirmations
@@ -155,18 +97,17 @@ export function SemesterManager() {
     }
 
     // ── Discipline modal ──────────────────────────────────────────────────────
-    function openNewDisc(semId?: string, day?: string) {
+    function openNewDisc(semId?: string) {
         setEditingDisc(null); setSelectedPoolDisc(null); setDiscSearch("")
         setDiscName(""); setDiscDesc(""); setDiscSemId(semId || semesters[0]?.id || "")
-        setDiscDay(day || "segunda"); setDiscShift("matutino"); setDiscProfName("none")
+        setDiscProfName("none")
         setDiscModal(true)
     }
 
     function openEditDisc(disc: Discipline) {
         setEditingDisc(disc); setSelectedPoolDisc(null); setDiscSearch("")
         setDiscName(disc.name); setDiscDesc(disc.description || "")
-        setDiscSemId(disc.semesterId || ""); setDiscDay(disc.dayOfWeek || "segunda")
-        setDiscShift(disc.shift || "matutino")
+        setDiscSemId(disc.semesterId || "")
         setDiscProfName(disc.professorName || "none")
         setDiscModal(true)
     }
@@ -176,7 +117,6 @@ export function SemesterManager() {
         setSelectedPoolDisc(disc)
         setDiscName(disc.name)
         setDiscDesc(disc.description || "")
-        setDiscShift(disc.shift || "matutino")
         setDiscProfName(disc.professorName || "none")
         setDiscSearch("")
     }
@@ -192,22 +132,22 @@ export function SemesterManager() {
 
         if (selectedPoolDisc) {
             await updateDiscipline(selectedPoolDisc.id, {
-                semesterId: semId, dayOfWeek: discDay, shift: discShift, professorName: prof
+                semesterId: semId, professorName: prof
             })
         } else if (editingDisc) {
             await updateDiscipline(editingDisc.id, {
                 name: discName.trim(), description: discDesc.trim() || undefined,
-                semesterId: semId, dayOfWeek: discDay, shift: discShift, professorName: prof
+                semesterId: semId, professorName: prof
             })
         } else {
-            await addDiscipline(discName.trim(), discDesc.trim() || undefined, semId, prof, discDay, discShift)
+            await addDiscipline(discName.trim(), discDesc.trim() || undefined, semId, prof, "", "ead")
         }
         setDiscModal(false); load()
     }
 
     // ── Unlink = remove from semester, send back to pool ──────────────────────
     async function handleUnlinkDisc(id: string) {
-        await updateDiscipline(id, { semesterId: undefined, dayOfWeek: undefined })
+        await updateDiscipline(id, { semesterId: undefined })
         setUnlinkDiscId(null); load()
     }
 
@@ -254,8 +194,6 @@ export function SemesterManager() {
 
                 {semesters.map(sem => {
                     const semDiscs = disciplines.filter(d => d.semesterId === sem.id)
-                    const usedDays = [...new Set(semDiscs.map(d => d.dayOfWeek).filter(Boolean))] as string[]
-                    const sortedDays = DAYS_OF_WEEK.filter(d => usedDays.includes(d.value))
 
                     return (
                         <div key={sem.id} className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
@@ -269,9 +207,6 @@ export function SemesterManager() {
                                         <h3 className="font-bold text-foreground">{sem.name}</h3>
                                         <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                             <span className="text-xs text-muted-foreground">Ordem {sem.order}</span>
-                                            {sortedDays.map(d => (
-                                                <span key={d.value} className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${d.color}`}>{d.short}</span>
-                                            ))}
                                             <span className="text-xs text-muted-foreground">· {semDiscs.length} disciplina{semDiscs.length !== 1 ? "s" : ""}</span>
                                         </div>
                                     </div>
@@ -289,7 +224,7 @@ export function SemesterManager() {
                                 </div>
                             </div>
 
-                            {/* Day blocks */}
+                            {/* Disciplines block */}
                             <div className="divide-y divide-border">
                                 {semDiscs.length === 0 ? (
                                     <div className="p-8 text-center">
@@ -300,92 +235,32 @@ export function SemesterManager() {
                                         </Button>
                                     </div>
                                 ) : (
-                                    <>
-                                        {sortedDays.map(day => {
-                                            const dayDiscs = semDiscs.filter(d => d.dayOfWeek === day.value)
-                                            const blockKey = `${sem.id}-${day.value}`
-                                            const isCollapsed = collapsed.has(blockKey)
-
-                                            return (
-                                                <div key={day.value}>
-                                                    <div className="flex items-center justify-between px-5 py-2.5">
-                                                        <button className="flex items-center gap-3 flex-1 text-left group" onClick={() => toggleCollapse(blockKey)}>
-                                                            <span className={`h-7 w-12 rounded-lg flex items-center justify-center text-[11px] font-black border ${day.color}`}>{day.short}</span>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-sm font-semibold">{day.label}</span>
-                                                                <span className="text-xs text-muted-foreground">{dayDiscs.length} disciplina{dayDiscs.length !== 1 ? "s" : ""}</span>
-                                                            </div>
-                                                            <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors ml-1">{isCollapsed ? "▸ ver" : "▾ ocultar"}</span>
+                                    <div className="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        {semDiscs.map(disc => (
+                                            <div key={disc.id} className="group relative border border-border rounded-xl px-4 py-3 bg-background hover:border-primary/40 hover:shadow-sm transition-all flex flex-col justify-between">
+                                                <div>
+                                                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                                        <button className="h-6 w-6 rounded flex items-center justify-center bg-card border border-border hover:bg-muted text-muted-foreground" onClick={() => openEditDisc(disc)} title="Editar">
+                                                            <Pencil className="h-3 w-3" />
                                                         </button>
-                                                        <Button size="sm" variant="ghost" className="h-7 px-2.5 text-xs gap-1 text-primary shrink-0" onClick={() => openNewDisc(sem.id, day.value)}>
-                                                            <Plus className="h-3 w-3" /> Adicionar
-                                                        </Button>
+                                                        <button
+                                                            className="h-6 w-6 rounded flex items-center justify-center bg-card border border-amber-300 hover:bg-amber-50 text-amber-600"
+                                                            onClick={() => setUnlinkDiscId(disc.id)}
+                                                            title="Remover do semestre"
+                                                        >
+                                                            <LogOut className="h-3 w-3" />
+                                                        </button>
                                                     </div>
-
-                                                    {!isCollapsed && (
-                                                        <div className="px-5 pb-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                                                            {dayDiscs.map(disc => (
-                                                                <div key={disc.id} className="group relative border border-border rounded-xl px-4 py-3 bg-background hover:border-primary/40 hover:shadow-sm transition-all">
-                                                                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                                                                        <button className="h-6 w-6 rounded flex items-center justify-center bg-card border border-border hover:bg-muted text-muted-foreground" onClick={() => openEditDisc(disc)} title="Editar">
-                                                                            <Pencil className="h-3 w-3" />
-                                                                        </button>
-                                                                        {/* Unlink = remove from semester, send to pool */}
-                                                                        <button
-                                                                            className="h-6 w-6 rounded flex items-center justify-center bg-card border border-amber-300 hover:bg-amber-50 text-amber-600"
-                                                                            onClick={() => setUnlinkDiscId(disc.id)}
-                                                                            title="Remover do semestre (volta para a disponível)"
-                                                                        >
-                                                                            <LogOut className="h-3 w-3" />
-                                                                        </button>
-                                                                    </div>
-                                                                    <h4 className="font-semibold text-sm pr-14 leading-snug">{disc.name}</h4>
-                                                                    {disc.shift && (() => { const s = getShiftInfo(disc.shift); return s ? <span className={`inline-block text-[10px] font-bold px-1.5 py-0.5 rounded border mt-1 ${s.color}`}>{s.label}</span> : null })()}
-                                                                    {disc.professorName && <p className="text-xs text-primary font-medium mt-1 truncate">Prof. {disc.professorName}</p>}
-                                                                    {disc.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{disc.description}</p>}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
+                                                    <h4 className="font-semibold text-sm pr-14 leading-snug">{disc.name}</h4>
+                                                    {disc.professorName && <p className="text-xs text-primary font-medium mt-1 truncate">Prof. {disc.professorName}</p>}
                                                 </div>
-                                            )
-                                        })}
-
-                                        {/* Disciplines with no day */}
-                                        {semDiscs.some(d => !d.dayOfWeek) && (
-                                            <div>
-                                                <div className="flex items-center gap-3 px-5 py-2.5 bg-amber-50/50">
-                                                    <AlertCircle className="h-4 w-4 text-amber-600" />
-                                                    <span className="text-sm font-semibold text-amber-800">Sem dia definido</span>
-                                                    <span className="text-xs text-amber-600">{semDiscs.filter(d => !d.dayOfWeek).length} disciplina(s)</span>
-                                                </div>
-                                                <div className="px-5 pb-4 pt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                                                    {semDiscs.filter(d => !d.dayOfWeek).map(disc => (
-                                                        <div key={disc.id} className="group relative border border-amber-200 rounded-xl px-4 py-3 bg-amber-50/30">
-                                                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 flex gap-1">
-                                                                <button className="h-6 w-6 rounded flex items-center justify-center border border-border hover:bg-muted text-muted-foreground" onClick={() => openEditDisc(disc)}><Pencil className="h-3 w-3" /></button>
-                                                                <button className="h-6 w-6 rounded flex items-center justify-center border border-amber-300 hover:bg-amber-50 text-amber-600" onClick={() => setUnlinkDiscId(disc.id)} title="Remover do semestre"><LogOut className="h-3 w-3" /></button>
-                                                            </div>
-                                                            <h4 className="font-semibold text-sm pr-14">{disc.name}</h4>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                                                {disc.description && <div className="mt-3 pt-3 border-t border-border/50">
+                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">Carga Horária / Info</span>
+                                                    <p className="text-xs text-muted-foreground line-clamp-2" title={disc.description}>{disc.description}</p>
+                                                </div>}
                                             </div>
-                                        )}
-
-                                        {/* Add new day chips */}
-                                        {DAYS_OF_WEEK.filter(d => !usedDays.includes(d.value)).length > 0 && (
-                                            <div className="px-5 py-3 flex flex-wrap gap-2 border-t border-dashed border-border/60">
-                                                <span className="text-xs text-muted-foreground self-center mr-1">+ Adicionar dia:</span>
-                                                {DAYS_OF_WEEK.filter(d => !usedDays.includes(d.value)).map(d => (
-                                                    <button key={d.value} onClick={() => openNewDisc(sem.id, d.value)}
-                                                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all hover:scale-105 ${d.color}`}>
-                                                        <Plus className="h-2.5 w-2.5" /> {d.short}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </>
+                                        ))}
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -410,7 +285,7 @@ export function SemesterManager() {
                                         {/* Allocate: open modal pre-filled */}
                                         <button
                                             className="h-6 w-6 rounded flex items-center justify-center border border-primary/30 hover:bg-primary/10 text-primary"
-                                            onClick={() => { pickPoolDisc(disc); setDiscSemId(semesters[0]?.id || ""); setDiscDay("segunda"); setDiscModal(true) }}
+                                            onClick={() => { pickPoolDisc(disc); setDiscSemId(semesters[0]?.id || ""); setDiscModal(true) }}
                                             title="Alocar em semestre"
                                         >
                                             <ArrowRightCircle className="h-3 w-3" />
@@ -524,13 +399,13 @@ export function SemesterManager() {
                                     <Input value={discName} onChange={e => setDiscName(e.target.value)} placeholder="Ex: Teologia Sistemática" autoFocus={!!editingDisc} />
                                 </div>
                                 <div className="flex flex-col gap-1.5">
-                                    <Label>Descrição (opcional)</Label>
-                                    <Textarea value={discDesc} onChange={e => setDiscDesc(e.target.value)} placeholder="Breve descrição da disciplina" className="resize-none h-16" />
+                                    <Label>Carga Horária / Avaliações (opcional)</Label>
+                                    <Textarea value={discDesc} onChange={e => setDiscDesc(e.target.value)} placeholder="Ex: Carga Horária de 40h. Necessário resumo do material." className="resize-none h-16" />
                                 </div>
                             </>
                         )}
 
-                        {/* ── Semester + Day + Professor ──────────────────────────── */}
+                        {/* ── Semester + Professor ──────────────────────────── */}
                         <div className="flex flex-col gap-1.5">
                             <Label>Semestre</Label>
                             <Select value={discSemId} onValueChange={setDiscSemId}>
@@ -540,17 +415,6 @@ export function SemesterManager() {
                                     {semesters.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <Label>Dia da Semana *</Label>
-                            <DaySelector value={discDay} onChange={setDiscDay} />
-                            {!editingDisc && !selectedPoolDisc && (
-                                <p className="text-xs text-muted-foreground">💡 Para o mesmo nome em outro dia, salve e adicione novamente escolhendo o outro dia.</p>
-                            )}
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            <Label>Turno *</Label>
-                            <ShiftSelector value={discShift} onChange={setDiscShift} />
                         </div>
                         <div className="flex flex-col gap-1.5">
                             <Label>Professor / Docente</Label>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { CheckCircle2, AlertTriangle, Clock, BookOpenCheck } from "lucide-react"
+import { CheckCircle2, AlertTriangle, Clock, BookOpenCheck, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Textarea } from "@/components/ui/textarea"
@@ -15,6 +15,20 @@ import {
   type Assessment, type Question, type Discipline,
 } from "@/lib/store"
 import { cn } from "@/lib/utils"
+
+function PortraitGuard() {
+  return (
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background p-6 text-center lg:hidden portrait:hidden">
+      <div className="mb-6 flex animate-bounce h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <RotateCcw className="h-8 w-8" />
+      </div>
+      <h2 className="text-xl font-bold mb-2 font-serif text-primary">Modo Retrato Recomendado</h2>
+      <p className="text-muted-foreground text-sm max-w-[280px]">
+        Para uma melhor experiência e visualização das questões durante a prova, por favor gire seu dispositivo para o <strong>modo retrato</strong>.
+      </p>
+    </div>
+  )
+}
 
 interface Props {
   session: StudentSession
@@ -128,7 +142,8 @@ export function AssessmentForm({ session, onSubmit }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="space-y-6">
+      <PortraitGuard />
       {/* Assessment Info Header */}
       <div className="rounded-2xl bg-primary text-primary-foreground p-5 sm:p-6 shadow-md border-b-4 border-accent">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

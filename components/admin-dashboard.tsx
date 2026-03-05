@@ -33,6 +33,7 @@ import { ProfessorChatView } from "@/components/professor-chat-view"
 import { AttendanceManager } from "@/components/attendance-manager"
 import { ClassManager } from "@/components/class-manager"
 import { StudentManager } from "@/components/student-manager"
+import { ClassScheduleManager } from "@/components/class-schedule-manager"
 import { createClient } from "@/lib/supabase/client"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -50,7 +51,7 @@ function formatTime(s: number) {
   return `${m}m${sec.toString().padStart(2, "0")}s`
 }
 
-type Tab = "overview" | "students" | "submissions" | "questions" | "assessments" | "professors" | "semesters" | "materials" | "financial" | "settings" | "chat" | "attendance" | "classes"
+type Tab = "overview" | "students" | "submissions" | "questions" | "assessments" | "professors" | "semesters" | "class_schedules" | "materials" | "financial" | "settings" | "chat" | "attendance" | "classes"
 
 interface Props {
   onLogout: () => void
@@ -726,6 +727,7 @@ export function AdminDashboard({ onLogout }: Props) {
     { id: "assessments", label: "Provas", icon: <FileText className="h-4 w-4" /> },
     { id: "materials", label: "Biblioteca (PDFs)", icon: <BookOpen className="h-4 w-4" /> },
     { id: "semesters", label: "Grade Curricular", icon: <BookOpen className="h-4 w-4" />, masterOnly: true },
+    { id: "class_schedules", label: "Quadro de Horários", icon: <CalendarCheck className="h-4 w-4" />, masterOnly: true },
     { id: "classes", label: "Turmas", icon: <GraduationCap className="h-4 w-4" />, masterOnly: true },
     { id: "attendance", label: "Frequência", icon: <CalendarCheck className="h-4 w-4" /> },
     { id: "chat", label: "Chat Alunos", icon: <MessageSquare className="h-4 w-4" /> },
@@ -804,6 +806,7 @@ export function AdminDashboard({ onLogout }: Props) {
             {tab === "assessments" && <AssessmentsTab assessments={assessments} submissions={submissions} questions={questions} disciplines={disciplines} onRefresh={refresh} />}
             {tab === "materials" && <StudyMaterialManager />}
             {tab === "semesters" && <SemesterManager />}
+            {tab === "class_schedules" && isMaster && <ClassScheduleManager />}
             {tab === "attendance" && <AttendanceManager />}
             {tab === "classes" && isMaster && <ClassManager />}
             {tab === "chat" && <ProfessorChatView />}
