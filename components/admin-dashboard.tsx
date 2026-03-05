@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import {
   Users, FileText, BookOpen, Settings, BarChart3, Download, LogOut,
-  Plus, Pencil, Trash2, Eye, EyeOff, Trophy, CheckCircle2,
+  Plus, Pencil, Trash2, Eye, EyeOff, Trophy, CheckCircle2, Link2,
   ShieldCheck, Loader2, DollarSign, MessageSquare, CalendarCheck, GraduationCap
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -297,6 +297,14 @@ function AssessmentsTab({ assessments, submissions, questions, disciplines, onRe
   const [builderOpen, setBuilderOpen] = useState(false)
   const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  function handleCopyLink(a: Assessment) {
+    const url = `${window.location.origin}/prova?id=${a.id}`
+    navigator.clipboard.writeText(url)
+    setCopiedId(a.id)
+    setTimeout(() => setCopiedId(null), 2500)
+  }
 
   async function handleDelete() {
     if (deleteId) {
@@ -338,9 +346,11 @@ function AssessmentsTab({ assessments, submissions, questions, disciplines, onRe
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <h3 className="font-semibold text-foreground">{a.title}</h3>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${a.isPublished ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"
-                      }`}>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${a.isPublished ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>
                       {a.isPublished ? "Publicada" : "Rascunho"}
+                    </span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${a.modality === "private" ? "bg-primary/10 text-primary" : "bg-blue-50 text-blue-600"}`}>
+                      {a.modality === "private" ? "🔒 Privada" : "🌐 Pública"}
                     </span>
                   </div>
                   <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
@@ -351,6 +361,12 @@ function AssessmentsTab({ assessments, submissions, questions, disciplines, onRe
                   </div>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
+                  <Button size="sm" variant="ghost"
+                    className={`h-8 px-2 text-xs ${copiedId === a.id ? "text-green-600" : "text-muted-foreground"}`}
+                    title="Copiar link da prova" onClick={() => handleCopyLink(a)}>
+                    {copiedId === a.id ? <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> : <Link2 className="h-3.5 w-3.5 mr-1" />}
+                    {copiedId === a.id ? "Copiado!" : "Link"}
+                  </Button>
                   <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="Imprimir Prova em Branco" onClick={() => handlePrint(a)}>
                     <Download className="h-3.5 w-3.5" />
                   </Button>

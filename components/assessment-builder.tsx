@@ -5,7 +5,7 @@ import {
   Users, FileText, BookOpen, Settings, BarChart3, Download, LogOut,
   Plus, Pencil, Trash2, Eye, EyeOff, Trophy, Clock, CheckCircle2,
   ShieldCheck, Sparkles, AlertCircle, ChevronRight, ChevronLeft, Shuffle, Check, ListChecks, Search, HelpCircle, Variable,
-  ArrowUp, ArrowDown, RefreshCw, List
+  ArrowUp, ArrowDown, RefreshCw, List, Globe, Lock
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -50,6 +50,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
   const [disciplines, setDisciplines] = useState<Discipline[]>([])
   const [logoBase64, setLogoBase64] = useState("")
   const [rules, setRules] = useState("")
+  const [modality, setModality] = useState<"public" | "private">("public")
 
   // Step 2
   const [format, setFormat] = useState<AssessmentFormat>("multiple-choice")
@@ -75,6 +76,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
         setDisciplineId(assessment.disciplineId)
         setLogoBase64(assessment.logoBase64 ?? "")
         setRules(assessment.rules ?? "")
+        setModality(assessment.modality ?? "public")
         setPointsPerQuestion(assessment.pointsPerQuestion)
         setQuestionCount(assessment.questionIds.length)
         setSelectedIds(new Set(assessment.questionIds))
@@ -84,6 +86,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
         setDisciplineId(discs[0]?.id ?? "")
         setLogoBase64("")
         setRules("")
+        setModality("public")
         setFormat("multiple-choice")
         setQuestionCount(10)
         setPointsPerQuestion(1)
@@ -216,6 +219,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
         questionIds: finalIds,
         pointsPerQuestion,
         totalPoints,
+        modality,
       })
     } else {
       await addAssessment({
@@ -231,6 +235,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
         openAt: null,
         closeAt: null,
         isPublished: false,
+        modality,
       })
     }
 
@@ -323,6 +328,36 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
                   placeholder="Ex: Não é permitido o uso de celular..."
                   className="resize-none h-20"
                 />
+              </div>
+              {/* Modality Toggle */}
+              <div className="flex flex-col gap-2">
+                <Label>Modalidade da Prova *</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setModality("public")}
+                    className={`flex items-center gap-2.5 p-3 rounded-xl border-2 text-sm font-medium transition-colors ${modality === "public" ? "border-green-500 bg-green-50 text-green-700" : "border-border hover:border-green-300"
+                      }`}
+                  >
+                    <Globe className="h-5 w-5 shrink-0" />
+                    <div className="text-left">
+                      <div className="font-semibold">Pública</div>
+                      <div className="text-xs font-normal text-muted-foreground">Qualquer pessoa com nome e e-mail</div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModality("private")}
+                    className={`flex items-center gap-2.5 p-3 rounded-xl border-2 text-sm font-medium transition-colors ${modality === "private" ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/40"
+                      }`}
+                  >
+                    <Lock className="h-5 w-5 shrink-0" />
+                    <div className="text-left">
+                      <div className="font-semibold">Privada</div>
+                      <div className="text-xs font-normal text-muted-foreground">Só alunos matriculados (login)</div>
+                    </div>
+                  </button>
+                </div>
               </div>
             </div>
           )}

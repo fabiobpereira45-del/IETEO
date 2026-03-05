@@ -11,7 +11,7 @@ export interface PaypalConfig { id: string; clientId: string; secret: string; mo
 export interface AsaasConfig { id: string; apiKey: string; mode: "sandbox" | "production"; updatedAt: string; }
 export interface FinancialCharge { id: string; studentId: string; type: "enrollment" | "monthly" | "second_call" | "final_exam" | "other"; description: string; amount: number; dueDate: string; status: "pending" | "paid" | "cancelled" | "late"; paymentDate?: string; paypalOrderId?: string; asaasPaymentId?: string; pixQrcode?: string; pixCopyPaste?: string; createdAt: string; }
 export interface Question { id: string; disciplineId: string; type: QuestionType; text: string; choices: Choice[]; correctAnswer: string; points: number; createdAt: string }
-export interface Assessment { id: string; title: string; disciplineId: string; professor: string; institution: string; questionIds: string[]; pointsPerQuestion: number; totalPoints: number; openAt: string | null; closeAt: string | null; isPublished: boolean; shuffleVariants?: boolean; logoBase64?: string; rules?: string; releaseResults?: boolean; createdAt: string }
+export interface Assessment { id: string; title: string; disciplineId: string; professor: string; institution: string; questionIds: string[]; pointsPerQuestion: number; totalPoints: number; openAt: string | null; closeAt: string | null; isPublished: boolean; shuffleVariants?: boolean; logoBase64?: string; rules?: string; releaseResults?: boolean; modality?: "public" | "private"; createdAt: string }
 export interface StudentAnswer { questionId: string; answer: string }
 export interface StudentSubmission { id: string; assessmentId: string; studentName: string; studentEmail: string; answers: StudentAnswer[]; score: number; totalPoints: number; percentage: number; submittedAt: string; timeElapsedSeconds: number }
 export interface ProfessorAccount { id: string; name: string; email: string; passwordHash: string; role: "master" | "professor"; createdAt: string }
@@ -414,8 +414,12 @@ export async function getAssessmentById(id: string): Promise<Assessment | null> 
   const { data, error } = await supabase.from('assessments').select('*').eq('id', id).single()
   return data ? mapAssessment(data) : null
 }
-export async function getActiveAssessment(): Promise<Assessment | null> {
+export async function getActiveAssessment(assessmentId?: string): Promise<Assessment | null> {
   const now = new Date()
+  if (assessmentId) {
+    const a = await getAssessmentById(assessmentId)
+    return a ?? null
+  }
   const assessments = await getAssessments()
   return assessments.find((a) => {
     if (!a.isPublished) return false

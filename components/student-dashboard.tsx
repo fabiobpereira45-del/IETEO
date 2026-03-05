@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { LogOut, BookOpen, Clock, FileText, Loader2, ArrowLeft, Download, Library, CalendarDays, MessageSquare } from "lucide-react"
+import { LogOut, BookOpen, Clock, FileText, Loader2, ArrowLeft, Download, Library, CalendarDays, MessageSquare, KeyRound, CheckCircle2, Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
     type StudentSession, type StudentProfile, getStudentProfileAuth, logoutStudentAuth,
@@ -12,6 +12,7 @@ import { StudentAuth } from "@/components/student-auth"
 import { FinancialStudentView } from "@/components/financial-student-view"
 import { StudentChatView } from "@/components/student-chat-view"
 import { StudentGradesView } from "@/components/student-grades-view"
+import { createClient } from "@/lib/supabase/client"
 
 interface Props {
     session: StudentSession | null
@@ -19,12 +20,19 @@ interface Props {
     onLogout: () => void
 }
 
-type Tab = "overview" | "curriculum" | "materials" | "grades" | "financial" | "chat"
+type Tab = "overview" | "curriculum" | "materials" | "grades" | "financial" | "chat" | "senha"
 
 export function StudentDashboard({ session, onBack, onLogout }: Props) {
     const [profile, setProfile] = useState<StudentProfile | null>(null)
     const [loading, setLoading] = useState(true)
     const [tab, setTab] = useState<Tab>("overview")
+    const [newPassword, setNewPassword] = useState("")
+    const [confirmPassword, setConfirmPassword] = useState("")
+    const [showPwd, setShowPwd] = useState(false)
+    const [pwdLoading, setPwdLoading] = useState(false)
+    const [pwdMsg, setPwdMsg] = useState("")
+    const [pwdErr, setPwdErr] = useState("")
+    const supabase = createClient()
 
     const [semesters, setSemesters] = useState<Semester[]>([])
     const [disciplines, setDisciplines] = useState<Discipline[]>([])
@@ -53,6 +61,24 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
     async function handlePortalLogout() {
         await logoutStudentAuth()
         setProfile(null)
+    }
+
+    async function handleChangePassword(e: React.FormEvent) {
+        e.preventDefault()
+        setPwdErr("")
+        setPwdMsg("")
+        if (newPassword.length < 6) { setPwdErr("A senha deve ter no mínimo 6 caracteres."); return }
+        if (newPassword !== confirmPassword) { setPwdErr("As senhas não coincidem."); return }
+        setPwdLoading(true)
+        try {
+            const { error } = await supabase.auth.updateUser({ password: newPassword })
+            if (error) throw error
+            setPwdMsg("Senha alterada com sucesso!")
+            setNewPassword("")
+            setConfirmPassword("")
+        } catch (err: any) {
+            setPwdErr(err.message || "Erro ao alterar senha.")
+        } finally { setPwdLoading(false) }
     }
 
     if (loading) {
@@ -85,19 +111,21 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
         { id: "grades", label: "Boletim", icon: <FileText className="h-4 w-4" /> },
         { id: "financial", label: "Financeiro", icon: <Clock className="h-4 w-4" /> },
         { id: "chat", label: "Mensagens", icon: <MessageSquare className="h-4 w-4" /> },
+        { id: "senha", label: "Minha Senha", icon: <KeyRound className="h-4 w-4" /> },
     ]
 
     return (
         <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full max-w-5xl mx-auto">
             {/* Header Info */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-primary text-primary-foreground rounded-2xl p-6 shadow-md">
-                <div>
-                    <h2 className="text-2xl font-bold font-serif">
-                        Portal do Aluno
-                    </h2>
-                    <p className="text-primary-foreground/80 mt-1">
-                        Olá, <span className="font-semibold">{profile.name}</span>
-                    </p>
+                <div className="flex items-center gap-3">
+                    <button onClick={onBack} className="flex items-center gap-1.5 text-primary-foreground/70 hover:text-primary-foreground transition-colors text-sm font-medium bg-primary-foreground/10 hover:bg-primary-foreground/20 px-3 py-1.5 rounded-lg">
+                        <ArrowLeft className="h-4 w-4" /> Voltar
+                    </button>
+                    <div>
+                        <h2 className="text-2xl font-bold font-serif">Portal do Aluno</h2>
+                        <p className="text-primary-foreground/80 mt-0.5">Olá, <span className="font-semibold">{profile.name}</span></p>
+                    </div>
                 </div>
                 <div className="flex flex-col md:items-end gap-1 text-sm bg-primary-foreground/10 p-3 rounded-lg border border-primary-foreground/20">
                     <div className="flex justify-between md:justify-end gap-4 w-full">
@@ -266,6 +294,42 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
 
                         {tab === "chat" && (
                             <StudentChatView studentId={profile.id} studentName={profile.name} />
+                        )}
+
+                        {tab === "senha" && (
+                            <div className="max-w-md mx-auto">
+                                <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+                                    <div className="flex items-center gap-3 mb-5">
+                                        <div className="h-10 w-10 bg-accent/10 rounded-full flex items-center justify-center">
+                                            <KeyRound className="h-5 w-5 text-accent" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-semibold text-foreground">Alterar Senha</h3>
+                                            <p className="text-xs text-muted-foreground">Escolha uma senha segura com pelo menos 6 caracteres</p>
+                                        </div>
+                                    </div>
+                                    <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
+                                        <div>
+                                            <label className="text-xs font-semibold text-muted-foreground block mb-1">Nova Senha</label>
+                                            <div className="relative">
+                                                <input type={showPwd ? "text" : "password"} className="w-full border border-input rounded-xl px-3 pr-10 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent" placeholder="••••••••" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+                                                <button type="button" onClick={() => setShowPwd(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                                                    {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-semibold text-muted-foreground block mb-1">Confirmar Nova Senha</label>
+                                            <input type={showPwd ? "text" : "password"} className="w-full border border-input rounded-xl px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent" placeholder="••••••••" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
+                                        </div>
+                                        {pwdErr && <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{pwdErr}</p>}
+                                        {pwdMsg && <p className="text-sm text-green-600 bg-green-50 rounded-lg px-3 py-2 flex items-center gap-2"><CheckCircle2 className="h-4 w-4" />{pwdMsg}</p>}
+                                        <button type="submit" disabled={pwdLoading} className="w-full bg-accent text-accent-foreground font-bold py-3 rounded-xl hover:bg-accent/90 disabled:opacity-60 transition-colors text-sm">
+                                            {pwdLoading ? "Salvando..." : "Salvar Nova Senha"}
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
                         )}
                     </>
                 )}
