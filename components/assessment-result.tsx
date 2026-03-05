@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Download, CheckCircle2, XCircle, Clock, Award, Minus } from "lucide-react"
+import { Download, CheckCircle2, XCircle, Clock, Award, Minus, BookOpenCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   getAssessmentById, getQuestionsByDiscipline, getDisciplines, getSubmissionsByAssessment,
@@ -94,6 +94,36 @@ export function AssessmentResult({ submission, onBack }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Assessment Info Header */}
+      {assessment && (
+        <div className="rounded-2xl bg-primary text-primary-foreground p-5 sm:p-6 shadow-md border-b-4 border-accent">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-sm shrink-0">
+                <BookOpenCheck className="h-6 w-6" />
+              </div>
+              <div>
+                {assessment.institution && (
+                  <div className="mb-2">
+                    <span className="inline-block px-2.5 py-0.5 rounded-full bg-white/10 text-[10px] font-bold uppercase tracking-widest text-primary-foreground/90 border border-white/20">
+                      {assessment.institution}
+                    </span>
+                  </div>
+                )}
+                <h2 className="text-xl font-serif font-bold leading-tight text-white/95">{assessment.title}</h2>
+                <p className="mt-1 text-xs text-primary-foreground/80 font-medium tracking-wide">
+                  {disc?.name ?? "Disciplina Geral"} <span className="mx-1 opacity-50">•</span> Prof. {assessment.professor}
+                </p>
+              </div>
+            </div>
+            <div className="text-left sm:text-right shrink-0 bg-black/10 sm:bg-transparent p-2 sm:p-0 rounded-lg w-full sm:w-auto flex sm:block items-center justify-between">
+              <div className="text-sm font-bold text-white/95">{assessment.totalPoints.toFixed(1)} pts</div>
+              <div className="text-xs text-primary-foreground/70 sm:mt-0.5">{questions.length} questões</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Score card */}
       <div className={cn(
         "rounded-2xl p-8 text-center shadow-lg flex flex-col items-center gap-4",

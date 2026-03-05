@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { CheckCircle2, AlertTriangle, Clock } from "lucide-react"
+import { CheckCircle2, AlertTriangle, Clock, BookOpenCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Textarea } from "@/components/ui/textarea"
@@ -10,9 +10,9 @@ import {
 } from "@/components/ui/dialog"
 import {
   getAssessmentById, getQuestionsByDiscipline, saveDraftAnswers, getDraftAnswers,
-  saveSubmission, calculateScore, clearStudentSession,
+  saveSubmission, calculateScore, clearStudentSession, getDisciplines,
   type StudentSession, type StudentAnswer, type StudentSubmission, uid,
-  type Assessment, type Question,
+  type Assessment, type Question, type Discipline,
 } from "@/lib/store"
 import { cn } from "@/lib/utils"
 
@@ -24,6 +24,7 @@ interface Props {
 export function AssessmentForm({ session, onSubmit }: Props) {
   const [assessment, setAssessment] = useState<Assessment | null>(null)
   const [questions, setQuestions] = useState<Question[]>([])
+  const [disc, setDisc] = useState<Discipline | null>(null)
   const [isInitializing, setIsInitializing] = useState(true)
 
   const [answers, setAnswers] = useState<StudentAnswer[]>(() => getDraftAnswers())
@@ -38,10 +39,14 @@ export function AssessmentForm({ session, onSubmit }: Props) {
       if (!mounted) return
       setAssessment(a)
       if (a) {
-        const allQs = await getQuestionsByDiscipline(a.disciplineId)
+        const [allQs, allDs] = await Promise.all([
+          getQuestionsByDiscipline(a.disciplineId),
+          getDisciplines()
+        ])
         if (!mounted) return
         const selectedQs = a.questionIds.map(id => allQs.find(q => q.id === id)).filter(Boolean) as Question[]
         setQuestions(selectedQs)
+        setDisc(allDs.find(d => d.id === a.disciplineId) || null)
       }
       setIsInitializing(false)
     }
@@ -124,8 +129,36 @@ export function AssessmentForm({ session, onSubmit }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Assessment Info Header */}
+      <div className="rounded-2xl bg-primary text-primary-foreground p-5 sm:p-6 shadow-md border-b-4 border-accent">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-sm shrink-0">
+              <BookOpenCheck className="h-6 w-6" />
+            </div>
+            <div>
+              {assessment.institution && (
+                <div className="mb-2">
+                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-white/10 text-[10px] font-bold uppercase tracking-widest text-primary-foreground/90 border border-white/20">
+                    {assessment.institution}
+                  </span>
+                </div>
+              )}
+              <h2 className="text-xl font-serif font-bold leading-tight text-white/95">{assessment.title}</h2>
+              <p className="mt-1 text-xs text-primary-foreground/80 font-medium tracking-wide">
+                {disc?.name ?? "Disciplina Geral"} <span className="mx-1 opacity-50">•</span> Prof. {assessment.professor}
+              </p>
+            </div>
+          </div>
+          <div className="text-left sm:text-right shrink-0 bg-black/10 sm:bg-transparent p-2 sm:p-0 rounded-lg w-full sm:w-auto flex sm:block items-center justify-between">
+            <div className="text-sm font-bold text-white/95">{assessment.totalPoints.toFixed(1)} pts</div>
+            <div className="text-xs text-primary-foreground/70 sm:mt-0.5">{questions.length} questões</div>
+          </div>
+        </div>
+      </div>
+
       {/* Sticky progress bar */}
-      <div className="sticky top-[73px] z-40 bg-background/95 backdrop-blur border-b border-border pb-3 -mx-4 px-4 pt-3">
+      <div className="sticky top-[73px] z-40 bg-background/95 backdrop-blur border-b border-border pb-3 -mx-4 px-4 pt-1">
         <div className="flex items-center justify-between mb-2 gap-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span className="font-semibold text-foreground">{answered}</span>

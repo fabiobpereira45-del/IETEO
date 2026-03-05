@@ -144,8 +144,17 @@ export function StudentLogin({ onLogin, onResult, preloadedAssessmentId }: Props
             <BookOpenCheck className="h-7 w-7" />
           </div>
           <div>
+            {assessment.institution && (
+              <div className="mb-3">
+                <span className="inline-block px-3 py-1 rounded-full bg-white/10 text-[10px] font-bold uppercase tracking-widest text-primary-foreground/90 border border-white/20">
+                  {assessment.institution}
+                </span>
+              </div>
+            )}
             <h1 className="text-2xl font-serif font-bold text-balance">{assessment.title}</h1>
-            <p className="mt-1 text-sm text-primary-foreground/70">{disc?.name ?? "Teologia"} · {assessment.professor}</p>
+            <p className="mt-1.5 text-sm text-primary-foreground/80 font-medium">
+              {disc?.name ?? "Disciplina Geral"} <span className="mx-1 opacity-50">•</span> Prof. {assessment.professor}
+            </p>
           </div>
           <div className="flex flex-wrap justify-center gap-3 text-sm text-primary-foreground/80 border-t border-primary-foreground/20 pt-4 w-full">
             <span>{assessment.questionIds.length} questão{assessment.questionIds.length !== 1 ? "ões" : ""}</span>
