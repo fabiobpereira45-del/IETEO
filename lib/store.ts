@@ -683,6 +683,36 @@ export async function getStudents(): Promise<StudentProfile[]> {
   return (data || []).map(mapStudentProfile)
 }
 
+export async function updateStudent(id: string, data: {
+  name?: string
+  cpf?: string
+  phone?: string
+  address?: string
+  church?: string
+  pastor_name?: string
+  class_id?: string | null
+  payment_status?: string
+}): Promise<void> {
+  const supabase = createClient()
+  const updateData: any = {}
+  if (data.name !== undefined) updateData.name = data.name
+  if (data.cpf !== undefined) updateData.cpf = data.cpf.replace(/\D/g, '')
+  if (data.phone !== undefined) updateData.phone = data.phone || null
+  if (data.address !== undefined) updateData.address = data.address || null
+  if (data.church !== undefined) updateData.church = data.church || null
+  if (data.pastor_name !== undefined) updateData.pastor_name = data.pastor_name || null
+  if (data.class_id !== undefined) updateData.class_id = data.class_id || null
+  if (data.payment_status !== undefined) updateData.payment_status = data.payment_status
+  const { error } = await supabase.from('students').update(updateData).eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+export async function deleteStudent(id: string): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase.from('students').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
 export async function getChatMessages(disciplineId: string, studentId: string): Promise<ChatMessage[]> {
   const supabase = createClient()
   const { data } = await supabase.from('chats').select('*').match({ discipline_id: disciplineId, student_id: studentId }).order('created_at', { ascending: true })

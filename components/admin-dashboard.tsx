@@ -725,6 +725,7 @@ export function AdminDashboard({ onLogout }: Props) {
     { id: "students", label: "Alunos", icon: <Users className="h-4 w-4" /> },
     { id: "questions", label: "Banco de Questões", icon: <BookOpen className="h-4 w-4" /> },
     { id: "assessments", label: "Provas", icon: <FileText className="h-4 w-4" /> },
+    { id: "submissions", label: "Respostas de Provas", icon: <CheckCircle2 className="h-4 w-4" /> },
     { id: "materials", label: "Biblioteca (PDFs)", icon: <BookOpen className="h-4 w-4" /> },
     { id: "semesters", label: "Grade Curricular", icon: <BookOpen className="h-4 w-4" />, masterOnly: true },
     { id: "class_schedules", label: "Quadro de Horários", icon: <CalendarCheck className="h-4 w-4" />, masterOnly: true },
