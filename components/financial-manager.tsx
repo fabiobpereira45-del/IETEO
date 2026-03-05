@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { DollarSign, Plus, Eye, CheckCircle2, AlertCircle, Clock, Trash2 } from "lucide-react"
+import { DollarSign, Plus, Eye, CheckCircle2, AlertCircle, Clock, Trash2, Zap, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,9 +16,9 @@ import {
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
-    type FinancialCharge, type StudentProfile, type FinancialSettings,
+    type FinancialCharge, type StudentProfile, type FinancialSettings, type Assessment,
     getFinancialCharges, addFinancialCharge, updateFinancialChargeStatus, deleteFinancialCharge,
-    getFinancialSettings, getStudentProfileAuth // In a real app we'd need getAllStudents for the admin, let's create a mockup or fetch them.
+    getFinancialSettings, getAssessments, triggerFlowGravit
 } from "@/lib/store"
 import { createClient } from "@/lib/supabase/client"
 
@@ -109,6 +109,73 @@ export function FinancialManager() {
         }
     }
 
+    async function handleTriggerReminders() {
+        setSaving(true)
+        try {
+            const now = new Date()
+            const tomorrow = new Date(now)
+            tomorrow.setDate(tomorrow.getDate() + 1)
+
+            const formatDateStr = (d: Date) => d.toISOString().split('T')[0]
+            const tomorrowStr = formatDateStr(tomorrow)
+            const todayStr = formatDateStr(now)
+
+            // 1. Check Financial Reminders
+            for (const c of charges) {
+                if (c.status === 'paid') continue
+                const student = students.find(s => s.id === c.studentId)
+                if (!student) continue
+
+                if (c.dueDate === tomorrowStr) {
+                    await triggerFlowGravit('lembrete_financeiro_amanha', {
+                        type: 'finance_upcoming',
+                        name: student.name,
+                        phone: student.phone,
+                        amount: c.amount,
+                        dueDate: c.dueDate
+                    })
+                } else if (new Date(c.dueDate) < now && c.status === 'pending') {
+                    // Overdue logic
+                    await triggerFlowGravit('financeiro_atrasado', {
+                        type: 'finance_overdue',
+                        name: student.name,
+                        phone: student.phone,
+                        amount: c.amount,
+                        dueDate: c.dueDate
+                    })
+                }
+            }
+
+            // 2. Check Exam Reminders
+            const assessments = await getAssessments()
+            for (const a of assessments) {
+                if (!a.isPublished || !a.openAt) continue
+                const openDate = formatDateStr(new Date(a.openAt))
+
+                if (openDate === tomorrowStr || openDate === todayStr) {
+                    const triggerId = openDate === tomorrowStr ? 'lembrete_prova_amanha' : 'lembrete_prova_hoje'
+                    for (const s of students) {
+                        await triggerFlowGravit(triggerId, {
+                            type: openDate === tomorrowStr ? 'exam_tomorrow' : 'exam_today',
+                            name: s.name,
+                            phone: s.phone,
+                            title: a.title,
+                            date: openDate,
+                            open_time: a.openAt ? new Date(a.openAt).toLocaleTimeString("pt-BR") : "N/A",
+                            close_time: a.closeAt ? new Date(a.closeAt).toLocaleTimeString("pt-BR") : "N/A"
+                        })
+                    }
+                }
+            }
+
+            alert("Disparo de lembretes concluído!")
+        } catch (err: any) {
+            alert("Erro ao disparar lembretes: " + err.message)
+        } finally {
+            setSaving(false)
+        }
+    }
+
     async function handleDelete() {
         if (!deleteId) return
         try {
@@ -134,17 +201,23 @@ export function FinancialManager() {
                     <h2 className="text-xl font-bold font-serif text-foreground">Gestão Financeira</h2>
                     <p className="text-muted-foreground text-sm">Controle de mensalidades e recebimentos</p>
                 </div>
-                <Button onClick={() => {
-                    setStudentId("")
-                    setType("monthly")
-                    setAmount("")
-                    setDescription("")
-                    setDueDate("")
-                    setChargeModal(true)
-                }}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nova Cobrança
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleTriggerReminders} disabled={saving} className="border-accent text-accent-foreground hover:bg-accent/10">
+                        {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}
+                        Disparar Lembretes
+                    </Button>
+                    <Button onClick={() => {
+                        setStudentId("")
+                        setType("monthly")
+                        setAmount("")
+                        setDescription("")
+                        setDueDate("")
+                        setChargeModal(true)
+                    }}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Nova Cobrança
+                    </Button>
+                </div>
             </div>
 
             <div className="bg-card border border-border shadow-sm rounded-xl overflow-hidden">

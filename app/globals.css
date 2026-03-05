@@ -92,16 +92,3 @@
   }
 }
 
-/* Landscape Lock for Mobile Devices */
-@media screen and (max-width: 1024px) and (orientation: portrait) {
-  .require-landscape-layer {
-    display: flex !important;
-  }
-  .main-app-content {
-    display: none !important;
-  }
-}
-
-.require-landscape-layer {
-  display: none;
-}

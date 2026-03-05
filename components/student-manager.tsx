@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Users, Plus, ShieldCheck, Mail, Loader2, CheckCircle2, User, Phone, MapPin, Building2, UserCircle2 } from "lucide-react"
+import { Users, Plus, ShieldCheck, Mail, Loader2, CheckCircle2, User, Phone, MapPin, Building2, UserCircle2, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
-    getStudents, registerStudentByAdmin, getClasses, type StudentProfile, type ClassRoom
+    getStudents, registerStudentByAdmin, getClasses, type StudentProfile, type ClassRoom, triggerFlowGravit
 } from "@/lib/store"
 import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -115,6 +115,7 @@ export function StudentManager() {
                             <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Email</th>
                             <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Turma</th>
                             <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Status F.</th>
+                            <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Ações</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -137,6 +138,21 @@ export function StudentManager() {
                                                 Pendente
                                             </span>
                                         )}
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                            title="Enviar WhatsApp"
+                                            onClick={() => triggerFlowGravit('mensagem_manual', {
+                                                type: 'manual',
+                                                name: stu.name,
+                                                phone: stu.phone
+                                            })}
+                                        >
+                                            <MessageSquare className="h-4 w-4" />
+                                        </Button>
                                     </td>
                                 </tr>
                             )

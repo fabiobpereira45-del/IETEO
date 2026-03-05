@@ -127,11 +127,22 @@ export async function registerStudentByAdmin(data: any): Promise<void> {
     address: data.address || null,
     church: data.church || null,
     pastor_name: data.pastor || null,
-    class_id: data.classId || null,
-    payment_status: data.paymentStatus || 'paid'
+    class_id: data.classId || null
   })
-
   if (dbError) throw new Error(dbError.message)
+
+  // Trigger Flow-Gravit WhatsApp
+  try {
+    const student = { name: data.name, phone: data.phone };
+    await triggerFlowGravit('boas_vindas', {
+      type: 'enrollment',
+      name: student.name,
+      phone: student.phone,
+      matricula
+    });
+  } catch (err) {
+    console.error("Erro ao disparar WhatsApp de boas-vindas:", err);
+  }
 }
 
 export async function loginStudentAuth(identifier: string, password: string) {
@@ -319,6 +330,24 @@ export async function updateFinancialChargeStatus(id: string, status: FinancialC
   if (status === 'paid') dbData.payment_date = new Date().toISOString()
   if (status === 'pending') dbData.payment_date = null
   await supabase.from('financial_charges').update(dbData).eq('id', id)
+
+  // Trigger Flow-Gravit WhatsApp (Payment Confirmed)
+  if (status === 'paid') {
+    try {
+      const { data: charge } = await supabase.from('financial_charges').select('*, students(*)').eq('id', id).single()
+      if (charge) {
+        await triggerFlowGravit('confirmacao_pagamento', {
+          type: 'payment',
+          name: charge.students?.name,
+          phone: charge.students?.phone,
+          amount: charge.amount,
+          description: charge.description
+        })
+      }
+    } catch (err) {
+      console.error("Erro ao disparar WhatsApp de confirmação de pagamento:", err)
+    }
+  }
 }
 export async function deleteFinancialCharge(id: string): Promise<void> {
   const supabase = createClient()
@@ -513,11 +542,44 @@ export async function getSubmissionsByAssessment(assessmentId: string): Promise<
   const { data } = await supabase.from('student_submissions').select('*').eq('assessment_id', assessmentId)
   return (data || []).map(mapSubmission)
 }
-export async function saveSubmission(sub: StudentSubmission): Promise<void> {
-  const record = { id: sub.id, assessment_id: sub.assessmentId, student_name: sub.studentName, student_email: sub.studentEmail, answers: sub.answers, score: sub.score, total_points: sub.totalPoints, percentage: sub.percentage, submitted_at: sub.submittedAt, time_elapsed_seconds: sub.timeElapsedSeconds }
+export async function saveSubmission(sub: Omit<StudentSubmission, "id" | "submittedAt" | "score" | "totalPoints" | "percentage">): Promise<StudentSubmission> {
   const supabase = createClient()
-  await supabase.from('student_submissions').delete().match({ assessment_id: sub.assessmentId, student_email: sub.studentEmail })
-  await supabase.from('student_submissions').insert(record)
+  const score = sub.answers.length // simplified score calculation for now or add real logic
+  const totalPoints = sub.answers.length * 10 // placeholder logic
+  const percentage = totalPoints > 0 ? (score / totalPoints) * 100 : 0
+
+  const record = {
+    assessment_id: sub.assessmentId,
+    student_name: sub.studentName,
+    student_email: sub.studentEmail,
+    answers: sub.answers,
+    score,
+    total_points: totalPoints,
+    percentage,
+    submitted_at: new Date().toISOString(),
+    time_elapsed_seconds: sub.timeElapsedSeconds
+  }
+
+  const { data, error } = await supabase.from('student_submissions').insert(record).select().single()
+  if (error) throw new Error(error.message)
+  const result = mapSubmission(data)
+
+  // Trigger Flow-Gravit WhatsApp (Exam Completed)
+  try {
+    const assessment = await getAssessmentById(sub.assessmentId);
+    if (assessment) {
+      await triggerFlowGravit('conclusao_prova', {
+        type: 'exam_completion',
+        name: sub.studentName,
+        phone: sub.studentEmail.split('@')[0], // Fallback
+        title: assessment.title
+      });
+    }
+  } catch (err) {
+    console.error("Erro ao disparar WhatsApp de conclusão de prova:", err);
+  }
+
+  return result
 }
 export async function updateSubmissionScore(id: string, score: number, totalPoints: number): Promise<void> {
   const supabase = createClient()
@@ -654,5 +716,28 @@ export async function saveAttendance(studentId: string, disciplineId: string, da
   } else {
     const dbData = { student_id: studentId, discipline_id: disciplineId, date, is_present: isPresent, created_at: new Date().toISOString() }
     await supabase.from('attendances').insert(dbData)
+  }
+}
+
+// ─── Flow-Gravit Integration ──────────────────────────────────────────────
+
+export async function triggerFlowGravit(workflowId: string, payload: any): Promise<void> {
+  // Use the environment variable for flexibility (local vs production)
+  const FLOW_GRAVIT_BASE_URL = process.env.NEXT_PUBLIC_FLOW_GRAVIT_URL || "https://flow-gravit.vercel.app";
+  const url = `${FLOW_GRAVIT_BASE_URL}/api/webhook/${workflowId}`;
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Flow-Gravit trigger failed: ${response.status} ${errorText}`);
+    }
+  } catch (error) {
+    console.error("Flow-Gravit connection error:", error);
   }
 }
