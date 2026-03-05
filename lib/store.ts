@@ -420,7 +420,12 @@ export async function getActiveAssessment(assessmentId?: string): Promise<Assess
   const now = new Date()
   if (assessmentId) {
     const a = await getAssessmentById(assessmentId)
-    return a ?? null
+    if (!a) return null
+    // Respect isPublished even on direct link access
+    if (!a.isPublished) return null
+    if (a.openAt && new Date(a.openAt) > now) return null
+    if (a.closeAt && new Date(a.closeAt) < now) return null
+    return a
   }
   const assessments = await getAssessments()
   return assessments.find((a) => {
@@ -432,7 +437,7 @@ export async function getActiveAssessment(assessmentId?: string): Promise<Assess
 }
 export async function addAssessment(data: Omit<Assessment, "id" | "createdAt" | "releaseResults">): Promise<Assessment> {
   const a = { ...data, id: uid(), createdAt: new Date().toISOString(), releaseResults: false }
-  const dbData = { id: a.id, title: a.title, discipline_id: a.disciplineId, professor: a.professor, institution: a.institution, question_ids: a.questionIds, points_per_question: a.pointsPerQuestion, total_points: a.totalPoints, open_at: a.openAt, close_at: a.closeAt, is_published: a.isPublished, shuffle_variants: a.shuffleVariants, logo_base64: a.logoBase64, rules: a.rules, release_results: a.releaseResults, created_at: a.createdAt }
+  const dbData = { id: a.id, title: a.title, discipline_id: a.disciplineId, professor: a.professor, institution: a.institution, question_ids: a.questionIds, points_per_question: a.pointsPerQuestion, total_points: a.totalPoints, open_at: a.openAt, close_at: a.closeAt, is_published: a.isPublished, shuffle_variants: a.shuffleVariants, logo_base64: a.logoBase64, rules: a.rules, release_results: a.releaseResults, modality: a.modality ?? "public", created_at: a.createdAt }
   const supabase = createClient()
   await supabase.from('assessments').insert(dbData)
   return a
@@ -453,6 +458,7 @@ export async function updateAssessment(id: string, data: Partial<Omit<Assessment
   if (data.logoBase64 !== undefined) dbData.logo_base64 = data.logoBase64
   if (data.rules !== undefined) dbData.rules = data.rules
   if (data.releaseResults !== undefined) dbData.release_results = data.releaseResults
+  if (data.modality !== undefined) dbData.modality = data.modality
 
   const supabase = createClient()
   await supabase.from('assessments').update(dbData).eq('id', id)
