@@ -17,7 +17,7 @@ export interface StudentSubmission { id: string; assessmentId: string; studentNa
 export interface ProfessorAccount { id: string; name: string; email: string; passwordHash: string; role: "master" | "professor"; createdAt: string }
 export interface ProfessorSession { loggedIn: boolean; professorId: string; role: "master" | "professor"; expiresAt: string }
 export interface StudentSession { name: string; email: string; assessmentId: string; startedAt: string }
-export interface StudentProfile { id: string; auth_user_id: string; name: string; cpf: string; enrollment_number: string; phone?: string; address?: string; church?: string; pastor_name?: string; class_id?: string; created_at: string; }
+export interface StudentProfile { id: string; auth_user_id: string; name: string; cpf: string; enrollment_number: string; phone?: string; address?: string; church?: string; pastor_name?: string; class_id?: string; payment_status?: string; created_at: string; }
 export interface ChatMessage { id: string; studentId: string; disciplineId: string; message: string; isFromStudent: boolean; read: boolean; createdAt: string; }
 export interface Attendance { id: string; studentId: string; disciplineId: string; date: string; isPresent: boolean; createdAt: string; }
 export interface ClassRoom { id: string; name: string; shift: "morning" | "afternoon" | "evening" | "ead"; dayOfWeek?: string; maxStudents: number; studentCount?: number; createdAt: string; }
@@ -98,6 +98,39 @@ export async function registerStudentAuth(name: string, cpf: string, password: s
 
   if (dbError) throw new Error(dbError.message)
   return { matricula, name }
+}
+
+export async function registerStudentByAdmin(data: any): Promise<void> {
+  const supabase = createClient()
+  const cleanCpf = data.cpf ? data.cpf.replace(/\D/g, '') : ""
+
+  // Use email if provided, else generate fake one
+  const email = data.email || `${cleanCpf || uid().slice(0, 11)}@student.ieteo.com`
+
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email,
+    password: data.password,
+    options: { data: { name: data.name, type: 'student' } }
+  })
+  if (authError) throw new Error(authError.message)
+  if (!authData.user) throw new Error("Erro ao criar usuário na base de dados (Auth).")
+
+  const matricula = `2026${Math.floor(1000 + Math.random() * 9000)}`
+
+  const { error: dbError } = await supabase.from('students').insert({
+    auth_user_id: authData.user.id,
+    name: data.name,
+    cpf: cleanCpf,
+    enrollment_number: matricula,
+    phone: data.phone || null,
+    address: data.address || null,
+    church: data.church || null,
+    pastor_name: data.pastor || null,
+    class_id: data.classId || null,
+    payment_status: data.paymentStatus || 'paid'
+  })
+
+  if (dbError) throw new Error(dbError.message)
 }
 
 export async function loginStudentAuth(identifier: string, password: string) {
@@ -483,6 +516,12 @@ export async function saveSubmission(sub: StudentSubmission): Promise<void> {
   const supabase = createClient()
   await supabase.from('student_submissions').delete().match({ assessment_id: sub.assessmentId, student_email: sub.studentEmail })
   await supabase.from('student_submissions').insert(record)
+}
+export async function updateSubmissionScore(id: string, score: number, totalPoints: number): Promise<void> {
+  const supabase = createClient()
+  const percentage = totalPoints > 0 ? (score / totalPoints) * 100 : 0
+  const { error } = await supabase.from('student_submissions').update({ score, percentage }).eq('id', id)
+  if (error) throw new Error(error.message)
 }
 export async function deleteSubmission(id: string): Promise<void> {
   const supabase = createClient()

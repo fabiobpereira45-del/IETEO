@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import {
   Users, FileText, BookOpen, Settings, BarChart3, Download, LogOut,
   Plus, Pencil, Trash2, Eye, EyeOff, Trophy, CheckCircle2, Link2,
-  ShieldCheck, Loader2, DollarSign, MessageSquare, CalendarCheck, GraduationCap
+  ShieldCheck, Loader2, DollarSign, MessageSquare, CalendarCheck, GraduationCap, XCircle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,7 +16,7 @@ import {
 import {
   type Assessment, type StudentSubmission, type Question, type Discipline,
   getAssessments, updateAssessment, deleteAssessment,
-  getSubmissions, deleteSubmission,
+  getSubmissions, deleteSubmission, updateSubmissionScore,
   getQuestions, getDisciplines, clearProfessorSession, MASTER_CREDENTIALS,
   getProfessorSession,
 } from "@/lib/store"
@@ -32,6 +32,7 @@ import { FinancialManager } from "@/components/financial-manager"
 import { ProfessorChatView } from "@/components/professor-chat-view"
 import { AttendanceManager } from "@/components/attendance-manager"
 import { ClassManager } from "@/components/class-manager"
+import { StudentManager } from "@/components/student-manager"
 import { createClient } from "@/lib/supabase/client"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -49,7 +50,7 @@ function formatTime(s: number) {
   return `${m}m${sec.toString().padStart(2, "0")}s`
 }
 
-type Tab = "overview" | "students" | "questions" | "assessments" | "professors" | "semesters" | "materials" | "financial" | "settings" | "chat" | "attendance" | "classes"
+type Tab = "overview" | "students" | "submissions" | "questions" | "assessments" | "professors" | "semesters" | "materials" | "financial" | "settings" | "chat" | "attendance" | "classes"
 
 interface Props {
   onLogout: () => void
@@ -138,16 +139,21 @@ function OverviewTab({ assessments, submissions, questions }: { assessments: Ass
   )
 }
 
-// ─── Students Tab ─────────────────────────────────────────────────────────────
+// ─── Submissions Tab (Old StudentsTab) ────────────────────────────────────────
 
-function StudentsTab({ assessments, allSubmissions, questions, onRefresh }: {
+function SubmissionsTab({ assessments, allSubmissions, questions, onRefresh, isMaster }: {
   assessments: Assessment[]
   allSubmissions: StudentSubmission[]
   questions: Question[]
   onRefresh: () => void
+  isMaster: boolean
 }) {
   const [selectedAssessmentId, setSelectedAssessmentId] = useState(assessments[0]?.id ?? "")
   const [deleteId, setDeleteId] = useState<string | null>(null)
+
+  const [editingSubId, setEditingSubId] = useState<string | null>(null)
+  const [editScore, setEditScore] = useState<number>(0)
+  const [isSavingScore, setIsSavingScore] = useState(false)
 
   const submissions = allSubmissions
     .filter((s) => s.assessmentId === selectedAssessmentId)
@@ -172,6 +178,27 @@ function StudentsTab({ assessments, allSubmissions, questions, onRefresh }: {
       await deleteSubmission(deleteId)
       onRefresh()
       setDeleteId(null)
+    }
+  }
+
+  function startEditingScore(sub: StudentSubmission) {
+    setEditingSubId(sub.id)
+    setEditScore(sub.score)
+  }
+
+  async function saveScore(sub: StudentSubmission) {
+    if (editScore < 0 || editScore > sub.totalPoints) {
+      return alert(`A nota deve estar entre 0 e ${sub.totalPoints}`)
+    }
+    setIsSavingScore(true)
+    try {
+      await updateSubmissionScore(sub.id, editScore, sub.totalPoints)
+      setEditingSubId(null)
+      onRefresh()
+    } catch (err: any) {
+      alert("Erro ao salvar nota: " + err.message)
+    } finally {
+      setIsSavingScore(false)
     }
   }
 
@@ -247,9 +274,30 @@ function StudentsTab({ assessments, allSubmissions, questions, onRefresh }: {
                     <div className="text-xs text-muted-foreground">{sub.studentEmail}</div>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className={`px-2 py-0.5 rounded flex items-center justify-center font-bold font-mono text-sm max-w-[80px] mx-auto ` + (sub.percentage >= 70 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700')}>
-                      {sub.score.toFixed(1)}
-                    </span>
+                    {editingSubId === sub.id ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <input
+                          type="number"
+                          step={0.1}
+                          min={0}
+                          max={sub.totalPoints}
+                          className="w-16 border border-input rounded px-2 py-1 text-sm text-center"
+                          value={editScore}
+                          onChange={(e) => setEditScore(parseFloat(e.target.value) || 0)}
+                          disabled={isSavingScore}
+                        />
+                        <Button size="icon" variant="ghost" className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-100" onClick={() => saveScore(sub)} disabled={isSavingScore}>
+                          <CheckCircle2 className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => setEditingSubId(null)} disabled={isSavingScore}>
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className={`px-2 py-0.5 rounded flex items-center justify-center font-bold font-mono text-sm max-w-[80px] mx-auto ` + (sub.percentage >= 70 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700')}>
+                        {sub.score.toFixed(1)}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-center hidden md:table-cell text-muted-foreground">
                     {formatTime(sub.timeElapsedSeconds)}
@@ -262,6 +310,11 @@ function StudentsTab({ assessments, allSubmissions, questions, onRefresh }: {
                       <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="Baixar PDF" onClick={() => handlePDF(sub)}>
                         <Download className="h-3.5 w-3.5" />
                       </Button>
+                      {isMaster && (
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-100" title="Editar Nota" onClick={() => startEditingScore(sub)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                         title="Excluir Envio" onClick={() => setDeleteId(sub.id)}>
                         <Trash2 className="h-3.5 w-3.5" />
@@ -342,37 +395,37 @@ function AssessmentsTab({ assessments, submissions, questions, disciplines, onRe
             const disc = disciplines.find((d) => d.id === a.disciplineId)
             const subCount = submissions.filter(s => s.assessmentId === a.id).length
             return (
-              <div key={a.id} className="bg-card border border-border rounded-xl p-4 flex items-start gap-4">
-                <div className="flex-1 min-w-0">
+              <div key={a.id} className="bg-card border border-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex-1 min-w-0 w-full">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <h3 className="font-semibold text-foreground">{a.title}</h3>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${a.isPublished ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${a.isPublished ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>
                       {a.isPublished ? "Publicada" : "Rascunho"}
                     </span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${a.modality === "private" ? "bg-primary/10 text-primary" : "bg-blue-50 text-blue-600"}`}>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${a.modality === "private" ? "bg-primary/10 text-primary" : "bg-blue-50 text-blue-600"}`}>
                       {a.modality === "private" ? "🔒 Privada" : "🌐 Pública"}
                     </span>
                   </div>
-                  <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+                  <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-1">
                     <span>{disc?.name ?? "Disciplina removida"}</span>
                     <span>{a.questionIds.length} questão{a.questionIds.length !== 1 ? "ões" : ""}</span>
-                    <span>{a.totalPoints.toFixed(1)} pts totais</span>
+                    <span>{a.totalPoints.toFixed(1)} pts</span>
                     <span>{subCount} resposta{subCount !== 1 ? "s" : ""}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
+                <div className="flex items-center gap-1 flex-wrap sm:flex-nowrap w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border mt-2 sm:mt-0 justify-end">
                   <Button size="sm" variant="ghost"
                     className={`h-8 px-2 text-xs ${copiedId === a.id ? "text-green-600" : "text-muted-foreground"}`}
                     title="Copiar link da prova" onClick={() => handleCopyLink(a)}>
-                    {copiedId === a.id ? <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> : <Link2 className="h-3.5 w-3.5 mr-1" />}
-                    {copiedId === a.id ? "Copiado!" : "Link"}
+                    {copiedId === a.id ? <CheckCircle2 className="h-3.5 w-3.5 sm:mr-1" /> : <Link2 className="h-3.5 w-3.5 sm:mr-1" />}
+                    <span className="hidden sm:inline">{copiedId === a.id ? "Copiado!" : "Link"}</span>
                   </Button>
                   <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="Imprimir Prova em Branco" onClick={() => handlePrint(a)}>
                     <Download className="h-3.5 w-3.5" />
                   </Button>
-                  <Button size="sm" variant="ghost" className="h-8 px-3 text-xs" onClick={() => handleTogglePublish(a)}>
-                    {a.isPublished ? <EyeOff className="h-3.5 w-3.5 mr-1" /> : <Eye className="h-3.5 w-3.5 mr-1" />}
-                    {a.isPublished ? "Despublicar" : "Publicar"}
+                  <Button size="sm" variant="ghost" className="h-8 px-2 sm:px-3 text-xs" onClick={() => handleTogglePublish(a)}>
+                    {a.isPublished ? <EyeOff className="h-3.5 w-3.5 sm:mr-1" /> : <Eye className="h-3.5 w-3.5 sm:mr-1" />}
+                    <span className="hidden sm:inline">{a.isPublished ? "Despublicar" : "Publicar"}</span>
                   </Button>
                   <Button size="sm" variant="ghost" className="h-8 w-8 p-0"
                     onClick={() => { setEditingAssessment(a); setBuilderOpen(true) }} title="Editar">
@@ -419,7 +472,7 @@ function AssessmentsTab({ assessments, submissions, questions, disciplines, onRe
 
 function SettingsTab({ assessments, onRefresh, onLogout }: {
   assessments: Assessment[]
-  onRefresh: () => void
+  onRefresh: (showLoading?: boolean) => void
   onLogout: () => void
 }) {
   const active = assessments[0]
@@ -470,25 +523,25 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
   async function handleToggle() {
     if (!active) return
     await updateAssessment(active.id, { isPublished: !active.isPublished })
-    onRefresh()
+    onRefresh(false)
   }
 
   async function handleSchedule(field: "openAt" | "closeAt", value: string) {
     if (!active) return
     await updateAssessment(active.id, { [field]: value ? new Date(value).toISOString() : null })
-    onRefresh()
+    onRefresh(false)
   }
 
   async function handleShuffleToggle() {
     if (!active) return
     await updateAssessment(active.id, { shuffleVariants: !active.shuffleVariants })
-    onRefresh()
+    onRefresh(false)
   }
 
   async function handleReleaseResultsToggle() {
     if (!active) return
     await updateAssessment(active.id, { releaseResults: !active.releaseResults })
-    onRefresh()
+    onRefresh(false)
   }
 
   return (
@@ -551,25 +604,38 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
                 </button>
               </div>
 
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Abertura Automática (Opcional)</Label>
-                <Input
-                  type="datetime-local"
-                  value={active.openAt ? active.openAt.slice(0, 16) : ""}
-                  onChange={(e) => handleSchedule("openAt", e.target.value)}
-                  className="text-sm"
-                />
-              </div>
+              {/* Fix local timezone format for datetime-local */}
+              {(() => {
+                const toLocalDatetimeStr = (isoString: string | null) => {
+                  if (!isoString) return ""
+                  const d = new Date(isoString)
+                  const pad = (n: number) => n.toString().padStart(2, '0')
+                  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+                }
+                return (
+                  <>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1 block">Abertura Automática (Opcional)</Label>
+                      <Input
+                        type="datetime-local"
+                        value={toLocalDatetimeStr(active.openAt)}
+                        onChange={(e) => handleSchedule("openAt", e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
 
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Fechamento Automático (Opcional)</Label>
-                <Input
-                  type="datetime-local"
-                  value={active.closeAt ? active.closeAt.slice(0, 16) : ""}
-                  onChange={(e) => handleSchedule("closeAt", e.target.value)}
-                  className="text-sm"
-                />
-              </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1 block">Fechamento Automático (Opcional)</Label>
+                      <Input
+                        type="datetime-local"
+                        value={toLocalDatetimeStr(active.closeAt)}
+                        onChange={(e) => handleSchedule("closeAt", e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                  </>
+                )
+              })()}
             </div>
           ) : (
             <div className="text-sm text-muted-foreground italic">Crie e ative uma prova na aba Provas.</div>
@@ -615,8 +681,8 @@ export function AdminDashboard({ onLogout }: Props) {
   const isMaster = session?.role === "master"
   const supabase = createClient()
 
-  async function refresh() {
-    setLoading(true)
+  async function refresh(showLoading: boolean = true) {
+    if (showLoading) setLoading(true)
     const [a, s, q, d] = await Promise.all([
       getAssessments(),
       getSubmissions(),
@@ -627,7 +693,7 @@ export function AdminDashboard({ onLogout }: Props) {
     setSubmissions(s)
     setQuestions(q)
     setDisciplines(d)
-    setLoading(false)
+    if (showLoading) setLoading(false)
   }
 
   async function handleLogout() {
@@ -732,7 +798,8 @@ export function AdminDashboard({ onLogout }: Props) {
         ) : (
           <>
             {tab === "overview" && <OverviewTab assessments={assessments} submissions={submissions} questions={questions} />}
-            {tab === "students" && <StudentsTab assessments={assessments} allSubmissions={submissions} questions={questions} onRefresh={refresh} />}
+            {tab === "students" && <StudentManager />}
+            {tab === "submissions" && <SubmissionsTab assessments={assessments} allSubmissions={submissions} questions={questions} onRefresh={refresh} isMaster={isMaster} />}
             {tab === "questions" && <QuestionBank />}
             {tab === "assessments" && <AssessmentsTab assessments={assessments} submissions={submissions} questions={questions} disciplines={disciplines} onRefresh={refresh} />}
             {tab === "materials" && <StudyMaterialManager />}
