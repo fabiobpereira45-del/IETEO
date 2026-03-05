@@ -40,6 +40,57 @@ const SHIFT_LABEL: Record<string, string> = {
 type FormState = { name: string; shift: ClassRoom["shift"]; dayOfWeek: string; maxStudents: number }
 const EMPTY_FORM: FormState = { name: "", shift: "ead", dayOfWeek: "", maxStudents: 30 }
 
+// ─── ClassForm defined OUTSIDE ClassManager to prevent remount on every keystroke ───
+interface ClassFormProps {
+    val: FormState
+    onChange: (field: keyof FormState, value: string | number) => void
+}
+
+function ClassForm({ val, onChange }: ClassFormProps) {
+    return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Nome da Turma *</label>
+                <input
+                    className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent"
+                    placeholder="Ex: Turma A - 2026"
+                    value={val.name}
+                    onChange={e => onChange("name", e.target.value)}
+                />
+            </div>
+            <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Dia da Semana</label>
+                <select
+                    className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent"
+                    value={val.dayOfWeek}
+                    onChange={e => onChange("dayOfWeek", e.target.value)}
+                >
+                    {DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                </select>
+            </div>
+            <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Turno</label>
+                <select
+                    className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent"
+                    value={val.shift}
+                    onChange={e => onChange("shift", e.target.value)}
+                >
+                    {SHIFTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+            </div>
+            <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Máx. de Alunos</label>
+                <input
+                    type="number" min={1} max={500}
+                    className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent"
+                    value={val.maxStudents}
+                    onChange={e => onChange("maxStudents", Number(e.target.value))}
+                />
+            </div>
+        </div>
+    )
+}
+
 export function ClassManager() {
     const [classes, setClasses] = useState<ClassRoom[]>([])
     const [loading, setLoading] = useState(true)
@@ -89,50 +140,11 @@ export function ClassManager() {
         setShowNew(false)
     }
 
-    function ClassForm({ val, set }: { val: FormState; set: (v: FormState) => void }) {
-        return (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="sm:col-span-2">
-                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Nome da Turma *</label>
-                    <input
-                        className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent"
-                        placeholder="Ex: Turma A - 2026"
-                        value={val.name}
-                        onChange={e => set({ ...val, name: e.target.value })}
-                    />
-                </div>
-                <div>
-                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Dia da Semana</label>
-                    <select
-                        className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent"
-                        value={val.dayOfWeek}
-                        onChange={e => set({ ...val, dayOfWeek: e.target.value })}
-                    >
-                        {DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-                    </select>
-                </div>
-                <div>
-                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Turno</label>
-                    <select
-                        className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent"
-                        value={val.shift}
-                        onChange={e => set({ ...val, shift: e.target.value as ClassRoom["shift"] })}
-                    >
-                        {SHIFTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                    </select>
-                </div>
-                <div>
-                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Máx. de Alunos</label>
-                    <input
-                        type="number" min={1} max={500}
-                        className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent"
-                        value={val.maxStudents}
-                        onChange={e => set({ ...val, maxStudents: Number(e.target.value) })}
-                    />
-                </div>
-            </div>
-        )
-    }
+    const handleFormChange = (field: keyof FormState, value: string | number) =>
+        setForm(f => ({ ...f, [field]: value }))
+
+    const handleEditFormChange = (field: keyof FormState, value: string | number) =>
+        setEditForm(f => ({ ...f, [field]: value }))
 
     return (
         <div className="space-y-6">
@@ -155,7 +167,7 @@ export function ClassManager() {
             {showNew && (
                 <div className="bg-accent/5 border-2 border-accent/20 rounded-2xl p-5 space-y-4">
                     <h3 className="font-semibold text-sm flex items-center gap-2"><Plus className="h-4 w-4 text-accent" /> Nova Turma</h3>
-                    <ClassForm val={form} set={setForm} />
+                    <ClassForm val={form} onChange={handleFormChange} />
                     <div className="flex gap-3">
                         <button onClick={handleAdd} disabled={saving || !form.name.trim()}
                             className="flex items-center gap-2 bg-green-600 text-white font-bold px-4 py-2 rounded-xl hover:bg-green-700 disabled:opacity-60 transition-colors text-sm">
@@ -182,7 +194,7 @@ export function ClassManager() {
                         <div key={c.id} className="bg-card border border-border rounded-2xl p-4 shadow-sm">
                             {editingId === c.id ? (
                                 <div className="space-y-4">
-                                    <ClassForm val={editForm} set={setEditForm} />
+                                    <ClassForm val={editForm} onChange={handleEditFormChange} />
                                     <div className="flex gap-3">
                                         <button onClick={() => handleUpdate(c.id)} disabled={saving}
                                             className="flex items-center gap-2 bg-green-600 text-white font-bold px-4 py-2 rounded-xl hover:bg-green-700 disabled:opacity-60 transition-colors text-sm">
