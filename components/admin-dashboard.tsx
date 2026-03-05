@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import {
   Users, FileText, BookOpen, Settings, BarChart3, Download, LogOut,
   Plus, Pencil, Trash2, Eye, EyeOff, Trophy, CheckCircle2,
-  ShieldCheck, Loader2, DollarSign, MessageSquare, CalendarCheck
+  ShieldCheck, Loader2, DollarSign, MessageSquare, CalendarCheck, GraduationCap
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -31,6 +31,7 @@ import { FinancialConfig } from "@/components/financial-config"
 import { FinancialManager } from "@/components/financial-manager"
 import { ProfessorChatView } from "@/components/professor-chat-view"
 import { AttendanceManager } from "@/components/attendance-manager"
+import { ClassManager } from "@/components/class-manager"
 import { createClient } from "@/lib/supabase/client"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -48,7 +49,7 @@ function formatTime(s: number) {
   return `${m}m${sec.toString().padStart(2, "0")}s`
 }
 
-type Tab = "overview" | "students" | "questions" | "assessments" | "professors" | "semesters" | "materials" | "financial" | "settings" | "chat" | "attendance"
+type Tab = "overview" | "students" | "questions" | "assessments" | "professors" | "semesters" | "materials" | "financial" | "settings" | "chat" | "attendance" | "classes"
 
 interface Props {
   onLogout: () => void
@@ -643,6 +644,7 @@ export function AdminDashboard({ onLogout }: Props) {
     { id: "assessments", label: "Provas", icon: <FileText className="h-4 w-4" /> },
     { id: "materials", label: "Biblioteca (PDFs)", icon: <BookOpen className="h-4 w-4" /> },
     { id: "semesters", label: "Grade Curricular", icon: <BookOpen className="h-4 w-4" />, masterOnly: true },
+    { id: "classes", label: "Turmas", icon: <GraduationCap className="h-4 w-4" />, masterOnly: true },
     { id: "attendance", label: "Frequência", icon: <CalendarCheck className="h-4 w-4" /> },
     { id: "chat", label: "Chat Alunos", icon: <MessageSquare className="h-4 w-4" /> },
     { id: "financial", label: "Financeiro", icon: <DollarSign className="h-4 w-4" />, masterOnly: true },
@@ -720,6 +722,7 @@ export function AdminDashboard({ onLogout }: Props) {
             {tab === "materials" && <StudyMaterialManager />}
             {tab === "semesters" && <SemesterManager />}
             {tab === "attendance" && <AttendanceManager />}
+            {tab === "classes" && isMaster && <ClassManager />}
             {tab === "chat" && <ProfessorChatView />}
             {tab === "financial" && <FinancialManager />}
             {tab === "professors" && isMaster && <ProfessorManager />}

@@ -1,15 +1,22 @@
 "use client"
 
-import { BookOpen, GraduationCap, LayoutDashboard, User } from "lucide-react"
+import { BookOpen, LayoutDashboard, User, ClipboardList } from "lucide-react"
 
 interface AssessmentHeaderProps {
   studentName?: string
   studentEmail?: string
   onAdminClick?: () => void
   onStudentAreaClick?: () => void
+  onEnrollClick?: () => void
 }
 
-export function AssessmentHeader({ studentName, studentEmail, onAdminClick, onStudentAreaClick }: AssessmentHeaderProps) {
+export function AssessmentHeader({
+  studentName,
+  studentEmail,
+  onAdminClick,
+  onStudentAreaClick,
+  onEnrollClick
+}: AssessmentHeaderProps) {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-primary text-primary-foreground shadow-md">
       <div className="mx-auto max-w-5xl px-4 py-3">
@@ -20,7 +27,7 @@ export function AssessmentHeader({ studentName, studentEmail, onAdminClick, onSt
               <BookOpen className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-medium text-primary-foreground/70 uppercase tracking-widest">
+              <p className="text-xs font-medium text-primary-foreground/70 uppercase tracking-widest hidden sm:block">
                 Instituto de Ensino Teológico - IETEO
               </p>
               <p className="text-sm font-bold leading-tight text-primary-foreground">
@@ -29,21 +36,18 @@ export function AssessmentHeader({ studentName, studentEmail, onAdminClick, onSt
             </div>
           </div>
 
-          {/* Course Info */}
-          <div className="hidden sm:flex flex-col items-center text-center">
-            <p className="text-xs text-primary-foreground/70 uppercase tracking-widest">Disciplina</p>
-            <p className="text-sm font-semibold text-primary-foreground">Livros Poéticos</p>
-          </div>
-
-          {/* Professor + Admin Link */}
-          <div className="flex items-center gap-3">
-            <div className="hidden md:flex flex-col items-end text-right">
-              <div className="flex items-center gap-1.5 text-primary-foreground/70">
-                <GraduationCap className="h-3.5 w-3.5" />
-                <p className="text-xs uppercase tracking-widest">Professor</p>
-              </div>
-              <p className="text-sm font-semibold text-primary-foreground">Pb. Fábio Barreto</p>
-            </div>
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
+            {onEnrollClick && (
+              <button
+                onClick={onEnrollClick}
+                className="flex items-center gap-1.5 rounded-md bg-accent text-accent-foreground px-3 py-1.5 text-xs font-bold hover:bg-accent/90 transition-colors shadow-sm"
+                title="Fazer Matrícula"
+              >
+                <ClipboardList className="h-3.5 w-3.5 shrink-0" />
+                <span className="hidden sm:inline">Matrícula</span>
+              </button>
+            )}
             <button
               onClick={onAdminClick}
               className="flex items-center gap-1.5 rounded-md border border-primary-foreground/30 px-3 py-1.5 text-xs font-medium text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground transition-colors"
@@ -55,7 +59,7 @@ export function AssessmentHeader({ studentName, studentEmail, onAdminClick, onSt
             {onStudentAreaClick && (
               <button
                 onClick={onStudentAreaClick}
-                className="flex items-center gap-1.5 rounded-md bg-accent text-accent-foreground px-3 py-1.5 text-xs font-bold hover:bg-accent/90 transition-colors shadow-sm"
+                className="flex items-center gap-1.5 rounded-md bg-white/20 text-white border border-white/30 px-3 py-1.5 text-xs font-bold hover:bg-white/30 transition-colors"
                 title="Área do Aluno"
               >
                 <User className="h-3.5 w-3.5 shrink-0" />

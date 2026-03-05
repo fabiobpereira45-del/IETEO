@@ -17,9 +17,10 @@ export interface StudentSubmission { id: string; assessmentId: string; studentNa
 export interface ProfessorAccount { id: string; name: string; email: string; passwordHash: string; role: "master" | "professor"; createdAt: string }
 export interface ProfessorSession { loggedIn: boolean; professorId: string; role: "master" | "professor"; expiresAt: string }
 export interface StudentSession { name: string; email: string; assessmentId: string; startedAt: string }
-export interface StudentProfile { id: string; auth_user_id: string; name: string; cpf: string; enrollment_number: string; created_at: string; }
+export interface StudentProfile { id: string; auth_user_id: string; name: string; cpf: string; enrollment_number: string; phone?: string; address?: string; church?: string; pastor_name?: string; class_id?: string; created_at: string; }
 export interface ChatMessage { id: string; studentId: string; disciplineId: string; message: string; isFromStudent: boolean; read: boolean; createdAt: string; }
 export interface Attendance { id: string; studentId: string; disciplineId: string; date: string; isPresent: boolean; createdAt: string; }
+export interface ClassRoom { id: string; name: string; shift: "morning" | "afternoon" | "evening" | "ead"; maxStudents: number; studentCount?: number; createdAt: string; }
 
 export function hashPassword(plain: string): string {
   if (typeof window !== "undefined") return btoa(unescape(encodeURIComponent(plain)))
@@ -155,9 +156,10 @@ function mapFinancialSettings(row: any): FinancialSettings { return { id: row.id
 function mapPaypalConfig(row: any): PaypalConfig { return { id: row.id, clientId: row.client_id, secret: row.secret, mode: row.mode as "sandbox" | "live", updatedAt: row.updated_at } }
 function mapAsaasConfig(row: any): AsaasConfig { return { id: row.id, apiKey: row.api_key, mode: row.mode as "sandbox" | "production", updatedAt: row.updated_at } }
 function mapFinancialCharge(row: any): FinancialCharge { return { id: row.id, studentId: row.student_id, type: row.type, description: row.description, amount: Number(row.amount), dueDate: row.due_date, status: row.status, paymentDate: row.payment_date || undefined, paypalOrderId: row.paypal_order_id || undefined, asaasPaymentId: row.asaas_payment_id || undefined, pixQrcode: row.pix_qrcode || undefined, pixCopyPaste: row.pix_copy_paste || undefined, createdAt: row.created_at } }
-function mapStudentProfile(row: any): StudentProfile { return { id: row.id, auth_user_id: row.auth_user_id, name: row.name, cpf: row.cpf, enrollment_number: row.enrollment_number, created_at: row.created_at } }
+function mapStudentProfile(row: any): StudentProfile { return { id: row.id, auth_user_id: row.auth_user_id, name: row.name, cpf: row.cpf, enrollment_number: row.enrollment_number, phone: row.phone || undefined, address: row.address || undefined, church: row.church || undefined, pastor_name: row.pastor_name || undefined, class_id: row.class_id || undefined, created_at: row.created_at } }
 function mapChatMessage(row: any): ChatMessage { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, message: row.message, isFromStudent: row.is_from_student, read: row.read, createdAt: row.created_at } }
 function mapAttendance(row: any): Attendance { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, date: row.date, isPresent: row.is_present, createdAt: row.created_at } }
+function mapClassRoom(row: any): ClassRoom { return { id: row.id, name: row.name, shift: row.shift as ClassRoom['shift'], maxStudents: Number(row.max_students), studentCount: row.student_count !== undefined ? Number(row.student_count) : undefined, createdAt: row.created_at } }
 
 // ─── Async Supabase Operations ───────────────────────────────────────────────
 
@@ -224,6 +226,33 @@ export async function updateAsaasConfig(config: Omit<AsaasConfig, "id" | "update
     await supabase.from('asaas_config').insert(dbData)
   }
 }
+
+export async function getClasses(): Promise<ClassRoom[]> {
+  const supabase = createClient()
+  const { data } = await supabase.from('classes').select('*').order('created_at', { ascending: false })
+  return (data || []).map(mapClassRoom)
+}
+export async function addClass(cls: Omit<ClassRoom, 'id' | 'createdAt' | 'studentCount'>): Promise<ClassRoom> {
+  const supabase = createClient()
+  const { data, error } = await supabase.from('classes').insert({
+    name: cls.name, shift: cls.shift, max_students: cls.maxStudents
+  }).select().single()
+  if (error) throw error
+  return mapClassRoom(data)
+}
+export async function updateClass(id: string, cls: Partial<Omit<ClassRoom, 'id' | 'createdAt'>>): Promise<void> {
+  const supabase = createClient()
+  const dbData: any = {}
+  if (cls.name !== undefined) dbData.name = cls.name
+  if (cls.shift !== undefined) dbData.shift = cls.shift
+  if (cls.maxStudents !== undefined) dbData.max_students = cls.maxStudents
+  await supabase.from('classes').update(dbData).eq('id', id)
+}
+export async function deleteClass(id: string): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('classes').delete().eq('id', id)
+}
+
 export async function getFinancialCharges(studentId?: string): Promise<FinancialCharge[]> {
   const supabase = createClient()
   let query = supabase.from('financial_charges').select('*').order('due_date', { ascending: false })
