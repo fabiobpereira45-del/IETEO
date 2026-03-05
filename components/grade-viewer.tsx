@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { X, BookOpen, Users, Clock, ChevronDown, ChevronUp } from "lucide-react"
+import { X, BookOpen, Users, Clock, ChevronDown, ChevronUp, Calendar } from "lucide-react"
 import { getClasses, getSemesters, getDisciplines, type ClassRoom, type Semester, type Discipline } from "@/lib/store"
 
 const SHIFT_LABEL: Record<string, string> = {
@@ -9,6 +9,15 @@ const SHIFT_LABEL: Record<string, string> = {
     afternoon: "Tarde",
     evening: "Noite",
     ead: "EAD/Online",
+}
+
+const DAY_LABEL: Record<string, string> = {
+    monday: "Segunda-feira",
+    tuesday: "Terça-feira",
+    wednesday: "Quarta-feira",
+    thursday: "Quinta-feira",
+    friday: "Sexta-feira",
+    saturday: "Sábado",
 }
 
 interface GradeViewerProps {
@@ -71,9 +80,15 @@ export function GradeViewer({ onClose }: GradeViewerProps) {
                                             <div key={c.id} className="flex items-center justify-between bg-muted/50 rounded-xl px-4 py-3 border border-border">
                                                 <div>
                                                     <p className="font-semibold text-foreground">{c.name}</p>
-                                                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                                                        <Clock className="h-3 w-3" />
-                                                        {SHIFT_LABEL[c.shift] || c.shift}
+                                                    <div className="flex flex-wrap items-center gap-3 mt-0.5">
+                                                        {c.dayOfWeek && (
+                                                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                                                <Calendar className="h-3 w-3" />{DAY_LABEL[c.dayOfWeek] || c.dayOfWeek}
+                                                            </span>
+                                                        )}
+                                                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                                            <Clock className="h-3 w-3" />{SHIFT_LABEL[c.shift] || c.shift}
+                                                        </span>
                                                     </div>
                                                 </div>
                                                 <div className="text-right">

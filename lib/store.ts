@@ -20,7 +20,7 @@ export interface StudentSession { name: string; email: string; assessmentId: str
 export interface StudentProfile { id: string; auth_user_id: string; name: string; cpf: string; enrollment_number: string; phone?: string; address?: string; church?: string; pastor_name?: string; class_id?: string; created_at: string; }
 export interface ChatMessage { id: string; studentId: string; disciplineId: string; message: string; isFromStudent: boolean; read: boolean; createdAt: string; }
 export interface Attendance { id: string; studentId: string; disciplineId: string; date: string; isPresent: boolean; createdAt: string; }
-export interface ClassRoom { id: string; name: string; shift: "morning" | "afternoon" | "evening" | "ead"; maxStudents: number; studentCount?: number; createdAt: string; }
+export interface ClassRoom { id: string; name: string; shift: "morning" | "afternoon" | "evening" | "ead"; dayOfWeek?: string; maxStudents: number; studentCount?: number; createdAt: string; }
 
 export function hashPassword(plain: string): string {
   if (typeof window !== "undefined") return btoa(unescape(encodeURIComponent(plain)))
@@ -159,7 +159,7 @@ function mapFinancialCharge(row: any): FinancialCharge { return { id: row.id, st
 function mapStudentProfile(row: any): StudentProfile { return { id: row.id, auth_user_id: row.auth_user_id, name: row.name, cpf: row.cpf, enrollment_number: row.enrollment_number, phone: row.phone || undefined, address: row.address || undefined, church: row.church || undefined, pastor_name: row.pastor_name || undefined, class_id: row.class_id || undefined, created_at: row.created_at } }
 function mapChatMessage(row: any): ChatMessage { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, message: row.message, isFromStudent: row.is_from_student, read: row.read, createdAt: row.created_at } }
 function mapAttendance(row: any): Attendance { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, date: row.date, isPresent: row.is_present, createdAt: row.created_at } }
-function mapClassRoom(row: any): ClassRoom { return { id: row.id, name: row.name, shift: row.shift as ClassRoom['shift'], maxStudents: Number(row.max_students), studentCount: row.student_count !== undefined ? Number(row.student_count) : undefined, createdAt: row.created_at } }
+function mapClassRoom(row: any): ClassRoom { return { id: row.id, name: row.name, shift: row.shift as ClassRoom['shift'], dayOfWeek: row.day_of_week || undefined, maxStudents: Number(row.max_students), studentCount: row.student_count !== undefined ? Number(row.student_count) : undefined, createdAt: row.created_at } }
 
 // ─── Async Supabase Operations ───────────────────────────────────────────────
 
@@ -235,7 +235,7 @@ export async function getClasses(): Promise<ClassRoom[]> {
 export async function addClass(cls: Omit<ClassRoom, 'id' | 'createdAt' | 'studentCount'>): Promise<ClassRoom> {
   const supabase = createClient()
   const { data, error } = await supabase.from('classes').insert({
-    name: cls.name, shift: cls.shift, max_students: cls.maxStudents
+    name: cls.name, shift: cls.shift, day_of_week: cls.dayOfWeek || null, max_students: cls.maxStudents
   }).select().single()
   if (error) throw error
   return mapClassRoom(data)
@@ -246,6 +246,7 @@ export async function updateClass(id: string, cls: Partial<Omit<ClassRoom, 'id' 
   if (cls.name !== undefined) dbData.name = cls.name
   if (cls.shift !== undefined) dbData.shift = cls.shift
   if (cls.maxStudents !== undefined) dbData.max_students = cls.maxStudents
+  if (cls.dayOfWeek !== undefined) dbData.day_of_week = cls.dayOfWeek || null
   await supabase.from('classes').update(dbData).eq('id', id)
 }
 export async function deleteClass(id: string): Promise<void> {

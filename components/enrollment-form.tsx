@@ -248,9 +248,13 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                                             <div className="flex items-center justify-between">
                                                 <div>
                                                     <p className="font-semibold text-sm">{c.name}</p>
-                                                    <p className="text-xs text-muted-foreground mt-0.5">{
-                                                        { morning: "Manhã", afternoon: "Tarde", evening: "Noite", ead: "EAD/Online" }[c.shift]
-                                                    }</p>
+                                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                                        {c.dayOfWeek ? ({
+                                                            monday: "Segunda", tuesday: "Terça", wednesday: "Quarta",
+                                                            thursday: "Quinta", friday: "Sexta", saturday: "Sábado"
+                                                        }[c.dayOfWeek] || c.dayOfWeek) + " • " : ""}
+                                                        {{ morning: "Manhã", afternoon: "Tarde", evening: "Noite", ead: "EAD/Online" }[c.shift]}
+                                                    </p>
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="text-sm font-bold text-accent">{c.maxStudents} vagas</p>
