@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/client"
 export type QuestionType = "multiple-choice" | "true-false" | "discursive"
 export interface Choice { id: string; text: string }
 export interface Semester { id: string; name: string; order: number; shift?: string; createdAt: string }
-export interface Discipline { id: string; name: string; description?: string; semesterId?: string; professorName?: string; createdAt: string }
+export interface Discipline { id: string; name: string; description?: string; semesterId?: string; professorName?: string; shift?: string; createdAt: string }
 export interface StudyMaterial { id: string; disciplineId: string; title: string; description?: string; fileUrl: string; createdAt: string }
 export interface FinancialSettings { id: string; enrollmentFee: number; monthlyFee: number; secondCallFee: number; finalExamFee: number; totalMonths: number; updatedAt: string; }
 export interface PaypalConfig { id: string; clientId: string; secret: string; mode: "sandbox" | "live"; updatedAt: string; }
@@ -147,7 +147,7 @@ export function saveDraftAnswers(answers: StudentAnswer[]): void { writeLocal(KE
 // DB Mappers
 function mapSemester(row: any): Semester { return { id: row.id, name: row.name, order: row.order, shift: row.shift || undefined, createdAt: row.created_at } }
 function mapStudyMaterial(row: any): StudyMaterial { return { id: row.id, disciplineId: row.discipline_id, title: row.title, description: row.description || undefined, fileUrl: row.file_url, createdAt: row.created_at } }
-function mapDiscipline(row: any): Discipline { return { id: row.id, name: row.name, description: row.description || undefined, semesterId: row.semester_id || undefined, professorName: row.professor_name || undefined, createdAt: row.created_at } }
+function mapDiscipline(row: any): Discipline { return { id: row.id, name: row.name, description: row.description || undefined, semesterId: row.semester_id || undefined, professorName: row.professor_name || undefined, shift: row.shift || undefined, createdAt: row.created_at } }
 function mapQuestion(row: any): Question { return { id: row.id, disciplineId: row.discipline_id, type: row.type, text: row.text, choices: row.choices, correctAnswer: row.correct_answer, points: row.points, createdAt: row.created_at } }
 function mapAssessment(row: any): Assessment { return { id: row.id, title: row.title, disciplineId: row.discipline_id, professor: row.professor, institution: row.institution, questionIds: row.question_ids, pointsPerQuestion: row.points_per_question, totalPoints: row.total_points, openAt: row.open_at, closeAt: row.close_at, isPublished: row.is_published, shuffleVariants: row.shuffle_variants, logoBase64: row.logo_base64, rules: row.rules, releaseResults: row.release_results, createdAt: row.created_at } }
 function mapSubmission(row: any): StudentSubmission { return { id: row.id, assessmentId: row.assessment_id, studentName: row.student_name, studentEmail: row.student_email, answers: row.answers, score: row.score, totalPoints: row.total_points, percentage: row.percentage, submittedAt: row.submitted_at, timeElapsedSeconds: row.time_elapsed_seconds } }
@@ -320,18 +320,19 @@ export async function getDisciplines(): Promise<Discipline[]> {
   const { data, error } = await supabase.from('disciplines').select('*')
   return (data || []).map(mapDiscipline).sort((a, b) => a.name.localeCompare(b.name))
 }
-export async function addDiscipline(name: string, description?: string, semesterId?: string, professorName?: string): Promise<Discipline> {
-  const d = { id: uid(), name, description: description || null, semester_id: semesterId || null, professor_name: professorName || null, created_at: new Date().toISOString() }
+export async function addDiscipline(name: string, description?: string, semesterId?: string, professorName?: string, shift?: string): Promise<Discipline> {
+  const d = { id: uid(), name, description: description || null, semester_id: semesterId || null, professor_name: professorName || null, shift: shift || null, created_at: new Date().toISOString() }
   const supabase = createClient()
   await supabase.from('disciplines').insert(d)
   return mapDiscipline(d)
 }
-export async function updateDiscipline(id: string, data: Partial<Pick<Discipline, "name" | "description" | "semesterId" | "professorName">>): Promise<void> {
+export async function updateDiscipline(id: string, data: Partial<Pick<Discipline, "name" | "description" | "semesterId" | "professorName" | "shift">>): Promise<void> {
   const updateData: any = {}
   if (data.name !== undefined) updateData.name = data.name
   if (data.description !== undefined) updateData.description = data.description || null
   if (data.semesterId !== undefined) updateData.semester_id = data.semesterId || null
   if (data.professorName !== undefined) updateData.professor_name = data.professorName || null
+  if (data.shift !== undefined) updateData.shift = data.shift || null
   const supabase = createClient()
   await supabase.from('disciplines').update(updateData).eq('id', id)
 }
