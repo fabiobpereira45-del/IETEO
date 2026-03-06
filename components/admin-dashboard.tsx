@@ -18,7 +18,7 @@ import {
   getAssessments, updateAssessment, deleteAssessment,
   getSubmissions, deleteSubmission, updateSubmissionScore,
   getQuestions, getDisciplines, clearProfessorSession, MASTER_CREDENTIALS,
-  getProfessorSession, getStudentGrades, saveStudentGrade, deleteStudentGrade, getStudents,
+  getProfessorSession, getStudentGrades, saveStudentGrade, deleteStudentGrade, getStudents, updateProfessorAccount,
 } from "@/lib/store"
 import { printStudentPDF, printBlankAssessmentPDF } from "@/lib/pdf"
 import { ErrorBoundary } from "@/components/error-boundary"
@@ -616,6 +616,58 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
   const session = typeof window !== "undefined" ? getProfessorSession() : null
   const isMaster = session?.role === "master"
 
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false)
+
+  useEffect(() => {
+    async function fetchUserInfo() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setName(user.user_metadata?.full_name || "")
+        setEmail(user.email || "")
+      }
+    }
+    fetchUserInfo()
+  }, [])
+
+  async function handleUpdateProfile(e: React.FormEvent) {
+    e.preventDefault()
+    if (!name.trim()) return alert("O nome não pode estar vazio.")
+    if (!email.trim() || !email.includes("@")) return alert("E-mail inválido.")
+    if (password && password.length < 6) return alert("A senha deve ter no mínimo 6 caracteres.")
+
+    setIsUpdatingProfile(true)
+    try {
+      // 1. Update Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.updateUser({
+        email: email.trim(),
+        password: password ? password : undefined,
+        data: { full_name: name.trim() }
+      })
+
+      if (authError) throw authError
+
+      // 2. Update local professor_accounts table for consistency
+      if (session?.professorId) {
+        await updateProfessorAccount(session.professorId, {
+          name: name.trim(),
+          email: email.trim(),
+          ...(password ? { password } : {})
+        })
+      }
+
+      alert("Perfil atualizado com sucesso!")
+      setPassword("") // Clear password field
+      onRefresh()
+    } catch (err: any) {
+      alert("Erro ao atualizar perfil: " + err.message)
+    } finally {
+      setIsUpdatingProfile(false)
+    }
+  }
+
   async function handleMigrateLocalData() {
     if (!confirm("Certeza que deseja migrar os dados antigos criados localmente para a Nuvem (Supabase)?")) return;
     setMigrating(true)
@@ -667,23 +719,97 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
       )}
 
       {/* Legacy Settings content logic - keeping the migration tool for now */}
-      <div className="flex flex-col md:flex-row gap-6">
-        <div className="flex flex-col gap-5 flex-1 max-w-xl">
-          {/* Migration Tool */}
-          <div className="bg-card border border-border rounded-xl p-5">
-            <h3 className="font-semibold text-foreground mb-1">Migração de Dados</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Transfira provas, alunos e questões criadas anteriormente (no localhost) para o banco em nuvem atual (Supabase Vercel).
-            </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Profile Management Section */}
+        <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
+          <div className="flex items-center gap-2 mb-4 text-primary">
+            <UserCircle className="h-5 w-5" />
+            <h3 className="font-bold text-foreground">Meu Perfil</h3>
+          </div>
+          <form onSubmit={handleUpdateProfile} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="profile-name">Nome Completo</Label>
+              <Input
+                id="profile-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Seu nome completo"
+                className="h-10"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="profile-email">E-mail</Label>
+              <Input
+                id="profile-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="seu@email.com"
+                className="h-10"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="profile-password">Nova Senha (opcional)</Label>
+              <Input
+                id="profile-password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+                className="h-10"
+              />
+              <p className="text-[10px] text-muted-foreground">Deixe em branco para não alterar a senha atual.</p>
+            </div>
             <Button
-              variant="secondary"
-              onClick={handleMigrateLocalData}
-              disabled={migrating}
-              className="w-full bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20"
+              type="submit"
+              disabled={isUpdatingProfile}
+              className="w-full h-10 font-bold bg-primary hover:bg-primary/90 transition-all"
             >
-              {migrating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
-              Migrar Dados Locais (LocalStorage)
+              {isUpdatingProfile ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Salvar Alterações do Perfil
             </Button>
+          </form>
+        </div>
+
+        {/* System & Migration Section */}
+        <div className="space-y-6">
+          {isMaster && (
+            <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-4 text-accent">
+                <Download className="h-5 w-5" />
+                <h3 className="font-bold text-foreground">Migração de Dados</h3>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Transfira provas, alunos e questões criadas anteriormente no navegador para o banco de dados oficial.
+              </p>
+              <Button
+                variant="outline"
+                onClick={handleMigrateLocalData}
+                disabled={migrating}
+                className="w-full border-accent/20 text-accent hover:bg-accent/5"
+              >
+                {migrating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                Migrar LocalStorage
+              </Button>
+            </div>
+          )}
+
+          <div className="bg-muted/30 border border-border/50 rounded-xl p-5">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Informações Técnicas</h4>
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Versão do Sistema:</span>
+                <span className="font-mono font-medium">v1.2.0-cloud</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Status do Banco:</span>
+                <span className="text-green-600 font-medium">Conectado (Supabase)</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Tipo de Acesso:</span>
+                <span className="font-medium">{isMaster ? "Administrador Master" : "Professor"}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -761,8 +887,8 @@ export function AdminDashboard({ onLogout }: Props) {
     { id: "attendance", label: "Frequência", icon: <CalendarCheck className="h-4 w-4" /> },
     { id: "chat", label: "Chat Alunos", icon: <MessageSquare className="h-4 w-4" /> },
     { id: "financial", label: "Financeiro", icon: <DollarSign className="h-4 w-4" />, masterOnly: true },
-    { id: "professors", label: "Professores", icon: <ShieldCheck className="h-4 w-4" /> },
-    { id: "settings", label: "Configurações", icon: <Settings className="h-4 w-4" />, masterOnly: true },
+    { id: "professors", label: "Professores", icon: <ShieldCheck className="h-4 w-4" />, masterOnly: true },
+    { id: "settings", label: "Configurações", icon: <Settings className="h-4 w-4" /> },
   ]
 
   const visibleTabs = tabs.filter((t) => !t.masterOnly || isMaster)
