@@ -557,21 +557,19 @@ export async function getSubmissionsByAssessment(assessmentId: string): Promise<
   const { data } = await supabase.from('student_submissions').select('*').eq('assessment_id', assessmentId)
   return (data || []).map(mapSubmission)
 }
-export async function saveSubmission(sub: Omit<StudentSubmission, "id" | "submittedAt" | "score" | "totalPoints" | "percentage">): Promise<StudentSubmission> {
+export async function saveSubmission(sub: StudentSubmission): Promise<StudentSubmission> {
   const supabase = createClient()
-  const score = sub.answers.length // simplified score calculation for now or add real logic
-  const totalPoints = sub.answers.length * 10 // placeholder logic
-  const percentage = totalPoints > 0 ? (score / totalPoints) * 100 : 0
 
   const record = {
+    id: sub.id,
     assessment_id: sub.assessmentId,
     student_name: sub.studentName,
     student_email: sub.studentEmail,
     answers: sub.answers,
-    score,
-    total_points: totalPoints,
-    percentage,
-    submitted_at: new Date().toISOString(),
+    score: sub.score,
+    total_points: sub.totalPoints,
+    percentage: sub.percentage,
+    submitted_at: sub.submittedAt,
     time_elapsed_seconds: sub.timeElapsedSeconds
   }
 
