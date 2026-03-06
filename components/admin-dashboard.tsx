@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import {
   Users, FileText, BookOpen, Settings, BarChart3, Download, LogOut,
   Plus, Pencil, Trash2, Eye, EyeOff, Trophy, CheckCircle2, Link2,
-  ShieldCheck, Loader2, DollarSign, MessageSquare, CalendarCheck, GraduationCap, XCircle, ArrowLeft, Building2, UserCircle, Briefcase, Send, PlaySquare, CalendarDays, KeyRound
+  ShieldCheck, Loader2, DollarSign, MessageSquare, CalendarCheck, GraduationCap, XCircle, ArrowLeft, Building2, UserCircle, Briefcase, Send, PlaySquare, CalendarDays, KeyRound, Save
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -356,6 +356,18 @@ function AssessmentsTab({ assessments, submissions, questions, disciplines, onRe
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
+  const active = assessments[0]
+
+  const [localOpenAt, setLocalOpenAt] = useState<string | null>(null)
+  const [localCloseAt, setLocalCloseAt] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (active) {
+      setLocalOpenAt(active.openAt)
+      setLocalCloseAt(active.closeAt)
+    }
+  }, [active?.id]) // Re-align if active assessment changes
+
   function handleCopyLink(a: Assessment) {
     const url = `${window.location.origin}/prova?id=${a.id}`
     navigator.clipboard.writeText(url)
@@ -380,11 +392,12 @@ function AssessmentsTab({ assessments, submissions, questions, disciplines, onRe
     printBlankAssessmentPDF({ assessment: a, questions })
   }
 
-  const active = assessments[0]
-
-  async function handleSchedule(field: "openAt" | "closeAt", value: string) {
+  async function handleUpdateSchedule() {
     if (!active) return
-    await updateAssessment(active.id, { [field]: value ? new Date(value).toISOString() : null })
+    await updateAssessment(active.id, {
+      openAt: localOpenAt ? new Date(localOpenAt).toISOString() : null,
+      closeAt: localCloseAt ? new Date(localCloseAt).toISOString() : null
+    })
     onRefresh()
   }
 
@@ -458,12 +471,28 @@ function AssessmentsTab({ assessments, submissions, questions, disciplines, onRe
               }
               return (
                 <div className="space-y-4 bg-muted/40 p-4 rounded-lg border border-border/50">
+                  <div className="flex items-center justify-between py-1 mb-2 border-b border-border/30">
+                    <div>
+                      <div className="text-sm font-bold">Status da Prova</div>
+                      <div className="text-xs text-muted-foreground">{active.isPublished ? "Aberta para novos alunos" : "Bloqueada para novos alunos"}</div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant={active.isPublished ? "destructive" : "default"}
+                      className="h-8 font-bold"
+                      onClick={() => handleTogglePublish(active)}
+                    >
+                      {active.isPublished ? <EyeOff className="h-3.5 w-3.5 mr-1" /> : <Eye className="h-3.5 w-3.5 mr-1" />}
+                      {active.isPublished ? "Bloquear" : "Desbloquear"}
+                    </Button>
+                  </div>
+
                   <div>
                     <Label className="text-xs font-semibold text-foreground mb-1.5 block">Abertura Automática (Opcional)</Label>
                     <Input
                       type="datetime-local"
-                      value={toLocalDatetimeStr(active.openAt)}
-                      onChange={(e) => handleSchedule("openAt", e.target.value)}
+                      value={toLocalDatetimeStr(localOpenAt)}
+                      onChange={(e) => setLocalOpenAt(e.target.value ? new Date(e.target.value).toISOString() : null)}
                       className="text-sm h-9"
                     />
                   </div>
@@ -471,11 +500,20 @@ function AssessmentsTab({ assessments, submissions, questions, disciplines, onRe
                     <Label className="text-xs font-semibold text-foreground mb-1.5 block">Fechamento Automático (Opcional)</Label>
                     <Input
                       type="datetime-local"
-                      value={toLocalDatetimeStr(active.closeAt)}
-                      onChange={(e) => handleSchedule("closeAt", e.target.value)}
+                      value={toLocalDatetimeStr(localCloseAt)}
+                      onChange={(e) => setLocalCloseAt(e.target.value ? new Date(e.target.value).toISOString() : null)}
                       className="text-sm h-9"
                     />
                   </div>
+                  <Button
+                    size="sm"
+                    className="w-full mt-2 h-8 text-xs font-bold"
+                    variant="outline"
+                    onClick={handleUpdateSchedule}
+                    disabled={localOpenAt === active.openAt && localCloseAt === active.closeAt}
+                  >
+                    <Save className="h-3 w-3 mr-1" /> Salvar Agendamento
+                  </Button>
                 </div>
               )
             })()}
