@@ -29,17 +29,17 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
     // Form State
-    const [formData, setFormData] = useState<Partial<StudentGrade>>({
+    const [formData, setFormData] = useState<any>({
         studentIdentifier: "",
         studentName: "",
         disciplineId: "",
         isPublic: false,
-        examGrade: 0,
-        worksGrade: 0,
-        seminarGrade: 0,
-        participationBonus: 0,
-        attendanceScore: 0,
-        customDivisor: 4
+        examGrade: "",
+        worksGrade: "",
+        seminarGrade: "",
+        participationBonus: "",
+        attendanceScore: "",
+        customDivisor: "4"
     })
 
     const loadData = async () => {
@@ -76,12 +76,12 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                 studentName: formData.studentName,
                 disciplineId: formData.disciplineId,
                 isPublic: formData.isPublic || false,
-                examGrade: typeof formData.examGrade === 'string' ? parseFloat(formData.examGrade) : (formData.examGrade || 0),
-                worksGrade: typeof formData.worksGrade === 'string' ? parseFloat(formData.worksGrade) : (formData.worksGrade || 0),
-                seminarGrade: typeof formData.seminarGrade === 'string' ? parseFloat(formData.seminarGrade) : (formData.seminarGrade || 0),
-                participationBonus: typeof formData.participationBonus === 'string' ? parseFloat(formData.participationBonus) : (formData.participationBonus || 0),
-                attendanceScore: typeof formData.attendanceScore === 'string' ? parseFloat(formData.attendanceScore) : (formData.attendanceScore || 0),
-                customDivisor: typeof formData.customDivisor === 'string' ? parseFloat(formData.customDivisor) : (formData.customDivisor || 4)
+                examGrade: parseFloat(formData.examGrade) || 0,
+                worksGrade: parseFloat(formData.worksGrade) || 0,
+                seminarGrade: parseFloat(formData.seminarGrade) || 0,
+                participationBonus: parseFloat(formData.participationBonus) || 0,
+                attendanceScore: parseFloat(formData.attendanceScore) || 0,
+                customDivisor: parseFloat(formData.customDivisor) || 4
             }
 
             await saveStudentGrade(
@@ -109,11 +109,11 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
 
     const calculateAverage = (grade: StudentGrade) => {
         const total =
-            (grade.examGrade || 0) +
-            (grade.worksGrade || 0) +
-            (grade.seminarGrade || 0) +
-            (grade.participationBonus || 0) +
-            (grade.attendanceScore || 0)
+            (parseFloat(grade.examGrade as any) || 0) +
+            (parseFloat(grade.worksGrade as any) || 0) +
+            (parseFloat(grade.seminarGrade as any) || 0) +
+            (parseFloat(grade.participationBonus as any) || 0) +
+            (parseFloat(grade.attendanceScore as any) || 0)
 
         const divisor = grade.customDivisor > 0 ? grade.customDivisor : 1;
         return (total / divisor).toFixed(2)
@@ -153,7 +153,7 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                     <Button onClick={() => {
                         setFormData({
                             studentIdentifier: "", studentName: "", disciplineId: "", isPublic: false,
-                            examGrade: 0, worksGrade: 0, seminarGrade: 0, participationBonus: 0, attendanceScore: 0, customDivisor: 4
+                            examGrade: "", worksGrade: "", seminarGrade: "", participationBonus: "", attendanceScore: "", customDivisor: "4"
                         })
                         setIsCreating(true)
                         setIsEditing(null)
@@ -230,32 +230,32 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
 
                             <div className="space-y-2">
                                 <Label>Nota de Prova</Label>
-                                <Input type="number" step="0.1" value={formData.examGrade || 0} onChange={(e) => setFormData({ ...formData, examGrade: parseFloat(e.target.value) })} />
+                                <Input type="number" step="0.1" value={formData.examGrade} onChange={(e) => setFormData({ ...formData, examGrade: e.target.value })} />
                             </div>
 
                             <div className="space-y-2">
                                 <Label>Nota de Trabalhos</Label>
-                                <Input type="number" step="0.1" value={formData.worksGrade || 0} onChange={(e) => setFormData({ ...formData, worksGrade: parseFloat(e.target.value) })} />
+                                <Input type="number" step="0.1" value={formData.worksGrade} onChange={(e) => setFormData({ ...formData, worksGrade: e.target.value })} />
                             </div>
 
                             <div className="space-y-2">
                                 <Label>Nota de Seminários / Apresentações</Label>
-                                <Input type="number" step="0.1" value={formData.seminarGrade || 0} onChange={(e) => setFormData({ ...formData, seminarGrade: parseFloat(e.target.value) })} />
+                                <Input type="number" step="0.1" value={formData.seminarGrade} onChange={(e) => setFormData({ ...formData, seminarGrade: e.target.value })} />
                             </div>
 
                             <div className="space-y-2">
                                 <Label>Bônus de Participação</Label>
-                                <Input type="number" step="0.1" value={formData.participationBonus || 0} onChange={(e) => setFormData({ ...formData, participationBonus: parseFloat(e.target.value) })} />
+                                <Input type="number" step="0.1" value={formData.participationBonus} onChange={(e) => setFormData({ ...formData, participationBonus: e.target.value })} />
                             </div>
 
                             <div className="space-y-2">
                                 <Label>Nota de Presença / Assiduidade</Label>
-                                <Input type="number" step="0.1" value={formData.attendanceScore || 0} onChange={(e) => setFormData({ ...formData, attendanceScore: parseFloat(e.target.value) })} />
+                                <Input type="number" step="0.1" value={formData.attendanceScore} onChange={(e) => setFormData({ ...formData, attendanceScore: e.target.value })} />
                             </div>
 
                             <div className="space-y-2">
                                 <Label>Divisor para Cálculo de Média</Label>
-                                <Input type="number" step="1" min="1" value={formData.customDivisor || 4} onChange={(e) => setFormData({ ...formData, customDivisor: parseFloat(e.target.value) })} />
+                                <Input type="number" step="1" min="1" value={formData.customDivisor} onChange={(e) => setFormData({ ...formData, customDivisor: e.target.value })} />
                             </div>
 
                         </div>
