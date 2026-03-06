@@ -22,6 +22,20 @@ export interface ChatMessage { id: string; studentId: string; disciplineId: stri
 export interface Attendance { id: string; studentId: string; disciplineId: string; date: string; isPresent: boolean; createdAt: string; }
 export interface ClassRoom { id: string; name: string; shift: "morning" | "afternoon" | "evening" | "ead"; dayOfWeek?: string; maxStudents: number; studentCount?: number; createdAt: string; }
 export interface ClassSchedule { id: string; classId: string; disciplineId: string; professorName: string; dayOfWeek: string; timeStart: string; timeEnd: string; createdAt: string; }
+export interface StudentGrade {
+  id: string;
+  studentIdentifier: string; // CPF or Email
+  studentName: string;
+  disciplineId?: string;
+  isPublic: boolean;
+  examGrade: number;
+  worksGrade: number;
+  seminarGrade: number;
+  participationBonus: number;
+  attendanceScore: number;
+  customDivisor: number;
+  createdAt: string;
+}
 
 export function hashPassword(plain: string): string {
   if (typeof window !== "undefined") return btoa(unescape(encodeURIComponent(plain)))
@@ -206,6 +220,7 @@ function mapChatMessage(row: any): ChatMessage { return { id: row.id, studentId:
 function mapAttendance(row: any): Attendance { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, date: row.date, isPresent: row.is_present, createdAt: row.created_at } }
 function mapClassRoom(row: any): ClassRoom { return { id: row.id, name: row.name, shift: row.shift as ClassRoom['shift'], dayOfWeek: row.day_of_week || undefined, maxStudents: Number(row.max_students), studentCount: row.student_count !== undefined ? Number(row.student_count) : undefined, createdAt: row.created_at } }
 function mapClassSchedule(row: any): ClassSchedule { return { id: row.id, classId: row.class_id, disciplineId: row.discipline_id, professorName: row.professor_name, dayOfWeek: row.day_of_week, timeStart: row.time_start, timeEnd: row.time_end, createdAt: row.created_at } }
+function mapStudentGrade(row: any): StudentGrade { return { id: row.id, studentIdentifier: row.student_identifier, studentName: row.student_name, disciplineId: row.discipline_id || undefined, isPublic: row.is_public, examGrade: Number(row.exam_grade), worksGrade: Number(row.works_grade), seminarGrade: Number(row.seminar_grade), participationBonus: Number(row.participation_bonus), attendanceScore: Number(row.attendance_score), customDivisor: Number(row.custom_divisor), createdAt: row.created_at } }
 
 // ─── Async Supabase Operations ───────────────────────────────────────────────
 
@@ -770,4 +785,43 @@ export async function triggerFlowGravit(workflowId: string, payload: any): Promi
   } catch (error) {
     console.error("Flow-Gravit connection error:", error);
   }
+}
+
+// ─── Notas (Student Grades) ───────────────────────────────────────────────────
+
+export async function getStudentGrades(): Promise<StudentGrade[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase.from('student_grades').select('*').order('created_at', { ascending: false })
+  if (error) throw new Error(error.message)
+  return (data || []).map(mapStudentGrade)
+}
+
+export async function saveStudentGrade(grade: Omit<StudentGrade, 'id' | 'createdAt'>, id?: string): Promise<void> {
+  const supabase = createClient()
+  const dbData = {
+    student_identifier: grade.studentIdentifier,
+    student_name: grade.studentName,
+    discipline_id: grade.disciplineId || null,
+    is_public: grade.isPublic,
+    exam_grade: grade.examGrade,
+    works_grade: grade.worksGrade,
+    seminar_grade: grade.seminarGrade,
+    participation_bonus: grade.participationBonus,
+    attendance_score: grade.attendanceScore,
+    custom_divisor: grade.customDivisor,
+  }
+
+  if (id) {
+    const { error } = await supabase.from('student_grades').update(dbData).eq('id', id)
+    if (error) throw new Error(error.message)
+  } else {
+    const { error } = await supabase.from('student_grades').insert({ ...dbData, created_at: new Date().toISOString() })
+    if (error) throw new Error(error.message)
+  }
+}
+
+export async function deleteStudentGrade(id: string): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase.from('student_grades').delete().eq('id', id)
+  if (error) throw new Error(error.message)
 }

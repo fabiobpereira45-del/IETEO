@@ -175,7 +175,7 @@ export default function HomePage() {
           </div>
         )}
 
-        {view === "student-login" && <StudentLogin onLogin={handleStudentLogin} onResult={handleResult} />}
+        {view === "student-login" && <StudentLogin onLogin={handleStudentLogin} onResult={handleResult} onBack={() => setView("landing")} />}
         {view === "student-assessment" && session && (
           <AssessmentForm session={session} onSubmit={handleSubmit} />
         )}

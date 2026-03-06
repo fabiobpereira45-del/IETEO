@@ -1,10 +1,8 @@
-"use client"
-
 import { useEffect, useState } from "react"
-import { FileText, Award, CalendarCheck, Loader2 } from "lucide-react"
+import { FileText, Award, CalendarCheck, Loader2, Calculator, CheckCircle2 } from "lucide-react"
 import {
-    type Discipline, type Semester, type StudentSubmission, type Attendance, type Assessment,
-    getDisciplines, getSemesters, getSubmissions, getAttendances, getAssessments
+    type Discipline, type Semester, type StudentSubmission, type Attendance, type Assessment, type StudentGrade,
+    getDisciplines, getSemesters, getSubmissions, getAttendances, getAssessments, getStudentGrades
 } from "@/lib/store"
 
 interface Props {
@@ -15,39 +13,47 @@ interface Props {
 export function StudentGradesView({ studentId, studentEmail }: Props) {
     const [disciplines, setDisciplines] = useState<Discipline[]>([])
     const [semesters, setSemesters] = useState<Semester[]>([])
+    const [officialGrades, setOfficialGrades] = useState<StudentGrade[]>([])
     const [submissions, setSubmissions] = useState<StudentSubmission[]>([])
-    const [assessments, setAssessments] = useState<Assessment[]>([])
     const [attendances, setAttendances] = useState<Attendance[]>([])
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
         async function loadData() {
             setLoading(true)
-            const [d, sem, sub, allAsses] = await Promise.all([
-                getDisciplines(),
-                getSemesters(),
-                getSubmissions(),
-                getAssessments()
-            ])
+            try {
+                const [d, sem, sub, allGrades] = await Promise.all([
+                    getDisciplines(),
+                    getSemesters(),
+                    getSubmissions(),
+                    getStudentGrades()
+                ])
 
-            setDisciplines(d)
-            setSemesters(sem)
-            setAssessments(allAsses)
+                setDisciplines(d)
+                setSemesters(sem)
 
-            // Filter submissions for this student
-            const mySubs = sub.filter(s => s.studentEmail === studentEmail)
-            setSubmissions(mySubs)
+                // Filter official grades by student identifier (email or session id)
+                const myGrades = allGrades.filter(g =>
+                    g.studentIdentifier === studentEmail ||
+                    g.studentIdentifier === studentId
+                )
+                setOfficialGrades(myGrades)
 
-            // Fetch attendances across all disciplines for this student
-            // In a real app we would have an endpoint getAttendancesByStudent
-            // Here we will fetch all attendances for the disciplines the student is enrolled in (or just all and filter)
-            // Since our getAttendances expects a disciplineId, we need to fetch for all disciplines.
-            const attPromises = d.map(disc => getAttendances(disc.id))
-            const allAttsArray = await Promise.all(attPromises)
-            const flatAtts = allAttsArray.flat().filter(a => a.studentId === studentId)
+                // Submissions still useful for historical view
+                const mySubs = sub.filter(s => s.studentEmail === studentEmail)
+                setSubmissions(mySubs)
 
-            setAttendances(flatAtts)
-            setLoading(false)
+                // Attendances
+                const attPromises = d.map(disc => getAttendances(disc.id))
+                const allAttsArray = await Promise.all(attPromises)
+                const flatAtts = allAttsArray.flat().filter(a => a.studentId === studentId)
+                setAttendances(flatAtts)
+
+            } catch (err) {
+                console.error("Erro ao carregar notas:", err)
+            } finally {
+                setLoading(false)
+            }
         }
 
         loadData()
@@ -57,137 +63,120 @@ export function StudentGradesView({ studentId, studentEmail }: Props) {
         return <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
     }
 
-    // Calculate overall stats
-    const totalSubmissions = submissions.length
-    let globalScore = 0
-    let globalTotal = 0
-    submissions.forEach(s => {
-        globalScore += s.score
-        globalTotal += s.totalPoints
-    })
-    const globalPercentage = globalTotal > 0 ? Math.round((globalScore / globalTotal) * 100) : 0
+    const calculateAverage = (grade: StudentGrade) => {
+        const total =
+            (grade.examGrade || 0) +
+            (grade.worksGrade || 0) +
+            (grade.seminarGrade || 0) +
+            (grade.participationBonus || 0) +
+            (grade.attendanceScore || 0)
 
-    const totalClasses = attendances.length
-    const totalPresent = attendances.filter(a => a.isPresent).length
-    const attendancePercentage = totalClasses > 0 ? Math.round((totalPresent / totalClasses) * 100) : 100
-
-    // Group by Semester -> Discipline
-    // For each discipline, get its assessment and submission
+        const divisor = grade.customDivisor > 0 ? grade.customDivisor : 1;
+        return (total / divisor).toFixed(2)
+    }
 
     return (
         <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Desempenho Geral */}
-                <div className="bg-card border border-border rounded-xl p-6 flex items-center justify-between shadow-sm">
-                    <div>
-                        <p className="text-sm font-medium text-muted-foreground mb-1">Aproveitamento Geral (Provas)</p>
-                        <div className="flex items-baseline gap-2">
-                            <h3 className="text-3xl font-bold font-serif">{globalPercentage}%</h3>
-                            <p className="text-xs text-muted-foreground">({totalSubmissions} provas realizadas)</p>
-                        </div>
-                    </div>
-                    <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-                        <Award className="h-6 w-6" />
-                    </div>
+            {/* Resumo de Destaque */}
+            <div className="bg-primary/5 border border-primary/20 rounded-2xl p-6 flex flex-col md:flex-row items-center gap-6 shadow-sm">
+                <div className="h-16 w-16 bg-primary text-primary-foreground rounded-2xl flex items-center justify-center shadow-lg">
+                    <Award className="h-8 w-8" />
                 </div>
-
-                {/* Frequência Geral */}
-                <div className="bg-card border border-border rounded-xl p-6 flex items-center justify-between shadow-sm">
-                    <div>
-                        <p className="text-sm font-medium text-muted-foreground mb-1">Frequência Geral</p>
-                        <div className="flex items-baseline gap-2">
-                            <h3 className="text-3xl font-bold font-serif">{attendancePercentage}%</h3>
-                            <p className="text-xs text-muted-foreground">({totalPresent} presenças em {totalClasses} aulas)</p>
-                        </div>
-                    </div>
-                    <div className="h-12 w-12 bg-accent/10 rounded-full flex items-center justify-center text-accent">
-                        <CalendarCheck className="h-6 w-6" />
+                <div className="flex-1 text-center md:text-left">
+                    <h3 className="text-xl font-bold text-foreground">Meu Desempenho Oficial</h3>
+                    <p className="text-sm text-muted-foreground">Aqui você encontra as notas finais lançadas e validadas pela secretaria e professores.</p>
+                </div>
+                <div className="flex gap-4">
+                    <div className="text-center">
+                        <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-1">Disciplinas</div>
+                        <div className="text-2xl font-black text-primary">{officialGrades.length}</div>
                     </div>
                 </div>
             </div>
 
             <div className="flex flex-col gap-6">
-                <h3 className="text-xl font-bold font-serif text-foreground border-b border-border pb-2">Boletim Detalhado</h3>
+                <h3 className="text-xl font-bold font-serif text-foreground border-b border-border pb-2 flex items-center gap-2">
+                    <Calculator className="h-5 w-5 text-primary" />
+                    Boletim de Notas
+                </h3>
 
-                {semesters.length === 0 ? (
-                    <p className="text-muted-foreground italic text-sm">Nenhum semestre cadastrado.</p>
+                {officialGrades.length === 0 ? (
+                    <div className="bg-card border border-border border-dashed rounded-xl p-10 text-center text-muted-foreground">
+                        <FileText className="h-10 w-10 mx-auto opacity-20 mb-3" />
+                        <p className="text-sm">Nenhuma nota oficial lançada até o momento.</p>
+                    </div>
                 ) : (
-                    semesters.sort((a, b) => a.order - b.order).map(sem => {
-                        const semDisciplines = disciplines.filter(d => d.semesterId === sem.id)
-                        if (semDisciplines.length === 0) return null
+                    <div className="grid grid-cols-1 gap-4">
+                        {officialGrades.map(grade => {
+                            const disc = disciplines.find(d => d.id === grade.disciplineId)
+                            const avg = parseFloat(calculateAverage(grade))
 
-                        return (
-                            <div key={sem.id} className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
-                                <div className="bg-muted px-4 py-3 border-b border-border">
-                                    <h4 className="font-semibold text-foreground">{sem.name}</h4>
-                                </div>
+                            return (
+                                <div key={grade.id} className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex flex-col md:flex-row justify-between gap-4">
+                                        <div className="space-y-1">
+                                            <h4 className="font-bold text-lg text-foreground">{disc?.name || "Disciplina Geral"}</h4>
+                                            <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Semestre: {semesters.find(s => s.id === disc?.semesterId)?.name || "N/A"}</p>
+                                        </div>
 
-                                <div className="divide-y divide-border">
-                                    {semDisciplines.map(disc => {
-                                        // Find assessments for this discipline
-                                        const discAssessments = assessments.filter(a => a.disciplineId === disc.id)
-                                        // Find submissions
-                                        const discSubmissions = submissions.filter(s => discAssessments.some(a => a.id === s.assessmentId))
-
-                                        // Grades avg for discipline
-                                        let discScore = 0
-                                        let discTotal = 0
-                                        discSubmissions.forEach(s => { discScore += s.score; discTotal += s.totalPoints })
-                                        const discPercentage = discTotal > 0 ? Math.round((discScore / discTotal) * 100) : null
-
-                                        // Attendance for discipline
-                                        const discAtt = attendances.filter(a => a.disciplineId === disc.id)
-                                        const discPresent = discAtt.filter(a => a.isPresent).length
-                                        const discAttPct = discAtt.length > 0 ? Math.round((discPresent / discAtt.length) * 100) : null
-
-                                        return (
-                                            <div key={disc.id} className="px-4 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-muted/20 transition-colors">
-                                                <div className="flex-1">
-                                                    <h5 className="font-medium text-foreground">{disc.name}</h5>
-                                                    <p className="text-xs text-muted-foreground mt-0.5">Prof. {disc.professorName || "N/A"}</p>
-                                                </div>
-
-                                                <div className="flex gap-4 md:gap-8 items-center bg-background md:bg-transparent p-3 md:p-0 rounded-lg border md:border-none border-border">
-
-                                                    <div className="flex flex-col md:items-end">
-                                                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Aproveitamento</span>
-                                                        {discPercentage !== null ? (
-                                                            <div className="flex items-center gap-1.5">
-                                                                <span className={`text-sm font-bold px-2 py-0.5 rounded ${discPercentage >= 70 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                                    {discPercentage}%
-                                                                </span>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-sm text-muted-foreground italic">-</span>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="h-8 w-px bg-border hidden md:block" />
-
-                                                    <div className="flex flex-col md:items-end">
-                                                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Frequência</span>
-                                                        {discAttPct !== null ? (
-                                                            <div className="flex items-center gap-1.5">
-                                                                <span className={`text-sm font-bold px-2 py-0.5 rounded ${discAttPct >= 75 ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
-                                                                    {discAttPct}%
-                                                                </span>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-sm text-muted-foreground italic">-</span>
-                                                        )}
-                                                    </div>
-
+                                        <div className="flex items-center gap-4 bg-muted/50 p-3 rounded-xl border border-border">
+                                            <div className="text-right">
+                                                <div className="text-[10px] uppercase font-bold text-muted-foreground">Média Final</div>
+                                                <div className={`text-2xl font-black ${avg >= 7 ? 'text-green-600' : 'text-amber-600'}`}>
+                                                    {avg.toFixed(2)}
                                                 </div>
                                             </div>
-                                        )
-                                    })}
+                                            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${avg >= 7 ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                                                {avg >= 7 ? <CheckCircle2 className="h-6 w-6" /> : <Award className="h-6 w-6" />}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-6">
+                                        {[
+                                            { label: "Prova", val: grade.examGrade },
+                                            { label: "Trabalhos", val: grade.worksGrade },
+                                            { label: "Seminários", val: grade.seminarGrade },
+                                            { label: "Participação", val: grade.participationBonus },
+                                            { label: "Presença", val: grade.attendanceScore },
+                                        ].map(item => (
+                                            <div key={item.label} className="bg-background border border-border rounded-lg p-3 text-center">
+                                                <div className="text-[10px] text-muted-foreground font-bold uppercase mb-1">{item.label}</div>
+                                                <div className="font-bold text-foreground">{item.val.toFixed(1)}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="mt-4 text-[10px] text-muted-foreground text-right italic">
+                                        Cálculo: (Soma das notas) / {grade.customDivisor}
+                                    </div>
                                 </div>
-                            </div>
-                        )
-                    })
+                            )
+                        })}
+                    </div>
                 )}
             </div>
+
+            {/* Histórico de Tentativas (Submissões de Prova) */}
+            {submissions.length > 0 && (
+                <div className="mt-4">
+                    <h4 className="text-lg font-bold text-foreground mb-4 opacity-70">Histórico de Respostas (Simulados/Provas Online)</h4>
+                    <div className="space-y-3">
+                        {submissions.map(sub => (
+                            <div key={sub.id} className="bg-muted/30 border border-border rounded-lg p-4 flex items-center justify-between text-sm">
+                                <div>
+                                    <p className="font-semibold text-foreground">Resultado de Prova Online</p>
+                                    <p className="text-xs text-muted-foreground">Enviado em {new Date(sub.submittedAt).toLocaleDateString()}</p>
+                                </div>
+                                <div className="text-right">
+                                    <div className="font-bold">{sub.score} / {sub.totalPoints} pts</div>
+                                    <div className="text-xs text-primary">{sub.percentage}% de acerto</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

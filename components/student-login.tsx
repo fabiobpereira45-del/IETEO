@@ -23,10 +23,11 @@ import {
 interface Props {
   onLogin: (session: StudentSession) => void
   onResult?: (submission: StudentSubmission) => void
+  onBack?: () => void
   preloadedAssessmentId?: string
 }
 
-export function StudentLogin({ onLogin, onResult, preloadedAssessmentId }: Props) {
+export function StudentLogin({ onLogin, onResult, onBack, preloadedAssessmentId }: Props) {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -231,7 +232,12 @@ export function StudentLogin({ onLogin, onResult, preloadedAssessmentId }: Props
                 </Button>
               </div>
             </form>
-            <div className="text-center mt-4">
+            <div className={`mt-4 flex items-center ${onBack ? 'justify-between' : 'justify-center'}`}>
+              {onBack && (
+                <button type="button" onClick={onBack} className="text-sm font-medium text-primary hover:underline flex items-center gap-1">
+                  ← Voltar
+                </button>
+              )}
               <button type="button" onClick={() => setIsForgot(true)} className="text-xs text-muted-foreground hover:text-primary transition-colors underline underline-offset-2">
                 Esqueci minha senha
               </button>

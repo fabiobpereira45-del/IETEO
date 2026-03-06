@@ -54,7 +54,7 @@ export function AssessmentHeader({
               title="Painel do Professor"
             >
               <LayoutDashboard className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Painel</span>
+              <span className="hidden sm:inline">Painel do Professor</span>
             </button>
             {onStudentAreaClick && (
               <button

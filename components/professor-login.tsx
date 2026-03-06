@@ -176,11 +176,11 @@ export function ProfessorLogin({ onLogin, onBack }: Props) {
         )}
       </div>
 
-      <p className="text-center text-xs text-muted-foreground mt-6">Acesso exclusivo para professores e coordenadores</p>
+      <p className="text-center text-xs text-muted-foreground mt-6 mb-4">Acesso exclusivo para professores e coordenadores</p>
       {onBack && (
-        <div className="text-center mt-4">
-          <button type="button" onClick={onBack} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
-            Voltar para a página dos alunos
+        <div className="text-center">
+          <button type="button" onClick={onBack} className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1 transition-colors">
+            ← Voltar
           </button>
         </div>
       )}

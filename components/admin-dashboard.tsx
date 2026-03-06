@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import {
   Users, FileText, BookOpen, Settings, BarChart3, Download, LogOut,
   Plus, Pencil, Trash2, Eye, EyeOff, Trophy, CheckCircle2, Link2,
-  ShieldCheck, Loader2, DollarSign, MessageSquare, CalendarCheck, GraduationCap, XCircle
+  ShieldCheck, Loader2, DollarSign, MessageSquare, CalendarCheck, GraduationCap, XCircle, ArrowLeft, Building2, UserCircle, Briefcase, Send, PlaySquare, CalendarDays, KeyRound
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,11 +14,11 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
-  type Assessment, type StudentSubmission, type Question, type Discipline,
+  type Assessment, type StudentSubmission, type Question, type Discipline, type StudentGrade, type StudentProfile,
   getAssessments, updateAssessment, deleteAssessment,
   getSubmissions, deleteSubmission, updateSubmissionScore,
   getQuestions, getDisciplines, clearProfessorSession, MASTER_CREDENTIALS,
-  getProfessorSession,
+  getProfessorSession, getStudentGrades, saveStudentGrade, deleteStudentGrade, getStudents,
 } from "@/lib/store"
 import { printStudentPDF, printBlankAssessmentPDF } from "@/lib/pdf"
 import { ErrorBoundary } from "@/components/error-boundary"
@@ -35,6 +35,7 @@ import { ClassManager } from "@/components/class-manager"
 import { StudentManager } from "@/components/student-manager"
 import { ClassScheduleManager } from "@/components/class-schedule-manager"
 import { createClient } from "@/lib/supabase/client"
+import { GradesManager } from "@/components/grades-manager"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -51,7 +52,7 @@ function formatTime(s: number) {
   return `${m}m${sec.toString().padStart(2, "0")}s`
 }
 
-type Tab = "overview" | "students" | "submissions" | "questions" | "assessments" | "professors" | "semesters" | "class_schedules" | "materials" | "financial" | "settings" | "chat" | "attendance" | "classes"
+type Tab = "overview" | "students" | "grades" | "submissions" | "questions" | "assessments" | "professors" | "semesters" | "class_schedules" | "materials" | "financial" | "settings" | "chat" | "attendance" | "classes"
 
 interface Props {
   onLogout: () => void
@@ -379,13 +380,108 @@ function AssessmentsTab({ assessments, submissions, questions, disciplines, onRe
     printBlankAssessmentPDF({ assessment: a, questions })
   }
 
+  const active = assessments[0]
+
+  async function handleSchedule(field: "openAt" | "closeAt", value: string) {
+    if (!active) return
+    await updateAssessment(active.id, { [field]: value ? new Date(value).toISOString() : null })
+    onRefresh()
+  }
+
+  async function handleShuffleToggle() {
+    if (!active) return
+    await updateAssessment(active.id, { shuffleVariants: !active.shuffleVariants })
+    onRefresh()
+  }
+
+  async function handleReleaseResultsToggle() {
+    if (!active) return
+    await updateAssessment(active.id, { releaseResults: !active.releaseResults })
+    onRefresh()
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
+      <div className="flex justify-between items-center bg-card border border-border rounded-xl p-4 shadow-sm mb-4">
+        <div>
+          <h2 className="text-lg font-bold font-serif text-foreground">Gerenciamento de Provas</h2>
+          <p className="text-muted-foreground text-sm">Crie e edite avaliações</p>
+        </div>
         <Button onClick={() => { setEditingAssessment(null); setBuilderOpen(true) }}>
           <Plus className="h-4 w-4 mr-1.5" /> Nova Prova
         </Button>
       </div>
+
+      {active && (
+        <div className="bg-card border border-border rounded-xl p-5 flex flex-col gap-4 shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
+          <h3 className="font-semibold text-foreground text-lg mb-1">Configurações Especiais da Prova Ativa: <span className="font-normal">{active.title}</span></h3>
+          <p className="text-sm text-muted-foreground mb-2">A prova mais recente é considerada a prova ativa do sistema.</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between py-2 border-b border-border/50">
+                <div>
+                  <div className="text-sm font-medium">Modelos de Provas (A, B, C)</div>
+                  <div className="text-xs text-muted-foreground">Cria versões embaralhadas no PDF</div>
+                </div>
+                <button
+                  onClick={handleShuffleToggle}
+                  className={`flex-shrink-0 w-10 h-5 rounded-full transition-colors ${active.shuffleVariants ? "bg-primary" : "bg-muted-foreground/30"}`}
+                  aria-pressed={active.shuffleVariants}
+                >
+                  <div className={`w-3.5 h-3.5 rounded-full bg-primary-foreground transform transition-transform shadow-sm ${active.shuffleVariants ? "translate-x-5" : "translate-x-1"}`} />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between py-2 border-b border-border/50">
+                <div>
+                  <div className="text-sm font-medium">Liberar Resultados</div>
+                  <div className="text-xs text-muted-foreground">Exibe nota e gabarito ao aluno</div>
+                </div>
+                <button
+                  onClick={handleReleaseResultsToggle}
+                  className={`flex-shrink-0 w-10 h-5 rounded-full transition-colors ${active.releaseResults ? "bg-primary" : "bg-muted-foreground/30"}`}
+                  aria-pressed={active.releaseResults}
+                >
+                  <div className={`w-3.5 h-3.5 rounded-full bg-primary-foreground transform transition-transform shadow-sm ${active.releaseResults ? "translate-x-5" : "translate-x-1"}`} />
+                </button>
+              </div>
+            </div>
+
+            {(() => {
+              const toLocalDatetimeStr = (isoString: string | null) => {
+                if (!isoString) return ""
+                const d = new Date(isoString)
+                const pad = (n: number) => n.toString().padStart(2, '0')
+                return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+              }
+              return (
+                <div className="space-y-4 bg-muted/40 p-4 rounded-lg border border-border/50">
+                  <div>
+                    <Label className="text-xs font-semibold text-foreground mb-1.5 block">Abertura Automática (Opcional)</Label>
+                    <Input
+                      type="datetime-local"
+                      value={toLocalDatetimeStr(active.openAt)}
+                      onChange={(e) => handleSchedule("openAt", e.target.value)}
+                      className="text-sm h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-foreground mb-1.5 block">Fechamento Automático (Opcional)</Label>
+                    <Input
+                      type="datetime-local"
+                      value={toLocalDatetimeStr(active.closeAt)}
+                      onChange={(e) => handleSchedule("closeAt", e.target.value)}
+                      className="text-sm h-9"
+                    />
+                  </div>
+                </div>
+              )
+            })()}
+          </div>
+        </div>
+      )}
 
       {assessments.length === 0 ? (
         <div className="bg-card border border-border rounded-xl p-10 text-center text-muted-foreground">
@@ -525,30 +621,6 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
     setMigrating(false)
   }
 
-  async function handleToggle() {
-    if (!active) return
-    await updateAssessment(active.id, { isPublished: !active.isPublished })
-    onRefresh(false)
-  }
-
-  async function handleSchedule(field: "openAt" | "closeAt", value: string) {
-    if (!active) return
-    await updateAssessment(active.id, { [field]: value ? new Date(value).toISOString() : null })
-    onRefresh(false)
-  }
-
-  async function handleShuffleToggle() {
-    if (!active) return
-    await updateAssessment(active.id, { shuffleVariants: !active.shuffleVariants })
-    onRefresh(false)
-  }
-
-  async function handleReleaseResultsToggle() {
-    if (!active) return
-    await updateAssessment(active.id, { releaseResults: !active.releaseResults })
-    onRefresh(false)
-  }
-
   return (
     <div className="flex flex-col gap-6 w-full max-w-5xl mx-auto">
       <div>
@@ -563,89 +635,6 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
       {/* Legacy Settings content logic - keeping the migration tool for now */}
       <div className="flex flex-col md:flex-row gap-6">
         <div className="flex flex-col gap-5 flex-1 max-w-xl">
-          {active ? (
-            <div className="bg-card border border-border rounded-xl p-5 flex flex-col gap-5">
-              <h3 className="font-semibold text-foreground">Prova Ativa: {active.title}</h3>
-
-              <div className="flex items-center justify-between py-3 border-b border-border">
-                <div>
-                  <div className="text-sm font-medium">Aberta para alunos</div>
-                  <div className="text-xs text-muted-foreground">Alunos podem acessar e enviar respostas</div>
-                </div>
-                <button
-                  onClick={handleToggle}
-                  className={`flex-shrink-0 w-12 h-6 rounded-full transition-colors ${active.isPublished ? "bg-primary" : "bg-muted-foreground/40"}`}
-                  aria-pressed={active.isPublished}
-                >
-                  <div className={`w-4 h-4 rounded-full bg-primary-foreground transform transition-transform ${active.isPublished ? "translate-x-7" : "translate-x-1"}`} />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between py-3 border-b border-border">
-                <div>
-                  <div className="text-sm font-medium">Modelos de Provas Multíplas (A, B, C)</div>
-                  <div className="text-xs text-muted-foreground">Ativa criação de provas embaralhadas ao gerar PDF</div>
-                </div>
-                <button
-                  onClick={handleShuffleToggle}
-                  className={`flex-shrink-0 w-12 h-6 rounded-full transition-colors ${active.shuffleVariants ? "bg-primary" : "bg-muted-foreground/40"}`}
-                  aria-pressed={active.shuffleVariants}
-                >
-                  <div className={`w-4 h-4 rounded-full bg-primary-foreground transform transition-transform ${active.shuffleVariants ? "translate-x-7" : "translate-x-1"}`} />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between py-3 border-b border-border">
-                <div>
-                  <div className="text-sm font-medium">Liberar Resultados para os Alunos</div>
-                  <div className="text-xs text-muted-foreground">Exibe nota e gabarito na tela final do aluno</div>
-                </div>
-                <button
-                  onClick={handleReleaseResultsToggle}
-                  className={`flex-shrink-0 w-12 h-6 rounded-full transition-colors ${active.releaseResults ? "bg-primary" : "bg-muted-foreground/40"}`}
-                  aria-pressed={active.releaseResults}
-                >
-                  <div className={`w-4 h-4 rounded-full bg-primary-foreground transform transition-transform ${active.releaseResults ? "translate-x-7" : "translate-x-1"}`} />
-                </button>
-              </div>
-
-              {/* Fix local timezone format for datetime-local */}
-              {(() => {
-                const toLocalDatetimeStr = (isoString: string | null) => {
-                  if (!isoString) return ""
-                  const d = new Date(isoString)
-                  const pad = (n: number) => n.toString().padStart(2, '0')
-                  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-                }
-                return (
-                  <>
-                    <div>
-                      <Label className="text-xs text-muted-foreground mb-1 block">Abertura Automática (Opcional)</Label>
-                      <Input
-                        type="datetime-local"
-                        value={toLocalDatetimeStr(active.openAt)}
-                        onChange={(e) => handleSchedule("openAt", e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-
-                    <div>
-                      <Label className="text-xs text-muted-foreground mb-1 block">Fechamento Automático (Opcional)</Label>
-                      <Input
-                        type="datetime-local"
-                        value={toLocalDatetimeStr(active.closeAt)}
-                        onChange={(e) => handleSchedule("closeAt", e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                  </>
-                )
-              })()}
-            </div>
-          ) : (
-            <div className="text-sm text-muted-foreground italic">Crie e ative uma prova na aba Provas.</div>
-          )}
-
           {/* Migration Tool */}
           <div className="bg-card border border-border rounded-xl p-5">
             <h3 className="font-semibold text-foreground mb-1">Migração de Dados</h3>
@@ -727,18 +716,19 @@ export function AdminDashboard({ onLogout }: Props) {
   const tabs: { id: Tab; label: string; icon: React.ReactNode; masterOnly?: boolean }[] = [
     { id: "overview", label: "Visão Geral", icon: <BarChart3 className="h-4 w-4" /> },
     { id: "students", label: "Alunos", icon: <Users className="h-4 w-4" /> },
+    { id: "grades", label: "Notas e Diários", icon: <GraduationCap className="h-4 w-4" /> },
     { id: "questions", label: "Banco de Questões", icon: <BookOpen className="h-4 w-4" /> },
     { id: "assessments", label: "Provas", icon: <FileText className="h-4 w-4" /> },
     { id: "submissions", label: "Respostas de Provas", icon: <CheckCircle2 className="h-4 w-4" /> },
     { id: "materials", label: "Biblioteca (PDFs)", icon: <BookOpen className="h-4 w-4" /> },
-    { id: "semesters", label: "Grade Curricular", icon: <BookOpen className="h-4 w-4" />, masterOnly: true },
-    { id: "class_schedules", label: "Quadro de Horários", icon: <CalendarCheck className="h-4 w-4" />, masterOnly: true },
-    { id: "classes", label: "Turmas", icon: <GraduationCap className="h-4 w-4" />, masterOnly: true },
+    { id: "semesters", label: "Grade Curricular", icon: <BookOpen className="h-4 w-4" /> },
+    { id: "class_schedules", label: "Quadro de Horários", icon: <CalendarCheck className="h-4 w-4" /> },
+    { id: "classes", label: "Turmas", icon: <GraduationCap className="h-4 w-4" /> },
     { id: "attendance", label: "Frequência", icon: <CalendarCheck className="h-4 w-4" /> },
     { id: "chat", label: "Chat Alunos", icon: <MessageSquare className="h-4 w-4" /> },
     { id: "financial", label: "Financeiro", icon: <DollarSign className="h-4 w-4" />, masterOnly: true },
-    { id: "professors", label: "Professores", icon: <ShieldCheck className="h-4 w-4" />, masterOnly: true },
-    { id: "settings", label: "Configurações", icon: <Settings className="h-4 w-4" /> },
+    { id: "professors", label: "Professores", icon: <ShieldCheck className="h-4 w-4" /> },
+    { id: "settings", label: "Configurações", icon: <Settings className="h-4 w-4" />, masterOnly: true },
   ]
 
   const visibleTabs = tabs.filter((t) => !t.masterOnly || isMaster)
@@ -747,11 +737,23 @@ export function AdminDashboard({ onLogout }: Props) {
     <div className="min-h-screen bg-background flex flex-col">
       <header className="bg-primary text-primary-foreground border-b border-primary/80">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div>
-            <p className="text-xs text-primary-foreground/70 uppercase tracking-widest font-sans">
-              Instituto de Ensino Teológico - IETEO
-            </p>
-            <h1 className="text-xl font-bold font-serif">Painel do Professor</h1>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onLogout}
+              className="text-primary-foreground/70 hover:text-primary-foreground transition-colors p-0 h-auto"
+            >
+              <ArrowLeft className="h-5 w-5 mr-1" />
+              <span className="text-sm font-medium">Voltar</span>
+            </Button>
+            <div className="h-8 w-px bg-primary-foreground/20 hidden sm:block" />
+            <div>
+              <p className="text-xs text-primary-foreground/70 uppercase tracking-widest font-sans">
+                Instituto de Ensino Teológico - IETEO
+              </p>
+              <h1 className="text-xl font-bold font-serif">Painel do Professor</h1>
+            </div>
           </div>
           <div className="text-right hidden sm:block">
             <div className="flex items-center gap-4 justify-end">
@@ -806,6 +808,7 @@ export function AdminDashboard({ onLogout }: Props) {
           <>
             {tab === "overview" && <OverviewTab assessments={assessments} submissions={submissions} questions={questions} />}
             {tab === "students" && <StudentManager isMaster={isMaster} />}
+            {tab === "grades" && <GradesManager isMaster={isMaster} />}
             {tab === "submissions" && <SubmissionsTab assessments={assessments} allSubmissions={submissions} questions={questions} onRefresh={refresh} isMaster={isMaster} />}
             {tab === "questions" && <QuestionBank isMaster={isMaster} />}
             {tab === "assessments" && <AssessmentsTab assessments={assessments} submissions={submissions} questions={questions} disciplines={disciplines} onRefresh={refresh} isMaster={isMaster} />}
