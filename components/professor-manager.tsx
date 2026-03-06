@@ -75,7 +75,7 @@ function ProfessorForm({
             type="email"
             value={form.email}
             onChange={(e) => set("email", e.target.value)}
-            placeholder="professor@ieteo.com"
+            placeholder="professor@ibad.com"
           />
         </div>
       </div>
@@ -193,10 +193,17 @@ export function ProfessorManager() {
   }
 
   async function handleDelete() {
-    if (deleteId) {
+    if (!deleteId) return
+    const acc = accounts.find(a => a.id === deleteId)
+    try {
+      if (acc && acc.email !== MASTER_CREDENTIALS.email) {
+        await fetch(`/api/admin/users?email=${encodeURIComponent(acc.email)}`, { method: "DELETE" })
+      }
       await deleteProfessorAccount(deleteId)
       setDeleteId(null)
       await refresh()
+    } catch (e: any) {
+      alert("Falha ao excluir: " + e.message)
     }
   }
 

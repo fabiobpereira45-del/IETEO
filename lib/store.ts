@@ -36,7 +36,7 @@ const KEYS = {
 } as const
 
 export const MASTER_CREDENTIALS = {
-  email: "professor@ieteo.com",
+  email: "professor@ibad.com",
   password: "ieteo2026",
   name: "Pb. Fábio Barreto",
   role: "master" as const,

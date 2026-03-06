@@ -427,7 +427,7 @@ function BulkImportModal({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function QuestionBank() {
+export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
   const [disciplines, setDisciplines] = useState<Discipline[]>([])
   const [selectedDiscipline, setSelectedDiscipline] = useState<Discipline | null>(null)
   const [questions, setQuestions] = useState<Question[]>([])
@@ -546,13 +546,15 @@ export function QuestionBank() {
                     >
                       <Pencil className="h-3 w-3" />
                     </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setDeleteDiscId(d.id) }}
-                      className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
-                      aria-label="Excluir disciplina"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
+                    {isMaster && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDeleteDiscId(d.id) }}
+                        className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                        aria-label="Excluir disciplina"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
                   </div>
                 </div>
               )
@@ -666,15 +668,17 @@ export function QuestionBank() {
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => setDeleteQId(q.id)}
-                    aria-label="Excluir questão"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  {isMaster && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setDeleteQId(q.id)}
+                      aria-label="Excluir questão"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
               </div>
             ))

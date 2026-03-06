@@ -32,3 +32,37 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: err.message }, { status: 500 })
     }
 }
+
+export async function DELETE(request: Request) {
+    try {
+        const { searchParams } = new URL(request.url)
+        const email = searchParams.get("email")
+        const id = searchParams.get("id")
+
+        if (!email && !id) {
+            return NextResponse.json({ error: "Email or ID is required" }, { status: 400 })
+        }
+
+        const supabase = createAdminClient()
+
+        if (id) {
+            const { error: deleteError } = await supabase.auth.admin.deleteUser(id)
+            if (deleteError) throw deleteError
+        } else if (email) {
+            // List matching users (email should be unique)
+            const { data: { users }, error } = await supabase.auth.admin.listUsers()
+            if (error) throw error
+
+            const user = users.find(u => u.email === email)
+            if (user) {
+                const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id)
+                if (deleteError) throw deleteError
+            }
+        }
+
+        return NextResponse.json({ success: true })
+
+    } catch (err: any) {
+        return NextResponse.json({ error: err.message }, { status: 500 })
+    }
+}

@@ -316,10 +316,12 @@ function SubmissionsTab({ assessments, allSubmissions, questions, onRefresh, isM
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                       )}
-                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        title="Excluir Envio" onClick={() => setDeleteId(sub.id)}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      {isMaster && (
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          title="Excluir Envio" onClick={() => setDeleteId(sub.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -347,7 +349,7 @@ function SubmissionsTab({ assessments, allSubmissions, questions, onRefresh, isM
 
 // ─── Assessments Tab ──────────────────────────────────────────────────────────
 
-function AssessmentsTab({ assessments, submissions, questions, disciplines, onRefresh }: { assessments: Assessment[]; submissions: StudentSubmission[]; questions: Question[]; disciplines: Discipline[]; onRefresh: () => void }) {
+function AssessmentsTab({ assessments, submissions, questions, disciplines, onRefresh, isMaster }: { assessments: Assessment[]; submissions: StudentSubmission[]; questions: Question[]; disciplines: Discipline[]; onRefresh: () => void; isMaster: boolean }) {
   const [builderOpen, setBuilderOpen] = useState(false)
   const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -432,11 +434,13 @@ function AssessmentsTab({ assessments, submissions, questions, disciplines, onRe
                     onClick={() => { setEditingAssessment(a); setBuilderOpen(true) }} title="Editar">
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                  <Button size="sm" variant="ghost"
-                    className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => setDeleteId(a.id)} title="Excluir">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  {isMaster && (
+                    <Button size="sm" variant="ghost"
+                      className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setDeleteId(a.id)} title="Excluir">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
               </div>
             )
@@ -801,12 +805,12 @@ export function AdminDashboard({ onLogout }: Props) {
         ) : (
           <>
             {tab === "overview" && <OverviewTab assessments={assessments} submissions={submissions} questions={questions} />}
-            {tab === "students" && <StudentManager />}
+            {tab === "students" && <StudentManager isMaster={isMaster} />}
             {tab === "submissions" && <SubmissionsTab assessments={assessments} allSubmissions={submissions} questions={questions} onRefresh={refresh} isMaster={isMaster} />}
-            {tab === "questions" && <QuestionBank />}
-            {tab === "assessments" && <AssessmentsTab assessments={assessments} submissions={submissions} questions={questions} disciplines={disciplines} onRefresh={refresh} />}
+            {tab === "questions" && <QuestionBank isMaster={isMaster} />}
+            {tab === "assessments" && <AssessmentsTab assessments={assessments} submissions={submissions} questions={questions} disciplines={disciplines} onRefresh={refresh} isMaster={isMaster} />}
             {tab === "materials" && <StudyMaterialManager />}
-            {tab === "semesters" && <SemesterManager />}
+            {tab === "semesters" && <SemesterManager isMaster={isMaster} />}
             {tab === "class_schedules" && isMaster && <ClassScheduleManager />}
             {tab === "attendance" && <AttendanceManager />}
             {tab === "classes" && isMaster && <ClassManager />}

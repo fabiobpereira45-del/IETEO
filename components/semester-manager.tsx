@@ -28,7 +28,7 @@ import {
 
 // ─── Componente Removido: Dias e Turnos agora vivem no Quadro de Horários ─────
 
-export function SemesterManager() {
+export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
     const [semesters, setSemesters] = useState<Semester[]>([])
     const [disciplines, setDisciplines] = useState<Discipline[]>([])
     const [professors, setProfessors] = useState<ProfessorAccount[]>([])
@@ -218,9 +218,11 @@ export function SemesterManager() {
                                     <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { setEditingSem(sem); setSemName(sem.name); setSemOrder(String(sem.order)); setSemModal(true) }}>
                                         <Pencil className="h-3.5 w-3.5" />
                                     </Button>
-                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10" onClick={() => setDeleteSemIdConfirm(sem.id)}>
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
+                                    {isMaster && (
+                                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10" onClick={() => setDeleteSemIdConfirm(sem.id)}>
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
 
@@ -243,13 +245,15 @@ export function SemesterManager() {
                                                         <button className="h-6 w-6 rounded flex items-center justify-center bg-card border border-border hover:bg-muted text-muted-foreground" onClick={() => openEditDisc(disc)} title="Editar">
                                                             <Pencil className="h-3 w-3" />
                                                         </button>
-                                                        <button
-                                                            className="h-6 w-6 rounded flex items-center justify-center bg-card border border-amber-300 hover:bg-amber-50 text-amber-600"
-                                                            onClick={() => setUnlinkDiscId(disc.id)}
-                                                            title="Remover do semestre"
-                                                        >
-                                                            <LogOut className="h-3 w-3" />
-                                                        </button>
+                                                        {isMaster && (
+                                                            <button
+                                                                className="h-6 w-6 rounded flex items-center justify-center bg-card border border-amber-300 hover:bg-amber-50 text-amber-600"
+                                                                onClick={() => setUnlinkDiscId(disc.id)}
+                                                                title="Remover do semestre"
+                                                            >
+                                                                <LogOut className="h-3 w-3" />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                     <h4 className="font-semibold text-sm pr-14 leading-snug">{disc.name}</h4>
                                                     {disc.professorName && <p className="text-xs text-primary font-medium mt-1 truncate">Prof. {disc.professorName}</p>}
@@ -291,13 +295,15 @@ export function SemesterManager() {
                                             <ArrowRightCircle className="h-3 w-3" />
                                         </button>
                                         {/* Permanent delete */}
-                                        <button
-                                            className="h-6 w-6 rounded flex items-center justify-center border border-destructive/30 hover:bg-destructive/10 text-destructive"
-                                            onClick={() => setDeleteDiscId(disc.id)}
-                                            title="Excluir permanentemente"
-                                        >
-                                            <Trash2 className="h-3 w-3" />
-                                        </button>
+                                        {isMaster && (
+                                            <button
+                                                className="h-6 w-6 rounded flex items-center justify-center border border-destructive/30 hover:bg-destructive/10 text-destructive"
+                                                onClick={() => setDeleteDiscId(disc.id)}
+                                                title="Excluir permanentemente"
+                                            >
+                                                <Trash2 className="h-3 w-3" />
+                                            </button>
+                                        )}
                                     </div>
                                     <h4 className="font-semibold text-sm pr-14">{disc.name}</h4>
                                     {disc.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{disc.description}</p>}

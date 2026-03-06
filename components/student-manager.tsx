@@ -28,7 +28,7 @@ const SHIFT_LABELS: Record<string, string> = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function StudentManager() {
+export function StudentManager({ isMaster }: { isMaster?: boolean }) {
     const [students, setStudents] = useState<StudentProfile[]>([])
     const [classes, setClasses] = useState<ClassRoom[]>([])
     const [loading, setLoading] = useState(true)
@@ -181,6 +181,9 @@ export function StudentManager() {
         if (!selected) return
         setDeleting(true)
         try {
+            if (selected.auth_user_id) {
+                await fetch(`/api/admin/users?id=${encodeURIComponent(selected.auth_user_id)}`, { method: "DELETE" })
+            }
             await deleteStudent(selected.id)
             setIsDeleteOpen(false)
             setSelected(null)
@@ -321,14 +324,16 @@ export function StudentManager() {
                                                     <MessageSquare className="h-4 w-4" />
                                                 </Button>
                                                 {/* Delete */}
-                                                <Button
-                                                    size="sm" variant="ghost"
-                                                    className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                                    title="Excluir aluno"
-                                                    onClick={() => openDelete(stu)}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
+                                                {isMaster && (
+                                                    <Button
+                                                        size="sm" variant="ghost"
+                                                        className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                        title="Excluir aluno"
+                                                        onClick={() => openDelete(stu)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

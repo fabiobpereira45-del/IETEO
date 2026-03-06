@@ -118,7 +118,7 @@ export function ProfessorLogin({ onLogin, onBack }: Props) {
               <Label htmlFor="forgot-email" className="text-sm font-medium">E-mail</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                <Input id="forgot-email" type="email" placeholder="professor@ieteo.com" value={email} onChange={e => setEmail(e.target.value)} className="pl-9" required autoFocus />
+                <Input id="forgot-email" type="email" placeholder="professor@ibad.com" value={email} onChange={e => setEmail(e.target.value)} className="pl-9" required autoFocus />
               </div>
             </div>
             {error && <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>}
@@ -142,7 +142,7 @@ export function ProfessorLogin({ onLogin, onBack }: Props) {
               <Label htmlFor="prof-email" className="text-sm font-medium">E-mail</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                <Input id="prof-email" type="email" placeholder="professor@ieteo.com" value={email} onChange={e => setEmail(e.target.value)} className="pl-9" required autoFocus />
+                <Input id="prof-email" type="email" placeholder="professor@ibad.com" value={email} onChange={e => setEmail(e.target.value)} className="pl-9" required autoFocus />
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
