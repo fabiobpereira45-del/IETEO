@@ -14,6 +14,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog"
+import {
   type Assessment, type StudentSubmission, type Question, type Discipline, type StudentGrade, type StudentProfile,
   getAssessments, updateAssessment, deleteAssessment,
   getSubmissions, deleteSubmission, updateSubmissionScore,
@@ -61,6 +64,7 @@ interface Props {
 // ─── Overview Tab ─────────────────────────────────────────────────────────────
 
 function OverviewTab({ assessments, submissions, questions }: { assessments: Assessment[]; submissions: StudentSubmission[]; questions: Question[] }) {
+  const [selectedQuestion, setSelectedQuestion] = useState<any>(null)
   const totalStudents = submissions.length
   const avgScore = totalStudents > 0
     ? Math.round(submissions.reduce((acc, s) => acc + s.percentage, 0) / totalStudents)
@@ -79,7 +83,9 @@ function OverviewTab({ assessments, submissions, questions }: { assessments: Ass
     const correct = activeSubs.filter((s) => s.answers.find((a) => a.questionId === q.id)?.answer === q.correctAnswer).length
     return {
       text: q.text.slice(0, 40) + (q.text.length > 40 ? "…" : ""),
+      fullText: q.text,
       correct,
+      errors: total - correct,
       total,
       pct: total > 0 ? Math.round((correct / total) * 100) : 0,
     }
@@ -124,6 +130,14 @@ function OverviewTab({ assessments, submissions, questions }: { assessments: Ass
                   </div>
                   <span className="text-xs font-bold w-10 text-right flex-shrink-0">{stat.pct}%</span>
                   <span className="text-xs text-muted-foreground w-32 truncate hidden md:block">{stat.text}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-[10px] px-2 ml-2 flex-shrink-0"
+                    onClick={() => setSelectedQuestion({ ...stat, number: i + 1 })}
+                  >
+                    Visualizar
+                  </Button>
                 </div>
               )
             })}
@@ -137,6 +151,37 @@ function OverviewTab({ assessments, submissions, questions }: { assessments: Ass
           <p className="text-sm">Nenhuma prova criada. Acesse a aba <strong>Provas</strong> para começar.</p>
         </div>
       )}
+
+      <Dialog open={!!selectedQuestion} onOpenChange={(o) => (!o ? setSelectedQuestion(null) : null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Questão {selectedQuestion?.number}</DialogTitle>
+            <DialogDescription>Detalhes do desempenho na questão</DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="bg-muted p-4 rounded-md max-h-60 overflow-y-auto">
+              <p className="text-sm font-medium text-foreground whitespace-pre-wrap">{selectedQuestion?.fullText}</p>
+            </div>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="bg-green-50 border border-green-200 p-3 rounded-lg">
+                <p className="text-xs text-green-600 font-semibold uppercase">Acertos</p>
+                <p className="text-2xl font-bold text-green-700">{selectedQuestion?.correct}</p>
+                <p className="text-xs text-green-600">{selectedQuestion?.pct}%</p>
+              </div>
+              <div className="bg-red-50 border border-red-200 p-3 rounded-lg">
+                <p className="text-xs text-red-600 font-semibold uppercase">Erros</p>
+                <p className="text-2xl font-bold text-red-700">{selectedQuestion?.errors}</p>
+                <p className="text-xs text-red-600">{selectedQuestion ? (100 - selectedQuestion.pct) : 0}%</p>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+                <p className="text-xs text-blue-600 font-semibold uppercase">Total</p>
+                <p className="text-2xl font-bold text-blue-700">{selectedQuestion?.total}</p>
+                <p className="text-xs text-blue-600">Respostas</p>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
