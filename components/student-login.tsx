@@ -31,6 +31,7 @@ export function StudentLogin({ onLogin, onResult, onBack, preloadedAssessmentId 
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [initError, setInitError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [isForgot, setIsForgot] = useState(false)
   const [forgotEmail, setForgotEmail] = useState("")
@@ -48,19 +49,25 @@ export function StudentLogin({ onLogin, onResult, onBack, preloadedAssessmentId 
   useEffect(() => {
     let mounted = true
     async function init() {
-      const a = await getActiveAssessment(preloadedAssessmentId)
-      if (!mounted) return
-      setAssessment(a)
-      if (a) {
-        const [allQs, allDs] = await Promise.all([
-          getQuestionsByDiscipline(a.disciplineId),
-          getDisciplines()
-        ])
+      try {
+        const a = await getActiveAssessment(preloadedAssessmentId)
         if (!mounted) return
-        setQuestions(allQs.filter(q => a.questionIds.includes(q.id)))
-        setDisc(allDs.find(d => d.id === a.disciplineId) || null)
+        setAssessment(a)
+        if (a) {
+          const [allQs, allDs] = await Promise.all([
+            getQuestionsByDiscipline(a.disciplineId),
+            getDisciplines()
+          ])
+          if (!mounted) return
+          setQuestions(allQs.filter(q => a.questionIds.includes(q.id)))
+          setDisc(allDs.find(d => d.id === a.disciplineId) || null)
+        }
+      } catch (err: any) {
+        console.error("Init error:", err)
+        setInitError(err.message || "Erro desconhecido ao carregar avaliação")
+      } finally {
+        if (mounted) setIsInitializing(false)
       }
-      setIsInitializing(false)
     }
     init()
     return () => { mounted = false }
@@ -168,7 +175,9 @@ export function StudentLogin({ onLogin, onResult, onBack, preloadedAssessmentId 
         <div className="w-full rounded-2xl bg-muted border border-border p-8 flex flex-col items-center gap-3 text-center">
           <AlertCircle className="h-10 w-10 text-muted-foreground opacity-50" />
           <p className="font-semibold text-foreground">Nenhuma avaliação disponível</p>
-          <p className="text-sm text-muted-foreground">Aguarde o professor publicar a avaliação para acessá-la.</p>
+          <p className="text-sm text-muted-foreground">
+            {initError ? `Erro: ${initError}` : "Aguarde o professor publicar a avaliação para acessá-la."}
+          </p>
         </div>
       )}
 
@@ -219,8 +228,9 @@ export function StudentLogin({ onLogin, onResult, onBack, preloadedAssessmentId 
                 </div>
               </div>
               {error && (
-                <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
-                  <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" /><span>{error}</span>
+                <div className="flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-xs font-medium text-destructive animate-in fade-in slide-in-from-top-1">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <p>{error}</p>
                 </div>
               )}
               <div className="flex flex-col sm:flex-row gap-3 mt-2">

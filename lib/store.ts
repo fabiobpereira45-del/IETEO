@@ -507,12 +507,13 @@ export async function getActiveAssessment(assessmentId?: string): Promise<Assess
     return a
   }
   const assessments = await getAssessments()
-  return assessments.find((a) => {
+  const found = assessments.find((a) => {
     if (!a.isPublished) return false
     if (a.openAt && new Date(a.openAt) > now) return false
     if (a.closeAt && new Date(a.closeAt) < now) return false
     return true
   }) ?? null
+  return found
 }
 export async function addAssessment(data: Omit<Assessment, "id" | "createdAt" | "releaseResults">): Promise<Assessment> {
   const a = { ...data, id: uid(), createdAt: new Date().toISOString(), releaseResults: false }

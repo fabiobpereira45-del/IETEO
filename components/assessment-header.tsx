@@ -48,14 +48,16 @@ export function AssessmentHeader({
                 <span className="hidden sm:inline">Matrícula</span>
               </button>
             )}
-            <button
-              onClick={onAdminClick}
-              className="flex items-center gap-1.5 rounded-md border border-primary-foreground/30 px-3 py-1.5 text-xs font-medium text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground transition-colors"
-              title="Painel do Professor"
-            >
-              <LayoutDashboard className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Painel do Professor</span>
-            </button>
+            {onAdminClick && (
+              <button
+                onClick={onAdminClick}
+                className="flex items-center gap-1.5 rounded-md border border-primary-foreground/30 px-3 py-1.5 text-xs font-medium text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground transition-colors"
+                title="Painel do Professor"
+              >
+                <LayoutDashboard className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Painel do Professor</span>
+              </button>
+            )}
             {onStudentAreaClick && (
               <button
                 onClick={onStudentAreaClick}
