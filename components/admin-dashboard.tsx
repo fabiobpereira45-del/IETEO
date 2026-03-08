@@ -265,18 +265,22 @@ function SubmissionsTab({ assessments, allSubmissions, questions, onRefresh, isM
 
   return (
     <div className="flex flex-col gap-4">
-      {assessments.length > 1 && (
+      {assessments.length > 0 && (
         <div className="flex items-center gap-3">
-          <Label className="text-sm whitespace-nowrap">Prova:</Label>
-          <select
-            value={selectedAssessmentId}
-            onChange={(e) => setSelectedAssessmentId(e.target.value)}
-            className="text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground"
-          >
-            {assessments.map((a) => (
-              <option key={a.id} value={a.id}>{a.title}</option>
-            ))}
-          </select>
+          {assessments.length > 1 && (
+            <>
+              <Label className="text-sm whitespace-nowrap">Prova:</Label>
+              <select
+                value={selectedAssessmentId}
+                onChange={(e) => setSelectedAssessmentId(e.target.value)}
+                className="text-sm border border-border rounded-lg px-3 py-1.5 bg-background text-foreground"
+              >
+                {assessments.map((a) => (
+                  <option key={a.id} value={a.id}>{a.title}</option>
+                ))}
+              </select>
+            </>
+          )}
           <Button
             variant="outline"
             size="sm"
