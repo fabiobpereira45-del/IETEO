@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import {
   Users, FileText, BookOpen, Settings, BarChart3, Download, LogOut,
-  Plus, Pencil, Trash2, Eye, EyeOff, Trophy, CheckCircle2, Link2,
+  Plus, Pencil, Trash2, Eye, EyeOff, Trophy, CheckCircle2, Link2, FileCheck,
   ShieldCheck, Loader2, DollarSign, MessageSquare, CalendarCheck, GraduationCap, XCircle, ArrowLeft, Building2, UserCircle, Briefcase, Send, PlaySquare, CalendarDays, KeyRound, Save
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -23,7 +23,7 @@ import {
   getQuestions, getDisciplines, clearProfessorSession, MASTER_CREDENTIALS,
   getProfessorSession, getStudentGrades, saveStudentGrade, deleteStudentGrade, getStudents, updateProfessorAccount,
 } from "@/lib/store"
-import { printStudentPDF, printBlankAssessmentPDF } from "@/lib/pdf"
+import { printStudentPDF, printBlankAssessmentPDF, printCompiledSubmissionsPDF, printOverviewPDF, printAnswerKeyPDF } from "@/lib/pdf"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { QuestionBank } from "@/components/question-bank"
 import { AssessmentBuilder } from "@/components/assessment-builder"
@@ -93,6 +93,20 @@ function OverviewTab({ assessments, submissions, questions }: { assessments: Ass
 
   return (
     <div className="flex flex-col gap-6">
+      <div className="flex justify-between items-center bg-card border border-border rounded-xl p-4 shadow-sm">
+        <div>
+          <h2 className="text-lg font-bold font-serif text-foreground">Visão Geral</h2>
+          <p className="text-muted-foreground text-sm">Resumo de desempenho e estatísticas</p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => printOverviewPDF({ assessments, submissions, questions })}
+          className="bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary"
+        >
+          <Download className="h-4 w-4 mr-2" /> Baixar Relatório PDF
+        </Button>
+      </div>
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Alunos Avaliados", value: totalStudents, icon: <Users className="h-5 w-5" />, color: "text-primary" },
@@ -263,6 +277,19 @@ function SubmissionsTab({ assessments, allSubmissions, questions, onRefresh, isM
               <option key={a.id} value={a.id}>{a.title}</option>
             ))}
           </select>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (selectedAssessment) {
+                printCompiledSubmissionsPDF({ submissions, assessment: selectedAssessment, questions })
+              }
+            }}
+            className="ml-auto"
+            disabled={submissions.length === 0}
+          >
+            <Download className="h-4 w-4 mr-2" /> Baixar PDF Compilado
+          </Button>
         </div>
       )}
 
@@ -600,6 +627,9 @@ function AssessmentsTab({ assessments, submissions, questions, disciplines, onRe
                   </Button>
                   <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="Imprimir Prova em Branco" onClick={() => handlePrint(a)}>
                     <Download className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" title="Baixar Gabarito em PDF" onClick={() => printAnswerKeyPDF({ assessment: a, questions })}>
+                    <FileCheck className="h-3.5 w-3.5" />
                   </Button>
                   <Button size="sm" variant="ghost" className="h-8 px-2 sm:px-3 text-xs" onClick={() => handleTogglePublish(a)}>
                     {a.isPublished ? <EyeOff className="h-3.5 w-3.5 sm:mr-1" /> : <Eye className="h-3.5 w-3.5 sm:mr-1" />}

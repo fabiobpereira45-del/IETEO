@@ -343,3 +343,328 @@ export function printBlankAssessmentPDF({ assessment, questions }: Omit<PDFData,
   win.onload = () => win.print()
 }
 
+export function printCompiledSubmissionsPDF({ submissions, assessment, questions }: { submissions: StudentSubmission[], assessment: Assessment, questions: Question[] }): void {
+  const allSubmissionsHtml = submissions.map((submission, index) => {
+    const orderedQuestions = assessment.questionIds
+      .map((id) => questions.find((q) => q.id === id))
+      .filter(Boolean) as Question[]
+
+    const rows = orderedQuestions
+      .map((q, i) => {
+        const studentAns = submission.answers.find((a) => a.questionId === q.id)
+        const studentLabel = studentAns ? getAnswerLabel(studentAns.answer, q) : "—"
+        const correctLabel = getCorrectLabel(q)
+        const isDiscursive = q.type === "discursive"
+        const isCorrect = !isDiscursive && studentAns?.answer === q.correctAnswer
+        const statusColor = isDiscursive ? "#6b7280" : isCorrect ? "#16a34a" : "#dc2626"
+        const statusText = isDiscursive ? "Discursiva" : isCorrect ? "Correta" : "Incorreta"
+
+        const choicesHTML =
+          q.type === "multiple-choice"
+            ? `<ul style="margin:4px 0 0 0;padding:0;list-style:none;">
+                ${q.choices
+              .map(
+                (c) =>
+                  `<li style="margin:2px 0;padding:3px 6px;border-radius:4px;font-size:12px;
+                      background:${c.id === q.correctAnswer ? "#dcfce7" : c.id === studentAns?.answer && !isCorrect ? "#fee2e2" : "#f9fafb"};
+                      color:${c.id === q.correctAnswer ? "#166534" : c.id === studentAns?.answer && !isCorrect ? "#991b1b" : "#374151"}">
+                      ${c.text}${c.id === q.correctAnswer ? " ✓" : ""}${c.id === studentAns?.answer && !isCorrect ? " ✗" : ""}
+                      </li>`
+              )
+              .join("")}
+               </ul>`
+            : ""
+
+        const discursiveHTML =
+          q.type === "discursive"
+            ? `<div style="margin-top:6px;padding:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:4px;font-size:12px;color:#374151;min-height:40px;">
+                ${studentLabel}
+               </div>`
+            : ""
+
+        return `
+          <div style="margin-bottom:16px;padding:12px;border:1px solid #e5e7eb;border-radius:8px;break-inside:avoid;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+              <span style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;">
+                Questão ${i + 1} &nbsp;·&nbsp; ${typeLabel(q.type)} &nbsp;·&nbsp; ${assessment.pointsPerQuestion} pt${assessment.pointsPerQuestion !== 1 ? "s" : ""}
+              </span>
+              <span style="font-size:11px;font-weight:700;color:${statusColor};text-transform:uppercase;">${statusText}</span>
+            </div>
+            <p style="margin:0 0 6px 0;font-size:13px;color:#111827;line-height:1.5;">${q.text}</p>
+            ${choicesHTML}
+            ${discursiveHTML}
+            ${q.type === "true-false"
+            ? `<div style="margin-top:6px;display:flex;gap:8px;">
+                    <span style="padding:3px 10px;border-radius:4px;font-size:12px;background:${studentAns?.answer === "true" && !isCorrect ? "#fee2e2" : studentAns?.answer === "true" ? "#dcfce7" : "#f3f4f6"};color:${studentAns?.answer === "true" && !isCorrect ? "#991b1b" : studentAns?.answer === "true" ? "#166534" : "#374151"}">Verdadeiro${q.correctAnswer === "true" ? " ✓" : ""}${studentAns?.answer === "true" && !isCorrect ? " ✗" : ""}</span>
+                    <span style="padding:3px 10px;border-radius:4px;font-size:12px;background:${studentAns?.answer === "false" && !isCorrect ? "#fee2e2" : studentAns?.answer === "false" ? "#dcfce7" : "#f3f4f6"};color:${studentAns?.answer === "false" && !isCorrect ? "#991b1b" : studentAns?.answer === "false" ? "#166534" : "#374151"}">Falso${q.correctAnswer === "false" ? " ✓" : ""}${studentAns?.answer === "false" && !isCorrect ? " ✗" : ""}</span>
+                   </div>`
+            : ""
+          }
+            ${!isDiscursive
+            ? `<div style="margin-top:8px;font-size:12px;color:#166534;font-weight:600;">
+                    Gabarito: ${correctLabel}
+                  </div>`
+            : ""
+          }
+          </div>`
+      })
+      .join("")
+
+    return `
+      <div style="${index > 0 ? 'page-break-before: always; margin-top: 40px;' : ''}">
+        <!-- Header -->
+        <div style="border-bottom:3px solid #1e3a5f;padding-bottom:16px;margin-bottom:20px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:1px;">${assessment.institution}</div>
+              <h1 style="font-size:20px;font-weight:800;color:#1e3a5f;margin:4px 0;">${assessment.title}</h1>
+              <div style="font-size:12px;color:#6b7280;">Professor: ${assessment.professor}</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:11px;color:#6b7280;">Data de entrega</div>
+              <div style="font-size:13px;font-weight:600;">${formatDate(submission.submittedAt)}</div>
+              <div style="font-size:11px;color:#6b7280;margin-top:4px;">Tempo: ${formatTime(submission.timeElapsedSeconds)}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Student info + Score -->
+        <div style="display:flex;gap:16px;margin-bottom:24px;">
+          <div style="flex:1;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+            <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Aluno</div>
+            <div style="font-size:16px;font-weight:700;color:#1e3a5f;">${submission.studentName}</div>
+            <div style="font-size:12px;color:#6b7280;">${submission.studentEmail}</div>
+          </div>
+          <div style="padding:12px 24px;background:#1e3a5f;border-radius:8px;text-align:center;min-width:120px;">
+            <div style="font-size:11px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Nota Final</div>
+            <div style="font-size:32px;font-weight:800;color:#fff;">${submission.score.toFixed(1)}</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.7);">de ${submission.totalPoints.toFixed(1)} pts (${submission.percentage}%)</div>
+          </div>
+        </div>
+
+        <!-- Questions -->
+        <h2 style="font-size:14px;font-weight:700;color:#1e3a5f;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;border-bottom:1px solid #e5e7eb;padding-bottom:8px;">Respostas do Aluno</h2>
+        ${rows}
+      </div>
+    `
+  }).join("")
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Compilado de Provas — ${assessment.title}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; color: #111827; background: #fff; padding: 24px; }
+    @media print { body { padding: 0; } }
+  </style>
+</head>
+<body>
+  ${allSubmissionsHtml}
+  <div style="margin-top:32px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;text-align:center;">
+    Documento gerado pelo Sistema de Avaliações IETEO — ${new Date().toLocaleDateString("pt-BR")}
+  </div>
+</body>
+</html>`
+
+  const win = window.open("", "_blank", "width=900,height=700")
+  if (!win) return
+  win.document.write(html)
+  win.document.close()
+  win.onload = () => win.print()
+}
+
+export function printOverviewPDF({ assessments, submissions, questions }: { assessments: Assessment[], submissions: StudentSubmission[], questions: Question[] }): void {
+  const totalStudents = submissions.length
+  const avgScore = totalStudents > 0
+    ? Math.round(submissions.reduce((acc, s) => acc + s.percentage, 0) / totalStudents)
+    : 0
+  const passing = submissions.filter((s) => s.percentage >= 70).length
+
+  const activeAssessment = assessments[0]
+  const activeSubs = activeAssessment ? submissions.filter(s => s.assessmentId === activeAssessment.id) : []
+  const activeQuestions = activeAssessment
+    ? activeAssessment.questionIds.map((id) => questions.find((q) => q.id === id)).filter(Boolean) as Question[]
+    : []
+
+  const questionStats = activeQuestions.map((q, i) => {
+    const total = activeSubs.length
+    const correct = activeSubs.filter((s) => s.answers.find((a) => a.questionId === q.id)?.answer === q.correctAnswer).length
+    const pct = total > 0 ? Math.round((correct / total) * 100) : 0
+    return {
+      number: i + 1,
+      text: q.text,
+      correct,
+      errors: total - correct,
+      total,
+      pct,
+    }
+  })
+
+  const statsHtml = questionStats.map((stat) => `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;break-inside:avoid;">
+      <span style="font-size:12px;font-weight:700;color:#6b7280;width:25px;text-align:right;">${stat.number}</span>
+      <div style="flex:1;height:12px;background:#f3f4f6;border-radius:6px;overflow:hidden;">
+        <div style="height:100%;width:${stat.pct}%;background:${stat.pct >= 70 ? "#16a34a" : stat.pct >= 50 ? "#d97706" : "#dc2626"};"></div>
+      </div>
+      <span style="font-size:12px;font-weight:700;width:40px;text-align:right;">${stat.pct}%</span>
+      <span style="font-size:12px;color:#4b5563;flex:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${stat.text}</span>
+      <span style="font-size:11px;color:#9ca3af;width:80px;text-align:right;">${stat.correct}/${stat.total} acertos</span>
+    </div>
+  `).join("")
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Relatório de Visão Geral — IETEO</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; color: #111827; background: #fff; padding: 40px; }
+    .card { background:#f9fafb; border:1px solid #e5e7eb; border-radius:12px; padding:20px; }
+    .stat-bar { height:12px; background:#e5e7eb; border-radius:6px; overflow:hidden; }
+  </style>
+</head>
+<body>
+  <div style="text-align:center;margin-bottom:40px;">
+    <div style="font-size:12px;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Instituto de Ensino Teológico - IETEO</div>
+    <h1 style="font-size:28px;font-weight:800;color:#1e3a5f;">Relatório Geral de Desempenho</h1>
+    <div style="font-size:14px;color:#6b7280;margin-top:8px;">Gerado em ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}</div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-bottom:40px;">
+    <div class="card">
+      <div style="font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:8px;">Alunos Avaliados</div>
+      <div style="font-size:24px;font-weight:800;color:#1e3a5f;">${totalStudents}</div>
+    </div>
+    <div class="card">
+      <div style="font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:8px;">Média Geral</div>
+      <div style="font-size:24px;font-weight:800;color:${avgScore >= 70 ? "#16a34a" : "#d97706"};">${avgScore}%</div>
+    </div>
+    <div class="card">
+      <div style="font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:8px;">Aprovados (≥70%)</div>
+      <div style="font-size:24px;font-weight:800;color:#16a34a;">${passing}</div>
+    </div>
+    <div class="card">
+      <div style="font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:700;margin-bottom:8px;">Provas Criadas</div>
+      <div style="font-size:24px;font-weight:800;color:#1e3a5f;">${assessments.length}</div>
+    </div>
+  </div>
+
+  ${activeAssessment ? `
+    <div style="margin-bottom:30px;">
+      <h2 style="font-size:18px;font-weight:700;color:#1e3a5f;margin-bottom:20px;border-bottom:2px solid #1e3a5f;padding-bottom:10px;">
+        Desempenho por Questão — ${activeAssessment.title}
+      </h2>
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;">
+        ${statsHtml}
+      </div>
+    </div>
+  ` : ""}
+
+  <div style="margin-top:60px;padding-top:20px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;text-align:center;">
+    Documento oficial do Sistema de Gestão Acadêmica IETEO
+  </div>
+</body>
+</html>`
+
+  const win = window.open("", "_blank", "width=1000,height=800")
+  if (!win) return
+  win.document.write(html)
+  win.document.close()
+  win.onload = () => win.print()
+}
+
+export function printAnswerKeyPDF({ assessment, questions }: { assessment: Assessment, questions: Question[] }): void {
+  const orderedQuestions = assessment.questionIds
+    .map((id) => questions.find((q) => q.id === id))
+    .filter(Boolean) as Question[]
+
+  const rows = orderedQuestions.map((q, i) => {
+    const correctLabel = getCorrectLabel(q)
+    const isDiscursive = q.type === "discursive"
+
+    let optionsHTML = ""
+    if (q.type === "multiple-choice") {
+      optionsHTML = `<ul style="margin:8px 0 0 0;padding:0;list-style:none;">
+        ${q.choices.map(c => `
+          <li style="margin:4px 0;padding:6px 12px;border-radius:6px;font-size:13px;
+              background:${c.id === q.correctAnswer ? "#dcfce7" : "#f9fafb"};
+              color:${c.id === q.correctAnswer ? "#166534" : "#374151"};
+              border:1px solid ${c.id === q.correctAnswer ? "#166534" : "#e5e7eb"}">
+              ${c.text}${c.id === q.correctAnswer ? " (Correta)" : ""}
+          </li>
+        `).join("")}
+      </ul>`
+    } else if (q.type === "true-false") {
+      optionsHTML = `<div style="margin-top:8px;display:flex;gap:12px;">
+        <span style="padding:4px 12px;border-radius:6px;font-size:13px;background:${q.correctAnswer === "true" ? "#dcfce7" : "#f3f4f6"};color:${q.correctAnswer === "true" ? "#166534" : "#374151"};border:1px solid ${q.correctAnswer === "true" ? "#166534" : "#e5e7eb"}">Verdadeiro ${q.correctAnswer === "true" ? "✓" : ""}</span>
+        <span style="padding:4px 12px;border-radius:6px;font-size:13px;background:${q.correctAnswer === "false" ? "#dcfce7" : "#f3f4f6"};color:${q.correctAnswer === "false" ? "#166534" : "#374151"};border:1px solid ${q.correctAnswer === "false" ? "#166534" : "#e5e7eb"}">Falso ${q.correctAnswer === "false" ? "✓" : ""}</span>
+      </div>`
+    }
+
+    return `
+      <div style="margin-bottom:24px;padding:16px;border:1px solid #e5e7eb;border-radius:12px;break-inside:avoid;background:#fff;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <span style="font-size:12px;font-weight:700;color:#1e3a5f;text-transform:uppercase;letter-spacing:1px;">
+            Questão ${i + 1} &nbsp;·&nbsp; ${typeLabel(q.type)}
+          </span>
+          <span style="font-size:11px;color:#6b7280;font-weight:600;">GABARITO OFICIAL</span>
+        </div>
+        <p style="margin:0 0 12px 0;font-size:14px;color:#111827;line-height:1.6;font-weight:500;">${q.text}</p>
+        ${optionsHTML}
+        ${isDiscursive ? `
+          <div style="margin-top:10px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;color:#1e3a5f;font-weight:600;font-style:italic;">
+            Nota: Questão discursiva. Requer correção manual baseada no conteúdo ensinado.
+          </div>
+        ` : `
+          <div style="margin-top:12px;padding:10px 14px;background:#dcfce7;border-radius:8px;font-size:13px;color:#166534;font-weight:700;display:inline-block;">
+            Resposta Correta: ${correctLabel}
+          </div>
+        `}
+      </div>
+    `
+  }).join("")
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Gabarito — ${assessment.title}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; color: #111827; background: #f3f4f6; padding: 40px; }
+    @media print { 
+      body { padding: 0; background: #fff; } 
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div style="max-width:800px;margin:0 auto;background:#fff;padding:40px;border-radius:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
+    <!-- Header -->
+    <div style="border-bottom:4px solid #1e3a5f;padding-bottom:20px;margin-bottom:30px;text-align:center;">
+      <div style="font-size:12px;font-weight:800;color:#f97316;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;">${assessment.institution || "IETEO"}</div>
+      <h1 style="font-size:26px;font-weight:800;color:#1e3a5f;margin:0;">GABARITO OFICIAL</h1>
+      <div style="font-size:18px;color:#4b5563;margin-top:4px;font-weight:600;">${assessment.title}</div>
+      <div style="font-size:13px;color:#6b7280;margin-top:8px;">Professor: ${assessment.professor} &nbsp;·&nbsp; Gerado em ${new Date().toLocaleDateString("pt-BR")}</div>
+    </div>
+
+    <!-- Content -->
+    ${rows}
+
+    <!-- Footer -->
+    <div style="margin-top:40px;padding-top:20px;border-top:1px solid #e5e7eb;font-size:12px;color:#9ca3af;text-align:center;">
+      Documento gerado pelo Sistema de Avaliações IETEO — Página 1 de 1
+    </div>
+  </div>
+</body>
+</html>`
+
+  const win = window.open("", "_blank", "width=900,height=800")
+  if (!win) return
+  win.document.write(html)
+  win.document.close()
+  win.onload = () => win.print()
+}

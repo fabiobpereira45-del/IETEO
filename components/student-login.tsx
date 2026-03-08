@@ -98,10 +98,21 @@ export function StudentLogin({ onLogin, onResult, onBack, preloadedAssessmentId 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimEmail)) { setError("Informe um e-mail válido."); return }
     setLoading(true)
     if (!assessment) {
-      setError("A avaliação não está disponível no momento. Aguarde o professor publicá-la.")
+      setError("Não foi possível carregar a avaliação.")
       setLoading(false); return
     }
+    const now = new Date()
+    const isTakeable = assessment.isPublished &&
+      (!assessment.openAt || new Date(assessment.openAt) <= now) &&
+      (!assessment.closeAt || new Date(assessment.closeAt) >= now)
+
     const submitted = await hasStudentSubmitted(trimEmail, assessment.id)
+
+    if (!isQuery && !isTakeable) {
+      setError("Esta avaliação está encerrada ou não disponível para novos envios.")
+      setLoading(false); return
+    }
+
     if (isQuery && !submitted) {
       setError("Nenhuma avaliação finalizada foi encontrada para este e-mail.")
       setLoading(false); return
@@ -142,6 +153,11 @@ export function StudentLogin({ onLogin, onResult, onBack, preloadedAssessmentId 
       </div>
     )
   }
+
+  const now = new Date()
+  const isTakeable = assessment ? assessment.isPublished &&
+    (!assessment.openAt || new Date(assessment.openAt) <= now) &&
+    (!assessment.closeAt || new Date(assessment.closeAt) >= now) : false
 
   return (
     <div className="flex flex-col items-center gap-8">
@@ -234,8 +250,8 @@ export function StudentLogin({ onLogin, onResult, onBack, preloadedAssessmentId 
                 </div>
               )}
               <div className="flex flex-col sm:flex-row gap-3 mt-2">
-                <Button type="submit" disabled={loading || !assessment} className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold h-11 text-base flex-1">
-                  Iniciar Avaliação <ArrowRight className="ml-2 h-4 w-4" />
+                <Button type="submit" disabled={loading || !assessment || !isTakeable} className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold h-11 text-base flex-1">
+                  {isTakeable ? "Iniciar Avaliação" : "Avaliação Encerrada"} <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
                 <Button type="button" variant="outline" disabled={loading || !assessment} onClick={() => processLogin(true)} className="h-11 font-medium sm:w-[200px]">
                   Ver Resultado Anterior

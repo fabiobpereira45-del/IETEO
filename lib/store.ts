@@ -496,24 +496,12 @@ export async function getAssessmentById(id: string): Promise<Assessment | null> 
   return data ? mapAssessment(data) : null
 }
 export async function getActiveAssessment(assessmentId?: string): Promise<Assessment | null> {
-  const now = new Date()
   if (assessmentId) {
-    const a = await getAssessmentById(assessmentId)
-    if (!a) return null
-    // Respect isPublished even on direct link access
-    if (!a.isPublished) return null
-    if (a.openAt && new Date(a.openAt) > now) return null
-    if (a.closeAt && new Date(a.closeAt) < now) return null
-    return a
+    return await getAssessmentById(assessmentId)
   }
   const assessments = await getAssessments()
-  const found = assessments.find((a) => {
-    if (!a.isPublished) return false
-    if (a.openAt && new Date(a.openAt) > now) return false
-    if (a.closeAt && new Date(a.closeAt) < now) return false
-    return true
-  }) ?? null
-  return found
+  // Return the first assessment (most recently created) to serve as the default
+  return assessments[0] ?? null
 }
 export async function addAssessment(data: Omit<Assessment, "id" | "createdAt" | "releaseResults">): Promise<Assessment> {
   const a = { ...data, id: uid(), createdAt: new Date().toISOString(), releaseResults: false }
