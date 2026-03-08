@@ -668,3 +668,74 @@ export function printAnswerKeyPDF({ assessment, questions }: { assessment: Asses
   win.document.close()
   win.onload = () => win.print()
 }
+export function printSubmissionsTablePDF({ submissions, assessment }: { submissions: StudentSubmission[], assessment: Assessment }): void {
+  const rows = submissions.map((s, i) => `
+    <tr style="border-bottom: 1px solid #e5e7eb;">
+      <td style="padding: 12px; font-size: 13px; color: #111827; text-align: center;">${i + 1}</td>
+      <td style="padding: 12px; font-size: 13px; color: #111827;">
+        <div style="font-weight: 600;">${s.studentName}</div>
+        <div style="font-size: 11px; color: #6b7280;">${s.studentEmail}</div>
+      </td>
+      <td style="padding: 12px; font-size: 13px; font-weight: 700; color: #1e3a5f; text-align: center;">
+        ${s.score.toFixed(1)} <span style="font-size: 11px; font-weight: 400; color: #6b7280;">/ ${s.totalPoints}</span>
+      </td>
+      <td style="padding: 12px; font-size: 13px; color: #111827; text-align: center;">${formatTime(s.timeElapsedSeconds)}</td>
+      <td style="padding: 12px; font-size: 13px; color: #111827; text-align: center;">${formatDate(s.submittedAt)}</td>
+    </tr>
+  `).join("")
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Resumo de Notas — ${assessment.title}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; color: #111827; background: #fff; padding: 40px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th { text-align: left; background: #f8fafc; padding: 12px; font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e2e8f0; }
+    @media print { body { padding: 0; } .no-print { display: none; } }
+  </style>
+</head>
+<body>
+  <div style="border-bottom: 4px solid #1e3a5f; padding-bottom: 20px; margin-bottom: 30px;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+      <div>
+        <div style="font-size: 12px; font-weight: 800; color: #f97316; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 4px;">${assessment.institution || "IETEO"}</div>
+        <h1 style="font-size: 24px; font-weight: 800; color: #1e3a5f; margin: 0;">Resumo de Notas</h1>
+        <div style="font-size: 16px; color: #4b5563; margin-top: 4px; font-weight: 600;">${assessment.title}</div>
+      </div>
+      <div style="text-align: right;">
+        <div style="font-size: 12px; color: #6b7280;">Total de Envios: <strong>${submissions.length}</strong></div>
+        <div style="font-size: 12px; color: #6b7280;">Data: ${new Date().toLocaleDateString("pt-BR")}</div>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 40px; text-align: center;">#</th>
+        <th>Aluno / E-mail</th>
+        <th style="text-align: center;">Nota</th>
+        <th style="text-align: center;">Tempo</th>
+        <th style="text-align: center;">Enviado em</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows}
+    </tbody>
+  </table>
+
+  <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; text-align: center;">
+    Documento gerado pelo Sistema de Avaliações IETEO — Gerado em ${new Date().toLocaleString("pt-BR")}
+  </div>
+</body>
+</html>`
+
+  const win = window.open("", "_blank", "width=1000,height=800")
+  if (!win) return
+  win.document.write(html)
+  win.document.close()
+  win.onload = () => win.print()
+}

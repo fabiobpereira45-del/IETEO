@@ -23,7 +23,7 @@ import {
   getQuestions, getDisciplines, clearProfessorSession, MASTER_CREDENTIALS,
   getProfessorSession, getStudentGrades, saveStudentGrade, deleteStudentGrade, getStudents, updateProfessorAccount,
 } from "@/lib/store"
-import { printStudentPDF, printBlankAssessmentPDF, printCompiledSubmissionsPDF, printOverviewPDF, printAnswerKeyPDF } from "@/lib/pdf"
+import { printStudentPDF, printBlankAssessmentPDF, printCompiledSubmissionsPDF, printOverviewPDF, printAnswerKeyPDF, printSubmissionsTablePDF } from "@/lib/pdf"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { QuestionBank } from "@/components/question-bank"
 import { AssessmentBuilder } from "@/components/assessment-builder"
@@ -293,6 +293,18 @@ function SubmissionsTab({ assessments, allSubmissions, questions, onRefresh, isM
             disabled={submissions.length === 0}
           >
             <Download className="h-4 w-4 mr-2" /> Baixar PDF Compilado
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (selectedAssessment) {
+                printSubmissionsTablePDF({ submissions, assessment: selectedAssessment })
+              }
+            }}
+            disabled={submissions.length === 0}
+          >
+            <FileText className="h-4 w-4 mr-2" /> Baixar Tabela de Notas
           </Button>
         </div>
       )}
