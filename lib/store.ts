@@ -1,8 +1,9 @@
 import { createClient } from "@/lib/supabase/client"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-export type QuestionType = "multiple-choice" | "true-false" | "discursive"
+export type QuestionType = "multiple-choice" | "true-false" | "discursive" | "incorrect-alternative" | "fill-in-the-blank" | "matching"
 export interface Choice { id: string; text: string }
+export interface MatchingPair { id: string; left: string; right: string }
 export interface Semester { id: string; name: string; order: number; shift?: string; createdAt: string }
 export interface Discipline { id: string; name: string; description?: string; semesterId?: string; professorName?: string; dayOfWeek?: string; shift?: string; createdAt: string }
 export interface StudyMaterial { id: string; disciplineId: string; title: string; description?: string; fileUrl: string; createdAt: string }
@@ -10,8 +11,8 @@ export interface FinancialSettings { id: string; enrollmentFee: number; monthlyF
 export interface PaypalConfig { id: string; clientId: string; secret: string; mode: "sandbox" | "live"; updatedAt: string; }
 export interface AsaasConfig { id: string; apiKey: string; mode: "sandbox" | "production"; updatedAt: string; }
 export interface FinancialCharge { id: string; studentId: string; type: "enrollment" | "monthly" | "second_call" | "final_exam" | "other"; description: string; amount: number; dueDate: string; status: "pending" | "paid" | "cancelled" | "late"; paymentDate?: string; paypalOrderId?: string; asaasPaymentId?: string; pixQrcode?: string; pixCopyPaste?: string; createdAt: string; }
-export interface Question { id: string; disciplineId: string; type: QuestionType; text: string; choices: Choice[]; correctAnswer: string; points: number; createdAt: string }
-export interface Assessment { id: string; title: string; disciplineId: string; professor: string; institution: string; questionIds: string[]; pointsPerQuestion: number; totalPoints: number; openAt: string | null; closeAt: string | null; isPublished: boolean; shuffleVariants?: boolean; logoBase64?: string; rules?: string; releaseResults?: boolean; modality?: "public" | "private"; createdAt: string }
+export interface Question { id: string; disciplineId: string; type: QuestionType; text: string; choices: Choice[]; pairs?: MatchingPair[]; correctAnswer: string; points: number; createdAt: string }
+export interface Assessment { id: string; title: string; disciplineId: string; professor: string; institution: string; questionIds: string[]; pointsPerQuestion: number; totalPoints: number; openAt: string | null; closeAt: string | null; isPublished: boolean; archived: boolean; shuffleVariants?: boolean; logoBase64?: string; rules?: string; releaseResults?: boolean; modality?: "public" | "private"; createdAt: string }
 export interface StudentAnswer { questionId: string; answer: string }
 export interface StudentSubmission { id: string; assessmentId: string; studentName: string; studentEmail: string; answers: StudentAnswer[]; score: number; totalPoints: number; percentage: number; submittedAt: string; timeElapsedSeconds: number }
 export interface ProfessorAccount { id: string; name: string; email: string; passwordHash: string; role: "master" | "professor"; createdAt: string }
@@ -108,6 +109,7 @@ export async function registerStudentAuth(name: string, cpf: string, password: s
     auth_user_id: authData.user.id,
     name,
     cpf: cleanCpf,
+    email,
     enrollment_number: matricula
   })
 
@@ -136,6 +138,7 @@ export async function registerStudentByAdmin(data: any): Promise<void> {
     auth_user_id: authData.user.id,
     name: data.name,
     cpf: cleanCpf,
+    email,
     enrollment_number: matricula,
     phone: data.phone || null,
     address: data.address || null,
@@ -161,15 +164,21 @@ export async function registerStudentByAdmin(data: any): Promise<void> {
 
 export async function loginStudentAuth(identifier: string, password: string) {
   const supabase = createClient()
-  const cleanId = identifier.replace(/\D/g, '')
   let email = ''
 
-  if (cleanId.length === 11) {
-    email = `${cleanId}@student.ieteo.com`
+  // Se for um e-mail, usa diretamente
+  if (identifier.includes('@')) {
+    email = identifier.trim().toLowerCase()
   } else {
-    const { data } = await supabase.from('students').select('cpf').eq('enrollment_number', cleanId).maybeSingle()
-    if (!data) throw new Error("Matrícula não encontrada.")
-    email = `${data.cpf.replace(/\D/g, '')}@student.ieteo.com`
+    const cleanId = identifier.replace(/\D/g, '')
+    if (cleanId.length === 11) {
+      const { data: studentData } = await supabase.from('students').select('email').eq('cpf', cleanId).maybeSingle()
+      email = studentData?.email || `${cleanId}@student.ieteo.com`
+    } else {
+      const { data } = await supabase.from('students').select('email').eq('enrollment_number', cleanId).maybeSingle()
+      if (!data) throw new Error("Identificador não encontrado (CPF, Matrícula ou E-mail).")
+      email = data.email
+    }
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
@@ -207,8 +216,8 @@ export function saveDraftAnswers(answers: StudentAnswer[]): void { writeLocal(KE
 function mapSemester(row: any): Semester { return { id: row.id, name: row.name, order: row.order, shift: row.shift || undefined, createdAt: row.created_at } }
 function mapStudyMaterial(row: any): StudyMaterial { return { id: row.id, disciplineId: row.discipline_id, title: row.title, description: row.description || undefined, fileUrl: row.file_url, createdAt: row.created_at } }
 function mapDiscipline(row: any): Discipline { return { id: row.id, name: row.name, description: row.description || undefined, semesterId: row.semester_id || undefined, professorName: row.professor_name || undefined, dayOfWeek: row.day_of_week || undefined, shift: row.shift || undefined, createdAt: row.created_at } }
-function mapQuestion(row: any): Question { return { id: row.id, disciplineId: row.discipline_id, type: row.type, text: row.text, choices: row.choices, correctAnswer: row.correct_answer, points: row.points, createdAt: row.created_at } }
-function mapAssessment(row: any): Assessment { return { id: row.id, title: row.title, disciplineId: row.discipline_id, professor: row.professor, institution: row.institution, questionIds: row.question_ids, pointsPerQuestion: row.points_per_question, totalPoints: row.total_points, openAt: row.open_at, closeAt: row.close_at, isPublished: row.is_published, shuffleVariants: row.shuffle_variants, logoBase64: row.logo_base64, rules: row.rules, releaseResults: row.release_results, modality: row.modality ?? "public", createdAt: row.created_at } }
+function mapQuestion(row: any): Question { return { id: row.id, disciplineId: row.discipline_id, type: row.type, text: row.text, choices: row.choices, pairs: row.pairs, correctAnswer: row.correct_answer, points: row.points, createdAt: row.created_at } }
+function mapAssessment(row: any): Assessment { return { id: row.id, title: row.title, disciplineId: row.discipline_id, professor: row.professor, institution: row.institution, questionIds: row.question_ids, pointsPerQuestion: row.points_per_question, totalPoints: row.total_points, openAt: row.open_at, closeAt: row.close_at, isPublished: row.is_published, archived: !!row.archived, shuffleVariants: row.shuffle_variants, logoBase64: row.logo_base64, rules: row.rules, releaseResults: row.release_results, modality: row.modality ?? "public", createdAt: row.created_at } }
 function mapSubmission(row: any): StudentSubmission { return { id: row.id, assessmentId: row.assessment_id, studentName: row.student_name, studentEmail: row.student_email, answers: row.answers, score: row.score, totalPoints: row.total_points, percentage: row.percentage, submittedAt: row.submitted_at, timeElapsedSeconds: row.time_elapsed_seconds } }
 function mapProfessor(row: any): ProfessorAccount { return { id: row.id, name: row.name, email: row.email, passwordHash: row.password_hash, role: row.role as any, createdAt: row.created_at } }
 function mapFinancialSettings(row: any): FinancialSettings { return { id: row.id, enrollmentFee: Number(row.enrollment_fee), monthlyFee: Number(row.monthly_fee), secondCallFee: Number(row.second_call_fee), finalExamFee: Number(row.final_exam_fee), totalMonths: Number(row.total_months), updatedAt: row.updated_at } }
@@ -464,7 +473,7 @@ export async function getDisciplineQuestionCounts(): Promise<Record<string, numb
   return counts
 }
 export async function addQuestion(data: Omit<Question, "id" | "createdAt">): Promise<Question> {
-  const q = { id: uid(), discipline_id: data.disciplineId, type: data.type, text: data.text, choices: data.choices, correct_answer: data.correctAnswer, points: data.points, created_at: new Date().toISOString() }
+  const q = { id: uid(), discipline_id: data.disciplineId, type: data.type, text: data.text, choices: data.choices, pairs: data.pairs || null, correct_answer: data.correctAnswer, points: data.points, created_at: new Date().toISOString() }
   const supabase = createClient()
   await supabase.from('questions').insert(q)
   return mapQuestion(q)
@@ -475,6 +484,7 @@ export async function updateQuestion(id: string, data: Partial<Omit<Question, "i
   if (data.type !== undefined) updateData.type = data.type
   if (data.text !== undefined) updateData.text = data.text
   if (data.choices !== undefined) updateData.choices = data.choices
+  if (data.pairs !== undefined) updateData.pairs = data.pairs
   if (data.correctAnswer !== undefined) updateData.correct_answer = data.correctAnswer
   if (data.points !== undefined) updateData.points = data.points
   const supabase = createClient()
@@ -503,9 +513,9 @@ export async function getActiveAssessment(assessmentId?: string): Promise<Assess
   // Return the first assessment (most recently created) to serve as the default
   return assessments[0] ?? null
 }
-export async function addAssessment(data: Omit<Assessment, "id" | "createdAt" | "releaseResults">): Promise<Assessment> {
-  const a = { ...data, id: uid(), createdAt: new Date().toISOString(), releaseResults: false }
-  const dbData = { id: a.id, title: a.title, discipline_id: a.disciplineId, professor: a.professor, institution: a.institution, question_ids: a.questionIds, points_per_question: a.pointsPerQuestion, total_points: a.totalPoints, open_at: a.openAt, close_at: a.closeAt, is_published: a.isPublished, shuffle_variants: a.shuffleVariants, logo_base64: a.logoBase64, rules: a.rules, release_results: a.releaseResults, modality: a.modality ?? "public", created_at: a.createdAt }
+export async function addAssessment(data: Omit<Assessment, "id" | "createdAt" | "releaseResults" | "archived">): Promise<Assessment> {
+  const a = { ...data, id: uid(), createdAt: new Date().toISOString(), releaseResults: false, archived: false }
+  const dbData = { id: a.id, title: a.title, discipline_id: a.disciplineId, professor: a.professor, institution: a.institution, question_ids: a.questionIds, points_per_question: a.pointsPerQuestion, total_points: a.totalPoints, open_at: a.openAt, close_at: a.closeAt, is_published: a.isPublished, archived: a.archived, shuffle_variants: a.shuffleVariants, logo_base64: a.logoBase64, rules: a.rules, release_results: a.releaseResults, modality: a.modality ?? "public", created_at: a.createdAt }
   const supabase = createClient()
   await supabase.from('assessments').insert(dbData)
   return a
@@ -522,6 +532,7 @@ export async function updateAssessment(id: string, data: Partial<Omit<Assessment
   if (data.openAt !== undefined) dbData.open_at = data.openAt
   if (data.closeAt !== undefined) dbData.close_at = data.closeAt
   if (data.isPublished !== undefined) dbData.is_published = data.isPublished
+  if (data.archived !== undefined) dbData.archived = data.archived
   if (data.shuffleVariants !== undefined) dbData.shuffle_variants = data.shuffleVariants
   if (data.logoBase64 !== undefined) dbData.logo_base64 = data.logoBase64
   if (data.rules !== undefined) dbData.rules = data.rules
@@ -693,7 +704,6 @@ export async function updateStudent(id: string, data: {
   church?: string
   pastor_name?: string
   class_id?: string | null
-  payment_status?: string
 }): Promise<void> {
   const supabase = createClient()
   const updateData: any = {}
@@ -704,7 +714,7 @@ export async function updateStudent(id: string, data: {
   if (data.church !== undefined) updateData.church = data.church || null
   if (data.pastor_name !== undefined) updateData.pastor_name = data.pastor_name || null
   if (data.class_id !== undefined) updateData.class_id = data.class_id || null
-  if (data.payment_status !== undefined) updateData.payment_status = data.payment_status
+
   const { error } = await supabase.from('students').update(updateData).eq('id', id)
   if (error) throw new Error(error.message)
 }

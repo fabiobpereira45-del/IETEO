@@ -195,14 +195,14 @@ export function FinancialManager() {
     }
 
     return (
-        <div className="flex flex-col gap-6 w-full max-w-5xl mx-auto">
+        <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto">
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-xl font-bold font-serif text-foreground">Gestão Financeira</h2>
                     <p className="text-muted-foreground text-sm">Controle de mensalidades e recebimentos</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleTriggerReminders} disabled={saving} className="border-accent text-accent-foreground hover:bg-accent/10">
+                    <Button variant="outline" onClick={handleTriggerReminders} disabled={saving} className="border-accent text-accent hover:bg-accent hover:text-accent-foreground transition-all shadow-sm">
                         {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}
                         Disparar Lembretes
                     </Button>

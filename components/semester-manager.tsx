@@ -158,7 +158,7 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
 
     // ─── Render ───────────────────────────────────────────────────────────────
     return (
-        <div className="flex flex-col gap-6 w-full max-w-5xl mx-auto">
+        <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto">
 
             {/* Page header */}
             <div className="flex items-center justify-between flex-wrap gap-3">

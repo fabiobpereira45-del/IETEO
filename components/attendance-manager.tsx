@@ -43,8 +43,8 @@ export function AttendanceManager() {
             const data = await getAttendances(selectedDisciplineId)
 
             const attMap: Record<string, boolean> = {}
-            // We assume students not present in DB are absent, or by default present?
-            // Default let's say true (present) to ease filling, but we read from DB
+            // We assume students not present in DB are absent
+            // Default is false (absent) as requested by the user
 
             data.forEach(a => {
                 if (a.date === selectedDate) {
@@ -63,8 +63,7 @@ export function AttendanceManager() {
         try {
             // For each student currently visible or in state, save their attendance
             const promises = filteredStudents.map(student => {
-                // If not in state, default to true or false? Let's say default is false if not checked
-                const isPresent = attendances[student.id] !== false
+                const isPresent = attendances[student.id] === true
                 return saveAttendance(student.id, selectedDisciplineId, selectedDate, isPresent)
             })
             await Promise.all(promises)
@@ -89,7 +88,7 @@ export function AttendanceManager() {
     )
 
     return (
-        <div className="flex flex-col gap-6 w-full max-w-5xl mx-auto">
+        <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto">
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-lg font-semibold text-foreground">Diário de Classe (Frequência)</h2>
@@ -175,8 +174,8 @@ export function AttendanceManager() {
                                         </tr>
                                     ) : (
                                         filteredStudents.map((student, idx) => {
-                                            // Defaulting to present if it wasn't explicitly saved as absent in the DB
-                                            const isPresent = attendances[student.id] !== false
+                                            // Defaulting to absent if it wasn't explicitly saved as present in the DB
+                                            const isPresent = attendances[student.id] === true
 
                                             return (
                                                 <tr key={student.id} className="hover:bg-muted/30 transition-colors">

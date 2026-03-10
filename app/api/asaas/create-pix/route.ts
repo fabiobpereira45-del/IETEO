@@ -3,32 +3,36 @@ import { createClient } from "@supabase/supabase-js"
 
 export async function POST(req: Request) {
     try {
-        const { chargeId } = await req.json()
+        const { chargeId, chargeIds } = await req.json()
+        const ids = chargeIds || (chargeId ? [chargeId] : [])
+
+        if (ids.length === 0) {
+            return NextResponse.json({ error: "Nenhuma fatura selecionada." }, { status: 400 })
+        }
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
         const supabase = createClient(supabaseUrl, supabaseKey)
 
-        // 1. Fetch the charge
-        const { data: charge, error: chargeErr } = await supabase
+        // 1. Fetch the charges
+        const { data: charges, error: chargeErr } = await supabase
             .from('financial_charges')
             .select('*')
-            .eq('id', chargeId)
-            .single()
+            .in('id', ids)
 
-        if (chargeErr || !charge) {
-            return NextResponse.json({ error: "Fatura não encontrada." }, { status: 404 })
+        if (chargeErr || !charges || charges.length === 0) {
+            return NextResponse.json({ error: "Fatura(s) não encontrada(s)." }, { status: 404 })
         }
-        if (charge.status === "paid") {
-            return NextResponse.json({ error: "Fatura já está paga." }, { status: 400 })
+        if (charges.some((c: any) => c.status === "paid")) {
+            return NextResponse.json({ error: "Uma ou mais faturas já estão pagas." }, { status: 400 })
         }
 
-        // 2. If there's already a Pix generated for this charge, return it
-        if (charge.asaas_payment_id && charge.pix_qrcode) {
+        // 2. If single charge and there's already a Pix generated, return it
+        if (ids.length === 1 && charges[0].asaas_payment_id && charges[0].pix_qrcode) {
             return NextResponse.json({
-                asaasPaymentId: charge.asaas_payment_id,
-                pixQrcode: charge.pix_qrcode,
-                pixCopyPaste: charge.pix_copy_paste
+                asaasPaymentId: charges[0].asaas_payment_id,
+                pixQrcode: charges[0].pix_qrcode,
+                pixCopyPaste: charges[0].pix_copy_paste
             })
         }
 
@@ -47,7 +51,7 @@ export async function POST(req: Request) {
         const { data: student } = await supabase
             .from('students')
             .select('*')
-            .eq('id', charge.student_id)
+            .eq('id', charges[0].student_id)
             .single()
 
         const baseUrl = config.mode === "production"
@@ -81,17 +85,28 @@ export async function POST(req: Request) {
         }
 
         // 6. Create a Pix charge
-        const dueDate = charge.due_date || new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+        const monthlyCount = charges.filter((c: any) => c.type === 'monthly').length
+        const totalAmount = charges.reduce((acc: number, curr: any) => acc + Number(curr.amount), 0)
+        let finalAmount = totalAmount
+
+        // Apply 5% discount if 2 or more monthly fees
+        if (monthlyCount >= 2) {
+            finalAmount = totalAmount * 0.95
+        }
+
+        const dueDate = charges[0].due_date || new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+        const desc = ids.length > 1 ? `Pagamento em Lote (${ids.length} faturas)` : charges[0].description
+
         const createPaymentRes = await fetch(`${baseUrl}/payments`, {
             method: "POST",
             headers: { "access_token": config.api_key, "Content-Type": "application/json" },
             body: JSON.stringify({
                 customer: asaasCustomerId,
                 billingType: "PIX",
-                value: charge.amount,
+                value: Number(finalAmount.toFixed(2)),
                 dueDate,
-                description: charge.description,
-                externalReference: chargeId
+                description: desc,
+                externalReference: ids.length === 1 ? ids[0] : null
             })
         })
         const paymentBody = await createPaymentRes.json()
@@ -109,12 +124,12 @@ export async function POST(req: Request) {
         const pixQrcode = qrBody.encodedImage || ""
         const pixCopyPaste = qrBody.payload || ""
 
-        // 8. Save everything to the charge
+        // 8. Save everything to the charges
         await supabase.from('financial_charges').update({
             asaas_payment_id: asaasPaymentId,
             pix_qrcode: pixQrcode,
             pix_copy_paste: pixCopyPaste
-        }).eq('id', chargeId)
+        }).in('id', ids)
 
         return NextResponse.json({ asaasPaymentId, pixQrcode, pixCopyPaste })
     } catch (error: any) {

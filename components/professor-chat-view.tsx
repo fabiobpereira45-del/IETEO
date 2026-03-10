@@ -36,7 +36,7 @@ export function ProfessorChatView() {
 
     if (selectedStudent && selectedDiscipline) {
         return (
-            <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto w-full">
+            <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-[1400px] mx-auto w-full">
                 <button
                     onClick={() => setSelectedStudent(null)}
                     className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground w-fit transition-colors"
@@ -65,7 +65,7 @@ export function ProfessorChatView() {
     }
 
     return (
-        <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full">
+        <div className="flex flex-col gap-6 max-w-[1400px] mx-auto w-full">
             <div className="flex flex-col md:flex-row gap-4 items-end bg-card border border-border rounded-xl p-4 shadow-sm">
                 <div className="flex flex-col gap-1.5 w-full md:w-1/2">
                     <Label>Selecione a Disciplina</Label>

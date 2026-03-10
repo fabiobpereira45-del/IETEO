@@ -3,7 +3,12 @@ import { createClient } from "@supabase/supabase-js"
 
 export async function POST(req: Request) {
     try {
-        const { orderID, chargeId } = await req.json()
+        const { orderID, chargeId, chargeIds } = await req.json()
+        const ids = chargeIds || (chargeId ? [chargeId] : [])
+
+        if (ids.length === 0) {
+            return NextResponse.json({ error: "Nenhuma fatura informada para captura." }, { status: 400 })
+        }
 
         // We use admin client to fetch settings and bypass RLS
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -70,7 +75,7 @@ export async function POST(req: Request) {
                     status: 'paid',
                     payment_date: new Date().toISOString()
                 })
-                .eq('id', chargeId)
+                .in('id', ids)
 
             if (updateErr) {
                 console.error("Erro ao atualizar status da fatura no Supabase:", updateErr)

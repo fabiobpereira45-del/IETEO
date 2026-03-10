@@ -19,7 +19,7 @@ import {
 } from "@/lib/store"
 import { BookOpen, GraduationCap, ClipboardList, User } from "lucide-react"
 
-type View = "landing" | "student-login" | "student-assessment" | "student-result" | "professor-login" | "admin" | "student-dashboard"
+type View = "landing" | "public-exam-login" | "student-portal-login" | "student-assessment" | "student-result" | "professor-login" | "admin" | "student-dashboard"
 
 export default function HomePage() {
   const [view, setView] = useState<View>("landing")
@@ -121,20 +121,48 @@ export default function HomePage() {
         onEnrollClick={() => setShowEnroll(true)}
       />
 
-      <main className="mx-auto max-w-3xl px-4 py-8">
+      <main className="mx-auto max-w-[1400px] px-4 py-8">
         {/* Landing Page */}
         {view === "landing" && (
           <div className="space-y-8">
             {/* Hero */}
-            <div className="bg-gradient-to-br from-primary to-primary/80 rounded-3xl p-8 text-primary-foreground text-center shadow-xl">
-              <div className="flex justify-center mb-4">
-                <div className="h-16 w-16 rounded-2xl bg-accent flex items-center justify-center shadow-lg">
-                  <BookOpen className="h-8 w-8 text-accent-foreground" />
+            <div className="bg-gradient-to-br from-[#450a0a] to-[#991b1b] rounded-3xl p-8 md:p-12 text-white shadow-2xl border border-white/10 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-10">
+              <div className="absolute top-0 left-0 w-96 h-96 bg-white/5 rounded-full -ml-48 -mt-48 blur-3xl" />
+
+              <div className="text-left relative z-10 flex-1 space-y-4">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/10 text-[10px] uppercase tracking-widest font-bold text-accent mb-2">
+                  Curso de Teologia Bíblica
+                </div>
+                <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
+                  Instituto de Ensino <br /> Teológico <span className="text-accent">IETEO</span>
+                </h1>
+                <div className="h-1.5 w-20 bg-accent rounded-full opacity-60" />
+                <p className="text-white/80 text-lg font-serif italic max-w-lg">
+                  "Veritas • Sapientia • Fides"
+                </p>
+                <div className="pt-4 flex gap-4">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] uppercase text-white/40 font-bold tracking-tighter">Campus</span>
+                    <span className="text-sm font-bold">Salvador / BA</span>
+                  </div>
+                  <div className="w-px h-8 bg-white/10" />
+                  <div className="flex flex-col">
+                    <span className="text-[10px] uppercase text-white/40 font-bold tracking-tighter">Fundação</span>
+                    <span className="text-sm font-bold">2026</span>
+                  </div>
                 </div>
               </div>
-              <h1 className="text-3xl font-extrabold mb-2">Instituto de Ensino Teológico</h1>
-              <p className="text-primary-foreground/80 text-lg font-medium mb-1">IETEO</p>
-              <p className="text-primary-foreground/60 text-sm">Formando líderes para o Reino de Deus</p>
+
+              <div className="relative z-10 flex-shrink-0 group">
+                <div className="absolute inset-0 bg-accent/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                <div className="relative z-10 w-64 h-64 md:w-80 md:h-80 rounded-full border-4 border-[#b45309]/30 p-1 bg-white shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-transform duration-500 hover:scale-105 overflow-hidden">
+                  <img
+                    src="/ieteo-logo.jpg"
+                    alt="IETEO Logo"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Action Cards */}
@@ -163,19 +191,33 @@ export default function HomePage() {
 
               {/* Área do Aluno */}
               <button
-                onClick={() => setView("student-login")}
-                className="group relative overflow-hidden bg-card border-2 border-border rounded-2xl p-6 text-left shadow-lg hover:shadow-xl hover:border-accent/40 hover:scale-[1.02] transition-all sm:col-span-2"
+                onClick={() => setView("student-portal-login")}
+                className="group relative overflow-hidden bg-card border-2 border-border rounded-2xl p-6 text-left shadow-lg hover:shadow-xl hover:border-accent/40 hover:scale-[1.02] transition-all"
               >
                 <div className="absolute inset-0 bg-accent/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                 <User className="h-8 w-8 text-accent mb-3" />
                 <h2 className="text-xl font-extrabold mb-1 text-foreground">Área do Aluno</h2>
-                <p className="text-sm text-muted-foreground">Acesse avaliações, financeiro, materiais e muito mais</p>
+                <p className="text-sm text-muted-foreground">Acesso restrito para alunos matriculados.</p>
+              </button>
+
+              {/* Prova Pública */}
+              <button
+                onClick={() => setView("public-exam-login")}
+                className="group relative overflow-hidden bg-card border-2 border-border rounded-2xl p-6 text-left shadow-lg hover:shadow-xl hover:border-accent/40 hover:scale-[1.02] transition-all"
+              >
+                <div className="absolute inset-0 bg-accent/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <GraduationCap className="h-8 w-8 text-accent mb-3" />
+                <h2 className="text-xl font-extrabold mb-1 text-foreground">Prova Pública</h2>
+                <p className="text-sm text-muted-foreground">Acesso aberto para avaliações públicas sem matrícula.</p>
               </button>
             </div>
           </div>
         )}
 
-        {view === "student-login" && <StudentLogin onLogin={handleStudentLogin} onResult={handleResult} onBack={() => setView("landing")} />}
+        {view === "public-exam-login" && <StudentLogin onLogin={handleStudentLogin} onResult={handleResult} onBack={() => setView("landing")} />}
+        {view === "student-portal-login" && (
+          <StudentDashboard session={null} onBack={() => setView("landing")} onLogout={handleLogout} />
+        )}
         {view === "student-assessment" && session && (
           <AssessmentForm session={session} onSubmit={handleSubmit} />
         )}
@@ -203,7 +245,7 @@ export default function HomePage() {
       {showEnroll && (
         <EnrollmentForm
           onClose={() => setShowEnroll(false)}
-          onSuccess={() => setView("student-login")}
+          onSuccess={() => setView("student-portal-login")}
         />
       )}
       {showGrade && (

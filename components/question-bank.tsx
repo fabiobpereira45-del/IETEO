@@ -501,22 +501,22 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
   const qToDelete = questions.find((q) => q.id === deleteQId)
 
   return (
-    <div className="flex h-full min-h-[600px] gap-0 rounded-xl border border-border overflow-hidden bg-card">
+    <div className="flex h-full min-h-[600px] gap-0 rounded-2xl border border-border/50 overflow-hidden bg-background premium-shadow">
       {/* Left: Disciplines */}
-      <div className="w-64 flex-shrink-0 flex flex-col border-r border-border bg-muted/30">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <span className="text-sm font-semibold text-foreground">Disciplinas</span>
+      <div className="w-64 flex-shrink-0 flex flex-col border-r border-border/50 bg-muted/20">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
+          <span className="text-sm font-bold text-foreground">Disciplinas</span>
           <Button
             size="sm"
             variant="ghost"
-            className="h-7 w-7 p-0"
+            className="h-8 w-8 p-0"
             onClick={() => { setEditingDisc(null); setDiscModal(true) }}
             aria-label="Nova disciplina"
           >
             <Plus className="h-4 w-4" />
           </Button>
         </div>
-        <div className="flex-1 overflow-y-auto py-1">
+        <div className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
           {disciplines.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
               Nenhuma disciplina cadastrada
@@ -528,31 +528,33 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
               return (
                 <div
                   key={d.id}
-                  className={`group flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-colors ${active ? "bg-primary/10 text-primary" : "hover:bg-muted text-foreground"
+                  className={`group flex items-center gap-3 px-3 py-3 cursor-pointer rounded-xl transition-all ${active ? "accent-gradient text-white shadow-md" : "hover:bg-muted/50 text-foreground"
                     }`}
                   onClick={() => handleSelectDisc(d)}
                 >
-                  <BookOpen className={`h-4 w-4 flex-shrink-0 ${active ? "text-primary" : "text-muted-foreground"}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{d.name}</p>
-                    <p className="text-xs text-muted-foreground">{count === undefined ? "Carregando" : count} questão{count !== 1 ? "ões" : ""}</p>
+                  <div className={`p-1.5 rounded-lg ${active ? "bg-white/20" : "bg-muted"}`}>
+                    <BookOpen className={`h-4 w-4 flex-shrink-0 ${active ? "text-white" : "text-muted-foreground"}`} />
                   </div>
-                  {active && <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-primary" />}
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-bold truncate ${active ? "text-white" : "text-foreground"}`}>{d.name}</p>
+                    <p className={`text-[10px] uppercase font-bold tracking-wider ${active ? "text-white/70" : "text-muted-foreground"}`}>{count === undefined ? "Carregando" : count} questão{count !== 1 ? "ões" : ""}</p>
+                  </div>
+                  {active && <ChevronRight className="h-4 w-4 flex-shrink-0 text-white" />}
                   <div className={`flex-shrink-0 flex gap-0.5 ${active ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}>
                     <button
                       onClick={(e) => { e.stopPropagation(); setEditingDisc(d); setDiscModal(true) }}
-                      className="p-1 rounded hover:bg-primary/20 text-muted-foreground hover:text-primary transition-colors"
+                      className={`p-1 rounded-lg transition-colors ${active ? "hover:bg-white/20 text-white" : "hover:bg-primary/10 text-muted-foreground hover:text-primary"}`}
                       aria-label="Editar disciplina"
                     >
-                      <Pencil className="h-3 w-3" />
+                      <Pencil className="h-3.5 w-3.5" />
                     </button>
                     {isMaster && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setDeleteDiscId(d.id) }}
-                        className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                        className={`p-1 rounded-lg transition-colors ${active ? "hover:bg-white/20 text-white" : "hover:bg-destructive/10 text-muted-foreground hover:text-destructive"}`}
                         aria-label="Excluir disciplina"
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     )}
                   </div>

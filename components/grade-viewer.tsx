@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { X, BookOpen, Users, Clock, ChevronDown, ChevronUp, Calendar } from "lucide-react"
-import { getClasses, getSemesters, getDisciplines, type ClassRoom, type Semester, type Discipline } from "@/lib/store"
+import { X, BookOpen, Users, Clock, ChevronDown, ChevronUp, Calendar, DollarSign, Wallet } from "lucide-react"
+import { getClasses, getSemesters, getDisciplines, getFinancialSettings, getClassSchedules, type ClassRoom, type Semester, type Discipline, type FinancialSettings, type ClassSchedule } from "@/lib/store"
 
 const SHIFT_LABEL: Record<string, string> = {
     morning: "Manhã",
@@ -28,15 +28,21 @@ export function GradeViewer({ onClose }: GradeViewerProps) {
     const [classes, setClasses] = useState<ClassRoom[]>([])
     const [semesters, setSemesters] = useState<Semester[]>([])
     const [disciplines, setDisciplines] = useState<Discipline[]>([])
+    const [financial, setFinancial] = useState<FinancialSettings | null>(null)
+    const [schedules, setSchedules] = useState<ClassSchedule[]>([])
     const [loading, setLoading] = useState(true)
     const [openSem, setOpenSem] = useState<string | null>(null)
 
     useEffect(() => {
         async function load() {
-            const [cls, sems, discs] = await Promise.all([getClasses(), getSemesters(), getDisciplines()])
+            const [cls, sems, discs, fin, scheds] = await Promise.all([
+                getClasses(), getSemesters(), getDisciplines(), getFinancialSettings(), getClassSchedules()
+            ])
             setClasses(cls)
             setSemesters(sems)
             setDisciplines(discs)
+            setFinancial(fin)
+            setSchedules(scheds)
             if (sems.length > 0) setOpenSem(sems[0].id)
             setLoading(false)
         }
@@ -67,37 +73,97 @@ export function GradeViewer({ onClose }: GradeViewerProps) {
                         </div>
                     ) : (
                         <>
-                            {/* Turmas */}
+                            {/* Turmas e Quadro de Horários */}
                             <section>
                                 <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
-                                    <Users className="h-4 w-4" /> Turmas Disponíveis
+                                    <Users className="h-4 w-4" /> Turmas Disponíveis e Horários
                                 </h3>
                                 {classes.length === 0 ? (
                                     <p className="text-sm text-muted-foreground italic">Nenhuma turma cadastrada.</p>
                                 ) : (
                                     <div className="grid gap-3">
-                                        {classes.map(c => (
-                                            <div key={c.id} className="flex items-center justify-between bg-muted/50 rounded-xl px-4 py-3 border border-border">
-                                                <div>
-                                                    <p className="font-semibold text-foreground">{c.name}</p>
-                                                    <div className="flex flex-wrap items-center gap-3 mt-0.5">
-                                                        {c.dayOfWeek && (
-                                                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                                <Calendar className="h-3 w-3" />{DAY_LABEL[c.dayOfWeek] || c.dayOfWeek}
-                                                            </span>
-                                                        )}
-                                                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                            <Clock className="h-3 w-3" />{SHIFT_LABEL[c.shift] || c.shift}
-                                                        </span>
+                                        {classes.map(c => {
+                                            const classSchedules = schedules.filter(s => s.classId === c.id)
+                                            return (
+                                                <div key={c.id} className="flex flex-col bg-muted/50 rounded-xl px-4 py-3 border border-border">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <div>
+                                                            <p className="font-semibold text-foreground text-base">{c.name}</p>
+                                                            <div className="flex flex-wrap items-center gap-3 mt-0.5">
+                                                                {c.dayOfWeek && (
+                                                                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                                                        <Calendar className="h-3 w-3" />{DAY_LABEL[c.dayOfWeek] || c.dayOfWeek}
+                                                                    </span>
+                                                                )}
+                                                                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                                                    <Clock className="h-3 w-3" />{SHIFT_LABEL[c.shift] || c.shift}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-sm font-bold text-accent">{c.maxStudents}</p>
+                                                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">vagas</p>
+                                                        </div>
                                                     </div>
+
+                                                    {classSchedules.length > 0 && (
+                                                        <div className="mt-2 pt-2 border-t border-border/50">
+                                                            <p className="text-xs font-semibold text-muted-foreground mb-2">Quadro de Horários:</p>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                                {classSchedules.map(sched => {
+                                                                    const d = disciplines.find(dsc => dsc.id === sched.disciplineId)
+                                                                    return (
+                                                                        <div key={sched.id} className="flex flex-col bg-background border border-border rounded-lg p-2 text-xs">
+                                                                            <span className="font-semibold text-foreground truncate">{d?.name || 'Disciplina Mapeada'}</span>
+                                                                            <div className="flex justify-between items-center mt-1 text-muted-foreground">
+                                                                                <span>Prof. {sched.professorName}</span>
+                                                                                <span>{sched.timeStart} - {sched.timeEnd} ({DAY_LABEL[sched.dayOfWeek] || sched.dayOfWeek})</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    )
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                <div className="text-right">
-                                                    <p className="text-sm font-bold text-accent">{c.maxStudents}</p>
-                                                    <p className="text-xs text-muted-foreground">vagas</p>
-                                                </div>
-                                            </div>
-                                        ))}
+                                            )
+                                        })}
                                     </div>
+                                )}
+                            </section>
+
+                            {/* Informações Financeiras */}
+                            <section>
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+                                    <DollarSign className="h-4 w-4" /> Valores do Curso
+                                </h3>
+                                {financial ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div className="flex items-center gap-4 bg-muted/50 rounded-xl p-4 border border-border">
+                                            <div className="h-10 w-10 bg-primary/10 text-primary rounded-full flex items-center justify-center shrink-0">
+                                                <Wallet className="h-5 w-5" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Taxa de Matrícula</p>
+                                                <p className="text-xl font-bold text-foreground">
+                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(financial.enrollmentFee)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-4 bg-muted/50 rounded-xl p-4 border border-border">
+                                            <div className="h-10 w-10 bg-accent/10 text-accent rounded-full flex items-center justify-center shrink-0">
+                                                <DollarSign className="h-5 w-5" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Mensalidade ({financial.totalMonths}x)</p>
+                                                <p className="text-xl font-bold text-foreground">
+                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(financial.monthlyFee)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground italic">Valores não configurados.</p>
                                 )}
                             </section>
 

@@ -50,6 +50,7 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
     const [pixVerifying, setPixVerifying] = useState(false)
     const [pixVerifyMsg, setPixVerifyMsg] = useState<"" | "paid" | "pending" | "error">("")
     const [enrolledChargeId, setEnrolledChargeId] = useState<string | null>(null)
+    const [enrollmentDetails, setEnrollmentDetails] = useState<{ enrollmentNumber: string, name: string } | null>(null)
     // Success
     const [success, setSuccess] = useState(false)
     const [enrollError, setEnrollError] = useState("")
@@ -80,7 +81,8 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
             })
             const body = await res.json()
             if (!res.ok) throw new Error(body.error || "Erro ao criar matrícula")
-            return body.chargeId as string
+            setEnrollmentDetails({ enrollmentNumber: body.enrollmentNumber, name: form.name })
+            return body
         } catch (e: any) {
             throw e
         }
@@ -90,12 +92,12 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
         setPixLoading(true)
         setPixError("")
         try {
-            const chargeId = await handleCreateEnrollment()
-            setEnrolledChargeId(chargeId)
+            const data = await handleCreateEnrollment()
+            setEnrolledChargeId(data.chargeId)
             const res = await fetch("/api/asaas/create-pix", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ chargeId })
+                body: JSON.stringify({ chargeId: data.chargeId })
             })
             const body = await res.json()
             if (!res.ok) throw new Error(body.error || "Erro ao gerar Pix")
@@ -130,7 +132,12 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
 
     async function handlePayPalApprove(orderId: string) {
         try {
-            const chargeId = enrolledChargeId || await handleCreateEnrollment()
+            let chargeId = enrolledChargeId
+            if (!chargeId) {
+                const data = await handleCreateEnrollment()
+                chargeId = data.chargeId
+                setEnrolledChargeId(chargeId)
+            }
             const res = await fetch("/api/paypal/capture-order", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -141,12 +148,12 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
     }
 
     async function createPayPalOrder() {
-        const chargeId = await handleCreateEnrollment()
-        setEnrolledChargeId(chargeId)
+        const data = await handleCreateEnrollment()
+        setEnrolledChargeId(data.chargeId)
         const res = await fetch("/api/paypal/create-order", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ chargeId })
+            body: JSON.stringify({ chargeId: data.chargeId })
         })
         const body = await res.json()
         return body.orderId
@@ -155,16 +162,50 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
     if (success) {
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md p-8 text-center">
-                    <div className="flex justify-center mb-4">
-                        <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
-                            <CheckCircle2 className="h-8 w-8 text-green-600" />
+                <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md p-8 text-center flex flex-col items-center">
+                    <div className="flex justify-center mb-6">
+                        <div className="h-20 w-20 rounded-full bg-green-50 flex items-center justify-center border border-green-100 shadow-sm">
+                            <CheckCircle2 className="h-10 w-10 text-green-600" />
                         </div>
                     </div>
-                    <h2 className="text-2xl font-bold text-foreground mb-2">Matrícula Confirmada!</h2>
-                    <p className="text-muted-foreground mb-6">Sua matrícula foi realizada com sucesso. Você já pode acessar seu portal do aluno.</p>
-                    <button onClick={() => { onSuccess?.(); onClose() }} className="w-full bg-accent text-accent-foreground font-bold py-3 rounded-xl hover:bg-accent/90 transition-colors">
-                        Acessar Minha Área
+                    <h2 className="text-3xl font-serif font-bold text-foreground mb-2">Matrícula Confirmada!</h2>
+                    <p className="text-muted-foreground mb-8">Sua matrícula foi concluída e o pagamento recebido com sucesso.</p>
+
+                    <div className="w-full bg-muted/40 border border-border rounded-2xl p-6 text-left mb-8 shadow-sm">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Comprovante de Matrícula</p>
+
+                        <div className="space-y-4">
+                            <div>
+                                <p className="text-xs text-muted-foreground mb-1">Aluno(a)</p>
+                                <p className="font-semibold text-foreground text-lg">{enrollmentDetails?.name}</p>
+                            </div>
+
+                            <div>
+                                <p className="text-xs text-muted-foreground mb-1">Número de Matrícula</p>
+                                <div className="flex items-center justify-between bg-background border border-border rounded-lg p-3">
+                                    <span className="font-mono text-xl font-bold tracking-widest text-primary">{enrollmentDetails?.enrollmentNumber}</span>
+                                    <button
+                                        onClick={() => {
+                                            if (enrollmentDetails?.enrollmentNumber) {
+                                                navigator.clipboard.writeText(enrollmentDetails.enrollmentNumber);
+                                            }
+                                        }}
+                                        className="text-xs flex items-center gap-1.5 bg-accent/10 hover:bg-accent/20 text-accent font-semibold px-2 py-1.5 rounded-md transition-colors"
+                                    >
+                                        <Copy className="h-3.5 w-3.5" /> Copiar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-5 pt-5 border-t border-border flex items-start gap-3 bg-blue-50/50 p-3 rounded-xl border-blue-100">
+                            <AlertCircle className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                            <p className="text-xs text-blue-800 font-medium leading-relaxed">Guarde o seu <strong>Número de Matrícula</strong> com segurança. Ele será necessário para o seu primeiro acesso à Área do Aluno.</p>
+                        </div>
+                    </div>
+
+                    <button onClick={() => { onSuccess?.(); onClose() }} className="w-full bg-accent text-accent-foreground font-bold py-3.5 rounded-xl hover:bg-accent/90 transition-colors shadow-md">
+                        Acessar Área do Aluno
                     </button>
                 </div>
             </div>

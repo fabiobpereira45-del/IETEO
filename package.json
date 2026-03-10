@@ -11,6 +11,7 @@
   "dependencies": {
     "@ai-sdk/google": "^3.0.37",
     "@ai-sdk/openai": "^3.0.39",
+    "@ai-sdk/react": "^3.0.118",
     "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^3.9.1",
     "@paypal/react-paypal-js": "^9.0.1",

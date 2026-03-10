@@ -3,26 +3,42 @@ import { createClient } from "@supabase/supabase-js"
 
 export async function POST(req: Request) {
     try {
-        const { chargeId } = await req.json()
+        const { chargeId, chargeIds } = await req.json()
+        const ids = chargeIds || (chargeId ? [chargeId] : [])
+
+        if (ids.length === 0) {
+            return NextResponse.json({ error: "Nenhuma fatura selecionada." }, { status: 400 })
+        }
 
         // We use admin client to fetch settings and bypass RLS
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
         const supabase = createClient(supabaseUrl, supabaseKey)
 
-        // 1. Fetch the charge
-        const { data: charge, error: chargeErr } = await supabase
+        // 1. Fetch the charges
+        const { data: charges, error: chargeErr } = await supabase
             .from('financial_charges')
             .select('*')
-            .eq('id', chargeId)
-            .single()
+            .in('id', ids)
 
-        if (chargeErr || !charge) {
-            return NextResponse.json({ error: "Fatura não encontrada." }, { status: 404 })
+        if (chargeErr || !charges || charges.length === 0) {
+            return NextResponse.json({ error: "Fatura(s) não encontrada(s)." }, { status: 404 })
         }
-        if (charge.status === "paid") {
-            return NextResponse.json({ error: "Fatura já está paga." }, { status: 400 })
+        if (charges.some((c: any) => c.status === "paid")) {
+            return NextResponse.json({ error: "Uma ou mais faturas já estão pagas." }, { status: 400 })
         }
+
+        const monthlyCount = charges.filter((c: any) => c.type === 'monthly').length
+        const totalAmount = charges.reduce((acc: number, curr: any) => acc + Number(curr.amount), 0)
+        let finalAmount = totalAmount
+
+        // Apply 5% discount if 2 or more monthly fees
+        if (monthlyCount >= 2) {
+            finalAmount = totalAmount * 0.95
+        }
+
+        const desc = ids.length > 1 ? `Pagamento em Lote (${ids.length} faturas)` : charges[0].description
+
 
         // 2. Fetch PayPal API Keys
         const { data: settings, error: settingsErr } = await supabase
@@ -71,12 +87,12 @@ export async function POST(req: Request) {
                 intent: "CAPTURE",
                 purchase_units: [
                     {
-                        reference_id: chargeId,
+                        reference_id: ids[0], // PayPal needs short reference, any ID from the list helps for tracking
                         amount: {
                             currency_code: "BRL",
-                            value: charge.amount.toString()
+                            value: finalAmount.toFixed(2)
                         },
-                        description: charge.description
+                        description: desc.substring(0, 127) // max 127 chars
                     }
                 ]
             })
@@ -90,11 +106,11 @@ export async function POST(req: Request) {
 
         const orderData = await orderRes.json()
 
-        // Save paypal order id
+        // Save paypal order id to ALL items
         await supabase
             .from('financial_charges')
             .update({ paypal_order_id: orderData.id })
-            .eq('id', chargeId)
+            .in('id', ids)
 
         return NextResponse.json({ orderId: orderData.id })
     } catch (error: any) {

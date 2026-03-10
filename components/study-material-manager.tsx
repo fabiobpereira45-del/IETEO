@@ -122,7 +122,7 @@ export function StudyMaterialManager() {
         : materials.filter(m => m.disciplineId === selectedDiscId)
 
     return (
-        <div className="flex flex-col gap-6 w-full max-w-5xl mx-auto">
+        <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto">
             <div className="flex items-center justify-between flex-wrap gap-4">
                 <div>
                     <h2 className="text-lg font-semibold text-foreground">Biblioteca de Materiais</h2>

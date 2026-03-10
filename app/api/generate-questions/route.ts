@@ -1,74 +1,52 @@
-import { generateObject } from "ai"
-import { createGoogleGenerativeAI } from "@ai-sdk/google"
-import { z } from "zod"
+// ─── Groq via OpenAI-compatible API ──────────────────────────────────────────
 
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-})
-
-// ─── Schema ───────────────────────────────────────────────────────────────────
-
-const ChoiceSchema = z.object({
-  id: z.string(),
-  text: z.string(),
-})
-
-const QuestionSchema = z.object({
-  type: z.enum(["multiple-choice", "true-false", "discursive"]),
-  text: z.string(),
-  choices: z.array(ChoiceSchema),
-  correctAnswer: z.string(),
-  explanation: z.string().nullable(),
-})
-
-const OutputSchema = z.object({
-  questions: z.array(QuestionSchema),
-})
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+const GROQ_MODEL = "llama-3.3-70b-versatile"
 
 // ─── System prompt ────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `Você é o Prof.Dr.Teólogo — especialista em Teologia com doutorado em Teologia Sistemática e vasto conhecimento das tradições teológicas mundiais: Patrística, Escolástica, Reforma Protestante, Teologia Contemporânea, Teologia da Libertação, Teologia Ortodoxa Oriental, e correntes evangélicas e pentecostais do Brasil.
+const SYSTEM_PROMPT = `Você é uma IA Teológica especializada em educação cristã. Você possui conhecimento profundo em:
+- Teologia Sistemática (Bibliologia, Cristologia, Pneumatologia, Soteriologia, Escatologia)
+- Teologia Bíblica (AT e NT), Exegese e Hermenêutica das Escrituras
+- História da Igreja e das doutrinas cristãs
+- Teologia Prática (Homilética, Liturgia, Ética, Missiologia)
+- Tradições Denominacionais e Pedagogia e avaliação acadêmica teológica
 
-Você tem domínio profundo de:
-- Hermenêutica e Exegese Bíblica(AT e NT)
-  - Teologia Sistemática(Dogmática)
-    - História da Igreja(Universal e Brasileira)
-      - Teologia Bíblica e Teologia Pastoral
-        - Filosofia da Religião
-          - Línguas originais: Hebraico Bíblico e Grego Koiné
-            - Literatura intertestamentária e apócrifa
-              - Cânones católico, ortodoxo e protestante
-                - Teologia das religiões(ecumenismo e diálogo inter - religioso)
+Sua tarefa é gerar questões de avaliação teológica de alta qualidade. Cite referências bíblicas (ex: Jo 3:16, NVI) e autores teológicos (Grudem, Berkhof, Carson, Bruce) nas justificativas sempre que possível.
 
-Sua tarefa é gerar questões de avaliação teológica de alta qualidade para o curso de Teologia do Instituto de Ensino Teológico - IETEO. As questões devem ser academicamente rigorosas, teologicamente precisas, didaticamente eficazes e adequadas ao nível do ensino superior teológico.
+PADRÃO DE QUALIDADE:
+- Distratores baseados em erros históricos/doutrinários reais e plausíveis.
+- Nenhuma questão pode endossar heresia de forma ambígua.
+- Linguagem técnica e acadêmica.
 
-Regras estritas para geração de questões:
+REGRAS DE FORMATAÇÃO POR TIPO:
 
-MÚLTIPLA ESCOLHA:
-- Exatamente 4 alternativas(ids: "opt_a", "opt_b", "opt_c", "opt_d")
-  - Apenas 1 alternativa correta
-    - correctAnswer = id da alternativa correta(ex: "opt_b")
-      - Distratores plausíveis mas claramente incorretos para quem estuda
-        - Nunca use "Todas as anteriores" ou "Nenhuma das anteriores"
+MÚLTIPLA ESCOLHA (multiple-choice) e INCORRETA (incorrect-alternative):
+- Exatamente 4 alternativas com ids: "opt_a", "opt_b", "opt_c", "opt_d"
+- Para multiple-choice: correctAnswer = id da correta.
+- Para incorrect-alternative: correctAnswer = id da INCORRETA.
+- NUNCA use "todas as anteriores" ou "nenhuma acima".
 
-VERDADEIRO OU FALSO:
-- choices =[](array vazio)
-  - correctAnswer = "true" ou "false"
-    - Afirmação deve ser inequívoca(claramente verdadeira ou falsa)
+VERDADEIRO OU FALSO (true-false):
+- choices = [] (array vazio)
+- correctAnswer = "true" ou "false"
 
-DISCURSIVA:
-- choices =[](array vazio)
-  - correctAnswer = ""(string vazia)
-    - Questão deve exigir elaboração de 2 - 4 parágrafos
-      - Indicar os critérios esperados na resposta
+DISCURSIVA (discursive):
+- choices = [] (array vazio), correctAnswer = "" (string vazia)
+- explanation deve conter os critérios de correção detalhados.
 
-Para todos os tipos:
-- explanation: breve fundamentação teológica / bíblica da resposta correta(2 - 3 frases).Para discursivas, indicar os pontos esperados.
-- Linguagem em português brasileiro acadêmico
-  - Citar referências bíblicas quando pertinente(ex: Jo 3.16, Rm 5.1)
-    - Variar o nível de dificuldade(análise, síntese, aplicação)
+COMPLETAR LACUNAS (fill-in-the-blank):
+- No campo "text", substitua a palavra por "________": ex: "Jesus nasceu em ________."
+- choices = [] (array vazio)
+- correctAnswer = a(s) palavra(s) que preenche(m) a(s) lacuna(s).
 
-Retorne SOMENTE o objeto JSON válido com o array "questions", sem nenhum texto adicional.`
+RELACIONAR COLUNAS (matching):
+- text = "Relacione as colunas corretamente:"
+- choices = [] (array vazio), correctAnswer = "" (string vazia)
+- pairs = array com pares: [{"id":"p1","left":"Termo","right":"Definição"}]
+
+IMPORTANTE: Retorne APENAS um objeto JSON válido com esta estrutura exata, sem texto adicional, sem markdown, sem blocos de código:
+{"questions":[{"type":"...","text":"...","choices":[{"id":"opt_a","text":"..."}],"pairs":[{"id":"p1","left":"...","right":"..."}],"correctAnswer":"...","explanation":"..."}]}`
 
 // ─── Route handler ────────────────────────────────────────────────────────────
 import { parseOffice } from "officeparser"
@@ -82,79 +60,117 @@ export async function POST(req: Request) {
     let count = 0
     let types: string[] = []
     let fileText = ""
+    let sourceDetails = ""
+    let audience = ""
+    let difficulty = ""
 
     if (isFormData) {
       const formData = await req.formData()
       discipline = formData.get("discipline") as string
       count = parseInt(formData.get("count") as string, 10)
       const typesStr = formData.get("types") as string
-      if (typesStr) {
-        types = JSON.parse(typesStr)
-      }
+      if (typesStr) types = JSON.parse(typesStr)
+      sourceDetails = formData.get("sourceDetails") as string || ""
+      audience = formData.get("audience") as string || "Graduação Teológica"
+      difficulty = formData.get("difficulty") as string || "Intermediário"
 
       const file = formData.get("file") as File | null
       if (file) {
         const arrayBuffer = await file.arrayBuffer()
         const buffer = Buffer.from(arrayBuffer)
         if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
-          const pdfParser = new PDFParser(null, true);
+          const pdfParser = new PDFParser(null, true)
           fileText = await new Promise<string>((resolve, reject) => {
-            pdfParser.on("pdfParser_dataError", (errData: any) => reject(errData.parserError));
+            pdfParser.on("pdfParser_dataError", (errData: any) => reject(errData.parserError))
             pdfParser.on("pdfParser_dataReady", () => {
-              resolve(pdfParser.getRawTextContent() || "");
-            });
-            pdfParser.parseBuffer(buffer);
-          });
+              resolve(pdfParser.getRawTextContent() || "")
+            })
+            pdfParser.parseBuffer(buffer)
+          })
         } else if (
           file.type.includes("presentation") ||
           file.name.endsWith(".pptx") ||
           file.name.endsWith(".ppt")
         ) {
           fileText = (await parseOffice(buffer)) as unknown as string
+        } else if (file.type === "text/plain" || file.name.endsWith(".txt")) {
+          fileText = buffer.toString("utf-8")
         }
       }
     } else {
       const body = (await req.json()) as {
-        discipline: string
-        count: number
-        types: string[]
+        discipline: string; count: number; types: string[]
+        sourceDetails?: string; audience?: string; difficulty?: string
       }
       discipline = body.discipline
       count = body.count
       types = body.types
+      sourceDetails = body.sourceDetails || ""
+      audience = body.audience || "Graduação Teológica"
+      difficulty = body.difficulty || "Intermediário"
     }
 
-    const safeCount = Math.min(Math.max(1, count), 50)
-    const typesList = types.length > 0 ? types : ["multiple-choice", "true-false", "discursive"]
+    const safeCount = Math.min(Math.max(1, count), 30)
+    const typesList = types.length > 0 ? types : ["multiple-choice"]
 
-    let userPrompt = `Gere exatamente ${safeCount} questão(ões) de avaliação teológica para a disciplina: "${discipline}".
-
-Modalidades solicitadas: ${typesList.map((t) => {
+    const modalLabel = (t: string) => {
       if (t === "multiple-choice") return "múltipla escolha"
       if (t === "true-false") return "verdadeiro ou falso"
+      if (t === "incorrect-alternative") return "escolha a alternativa incorreta"
+      if (t === "fill-in-the-blank") return "completar lacunas"
+      if (t === "matching") return "relacionar colunas"
       return "discursiva"
-    }).join(", ")
-      }.
-
-Distribua as questões de forma equilibrada entre as modalidades solicitadas. Se houver apenas uma modalidade, gere todas nessa modalidade.
-
-Varie os temas abordados dentro da disciplina "${discipline}", cobrindo diferentes aspectos e níveis cognitivos (conhecimento, compreensão, análise, aplicação).
-
-Retorne um JSON com exatamente ${safeCount} questões no array "questions".`
-
-    if (fileText) {
-      userPrompt += `\n\nBaseie-se ESTRITAMENTE no conteúdo do seguinte texto extraído do material de apoio do professor:\n\n---\n${fileText.substring(0, 15000)}\n---`
     }
 
-    const { object: parsed } = await generateObject({
-      model: google("gemini-1.5-pro-latest"),
-      system: SYSTEM_PROMPT,
-      prompt: userPrompt,
-      schema: OutputSchema,
-      temperature: 0.7,
+    const userPrompt = `Gere exatamente ${safeCount} questão(ões) de avaliação teológica para a disciplina: "${discipline}".
+
+Público-Alvo: ${audience}
+Nível de Dificuldade: ${difficulty}
+Modalidades: ${typesList.map(modalLabel).join(", ")}.
+
+Distribua as questões equilibradamente entre as modalidades. Se apenas uma modalidade, gere todas nessa modalidade.
+Varie os temas dentro de "${discipline}" adequando ao nível ${difficulty}.
+${sourceDetails ? `FOCO ESPECÍFICO: ${sourceDetails}.` : ""}
+${fileText ? `\nBaseie-se ESTRITAMENTE no texto abaixo:\n---\n${fileText.substring(0, 12000)}\n---` : ""}
+
+Retorne um JSON com exatamente ${safeCount} questões.`
+
+    const response = await fetch(GROQ_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.7,
+        max_tokens: 8192,
+        response_format: { type: "json_object" },
+      }),
     })
 
-    return Response.json({ questions: parsed.questions })
+    if (!response.ok) {
+      const err = await response.text()
+      throw new Error(`Groq API error ${response.status}: ${err}`)
+    }
+
+    const data = await response.json()
+    const rawText = data.choices?.[0]?.message?.content || ""
+
+    let parsed: any
+    try {
+      parsed = JSON.parse(rawText)
+    } catch {
+      const match = rawText.match(/\{[\s\S]*\}/)
+      if (match) parsed = JSON.parse(match[0])
+      else throw new Error("A IA não retornou um JSON válido. Tente novamente.")
+    }
+
+    return Response.json({ questions: parsed.questions ?? [] })
   } catch (error: any) {
     console.error("[generate-questions] Error:", error)
     return Response.json(

@@ -49,7 +49,7 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
     // ── Add form ──────────────────────────────────────────────────────────────
     const [name, setName] = useState("")
     const [email, setEmail] = useState("")
-    const [password, setPassword] = useState("")
+    const [password, setPassword] = useState("123456")
     const [showPassword, setShowPassword] = useState(false)
     const [cpf, setCpf] = useState("")
     const [phone, setPhone] = useState("")
@@ -67,7 +67,6 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
     const [editChurch, setEditChurch] = useState("")
     const [editPastor, setEditPastor] = useState("")
     const [editClassId, setEditClassId] = useState("none")
-    const [editPayment, setEditPayment] = useState("paid")
 
     // ─── Data Load ────────────────────────────────────────────────────────────
 
@@ -97,8 +96,8 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
     // ─── Create ───────────────────────────────────────────────────────────────
 
     function resetAddForm() {
-        setName(""); setEmail(""); setPassword(""); setCpf(""); setPhone("")
-        setAddress(""); setChurch(""); setPastor(""); setClassId("none"); setPaymentStatus("paid")
+        setName(""); setEmail(""); setPassword("123456"); setCpf(""); setPhone("")
+        setAddress(""); setChurch(""); setPastor(""); setClassId("none")
     }
 
     async function handleAdd() {
@@ -140,7 +139,6 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
         setEditChurch(stu.church || "")
         setEditPastor(stu.pastor_name || "")
         setEditClassId(stu.class_id || "none")
-        setEditPayment(stu.payment_status || "paid")
         setIsEditOpen(true)
     }
 
@@ -159,7 +157,6 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                 church: editChurch.trim(),
                 pastor_name: editPastor.trim(),
                 class_id: editClassId === "none" ? null : editClassId,
-                payment_status: editPayment,
             })
             setIsEditOpen(false)
             await load()
@@ -214,36 +211,28 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
         <div className="flex flex-col gap-6">
 
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex justify-between items-center glass rounded-2xl p-6 premium-shadow">
                 <div>
                     <h2 className="text-xl font-bold font-serif text-foreground">Gestão de Alunos</h2>
                     <p className="text-muted-foreground text-sm">Visualize, edite e gerencie os alunos matriculados.</p>
                 </div>
                 <Button
                     onClick={() => { resetAddForm(); setIsAddOpen(true) }}
-                    className="bg-accent hover:bg-accent/90 text-accent-foreground text-xs font-bold px-3 py-1.5 h-9 self-start sm:self-auto"
+                    className="rounded-xl shadow-lg shadow-primary/20"
                 >
                     <Plus className="h-4 w-4 mr-1.5" /> Matricular Aluno
                 </Button>
             </div>
 
-            {/* Stats */}
-            <div className="bg-card border border-border rounded-xl flex items-center justify-between p-4">
-                <div className="flex items-center gap-3 text-primary">
-                    <Users className="h-5 w-5" />
-                    <span className="font-semibold text-sm">Total de Alunos Matriculados:</span>
-                </div>
-                <div className="text-2xl font-bold">{students.length}</div>
-            </div>
 
             {/* Search */}
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                 <Input
                     placeholder="Buscar por nome, matrícula, CPF ou telefone..."
                     value={search}
                     onChange={e => setSearch(e.target.value)}
-                    className="pl-9 h-9 text-sm"
+                    className="pl-11 h-12 text-sm rounded-xl border-border/50 bg-card hover:border-primary/30 focus:border-primary/50 transition-all premium-shadow shadow-sm"
                 />
                 {search && (
                     <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
@@ -253,25 +242,25 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
             </div>
 
             {/* Table */}
-            <div className="bg-card border border-border rounded-xl overflow-hidden">
+            <div className="bg-card border border-border/50 rounded-2xl overflow-hidden premium-shadow">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                         <thead>
-                            <tr className="border-b border-border bg-muted/50">
-                                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Aluno</th>
-                                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase hidden sm:table-cell">Matrícula</th>
-                                <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase hidden md:table-cell">Turma</th>
-                                <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Status F.</th>
-                                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Ações</th>
+                            <tr className="border-b border-border/50 bg-muted/20">
+                                <th className="text-left px-6 py-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Aluno</th>
+                                <th className="text-left px-6 py-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider hidden sm:table-cell">Matrícula</th>
+                                <th className="text-center px-6 py-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider hidden md:table-cell">Turma</th>
+                                <th className="text-center px-6 py-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Status F.</th>
+                                <th className="text-right px-6 py-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filtered.map((stu) => {
                                 const cls = classes.find(c => c.id === stu.class_id)
                                 return (
-                                    <tr key={stu.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                                        <td className="px-4 py-3">
-                                            <div className="font-medium text-foreground">{stu.name}</div>
+                                    <tr key={stu.id} className="border-b border-border/50 last:border-0 hover:bg-muted/10 transition-colors group">
+                                        <td className="px-6 py-4">
+                                            <div className="font-bold text-foreground group-hover:text-primary transition-colors">{stu.name}</div>
                                             {stu.phone && <div className="text-xs text-muted-foreground">{stu.phone}</div>}
                                         </td>
                                         <td className="px-4 py-3 text-muted-foreground text-xs hidden sm:table-cell font-mono">
@@ -475,21 +464,12 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                                 <Label className="text-xs">Pastor Dirigente</Label>
                                 <div className="relative"><UserCircle2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" /><Input className="pl-8 text-sm h-9" value={editPastor} onChange={e => setEditPastor(e.target.value)} /></div>
                             </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        </div>                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="flex flex-col gap-1.5">
                                 <Label className="text-xs">Turma</Label>
                                 <select value={editClassId} onChange={e => setEditClassId(e.target.value)} className="w-full text-sm h-9 border border-input rounded-md px-3 bg-background">
                                     <option value="none">Sem turma</option>
                                     {classes.map(c => <option key={c.id} value={c.id}>{c.name} ({SHIFT_LABELS[c.shift] || c.shift})</option>)}
-                                </select>
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                                <Label className="text-xs">Status Financeiro</Label>
-                                <select value={editPayment} onChange={e => setEditPayment(e.target.value)} className="w-full text-sm h-9 border border-input rounded-md px-3 bg-background">
-                                    <option value="paid">Pago</option>
-                                    <option value="pending">Pendente</option>
                                 </select>
                             </div>
                         </div>
@@ -521,18 +501,6 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                                 <InfoRow icon={<Building2 className="h-3.5 w-3.5" />} label="Igreja" value={selected.church || "—"} />
                                 <InfoRow icon={<UserCircle2 className="h-3.5 w-3.5" />} label="Pastor" value={selected.pastor_name || "—"} />
                                 <InfoRow icon={<Users className="h-3.5 w-3.5" />} label="Turma" value={cls ? `${cls.name} (${SHIFT_LABELS[cls.shift] || cls.shift})` : "Sem turma"} />
-                                <div className="flex items-center gap-2 pt-1">
-                                    <span className="text-xs text-muted-foreground w-24 shrink-0">Status Financeiro</span>
-                                    {selected.payment_status === "paid" ? (
-                                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase bg-green-100 text-green-700 px-2 py-0.5 rounded">
-                                            <CheckCircle2 className="h-3 w-3" /> Pago
-                                        </span>
-                                    ) : (
-                                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase bg-amber-100 text-amber-700 px-2 py-0.5 rounded">
-                                            Pendente
-                                        </span>
-                                    )}
-                                </div>
                                 <div className="text-xs text-muted-foreground pt-1">
                                     Cadastrado em: {new Date(selected.created_at).toLocaleDateString("pt-BR")}
                                 </div>
@@ -571,7 +539,7 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                 </DialogContent>
             </Dialog>
 
-        </div>
+        </div >
     )
 }
 

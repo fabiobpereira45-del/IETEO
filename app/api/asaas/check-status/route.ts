@@ -3,24 +3,31 @@ import { createClient } from "@supabase/supabase-js"
 
 export async function POST(req: Request) {
     try {
-        const { chargeId } = await req.json()
+        const { chargeId, chargeIds } = await req.json()
+        const ids = chargeIds || (chargeId ? [chargeId] : [])
+
+        if (ids.length === 0) {
+            return NextResponse.json({ error: "Nenhuma fatura informada para checagem." }, { status: 400 })
+        }
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
         const supabase = createClient(supabaseUrl, supabaseKey)
 
-        // 1. Get the charge to find asaas_payment_id
-        const { data: charge } = await supabase
+        // 1. Get the charges to find asaas_payment_id
+        const { data: charges } = await supabase
             .from('financial_charges')
             .select('*')
-            .eq('id', chargeId)
-            .single()
+            .in('id', ids)
 
-        if (!charge?.asaas_payment_id) {
+        if (!charges || charges.length === 0 || !charges[0].asaas_payment_id) {
             return NextResponse.json({ error: "Cobrança Pix não encontrada." }, { status: 404 })
         }
 
-        if (charge.status === 'paid') {
+        // Use the first charge's payment id, since all in a bulk transaction share the same
+        const asaasPaymentId = charges[0].asaas_payment_id
+
+        if (charges.every((c: any) => c.status === 'paid')) {
             return NextResponse.json({ status: 'paid' })
         }
 
@@ -40,7 +47,7 @@ export async function POST(req: Request) {
             : "https://api-sandbox.asaas.com/v3"
 
         // 3. Check payment status on Asaas
-        const res = await fetch(`${baseUrl}/payments/${charge.asaas_payment_id}`, {
+        const res = await fetch(`${baseUrl}/payments/${asaasPaymentId}`, {
             headers: { "access_token": config.api_key }
         })
 
@@ -58,7 +65,7 @@ export async function POST(req: Request) {
                     status: 'paid',
                     payment_date: new Date().toISOString()
                 })
-                .eq('id', chargeId)
+                .in('id', ids)
 
             return NextResponse.json({ status: 'paid' })
         }

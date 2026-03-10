@@ -4,7 +4,8 @@ import { useEffect, useState } from "react"
 import {
   Users, FileText, BookOpen, Settings, BarChart3, Download, LogOut,
   Plus, Pencil, Trash2, Eye, EyeOff, Trophy, CheckCircle2, Link2, FileCheck,
-  ShieldCheck, Loader2, DollarSign, MessageSquare, CalendarCheck, GraduationCap, XCircle, ArrowLeft, Building2, UserCircle, Briefcase, Send, PlaySquare, CalendarDays, KeyRound, Save
+  ShieldCheck, Loader2, DollarSign, MessageSquare, CalendarCheck, GraduationCap, XCircle, ArrowLeft, Building2, UserCircle, Briefcase, Send, PlaySquare, CalendarDays, KeyRound, Save,
+  Menu, ChevronRight, Archive, ArchiveRestore
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -39,6 +40,9 @@ import { StudentManager } from "@/components/student-manager"
 import { ClassScheduleManager } from "@/components/class-schedule-manager"
 import { createClient } from "@/lib/supabase/client"
 import { GradesManager } from "@/components/grades-manager"
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { cn } from "@/lib/utils"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -63,7 +67,7 @@ interface Props {
 
 // ─── Overview Tab ─────────────────────────────────────────────────────────────
 
-function OverviewTab({ assessments, submissions, questions }: { assessments: Assessment[]; submissions: StudentSubmission[]; questions: Question[] }) {
+function OverviewTab({ assessments, submissions, questions, disciplines }: { assessments: Assessment[]; submissions: StudentSubmission[]; questions: Question[]; disciplines: Discipline[] }) {
   const [selectedQuestion, setSelectedQuestion] = useState<any>(null)
   const totalStudents = submissions.length
   const avgScore = totalStudents > 0
@@ -93,38 +97,39 @@ function OverviewTab({ assessments, submissions, questions }: { assessments: Ass
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex justify-between items-center bg-card border border-border rounded-xl p-4 shadow-sm">
+      <div className="flex justify-between items-center glass rounded-2xl p-6 premium-shadow">
         <div>
-          <h2 className="text-lg font-bold font-serif text-foreground">Visão Geral</h2>
+          <h2 className="text-xl font-bold font-serif text-foreground">Visão Geral</h2>
           <p className="text-muted-foreground text-sm">Resumo de desempenho e estatísticas</p>
         </div>
         <Button
           variant="outline"
           onClick={() => printOverviewPDF({ assessments, submissions, questions })}
-          className="bg-primary/5 hover:bg-primary/10 border-primary/20 text-primary"
+          className="rounded-xl"
         >
           <Download className="h-4 w-4 mr-2" /> Baixar Relatório PDF
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Alunos Avaliados", value: totalStudents, icon: <Users className="h-5 w-5" />, color: "text-primary" },
-          { label: "Média Geral", value: `${avgScore}%`, icon: <BarChart3 className="h-5 w-5" />, color: avgScore >= 70 ? "text-green-600" : "text-amber-600" },
-          { label: "Aprovados (≥70%)", value: passing, icon: <CheckCircle2 className="h-5 w-5" />, color: "text-green-600" },
-          { label: "Provas Criadas", value: assessments.length, icon: <FileText className="h-5 w-5" />, color: "text-primary" },
+          { label: "Questões no Banco", value: questions.length, icon: <BookOpen className="h-5 w-5" />, color: "text-orange" },
+          { label: "Provas Criadas", value: assessments.length, icon: <FileText className="h-5 w-5" />, color: "text-navy" },
+          { label: "Total de Disciplinas", value: disciplines.length, icon: <GraduationCap className="h-5 w-5" />, color: "text-purple-600" },
+          { label: "Média Global (Banco)", value: "N/A", icon: <BarChart3 className="h-5 w-5" />, color: "text-muted-foreground" },
         ].map(({ label, value, icon, color }) => (
-          <div key={label} className="bg-card border border-border rounded-xl p-4">
-            <div className={`${color} mb-2`}>{icon}</div>
-            <div className="text-2xl font-bold text-foreground">{value}</div>
-            <div className="text-xs text-muted-foreground mt-0.5">{label}</div>
+          <div key={label} className="bg-card border border-border/50 rounded-2xl p-6 hover-lift premium-shadow group">
+            <div className={`${color} mb-4 p-3 rounded-xl bg-muted group-hover:bg-white transition-colors w-12 h-12 flex items-center justify-center`}>{icon}</div>
+            <div className="text-3xl font-bold text-foreground tracking-tight">{value}</div>
+            <div className="text-sm font-medium text-muted-foreground mt-1">{label}</div>
           </div>
         ))}
       </div>
 
       {questionStats.length > 0 && (
-        <div className="bg-card border border-border rounded-xl p-5">
-          <h3 className="font-semibold text-foreground mb-4 text-sm">
+        <div className="bg-card border border-border/50 rounded-2xl p-6 premium-shadow">
+          <h3 className="font-bold text-foreground mb-6 flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-primary" />
             Acertos por Questão — {activeAssessment?.title}
           </h3>
           <div className="flex flex-col gap-3">
@@ -439,8 +444,10 @@ function AssessmentsTab({ assessments, submissions, questions, disciplines, onRe
   const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [showArchived, setShowArchived] = useState(false)
 
-  const active = assessments[0]
+  const filteredAssessments = assessments.filter(a => a.archived === showArchived)
+  const active = assessments.find(a => !a.archived && a.isPublished) || assessments.find(a => !a.archived)
 
   const [localOpenAt, setLocalOpenAt] = useState<string | null>(null)
   const [localCloseAt, setLocalCloseAt] = useState<string | null>(null)
@@ -450,7 +457,7 @@ function AssessmentsTab({ assessments, submissions, questions, disciplines, onRe
       setLocalOpenAt(active.openAt)
       setLocalCloseAt(active.closeAt)
     }
-  }, [active?.id]) // Re-align if active assessment changes
+  }, [active?.id])
 
   function handleCopyLink(a: Assessment) {
     const url = `${window.location.origin}/prova?id=${a.id}`
@@ -469,6 +476,11 @@ function AssessmentsTab({ assessments, submissions, questions, disciplines, onRe
 
   async function handleTogglePublish(a: Assessment) {
     await updateAssessment(a.id, { isPublished: !a.isPublished })
+    onRefresh()
+  }
+
+  async function handleToggleArchive(a: Assessment) {
+    await updateAssessment(a.id, { archived: !a.archived })
     onRefresh()
   }
 
@@ -498,22 +510,35 @@ function AssessmentsTab({ assessments, submissions, questions, disciplines, onRe
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex justify-between items-center bg-card border border-border rounded-xl p-4 shadow-sm mb-4">
+    <div className="flex flex-col gap-6">
+      <div className="flex justify-between items-center glass rounded-2xl p-6 premium-shadow">
         <div>
-          <h2 className="text-lg font-bold font-serif text-foreground">Gerenciamento de Provas</h2>
-          <p className="text-muted-foreground text-sm">Crie e edite avaliações</p>
+          <h2 className="text-xl font-bold font-serif text-foreground">Gerenciamento de Provas</h2>
+          <p className="text-muted-foreground text-sm">Crie, edite e acompanhe o status de suas avaliações</p>
         </div>
-        <Button onClick={() => { setEditingAssessment(null); setBuilderOpen(true) }}>
-          <Plus className="h-4 w-4 mr-1.5" /> Nova Prova
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowArchived(!showArchived)}
+            className={cn("rounded-xl border-border", showArchived && "bg-primary/10 text-primary border-primary/20")}
+          >
+            {showArchived ? <ArchiveRestore className="h-4 w-4 mr-2" /> : <Archive className="h-4 w-4 mr-2" />}
+            {showArchived ? "Ver Ativas" : "Ver Arquivadas"}
+          </Button>
+          <Button onClick={() => { setEditingAssessment(null); setBuilderOpen(true) }} className="rounded-xl shadow-lg shadow-primary/20">
+            <Plus className="h-5 w-5 mr-1.5" /> Criar Nova Prova
+          </Button>
+        </div>
       </div>
 
       {active && (
-        <div className="bg-card border border-border rounded-xl p-5 flex flex-col gap-4 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
-          <h3 className="font-semibold text-foreground text-lg mb-1">Configurações Especiais da Prova Ativa: <span className="font-normal">{active.title}</span></h3>
-          <p className="text-sm text-muted-foreground mb-2">A prova mais recente é considerada a prova ativa do sistema.</p>
+        <div className="bg-card border border-border/50 rounded-2xl p-6 flex flex-col gap-6 shadow-sm relative overflow-hidden premium-shadow">
+          <div className="absolute top-0 left-0 w-1.5 h-full premium-gradient" />
+          <div className="space-y-1">
+            <h3 className="font-bold text-foreground text-xl">Configurações da Prova Ativa</h3>
+            <p className="text-sm text-primary font-medium">{active.title}</p>
+          </div>
+          <p className="text-sm text-muted-foreground">A prova mais recente é considerada a prova ativa do sistema.</p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
@@ -605,14 +630,14 @@ function AssessmentsTab({ assessments, submissions, questions, disciplines, onRe
         </div>
       )}
 
-      {assessments.length === 0 ? (
+      {filteredAssessments.length === 0 ? (
         <div className="bg-card border border-border rounded-xl p-10 text-center text-muted-foreground">
           <FileText className="h-10 w-10 mx-auto opacity-30 mb-3" />
-          <p className="text-sm">Nenhuma prova criada ainda.</p>
+          <p className="text-sm">{showArchived ? "Nenhuma prova arquivada." : "Nenhuma prova ativa encontrada."}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {assessments.map((a) => {
+          {filteredAssessments.map((a) => {
             const disc = disciplines.find((d) => d.id === a.disciplineId)
             const subCount = submissions.filter(s => s.assessmentId === a.id).length
             return (
@@ -646,6 +671,16 @@ function AssessmentsTab({ assessments, submissions, questions, disciplines, onRe
                   </Button>
                   <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" title="Baixar Gabarito em PDF" onClick={() => printAnswerKeyPDF({ assessment: a, questions })}>
                     <FileCheck className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={cn("h-8 px-2 sm:px-3 text-xs", a.archived && "text-primary hover:bg-primary/10")}
+                    onClick={() => handleToggleArchive(a)}
+                    title={a.archived ? "Desarquivar" : "Arquivar"}
+                  >
+                    {a.archived ? <ArchiveRestore className="h-3.5 w-3.5 sm:mr-1" /> : <Archive className="h-3.5 w-3.5 sm:mr-1" />}
+                    <span className="hidden sm:inline">{a.archived ? "Restaurar" : "Arquivar"}</span>
                   </Button>
                   <Button size="sm" variant="ghost" className="h-8 px-2 sm:px-3 text-xs" onClick={() => handleTogglePublish(a)}>
                     {a.isPublished ? <EyeOff className="h-3.5 w-3.5 sm:mr-1" /> : <Eye className="h-3.5 w-3.5 sm:mr-1" />}
@@ -799,7 +834,7 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
   }
 
   return (
-    <div className="flex flex-col gap-6 w-full max-w-5xl mx-auto">
+    <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto">
       <div>
         <h2 className="text-xl font-bold font-serif text-foreground">Configurações do Sistema</h2>
         <p className="text-muted-foreground text-sm">Gerencie preferências e configurações gerais da plataforma.</p>
@@ -848,6 +883,7 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Mínimo 6 caracteres"
                 className="h-10"
+                autoComplete="new-password"
               />
               <p className="text-[10px] text-muted-foreground">Deixe em branco para não alterar a senha atual.</p>
             </div>
@@ -917,11 +953,11 @@ export function AdminDashboard({ onLogout }: Props) {
   const [questions, setQuestions] = useState<Question[]>([])
   const [disciplines, setDisciplines] = useState<Discipline[]>([])
   const [loading, setLoading] = useState(true)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const [username, setUsername] = useState("")
   const [userEmail, setUserEmail] = useState("")
 
-  // Detect if current session is master
   const session = typeof window !== "undefined" ? getProfessorSession() : null
   const isMaster = session?.role === "master"
   const supabase = createClient()
@@ -949,8 +985,6 @@ export function AdminDashboard({ onLogout }: Props) {
 
   useEffect(() => {
     refresh()
-
-    // Fetch current user from Supabase
     async function fetchUser() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
@@ -964,116 +998,248 @@ export function AdminDashboard({ onLogout }: Props) {
     fetchUser()
   }, [supabase.auth, session?.professorId])
 
-  const tabs: { id: Tab; label: string; icon: React.ReactNode; masterOnly?: boolean }[] = [
-    { id: "overview", label: "Visão Geral", icon: <BarChart3 className="h-4 w-4" /> },
-    { id: "students", label: "Alunos", icon: <Users className="h-4 w-4" /> },
-    { id: "grades", label: "Notas e Diários", icon: <GraduationCap className="h-4 w-4" /> },
-    { id: "questions", label: "Banco de Questões", icon: <BookOpen className="h-4 w-4" /> },
-    { id: "assessments", label: "Provas", icon: <FileText className="h-4 w-4" /> },
-    { id: "submissions", label: "Respostas de Provas", icon: <CheckCircle2 className="h-4 w-4" /> },
-    { id: "materials", label: "Biblioteca (PDFs)", icon: <BookOpen className="h-4 w-4" /> },
-    { id: "semesters", label: "Grade Curricular", icon: <BookOpen className="h-4 w-4" /> },
-    { id: "class_schedules", label: "Quadro de Horários", icon: <CalendarCheck className="h-4 w-4" /> },
-    { id: "classes", label: "Turmas", icon: <GraduationCap className="h-4 w-4" /> },
-    { id: "attendance", label: "Frequência", icon: <CalendarCheck className="h-4 w-4" /> },
-    { id: "chat", label: "Chat Alunos", icon: <MessageSquare className="h-4 w-4" /> },
-    { id: "financial", label: "Financeiro", icon: <DollarSign className="h-4 w-4" />, masterOnly: true },
-    { id: "professors", label: "Professores", icon: <ShieldCheck className="h-4 w-4" />, masterOnly: true },
-    { id: "settings", label: "Configurações", icon: <Settings className="h-4 w-4" /> },
+  const menuGroups = [
+    {
+      title: "Principal",
+      items: [
+        { id: "overview", label: "Visão Geral", icon: <BarChart3 className="h-4 w-4" /> },
+        { id: "chat", label: "Chat Alunos", icon: <MessageSquare className="h-4 w-4" /> },
+      ]
+    },
+    {
+      title: "Administração",
+      items: [
+        { id: "financial", label: "Financeiro", icon: <DollarSign className="h-4 w-4" />, masterOnly: true },
+        { id: "professors", label: "Professores", icon: <ShieldCheck className="h-4 w-4" />, masterOnly: true },
+        { id: "settings", label: "Configurações", icon: <Settings className="h-4 w-4" /> },
+      ]
+    },
+    {
+      title: "Acadêmico",
+      items: [
+        { id: "students", label: "Alunos", icon: <Users className="h-4 w-4" /> },
+        { id: "grades", label: "Notas e Diários", icon: <GraduationCap className="h-4 w-4" /> },
+        { id: "attendance", label: "Frequência", icon: <CalendarCheck className="h-4 w-4" /> },
+        { id: "classes", label: "Turmas", icon: <Briefcase className="h-4 w-4" />, masterOnly: true },
+      ]
+    },
+    {
+      title: "Avaliações",
+      items: [
+        { id: "questions", label: "Banco de Questões", icon: <BookOpen className="h-4 w-4" /> },
+        { id: "assessments", label: "Provas", icon: <FileText className="h-4 w-4" /> },
+        { id: "submissions", label: "Respostas de Provas", icon: <CheckCircle2 className="h-4 w-4" /> },
+      ]
+    },
+    {
+      title: "Recursos",
+      items: [
+        { id: "materials", label: "Biblioteca (PDFs)", icon: <BookOpen className="h-4 w-4" /> },
+        { id: "semesters", label: "Grade Curricular", icon: <GraduationCap className="h-4 w-4" /> },
+        { id: "class_schedules", label: "Quadro de Horários", icon: <CalendarDays className="h-4 w-4" />, masterOnly: true },
+      ]
+    }
   ]
 
-  const visibleTabs = tabs.filter((t) => !t.masterOnly || isMaster)
+  const NavItem = ({ item }: { item: any }) => (
+    <button
+      onClick={() => {
+        setTab(item.id as Tab)
+        setIsMobileMenuOpen(false)
+      }}
+      className={cn(
+        "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group w-full",
+        tab === item.id
+          ? "accent-gradient text-white shadow-lg shadow-orange/20"
+          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+      )}
+    >
+      <div className={cn(
+        "p-1.5 rounded-lg transition-colors",
+        tab === item.id ? "bg-white/20" : "bg-muted group-hover:bg-background"
+      )}>
+        {item.icon}
+      </div>
+      <span className="flex-1 text-left">{item.label}</span>
+      {tab === item.id && <ChevronRight className="h-4 w-4" />}
+    </button>
+  )
+
+  const SidebarContent = () => (
+    <div className="flex flex-col h-full bg-card border-r border-border/50">
+      <div className="p-6">
+        <div className="flex items-center gap-3 mb-1">
+          <div className="w-12 h-12 relative">
+            <img
+              src="/ieteo-logo.jpg"
+              alt="IETEO Logo"
+              className="w-full h-full object-contain drop-shadow-md"
+            />
+          </div>
+          <div>
+            <h2 className="font-bold text-foreground leading-tight tracking-tight">IETEO</h2>
+            <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold">Instituto de Ensino</p>
+          </div>
+        </div>
+      </div>
+
+      <ScrollArea className="flex-1 min-h-0 px-4">
+        <div className="space-y-6 pb-6 pt-2">
+          {menuGroups.map((group) => {
+            const visibleItems = group.items.filter(i => !i.masterOnly || isMaster)
+            if (visibleItems.length === 0) return null
+            return (
+              <div key={group.title} className="space-y-1">
+                <h3 className="px-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-2">
+                  {group.title}
+                </h3>
+                <div className="grid gap-1">
+                  {visibleItems.map(item => (
+                    <NavItem key={item.id} item={item} />
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </ScrollArea>
+
+      <div className="p-4 pb-8 mt-auto border-t border-border/50 bg-muted/30 space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full premium-gradient flex items-center justify-center text-white font-bold shadow-md">
+            {username.charAt(0)}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold truncate text-foreground">{username}</p>
+            <p className="text-[10px] text-muted-foreground truncate">{userEmail}</p>
+          </div>
+        </div>
+
+        <div className="grid gap-1">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all group w-full"
+          >
+            <div className="p-1.5 rounded-md bg-muted group-hover:bg-destructive/20 transition-colors">
+              <LogOut className="h-3.5 w-3.5" />
+            </div>
+            <span>Sair do Sistema</span>
+          </button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onLogout}
+            className="w-full justify-start text-[10px] text-muted-foreground/70 hover:text-foreground h-8"
+          >
+            <ArrowLeft className="h-3 w-3 mr-2" />
+            Voltar ao Portal
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="bg-primary text-primary-foreground border-b border-primary/80">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-background flex text-foreground">
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:block w-72 sticky top-0 h-[100dvh] overflow-hidden">
+        <SidebarContent />
+      </aside>
+
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobile Header */}
+        <header className="lg:hidden h-16 border-b border-border/50 premium-gradient sticky top-0 z-40 px-4 flex items-center justify-between shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20 p-1">
+              <img src="/ieteo-logo.jpg" alt="Logo" className="w-full h-full object-contain" />
+            </div>
+            <div>
+              <h1 className="font-bold text-white text-sm leading-tight">IETEO</h1>
+              <p className="text-[9px] text-white/70 uppercase tracking-widest font-semibold">Painel Administrativo</p>
+            </div>
+          </div>
+
+          <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
+                <Menu className="h-6 w-6" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="p-0 border-none w-72">
+              <SidebarContent />
+            </SheetContent>
+          </Sheet>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleLogout}
+            className="text-white hover:bg-white/10 lg:hidden"
+          >
+            <LogOut className="h-5 w-5" />
+          </Button>
+        </header>
+
+        {/* Header Desktop (Optional Breadcrumb/Actions) */}
+        <header className="hidden lg:flex h-16 border-b border-border/50 bg-background/50 backdrop-blur-md px-8 items-center justify-between sticky top-0 z-30">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="font-medium text-foreground capitalize">{tab.replace('_', ' ')}</span>
+            <ChevronRight className="h-4 w-4 opacity-50" />
+            <span className="opacity-50">Instituto de Ensino Teológico</span>
+          </div>
           <div className="flex items-center gap-4">
+            {isMaster && (
+              <span className="text-[10px] bg-primary/10 text-primary px-2 py-1 rounded-full font-bold uppercase tracking-wider">
+                Acesso Master
+              </span>
+            )}
+            <div className="flex items-center gap-3 pl-4 border-l border-border/50">
+              <p className="text-xs font-semibold text-muted-foreground">{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+            </div>
             <Button
               variant="ghost"
-              size="sm"
-              onClick={onLogout}
-              className="text-primary-foreground/70 hover:text-primary-foreground transition-colors p-0 h-auto"
+              size="icon"
+              onClick={handleLogout}
+              className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              title="Sair do Sistema"
             >
-              <ArrowLeft className="h-5 w-5 mr-1" />
-              <span className="text-sm font-medium">Voltar</span>
+              <LogOut className="h-5 w-5" />
             </Button>
-            <div className="h-8 w-px bg-primary-foreground/20 hidden sm:block" />
-            <div>
-              <p className="text-xs text-primary-foreground/70 uppercase tracking-widest font-sans">
-                Instituto de Ensino Teológico - IETEO
-              </p>
-              <h1 className="text-xl font-bold font-serif">Painel do Professor</h1>
-            </div>
           </div>
-          <div className="text-right hidden sm:block">
-            <div className="flex items-center gap-4 justify-end">
-              <div className="flex flex-col items-end">
-                <div className="flex items-center gap-2">
-                  {isMaster && (
-                    <span className="text-xs bg-primary-foreground/20 text-primary-foreground px-2 py-0.5 rounded-full font-semibold">
-                      Master
-                    </span>
-                  )}
-                  <p className="text-sm font-semibold">{username || "Professor"}</p>
+        </header>
+
+        <main className="flex-1 p-4 lg:p-8 max-w-[1600px] mx-auto w-full">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center p-20 min-h-[60vh]">
+              <div className="relative">
+                <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-8 h-8 premium-gradient rounded-lg animate-pulse" />
                 </div>
-                <p className="text-xs text-primary-foreground/70">{userEmail}</p>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-                className="h-9 px-3 text-primary-foreground hover:bg-destructive hover:text-destructive-foreground transition-colors"
-                title="Sair"
-              >
-                <LogOut className="h-4 w-4" />
-              </Button>
+              <p className="mt-6 font-medium text-muted-foreground">Carregando dados da nuvem...</p>
             </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 py-6 flex-1 w-full">
-        <div className="flex flex-wrap gap-1 mb-6 bg-muted rounded-xl p-1">
-          {visibleTabs.map(({ id, label, icon }) => (
-            <button
-              key={id}
-              onClick={() => setTab(id)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${tab === id
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-                }`}
-            >
-              {icon}
-              <span>{label}</span>
-            </button>
-          ))}
-        </div>
-
-        {loading ? (
-          <div className="flex flex-col items-center justify-center p-20 opacity-50">
-            <Loader2 className="h-8 w-8 animate-spin mb-4" />
-            <p>Carregando dados da nuvem...</p>
-          </div>
-        ) : (
-          <>
-            {tab === "overview" && <OverviewTab assessments={assessments} submissions={submissions} questions={questions} />}
-            {tab === "students" && <StudentManager isMaster={isMaster} />}
-            {tab === "grades" && <GradesManager isMaster={isMaster} />}
-            {tab === "submissions" && <SubmissionsTab assessments={assessments} allSubmissions={submissions} questions={questions} onRefresh={refresh} isMaster={isMaster} />}
-            {tab === "questions" && <QuestionBank isMaster={isMaster} />}
-            {tab === "assessments" && <AssessmentsTab assessments={assessments} submissions={submissions} questions={questions} disciplines={disciplines} onRefresh={refresh} isMaster={isMaster} />}
-            {tab === "materials" && <StudyMaterialManager />}
-            {tab === "semesters" && <SemesterManager isMaster={isMaster} />}
-            {tab === "class_schedules" && isMaster && <ClassScheduleManager />}
-            {tab === "attendance" && <AttendanceManager />}
-            {tab === "classes" && isMaster && <ClassManager />}
-            {tab === "chat" && <ProfessorChatView />}
-            {tab === "financial" && <FinancialManager />}
-            {tab === "professors" && isMaster && <ProfessorManager />}
-            {tab === "settings" && <SettingsTab assessments={assessments} onRefresh={refresh} onLogout={onLogout} />}
-          </>
-        )}
+          ) : (
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+              {tab === "overview" && <OverviewTab assessments={assessments} submissions={submissions} questions={questions} disciplines={disciplines} />}
+              {tab === "students" && <StudentManager isMaster={isMaster} />}
+              {tab === "grades" && <GradesManager isMaster={isMaster} />}
+              {tab === "submissions" && <SubmissionsTab assessments={assessments} allSubmissions={submissions} questions={questions} onRefresh={refresh} isMaster={isMaster} />}
+              {tab === "questions" && <QuestionBank isMaster={isMaster} />}
+              {tab === "assessments" && <AssessmentsTab assessments={assessments} submissions={submissions} questions={questions} disciplines={disciplines} onRefresh={refresh} isMaster={isMaster} />}
+              {tab === "materials" && <StudyMaterialManager />}
+              {tab === "semesters" && <SemesterManager isMaster={isMaster} />}
+              {tab === "class_schedules" && isMaster && <ClassScheduleManager />}
+              {tab === "attendance" && <AttendanceManager />}
+              {tab === "classes" && isMaster && <ClassManager />}
+              {tab === "chat" && <ProfessorChatView />}
+              {tab === "financial" && <FinancialManager />}
+              {tab === "professors" && isMaster && <ProfessorManager />}
+              {tab === "settings" && <SettingsTab assessments={assessments} onRefresh={refresh} onLogout={onLogout} />}
+            </div>
+          )}
+        </main>
       </div>
     </div>
   )

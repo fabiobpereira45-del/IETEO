@@ -75,19 +75,7 @@ export function StudentLogin({ onLogin, onResult, onBack, preloadedAssessmentId 
 
   async function handleForgotPassword(e: React.FormEvent) {
     e.preventDefault()
-    if (!forgotEmail.trim()) { setForgotErr("Informe seu e-mail."); return }
-    setForgotLoading(true)
-    setForgotErr("")
-    setForgotMsg("")
-    try {
-      const { error: err } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`
-      })
-      if (err) throw err
-      setForgotMsg("Link de recuperação enviado! Verifique seu e-mail.")
-    } catch (err: any) {
-      setForgotErr(err.message || "Erro ao enviar e-mail.")
-    } finally { setForgotLoading(false) }
+    window.open("https://wa.me/5571987483103?text=Olá, esqueci minha senha de estudante e gostaria de recuperá-la.", "_blank")
   }
 
   async function processLogin(isQuery: boolean) {
@@ -163,28 +151,36 @@ export function StudentLogin({ onLogin, onResult, onBack, preloadedAssessmentId 
     <div className="flex flex-col items-center gap-8">
       {/* Hero Card */}
       {assessment ? (
-        <div className="w-full rounded-2xl bg-primary text-primary-foreground p-8 flex flex-col items-center gap-4 text-center shadow-lg">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-md">
-            <BookOpenCheck className="h-7 w-7" />
+        <div className="w-full rounded-2xl bg-gradient-to-br from-primary to-maroon-light text-primary-foreground p-8 flex flex-col items-center gap-5 text-center shadow-lg border border-white/10 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-accent/10 rounded-full -mr-16 -mt-16 blur-3xl" />
+          <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md text-accent shadow-xl border border-white/20 p-2">
+            <img src="/ieteo-logo.jpg" alt="Logo" className="w-full h-full object-contain" />
           </div>
-          <div>
+          <div className="relative z-10">
             {assessment.institution && (
-              <div className="mb-3">
-                <span className="inline-block px-3 py-1 rounded-full bg-white/10 text-[10px] font-bold uppercase tracking-widest text-primary-foreground/90 border border-white/20">
+              <div className="mb-4">
+                <span className="inline-block px-3 py-1 rounded-full bg-accent/20 text-accent text-[10px] font-bold uppercase tracking-widest border border-accent/30 backdrop-blur-sm">
                   {assessment.institution}
                 </span>
               </div>
             )}
-            <h1 className="text-2xl font-serif font-bold text-balance">{assessment.title}</h1>
-            <p className="mt-1.5 text-sm text-primary-foreground/80 font-medium">
-              {disc?.name ?? "Disciplina Geral"} <span className="mx-1 opacity-50">•</span> Prof. {assessment.professor}
+            <h1 className="text-2xl font-bold tracking-tight text-balance leading-tight">{assessment.title}</h1>
+            <p className="mt-2 text-primary-foreground/70 text-sm font-medium">
+              {disc?.name ?? "Disciplina Geral"} <span className="mx-1.5 opacity-30">•</span> Prof. {assessment.professor}
             </p>
           </div>
-          <div className="flex flex-wrap justify-center gap-3 text-sm text-primary-foreground/80 border-t border-primary-foreground/20 pt-4 w-full">
-            <span>{assessment.questionIds.length} questão{assessment.questionIds.length !== 1 ? "ões" : ""}</span>
-            <span>·</span>
-            <span>{assessment.totalPoints.toFixed(1)} pts no total</span>
-            {formats && <><span>·</span><span>{formats}</span></>}
+          <div className="flex flex-wrap justify-center gap-4 text-xs font-semibold text-primary-foreground/60 border-t border-white/10 pt-5 w-full">
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/5">
+              <span>{assessment.questionIds.length} Questões</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/5">
+              <span>{assessment.totalPoints.toFixed(1)} Pontos</span>
+            </div>
+            {formats && (
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/5">
+                <span>{formats}</span>
+              </div>
+            )}
           </div>
         </div>
       ) : (
@@ -201,28 +197,18 @@ export function StudentLogin({ onLogin, onResult, onBack, preloadedAssessmentId 
       <div className="w-full rounded-2xl bg-card text-card-foreground border border-border shadow-sm p-8">
         {isForgot ? (
           <>
-            <div className="text-center mb-5">
-              <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-accent/10 mb-2">
-                <KeyRound className="h-5 w-5 text-accent" />
+            <div className="flex flex-col gap-6 animate-in slide-in-from-right-4 duration-300">
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-xl text-sm leading-relaxed">
+                <span className="font-semibold block mb-1">Recuperar Acesso:</span>
+                A recuperação de senha para alunos matriculados é feita exclusivamente pela nossa Secretaria via WhatsApp, pois utilizamos identificadores de sistema.
               </div>
-              <h2 className="text-lg font-semibold">Recuperar Senha</h2>
-              <p className="text-sm text-muted-foreground mt-1">Enviaremos um link de recuperação para seu e-mail de aluno</p>
-            </div>
-            <form onSubmit={handleForgotPassword} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="forgot-email-student">E-mail</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                  <Input id="forgot-email-student" type="email" placeholder="seu@email.com" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} className="pl-9" autoFocus />
-                </div>
-              </div>
-              {forgotErr && <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{forgotErr}</p>}
-              {forgotMsg && <p className="text-sm text-green-600 bg-green-50 rounded-lg px-3 py-2 flex items-center gap-2"><CheckCircle2 className="h-4 w-4 shrink-0" />{forgotMsg}</p>}
-              <Button type="submit" className="w-full" disabled={forgotLoading}>
-                {forgotLoading ? "Enviando..." : "Enviar link de recuperação"}
-              </Button>
+
+              <a href="https://wa.me/5571987483103?text=Olá, esqueci minha senha de estudante e gostaria de recuperá-la." target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold h-12 rounded-lg transition-colors shadow-sm">
+                <CheckCircle2 className="h-5 w-5" /> Falar com a Secretaria
+              </a>
+
               <button type="button" onClick={() => setIsForgot(false)} className="text-sm text-primary hover:underline text-center">← Voltar</button>
-            </form>
+            </div>
           </>
         ) : (
           <>

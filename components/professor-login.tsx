@@ -81,7 +81,13 @@ export function ProfessorLogin({ onLogin, onBack }: Props) {
         const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
         if (signInError) throw signInError
         if (data.session) {
-          const role = isMaster ? "master" : (data.user.user_metadata?.role || "professor")
+          const role = data.user.user_metadata?.role || data.user.user_metadata?.type
+
+          if (role !== "master" && role !== "professor") {
+            await supabase.auth.signOut()
+            throw new Error("Acesso negado. Esta área é restrita a professores.")
+          }
+
           saveProfessorSession(data.user.id, role)
           onLogin()
         }
@@ -95,12 +101,14 @@ export function ProfessorLogin({ onLogin, onBack }: Props) {
 
   return (
     <div className="w-full max-w-sm mx-auto">
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary mb-4">
-          <BookOpen className="h-8 w-8 text-primary-foreground" />
+      <div className="text-center mb-10 group">
+        <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-sm mb-6 border border-border shadow-xl p-2 relative overflow-hidden transition-transform duration-500 group-hover:scale-105">
+          <div className="absolute inset-0 bg-gradient-to-br from-accent/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <img src="/ieteo-logo.jpg" alt="IETEO" className="w-full h-full object-contain relative z-10" />
         </div>
-        <h1 className="text-2xl font-bold text-foreground font-serif">Painel do Professor</h1>
-        <p className="text-muted-foreground text-sm mt-1 font-sans">Instituto de Ensino Teológico - IETEO</p>
+        <h1 className="text-2xl font-extrabold text-foreground tracking-tight leading-tight">Painel do Professor</h1>
+        <p className="text-accent text-xs font-bold uppercase tracking-widest mt-2">Instituto de Ensino Teológico</p>
+        <div className="h-1 w-8 bg-accent mx-auto mt-4 rounded-full" />
       </div>
 
       <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">

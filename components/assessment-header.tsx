@@ -19,12 +19,12 @@ export function AssessmentHeader({
 }: AssessmentHeaderProps) {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-primary text-primary-foreground shadow-md">
-      <div className="mx-auto max-w-5xl px-4 py-3">
+      <div className="mx-auto max-w-[1400px] px-4 py-3">
         <div className="flex items-center justify-between gap-4">
           {/* Logo + Brand */}
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-accent-foreground shrink-0">
-              <BookOpen className="h-5 w-5" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white p-0.5 shadow-sm border border-white/20 shrink-0 overflow-hidden">
+              <img src="/ieteo-logo.jpg" alt="IETEO" className="h-full w-full object-cover" />
             </div>
             <div>
               <p className="text-xs font-medium text-primary-foreground/70 uppercase tracking-widest hidden sm:block">
