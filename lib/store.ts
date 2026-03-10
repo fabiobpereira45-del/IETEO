@@ -475,7 +475,8 @@ export async function getDisciplineQuestionCounts(): Promise<Record<string, numb
 export async function addQuestion(data: Omit<Question, "id" | "createdAt">): Promise<Question> {
   const q = { id: uid(), discipline_id: data.disciplineId, type: data.type, text: data.text, choices: data.choices, pairs: data.pairs || null, correct_answer: data.correctAnswer, points: data.points, created_at: new Date().toISOString() }
   const supabase = createClient()
-  await supabase.from('questions').insert(q)
+  const { error } = await supabase.from('questions').insert(q)
+  if (error) throw new Error(`Erro ao salvar questão: ${error.message}`)
   return mapQuestion(q)
 }
 export async function updateQuestion(id: string, data: Partial<Omit<Question, "id" | "createdAt">>): Promise<void> {

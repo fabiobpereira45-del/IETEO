@@ -28,7 +28,8 @@ interface GeneratedQuestion {
 
 interface Props {
   disciplines: Discipline[]
-  onQuestionsAdded: () => void
+  onQuestionsAdded: (assessmentCreated?: boolean) => void
+  defaultDisciplineId?: string
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -182,8 +183,8 @@ function QuestionPreviewCard({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function AIQuestionGenerator({ disciplines, onQuestionsAdded }: Props) {
-  const [disciplineId, setDisciplineId] = useState(disciplines[0]?.id ?? "")
+export function AIQuestionGenerator({ disciplines, onQuestionsAdded, defaultDisciplineId }: Props) {
+  const [disciplineId, setDisciplineId] = useState(defaultDisciplineId || disciplines[0]?.id || "")
   const [count, setCount] = useState(5)
   const [types, setTypes] = useState<QuestionType[]>(["multiple-choice", "true-false"])
   const [pointsPerQuestion, setPointsPerQuestion] = useState(1)
@@ -191,6 +192,7 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded }: Props) {
   const [difficulty, setDifficulty] = useState("Intermediário")
 
   const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [generated, setGenerated] = useState<GeneratedQuestion[]>([])
   const [selected, setSelected] = useState<Set<number>>(new Set())
@@ -257,46 +259,74 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded }: Props) {
           throw new Error("O arquivo enviado é muito grande. O limite geralmente é de 4MB.")
         }
         const data = await res.json().catch(() => null)
-        throw new Error(data?.error ?? `Erro no servidor (${res.status}). O arquivo pode ser muito grande ou a chave GOOGLE_GENERATIVE_AI_API_KEY está ausente.`)
+        throw new Error(data?.error ?? `Erro no servidor (${res.status}).`)
       }
 
       const data = await res.json()
       const qs: GeneratedQuestion[] = data.questions ?? []
       setGenerated(qs)
-      setSelected(new Set(qs.map((_, i) => i))) // select all by default
+      setSelected(new Set(qs.map((_, i) => i)))
     } catch (e: any) {
-      let msg = e.message || "Erro ao gerar questões."
-      if (msg.includes("API key not valid") || msg.includes("API_KEY_INVALID")) {
-        msg = "Chave da Google API inválida ou não encontrada. Obtenha uma em: aistudio.google.com/app/apikey"
-      }
-      setError(msg)
+      setError(e.message || "Erro ao gerar questões.")
     } finally {
       setLoading(false)
     }
   }
 
-  async function handleSave() {
-    const toSave = generated.filter((_, i) => selected.has(i))
-    for (const q of toSave) {
-      await addQuestion({
-        disciplineId,
-        type: q.type,
-        text: q.text,
-        choices: q.choices,
-        pairs: q.pairs,
-        correctAnswer: q.correctAnswer,
-        points: pointsPerQuestion,
-      })
+  async function handleSave(createAssessment = false) {
+    if (selected.size === 0) return
+    setSaving(true)
+    setError(null)
+
+    try {
+      const toSave = generated.filter((_, i) => selected.has(i))
+      const savedIds: string[] = []
+
+      for (const q of toSave) {
+        const result = await addQuestion({
+          disciplineId,
+          type: q.type,
+          text: q.text,
+          choices: q.choices,
+          pairs: q.pairs,
+          correctAnswer: q.correctAnswer,
+          points: pointsPerQuestion,
+        })
+        savedIds.push(result.id)
+      }
+
+      if (createAssessment && savedIds.length > 0) {
+        const { addAssessment } = await import("@/lib/store")
+        await addAssessment({
+          title: `Avaliação IA - ${selectedDiscipline?.name} - ${new Date().toLocaleDateString()}`,
+          disciplineId,
+          professor: "IA Teológica",
+          institution: "IETEO",
+          questionIds: savedIds,
+          pointsPerQuestion: pointsPerQuestion,
+          totalPoints: savedIds.length * pointsPerQuestion,
+          openAt: null,
+          closeAt: null,
+          isPublished: false,
+          shuffleVariants: true,
+          rules: "Avaliação gerada automaticamente por IA.",
+          modality: "public"
+        })
+      }
+
+      setSaved(true)
+      setGenerated([])
+      setSelected(new Set())
+      onQuestionsAdded(createAssessment)
+    } catch (e: any) {
+      setError(`Erro ao salvar: ${e.message}`)
+    } finally {
+      setSaving(false)
     }
-    setSaved(true)
-    setGenerated([])
-    setSelected(new Set())
-    onQuestionsAdded()
   }
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Header */}
       <div className="flex items-start gap-3 bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-4">
         <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
           <Sparkles className="h-5 w-5 text-primary-foreground" />
@@ -334,6 +364,7 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded }: Props) {
                     value={disciplineId}
                     onChange={(e) => setDisciplineId(e.target.value)}
                     className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground"
+                    disabled={!!defaultDisciplineId}
                   >
                     {disciplines.map((d) => (
                       <option key={d.id} value={d.id}>{d.name}</option>
@@ -355,7 +386,6 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded }: Props) {
                 </div>
               </div>
 
-              {/* Nível e Público (NOVO) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <Label className="text-sm font-semibold">Público-Alvo</Label>
@@ -452,7 +482,7 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded }: Props) {
 
               <Button
                 onClick={handleGenerate}
-                disabled={loading || !disciplineId || types.length === 0}
+                disabled={loading || saving || !disciplineId || types.length === 0}
                 className="self-start"
               >
                 {loading ? (
@@ -469,7 +499,6 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded }: Props) {
               </Button>
             </div>
 
-            {/* Loading state */}
             {loading && (
               <div className="bg-card border border-border rounded-xl p-10 flex flex-col items-center gap-3 text-muted-foreground">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -480,18 +509,16 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded }: Props) {
               </div>
             )}
 
-            {/* Saved success */}
             {saved && !generated.length && (
               <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-green-800">
                 <Check className="h-5 w-5 flex-shrink-0" />
-                <p className="text-sm font-medium">Questões adicionadas ao banco com sucesso!</p>
+                <p className="text-sm font-medium">Operação realizada com sucesso!</p>
                 <button onClick={() => setSaved(false)} className="ml-auto">
                   <X className="h-4 w-4 opacity-60 hover:opacity-100" />
                 </button>
               </div>
             )}
 
-            {/* Generated questions */}
             {generated.length > 0 && (
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between flex-wrap gap-3">
@@ -510,14 +537,6 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded }: Props) {
                     <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={deselectAll}>
                       Limpar seleção
                     </Button>
-                    <Button
-                      size="sm"
-                      onClick={handleSave}
-                      disabled={selected.size === 0}
-                    >
-                      <Plus className="h-4 w-4 mr-1.5" />
-                      Adicionar {selected.size > 0 ? `${selected.size} ` : ""}ao banco
-                    </Button>
                   </div>
                 </div>
 
@@ -533,14 +552,23 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded }: Props) {
                   ))}
                 </div>
 
-                <div className="flex justify-end">
+                <div className="flex flex-col sm:flex-row justify-end gap-3 mt-4">
                   <Button
-                    onClick={handleSave}
-                    disabled={selected.size === 0}
-                    size="lg"
+                    variant="outline"
+                    onClick={() => handleSave(false)}
+                    disabled={selected.size === 0 || saving}
+                    className="flex-1 sm:flex-none"
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Adicionar {selected.size} questão{selected.size !== 1 ? "ões" : ""} ao banco
+                    {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+                    Guardar no banco
+                  </Button>
+                  <Button
+                    onClick={() => handleSave(true)}
+                    disabled={selected.size === 0 || saving}
+                    className="flex-1 sm:flex-none accent-gradient text-white border-none"
+                  >
+                    {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                    Guardar e Gerar Prova
                   </Button>
                 </div>
               </div>

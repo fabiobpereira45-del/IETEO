@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import {
-  Plus, Pencil, Trash2, ChevronRight, BookOpen, CheckSquare, AlignLeft, X, Check, Sparkles, Upload
+  Plus, Pencil, Trash2, ChevronRight, BookOpen, CheckSquare, AlignLeft, X, Check, Sparkles, Upload, ListChecks
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -32,12 +32,18 @@ const TYPE_LABELS: Record<QuestionType, string> = {
   "multiple-choice": "Múltipla Escolha",
   "true-false": "Verdadeiro ou Falso",
   discursive: "Discursiva",
+  "incorrect-alternative": "Escolha a Incorreta",
+  "fill-in-the-blank": "Completar Lacunas",
+  matching: "Relacionar Colunas"
 }
 
 const TYPE_ICONS: Record<QuestionType, React.ReactNode> = {
   "multiple-choice": <CheckSquare className="h-3.5 w-3.5" />,
   "true-false": <Check className="h-3.5 w-3.5" />,
   discursive: <AlignLeft className="h-3.5 w-3.5" />,
+  "incorrect-alternative": <X className="h-3.5 w-3.5" />,
+  "fill-in-the-blank": <Pencil className="h-3.5 w-3.5" />,
+  matching: <ListChecks className="h-3.5 w-3.5" />,
 }
 
 // ─── Discipline Modal ─────────────────────────────────────────────────────────
@@ -718,10 +724,15 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
           <div className="overflow-y-auto max-h-[90vh]">
             <AIQuestionGenerator
               disciplines={disciplines}
-              onQuestionsAdded={() => {
+              defaultDisciplineId={selectedDiscipline?.id}
+              onQuestionsAdded={(assessmentCreated) => {
                 setAiModal(false)
                 if (selectedDiscipline) {
                   reload(selectedDiscipline.id)
+                }
+                if (assessmentCreated) {
+                  // If we added a way to switch tabs to "Assessments", we would do it here.
+                  // For now, reload the current discipline's questions is enough.
                 }
               }}
             />
