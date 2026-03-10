@@ -370,7 +370,6 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded, defaultDisc
                     value={disciplineId}
                     onChange={(e) => setDisciplineId(e.target.value)}
                     className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground"
-                    disabled={!!defaultDisciplineId}
                   >
                     {disciplines.map((d) => (
                       <option key={d.id} value={d.id}>{d.name}</option>
@@ -559,6 +558,12 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded, defaultDisc
                 </div>
 
                 <div className="flex flex-col sm:flex-row justify-end gap-3 mt-4">
+                  {error && (
+                    <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2 flex-grow">
+                      <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                      <span>{error}</span>
+                    </div>
+                  )}
                   <Button
                     variant="outline"
                     onClick={() => handleSave(false)}

@@ -509,7 +509,7 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
   return (
     <div className="flex h-full min-h-[600px] gap-0 rounded-2xl border border-border/50 overflow-hidden bg-background premium-shadow">
       {/* Left: Disciplines */}
-      <div className="w-64 flex-shrink-0 flex flex-col border-r border-border/50 bg-muted/20">
+      <div className="w-80 flex-shrink-0 flex flex-col border-r border-border/50 bg-muted/20">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
           <span className="text-sm font-bold text-foreground">Disciplinas</span>
           <Button

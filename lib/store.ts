@@ -216,7 +216,11 @@ export function saveDraftAnswers(answers: StudentAnswer[]): void { writeLocal(KE
 function mapSemester(row: any): Semester { return { id: row.id, name: row.name, order: row.order, shift: row.shift || undefined, createdAt: row.created_at } }
 function mapStudyMaterial(row: any): StudyMaterial { return { id: row.id, disciplineId: row.discipline_id, title: row.title, description: row.description || undefined, fileUrl: row.file_url, createdAt: row.created_at } }
 function mapDiscipline(row: any): Discipline { return { id: row.id, name: row.name, description: row.description || undefined, semesterId: row.semester_id || undefined, professorName: row.professor_name || undefined, dayOfWeek: row.day_of_week || undefined, shift: row.shift || undefined, createdAt: row.created_at } }
-function mapQuestion(row: any): Question { return { id: row.id, disciplineId: row.discipline_id, type: row.type, text: row.text, choices: row.choices, pairs: row.pairs, correctAnswer: row.correct_answer, points: row.points, createdAt: row.created_at } }
+function mapQuestion(row: any): Question {
+  const choices = Array.isArray(row.choices) ? row.choices : (row.choices?.options || [])
+  const pairs = row.pairs || row.choices?.matchingPairs || undefined
+  return { id: row.id, disciplineId: row.discipline_id, type: row.type, text: row.text, choices, pairs, correctAnswer: row.correct_answer, points: row.points, createdAt: row.created_at }
+}
 function mapAssessment(row: any): Assessment { return { id: row.id, title: row.title, disciplineId: row.discipline_id, professor: row.professor, institution: row.institution, questionIds: row.question_ids, pointsPerQuestion: row.points_per_question, totalPoints: row.total_points, openAt: row.open_at, closeAt: row.close_at, isPublished: row.is_published, archived: !!row.archived, shuffleVariants: row.shuffle_variants, logoBase64: row.logo_base64, rules: row.rules, releaseResults: row.release_results, modality: row.modality ?? "public", createdAt: row.created_at } }
 function mapSubmission(row: any): StudentSubmission { return { id: row.id, assessmentId: row.assessment_id, studentName: row.student_name, studentEmail: row.student_email, answers: row.answers, score: row.score, totalPoints: row.total_points, percentage: row.percentage, submittedAt: row.submitted_at, timeElapsedSeconds: row.time_elapsed_seconds } }
 function mapProfessor(row: any): ProfessorAccount { return { id: row.id, name: row.name, email: row.email, passwordHash: row.password_hash, role: row.role as any, createdAt: row.created_at } }
@@ -473,23 +477,54 @@ export async function getDisciplineQuestionCounts(): Promise<Record<string, numb
   return counts
 }
 export async function addQuestion(data: Omit<Question, "id" | "createdAt">): Promise<Question> {
-  const q = { id: uid(), discipline_id: data.disciplineId, type: data.type, text: data.text, choices: data.choices, pairs: data.pairs || null, correct_answer: data.correctAnswer, points: data.points, created_at: new Date().toISOString() }
+  const q: any = {
+    id: uid(),
+    discipline_id: data.disciplineId,
+    type: data.type,
+    text: data.text,
+    choices: data.choices,
+    correct_answer: data.correctAnswer,
+    points: data.points,
+    created_at: new Date().toISOString()
+  }
+  // Store pairs inside choices since DB column might be missing
+  if (data.pairs && data.pairs.length > 0) {
+    q.choices = { options: data.choices || [], matchingPairs: data.pairs }
+  }
+
   const supabase = createClient()
   const { error } = await supabase.from('questions').insert(q)
   if (error) throw new Error(`Erro ao salvar questão: ${error.message}`)
-  return mapQuestion(q)
+
+  // Create a proper Question object for the return
+  return mapQuestion({
+    ...q,
+    discipline_id: q.discipline_id,
+    correct_answer: q.correct_answer,
+    created_at: q.created_at
+  })
 }
 export async function updateQuestion(id: string, data: Partial<Omit<Question, "id" | "createdAt">>): Promise<void> {
   const updateData: any = {}
   if (data.disciplineId !== undefined) updateData.discipline_id = data.disciplineId
   if (data.type !== undefined) updateData.type = data.type
   if (data.text !== undefined) updateData.text = data.text
-  if (data.choices !== undefined) updateData.choices = data.choices
-  if (data.pairs !== undefined) updateData.pairs = data.pairs
-  if (data.correctAnswer !== undefined) updateData.correct_answer = data.correctAnswer
   if (data.points !== undefined) updateData.points = data.points
+
+  if (data.choices !== undefined || data.pairs !== undefined) {
+    const finalChoices = data.choices || []
+    const finalPairs = data.pairs || []
+    if (finalPairs.length > 0) {
+      updateData.choices = { options: finalChoices, matchingPairs: finalPairs }
+      // Explicitly avoid sending pairs column
+    } else {
+      updateData.choices = finalChoices
+    }
+  }
+
   const supabase = createClient()
-  await supabase.from('questions').update(updateData).eq('id', id)
+  const { error } = await supabase.from('questions').update(updateData).eq('id', id)
+  if (error) throw new Error(`Erro ao atualizar questão: ${error.message}`)
 }
 export async function deleteQuestion(id: string): Promise<void> {
   const supabase = createClient()
