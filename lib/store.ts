@@ -518,7 +518,8 @@ export async function addAssessment(data: Omit<Assessment, "id" | "createdAt" | 
   const a = { ...data, id: uid(), createdAt: new Date().toISOString(), releaseResults: false, archived: false }
   const dbData = { id: a.id, title: a.title, discipline_id: a.disciplineId, professor: a.professor, institution: a.institution, question_ids: a.questionIds, points_per_question: a.pointsPerQuestion, total_points: a.totalPoints, open_at: a.openAt, close_at: a.closeAt, is_published: a.isPublished, archived: a.archived, shuffle_variants: a.shuffleVariants, logo_base64: a.logoBase64, rules: a.rules, release_results: a.releaseResults, modality: a.modality ?? "public", created_at: a.createdAt }
   const supabase = createClient()
-  await supabase.from('assessments').insert(dbData)
+  const { error } = await supabase.from('assessments').insert(dbData)
+  if (error) throw new Error(error.message)
   return a
 }
 export async function updateAssessment(id: string, data: Partial<Omit<Assessment, "id" | "createdAt">>): Promise<void> {

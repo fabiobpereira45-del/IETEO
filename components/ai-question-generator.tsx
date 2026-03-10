@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   Sparkles, BookOpen, Hash, ListChecks, Loader2, Check,
   ChevronDown, ChevronUp, Plus, AlertCircle, X, MessageSquare, Settings2
@@ -199,6 +199,12 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded, defaultDisc
   const [saved, setSaved] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [sourceDetails, setSourceDetails] = useState("")
+
+  useEffect(() => {
+    if (defaultDisciplineId) {
+      setDisciplineId(defaultDisciplineId)
+    }
+  }, [defaultDisciplineId])
 
   const selectedDiscipline = disciplines.find((d) => d.id === disciplineId)
 

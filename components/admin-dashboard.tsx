@@ -641,7 +641,10 @@ function AssessmentsTab({ assessments, submissions, questions, disciplines, onRe
             const disc = disciplines.find((d) => d.id === a.disciplineId)
             const subCount = submissions.filter(s => s.assessmentId === a.id).length
             return (
-              <div key={a.id} className="bg-card border border-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-4">
+              <div key={a.id} className={cn(
+                "bg-card border border-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-4 transition-all",
+                a.archived && "opacity-75 bg-muted/30 border-dashed"
+              )}>
                 <div className="flex-1 min-w-0 w-full">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <h3 className="font-semibold text-foreground">{a.title}</h3>
@@ -651,6 +654,11 @@ function AssessmentsTab({ assessments, submissions, questions, disciplines, onRe
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${a.modality === "private" ? "bg-primary/10 text-primary" : "bg-blue-50 text-blue-600"}`}>
                       {a.modality === "private" ? "🔒 Privada" : "🌐 Pública"}
                     </span>
+                    {a.archived && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-700 border border-amber-200">
+                        📦 ARQUIVADA
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-1">
                     <span>{disc?.name ?? "Disciplina removida"}</span>
