@@ -70,11 +70,14 @@ export async function POST(req: Request) {
             // Activate the student enrollment
             const studentIds = charges.map((c: any) => c.student_id).filter(Boolean)
             if (studentIds.length > 0) {
-                await supabase
-                    .from('students')
-                    .update({ status: 'active' })
-                    .in('id', studentIds)
-                    .eq('status', 'pending')
+                const baseUrlApp = process.env.NEXT_PUBLIC_APP_URL || 'https://ieteo-dashboard.vercel.app'
+                for (const sId of studentIds) {
+                    await fetch(`${baseUrlApp}/api/student/activate`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ studentId: sId })
+                    }).catch(e => console.error("Check-status activation fetch error:", e))
+                }
             }
 
             return NextResponse.json({ status: 'paid' })

@@ -50,14 +50,15 @@ export async function POST(req: Request) {
 
             // Activate the student enrollment
             if (updatedCharge?.student_id) {
-                await supabase
-                    .from('students')
-                    .update({ status: 'active' })
-                    .eq('id', updatedCharge.student_id)
-                    .eq('status', 'pending')
+                // We call our internal API to handle activation + auth creation + n8n
+                const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://ieteo-dashboard.vercel.app'
+                await fetch(`${baseUrl}/api/student/activate`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ studentId: updatedCharge.student_id })
+                }).catch(e => console.error("Webhook activation fetch error:", e))
             }
         }
-
 
         return NextResponse.json({ received: true })
     } catch (error: any) {

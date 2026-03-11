@@ -443,11 +443,12 @@ export async function updateFinancialChargeStatus(id: string, status: FinancialC
   if (status === 'pending') dbData.payment_date = null
   await supabase.from('financial_charges').update(dbData).eq('id', id)
 
-  // Trigger n8n WhatsApp (Payment Confirmed)
+  // Trigger actions on payment
   if (status === 'paid') {
     try {
       const { data: charge } = await supabase.from('financial_charges').select('*, students(*)').eq('id', id).single()
       if (charge) {
+        // 1. Trigger n8n WhatsApp (Payment Confirmed)
         await triggerN8nWebhook('pagamento_confirmado', {
           type: 'payment',
           name: charge.students?.name,
@@ -455,9 +456,19 @@ export async function updateFinancialChargeStatus(id: string, status: FinancialC
           amount: charge.amount,
           description: charge.description
         })
+
+        // 2. If it's an enrollment charge, activate the student
+        if (charge.type === 'enrollment' && charge.student_id) {
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : 'https://ieteo-dashboard.vercel.app')
+          await fetch(`${baseUrl}/api/student/activate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ studentId: charge.student_id })
+          }).catch(e => console.error("Activation fetch error:", e))
+        }
       }
     } catch (err) {
-      console.error("Erro ao disparar WhatsApp n8n de confirmação de pagamento:", err)
+      console.error("Error in post-payment actions:", err)
     }
   }
 }
