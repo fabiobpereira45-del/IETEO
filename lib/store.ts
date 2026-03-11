@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client"
+import { triggerN8nWebhook } from "@/lib/n8n"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type QuestionType = "multiple-choice" | "true-false" | "discursive" | "incorrect-alternative" | "fill-in-the-blank" | "matching"
@@ -402,12 +403,12 @@ export async function updateFinancialChargeStatus(id: string, status: FinancialC
   if (status === 'pending') dbData.payment_date = null
   await supabase.from('financial_charges').update(dbData).eq('id', id)
 
-  // Trigger Flow-Gravit WhatsApp (Payment Confirmed)
+  // Trigger n8n WhatsApp (Payment Confirmed)
   if (status === 'paid') {
     try {
       const { data: charge } = await supabase.from('financial_charges').select('*, students(*)').eq('id', id).single()
       if (charge) {
-        await triggerFlowGravit('confirmacao_pagamento', {
+        await triggerN8nWebhook('pagamento_confirmado', {
           type: 'payment',
           name: charge.students?.name,
           phone: charge.students?.phone,
@@ -416,7 +417,7 @@ export async function updateFinancialChargeStatus(id: string, status: FinancialC
         })
       }
     } catch (err) {
-      console.error("Erro ao disparar WhatsApp de confirmação de pagamento:", err)
+      console.error("Erro ao disparar WhatsApp n8n de confirmação de pagamento:", err)
     }
   }
 }
@@ -684,19 +685,21 @@ export async function saveSubmission(sub: StudentSubmission): Promise<StudentSub
   if (error) throw new Error(error.message)
   const result = mapSubmission(data)
 
-  // Trigger Flow-Gravit WhatsApp (Exam Completed)
+  // Trigger n8n WhatsApp (Exam Completed)
   try {
     const assessment = await getAssessmentById(sub.assessmentId);
     if (assessment) {
-      await triggerFlowGravit('conclusao_prova', {
+      await triggerN8nWebhook('prova_concluida', {
         type: 'exam_completion',
         name: sub.studentName,
-        phone: sub.studentEmail.split('@')[0], // Fallback
-        title: assessment.title
+        phone: sub.studentEmail.split('@')[0], // Fallback/Identifier
+        title: assessment.title,
+        score: sub.score,
+        totalPoints: sub.totalPoints
       });
     }
   } catch (err) {
-    console.error("Erro ao disparar WhatsApp de conclusão de prova:", err);
+    console.error("Erro ao disparar WhatsApp n8n de conclusão de prova:", err);
   }
 
   return result
@@ -843,6 +846,20 @@ export async function sendChatMessage(studentId: string, disciplineId: string, m
   const dbData = { student_id: studentId, discipline_id: disciplineId, message, is_from_student: isFromStudent, read: false, created_at: new Date().toISOString() }
   const { data, error } = await supabase.from('chats').insert(dbData).select().single()
   if (error) throw new Error(error.message)
+
+  // Trigger n8n if message is from professor to student
+  if (!isFromStudent) {
+    const { data: student } = await supabase.from('students').select('name, phone').eq('id', studentId).single();
+    if (student) {
+      await triggerN8nWebhook('nova_mensagem_chat', {
+        type: 'chat',
+        studentName: student.name,
+        phone: student.phone,
+        message: message
+      });
+    }
+  }
+
   return mapChatMessage(data)
 }
 
@@ -866,33 +883,25 @@ export async function saveAttendance(studentId: string, disciplineId: string, da
     const dbData = { student_id: studentId, discipline_id: disciplineId, date, is_present: isPresent, created_at: new Date().toISOString() }
     await supabase.from('attendances').insert(dbData)
   }
+
+  // Trigger n8n if absent
+  if (!isPresent) {
+    const { data: student } = await supabase.from('students').select('name, phone').eq('id', studentId).single();
+    const { data: discipline } = await supabase.from('disciplines').select('name').eq('id', disciplineId).single();
+    if (student) {
+      await triggerN8nWebhook('falta_registrada', {
+        type: 'attendance',
+        studentName: student.name,
+        phone: student.phone,
+        disciplineName: discipline?.name || "Disciplina",
+        date: date
+      });
+    }
+  }
 }
 
 // ─── n8n WhatsApp Integration ──────────────────────────────────────────────
-
-export async function triggerN8nWebhook(flowId: string, payload: any): Promise<void> {
-  const N8N_WEBHOOK_URL = process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL || "https://n8n.webhook.com";
-  const url = `${N8N_WEBHOOK_URL}/${flowId}`;
-
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...payload,
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`n8n trigger failed: ${response.status} ${errorText}`);
-    }
-  } catch (error) {
-    console.error("n8n connection error:", error);
-  }
-}
+export { triggerN8nWebhook }
 
 // ─── Notas (Student Grades) ───────────────────────────────────────────────────
 

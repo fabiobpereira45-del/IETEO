@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { triggerN8nWebhook } from "@/lib/n8n"
 
 export async function POST(req: Request) {
     try {
@@ -70,6 +71,20 @@ export async function POST(req: Request) {
         if (chargeErr) {
             console.error("Erro ao criar cobrança:", chargeErr)
             return NextResponse.json({ error: "Erro ao criar cobrança." }, { status: 500 })
+        }
+
+        // Trigger n8n WhatsApp (Online Enrollment)
+        try {
+            await triggerN8nWebhook('matricula_realizada_online', {
+                type: 'online_enrollment',
+                name: name.trim(),
+                phone: phone.trim(),
+                enrollmentNumber,
+                amount: amount || 0,
+                dueDate: dueDate.toISOString().split('T')[0]
+            })
+        } catch (err) {
+            console.error("Erro ao disparar n8n em matrícula online:", err)
         }
 
         return NextResponse.json({
