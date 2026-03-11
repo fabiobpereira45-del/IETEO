@@ -10,7 +10,7 @@ export interface Discipline { id: string; name: string; description?: string | n
 export interface StudyMaterial { id: string; disciplineId: string; title: string; description?: string; fileUrl: string; createdAt: string }
 export interface FinancialSettings { id: string; enrollmentFee: number; monthlyFee: number; secondCallFee: number; finalExamFee: number; totalMonths: number; updatedAt: string; }
 export interface PaypalConfig { id: string; clientId: string; secret: string; mode: "sandbox" | "live"; updatedAt: string; }
-export interface AsaasConfig { id: string; apiKey: string; mode: "sandbox" | "production"; updatedAt: string; }
+export interface AsaasConfig { id: string; apiKey: string; mode: "sandbox" | "production"; pixKey?: string; updatedAt: string; }
 export interface FinancialCharge { id: string; studentId: string; type: "enrollment" | "monthly" | "second_call" | "final_exam" | "other"; description: string; amount: number; dueDate: string; status: "pending" | "paid" | "cancelled" | "late"; paymentDate?: string; paypalOrderId?: string; asaasPaymentId?: string; pixQrcode?: string; pixCopyPaste?: string; createdAt: string; }
 export interface Question { id: string; disciplineId: string; type: QuestionType; text: string; choices: Choice[]; pairs?: MatchingPair[]; correctAnswer: string; points: number; createdAt: string }
 export interface Assessment { id: string; title: string; disciplineId: string; professor: string; institution: string; questionIds: string[]; pointsPerQuestion: number; totalPoints: number; openAt: string | null; closeAt: string | null; isPublished: boolean; archived: boolean; shuffleVariants?: boolean; logoBase64?: string; rules?: string; releaseResults?: boolean; modality?: "public" | "private"; createdAt: string }
@@ -264,7 +264,7 @@ function mapSubmission(row: any): StudentSubmission { return { id: row.id, asses
 function mapProfessor(row: any): ProfessorAccount { return { id: row.id, name: row.name, email: row.email, passwordHash: row.password_hash, role: row.role as any, createdAt: row.created_at } }
 function mapFinancialSettings(row: any): FinancialSettings { return { id: row.id, enrollmentFee: Number(row.enrollment_fee), monthlyFee: Number(row.monthly_fee), secondCallFee: Number(row.second_call_fee), finalExamFee: Number(row.final_exam_fee), totalMonths: Number(row.total_months), updatedAt: row.updated_at } }
 function mapPaypalConfig(row: any): PaypalConfig { return { id: row.id, clientId: row.client_id, secret: row.secret, mode: row.mode as "sandbox" | "live", updatedAt: row.updated_at } }
-function mapAsaasConfig(row: any): AsaasConfig { return { id: row.id, apiKey: row.api_key, mode: row.mode as "sandbox" | "production", updatedAt: row.updated_at } }
+function mapAsaasConfig(row: any): AsaasConfig { return { id: row.id, apiKey: row.api_key, mode: row.mode as "sandbox" | "production", pixKey: row.pix_key || undefined, updatedAt: row.updated_at } }
 function mapFinancialCharge(row: any): FinancialCharge { return { id: row.id, studentId: row.student_id, type: row.type, description: row.description, amount: Number(row.amount), dueDate: row.due_date, status: row.status, paymentDate: row.payment_date || undefined, paypalOrderId: row.paypal_order_id || undefined, asaasPaymentId: row.asaas_payment_id || undefined, pixQrcode: row.pix_qrcode || undefined, pixCopyPaste: row.pix_copy_paste || undefined, createdAt: row.created_at } }
 function mapStudentProfile(row: any): StudentProfile { return { id: row.id, auth_user_id: row.auth_user_id, name: row.name, cpf: row.cpf, enrollment_number: row.enrollment_number, phone: row.phone || undefined, address: row.address || undefined, church: row.church || undefined, pastor_name: row.pastor_name || undefined, class_id: row.class_id || undefined, created_at: row.created_at } }
 function mapChatMessage(row: any): ChatMessage { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, message: row.message, isFromStudent: row.is_from_student, read: row.read, createdAt: row.created_at } }
@@ -326,11 +326,13 @@ export async function getAsaasConfig(): Promise<AsaasConfig | null> {
 }
 export async function updateAsaasConfig(config: Omit<AsaasConfig, "id" | "updatedAt">): Promise<void> {
   const supabase = createClient()
-  const dbData = {
+  const dbData: any = {
     api_key: config.apiKey,
     mode: config.mode,
     updated_at: new Date().toISOString()
   }
+  if (config.pixKey !== undefined) dbData.pix_key = config.pixKey
+
   const { data: existing } = await supabase.from('asaas_config').select('id').limit(1).maybeSingle()
   if (existing) {
     await supabase.from('asaas_config').update(dbData).eq('id', existing.id)
