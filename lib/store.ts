@@ -828,7 +828,6 @@ export async function getClassSchedules(): Promise<ClassSchedule[]> {
 export async function addClassSchedule(data: Omit<ClassSchedule, "id" | "createdAt">): Promise<void> {
   const supabase = createClient()
   const dbData = {
-    id: uid(),
     class_id: data.classId,
     discipline_id: data.disciplineId,
     professor_name: data.professorName,
