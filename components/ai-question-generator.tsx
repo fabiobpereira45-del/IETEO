@@ -304,7 +304,7 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded, defaultDisc
       if (createAssessment && savedIds.length > 0) {
         const { addAssessment } = await import("@/lib/store")
         await addAssessment({
-          title: `Avaliação IA - ${selectedDiscipline?.name} - ${new Date().toLocaleDateString()}`,
+          title: `Avaliação que o professor irá editar`,
           disciplineId,
           professor: "IA Teológica",
           institution: "IETEO",
