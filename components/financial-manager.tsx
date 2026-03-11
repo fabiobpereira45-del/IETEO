@@ -127,7 +127,7 @@ export function FinancialManager() {
                 if (!student) continue
 
                 if (c.dueDate === tomorrowStr) {
-                    await triggerFlowGravit('lembrete_financeiro_amanha', {
+                    await triggerN8nWebhook('lembrete_financeiro_amanha', {
                         type: 'finance_upcoming',
                         name: student.name,
                         phone: student.phone,
@@ -136,7 +136,7 @@ export function FinancialManager() {
                     })
                 } else if (new Date(c.dueDate) < now && c.status === 'pending') {
                     // Overdue logic
-                    await triggerFlowGravit('financeiro_atrasado', {
+                    await triggerN8nWebhook('financeiro_atrasado', {
                         type: 'finance_overdue',
                         name: student.name,
                         phone: student.phone,
@@ -155,7 +155,7 @@ export function FinancialManager() {
                 if (openDate === tomorrowStr || openDate === todayStr) {
                     const triggerId = openDate === tomorrowStr ? 'lembrete_prova_amanha' : 'lembrete_prova_hoje'
                     for (const s of students) {
-                        await triggerFlowGravit(triggerId, {
+                        await triggerN8nWebhook(triggerId, {
                             type: openDate === tomorrowStr ? 'exam_tomorrow' : 'exam_today',
                             name: s.name,
                             phone: s.phone,
