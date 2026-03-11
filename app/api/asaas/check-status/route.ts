@@ -67,8 +67,19 @@ export async function POST(req: Request) {
                 })
                 .in('id', ids)
 
+            // Activate the student enrollment
+            const studentIds = charges.map((c: any) => c.student_id).filter(Boolean)
+            if (studentIds.length > 0) {
+                await supabase
+                    .from('students')
+                    .update({ status: 'active' })
+                    .in('id', studentIds)
+                    .eq('status', 'pending')
+            }
+
             return NextResponse.json({ status: 'paid' })
         }
+
 
         return NextResponse.json({ status: payment.status })
     } catch (error: any) {

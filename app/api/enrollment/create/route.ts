@@ -15,16 +15,24 @@ export async function POST(req: Request) {
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
         const supabase = createClient(supabaseUrl, supabaseKey)
 
-        // Check if CPF already enrolled
+        // Check if CPF already enrolled and CONFIRMED (not pending/abandoned)
         const { data: existing } = await supabase
             .from('students')
-            .select('id')
+            .select('id, status')
             .eq('cpf', cpf.replace(/\D/g, ''))
+            .not('status', 'eq', 'pending')
             .maybeSingle()
 
         if (existing) {
-            return NextResponse.json({ error: "Este CPF já possui uma matrícula cadastrada." }, { status: 409 })
+            return NextResponse.json({ error: "Este CPF já possui uma matrícula confirmada." }, { status: 409 })
         }
+
+        // Clean up any abandoned pending enrollment for this CPF
+        await supabase
+            .from('students')
+            .delete()
+            .eq('cpf', cpf.replace(/\D/g, ''))
+            .eq('status', 'pending')
 
         // Vacancy check
         if (classId) {
@@ -40,7 +48,7 @@ export async function POST(req: Request) {
         // Generate enrollment number
         const enrollmentNumber = `IETEO-${Date.now().toString().slice(-8)}`
 
-        // Create student record (pre-enrollment, no auth user yet)
+        // Create student record with status 'pending' (awaiting payment)
         const { data: student, error: studentErr } = await supabase
             .from('students')
             .insert({
@@ -51,11 +59,11 @@ export async function POST(req: Request) {
                 address: address.trim(),
                 church: church.trim(),
                 pastor_name: pastor.trim(),
-                class_id: classId || null
+                class_id: classId || null,
+                status: 'pending'
             })
             .select()
             .single()
-
 
         if (studentErr) {
             console.error("Erro ao criar aluno:", studentErr)

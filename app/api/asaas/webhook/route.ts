@@ -22,25 +22,42 @@ export async function POST(req: Request) {
             const asaasPaymentId = payment.id
             const externalReference = payment.externalReference // this is our chargeId
 
+            let updatedCharge: any = null
             if (externalReference) {
-                await supabase
+                const { data } = await supabase
                     .from('financial_charges')
                     .update({
                         status: 'paid',
                         payment_date: new Date().toISOString()
                     })
                     .eq('id', externalReference)
+                    .select('student_id')
+                    .single()
+                updatedCharge = data
             } else {
                 // fallback: find by asaas_payment_id
-                await supabase
+                const { data } = await supabase
                     .from('financial_charges')
                     .update({
                         status: 'paid',
                         payment_date: new Date().toISOString()
                     })
                     .eq('asaas_payment_id', asaasPaymentId)
+                    .select('student_id')
+                    .single()
+                updatedCharge = data
+            }
+
+            // Activate the student enrollment
+            if (updatedCharge?.student_id) {
+                await supabase
+                    .from('students')
+                    .update({ status: 'active' })
+                    .eq('id', updatedCharge.student_id)
+                    .eq('status', 'pending')
             }
         }
+
 
         return NextResponse.json({ received: true })
     } catch (error: any) {
