@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react"
 import {
     Users, Plus, ShieldCheck, Mail, Loader2, CheckCircle2, User, Phone,
     MapPin, Building2, UserCircle2, MessageSquare, Search, Pencil, Trash2,
-    X, AlertTriangle, Eye, EyeOff, BookOpen
+    X, AlertTriangle, Eye, EyeOff, BookOpen, MessageCircle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -336,11 +336,11 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                                                 {/* WhatsApp */}
                                                 <Button
                                                     size="sm" variant="ghost"
-                                                    className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                    className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-100"
                                                     title="Enviar WhatsApp"
                                                     onClick={() => openCustomMessage(stu)}
                                                 >
-                                                    <MessageSquare className="h-4 w-4" />
+                                                    <MessageCircle className="h-4 w-4 fill-green-600/10" />
                                                 </Button>
                                                 {/* Delete */}
                                                 {isMaster && (
