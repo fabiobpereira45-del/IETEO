@@ -339,8 +339,16 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                             </div>
 
                             {enrollError && (
-                                <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
-                                    <AlertCircle className="h-4 w-4 shrink-0" />{enrollError}
+                                <div className="space-y-3">
+                                    <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center gap-2">
+                                        <AlertCircle className="h-4 w-4 shrink-0" />{enrollError}
+                                    </div>
+                                    <button
+                                        onClick={() => { setEnrollError(""); setPayMethod(null); }}
+                                        className="w-full flex items-center justify-center gap-2 bg-muted hover:bg-muted/80 text-foreground font-medium py-2.5 rounded-xl transition-colors text-sm"
+                                    >
+                                        <ChevronLeft className="h-4 w-4" /> Voltar e tentar novamente
+                                    </button>
                                 </div>
                             )}
 
@@ -386,7 +394,15 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                                             <p className="text-sm text-muted-foreground">Gerando QR Code...</p>
                                         </div>
                                     ) : pixError ? (
-                                        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{pixError}</div>
+                                        <div className="space-y-3">
+                                            <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{pixError}</div>
+                                            <button
+                                                onClick={() => { setPixError(""); setPayMethod(null); }}
+                                                className="w-full flex items-center justify-center gap-2 bg-muted hover:bg-muted/80 text-foreground font-medium py-2.5 rounded-xl transition-colors text-sm"
+                                            >
+                                                <ChevronLeft className="h-4 w-4" /> Voltar e escolher outro método
+                                            </button>
+                                        </div>
                                     ) : pixQrcode ? (
                                         <div className="space-y-3">
                                             <div className="flex justify-center">
