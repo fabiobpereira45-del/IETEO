@@ -220,7 +220,19 @@ export function FinancialConfig() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="flex flex-col gap-1.5 md:col-span-2">
-                        <Label>Ambiente (Modo)</Label>
+                        <Label className="text-green-700 font-bold">Chave PIX da Instituição (Manual Fallback)</Label>
+                        <Input
+                            type="text"
+                            value={pixKey}
+                            onChange={(e) => setPixKey(e.target.value)}
+                            placeholder="CPF, CNPJ, E-mail ou Telefone da Igreja"
+                            className="border-green-300 focus:ring-green-500"
+                        />
+                        <span className="text-[10px] text-green-600 font-medium">ESTE É O MAIS IMPORTANTE: Preencha aqui para garantir que os alunos consigam pagar via Pix mesmo que a API do Asaas falhe.</span>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5 md:col-span-2">
+                        <Label>Ambiente (Modo Asaas)</Label>
                         <Select value={asaasMode} onValueChange={(val: "sandbox" | "production") => setAsaasMode(val)}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Selecione o ambiente" />
@@ -231,25 +243,16 @@ export function FinancialConfig() {
                             </SelectContent>
                         </Select>
                     </div>
+
                     <div className="flex flex-col gap-1.5 md:col-span-2">
-                        <Label>API Key do Asaas</Label>
+                        <Label>API Key do Asaas (Automático)</Label>
                         <Input
                             type="password"
                             value={asaasApiKey}
                             onChange={(e) => setAsaasApiKey(e.target.value)}
                             placeholder="$aact_... (cole sua chave aqui)"
                         />
-                        <span className="text-xs text-muted-foreground">Encontre em: asaas.com → Configurações → Integrações → API Key</span>
-                    </div>
-                    <div className="flex flex-col gap-1.5 md:col-span-2">
-                        <Label>Chave PIX da Instituição</Label>
-                        <Input
-                            type="text"
-                            value={pixKey}
-                            onChange={(e) => setPixKey(e.target.value)}
-                            placeholder="Ex: 12.345.678/0001-90 ou email@igreja.com ou (99) 90000-0000"
-                        />
-                        <span className="text-xs text-muted-foreground">Usada para gerar QR Code estático quando o Asaas não estiver configurado em modo produção.</span>
+                        <span className="text-xs text-muted-foreground">Opcional para automação. Encontre em: asaas.com → Configurações → Integrações → API Key</span>
                     </div>
                 </div>
             </div>
