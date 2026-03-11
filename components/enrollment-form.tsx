@@ -40,6 +40,8 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
     const [settings, setSettings] = useState<FinancialSettings | null>(null)
     const [paypalConfig, setPaypalConfig] = useState<{ clientId: string; mode: string } | null>(null)
     const [asaasConfigured, setAsaasConfigured] = useState(false)
+    const [asaasSandbox, setAsaasSandbox] = useState(true)
+    const [institutionPixKey, setInstitutionPixKey] = useState("")
     const [payMethod, setPayMethod] = useState<PayMethod>(null)
     const [loading, setLoading] = useState(true)
     // Pix state
@@ -65,7 +67,11 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
             setSchedules(scheds)
             setSettings(fin)
             if (pp?.clientId) setPaypalConfig({ clientId: pp.clientId, mode: pp.mode })
-            if (asaas?.apiKey) setAsaasConfigured(true)
+            if (asaas?.apiKey) {
+                setAsaasConfigured(true)
+                setAsaasSandbox(asaas.mode === "sandbox")
+            }
+            if ((asaas as any)?.pixKey) setInstitutionPixKey((asaas as any).pixKey)
             setLoading(false)
         }
         load()
@@ -359,7 +365,51 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                             {!payMethod && (
                                 <div className="space-y-3">
                                     <p className="text-sm text-muted-foreground">Escolha a forma de pagamento:</p>
-                                    {asaasConfigured && (
+
+                                    {/* Static PIX Key (always visible if configured — works in real banking apps) */}
+                                    {institutionPixKey && (
+                                        <div className="border-2 border-green-500 bg-green-50 rounded-xl p-4 space-y-3">
+                                            <div className="flex items-center gap-3">
+                                                <QrCode className="h-6 w-6 text-green-600 shrink-0" />
+                                                <div>
+                                                    <p className="font-bold text-green-700">Pagar com Pix</p>
+                                                    <p className="text-xs text-green-600">Copie a chave e pague no app do seu banco</p>
+                                                </div>
+                                            </div>
+                                            <div className="bg-white rounded-xl p-3 border border-green-200">
+                                                <p className="text-xs font-semibold text-muted-foreground mb-1">Chave Pix:</p>
+                                                <div className="flex gap-2 items-center">
+                                                    <p className="text-sm font-mono flex-1 break-all">{institutionPixKey}</p>
+                                                    <button
+                                                        onClick={async () => { await navigator.clipboard.writeText(institutionPixKey); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000) }}
+                                                        className="shrink-0 bg-green-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1"
+                                                    >
+                                                        <Copy className="h-3 w-3" />{pixCopied ? "Copiado!" : "Copiar"}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground">
+                                                Valor: <strong>R$ {(settings?.enrollmentFee || 0).toFixed(2)}</strong> — Após o pagamento, clique em "Já Paguei" abaixo.
+                                            </p>
+                                            <button
+                                                onClick={async () => {
+                                                    setPayMethod("pix")
+                                                    try {
+                                                        const data = await handleCreateEnrollment()
+                                                        setEnrolledChargeId(data.chargeId)
+                                                    } catch (e: any) {
+                                                        setEnrollError(e.message)
+                                                    }
+                                                }}
+                                                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-xl transition-colors text-sm"
+                                            >
+                                                Já Paguei — Confirmar Matrícula
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* Asaas PIX (only show if in production mode) */}
+                                    {asaasConfigured && !asaasSandbox && !institutionPixKey && (
                                         <button
                                             onClick={() => { setPayMethod("pix"); handlePixPay() }}
                                             className="w-full flex items-center gap-3 border-2 border-green-500 bg-green-50 rounded-xl p-4 hover:bg-green-100 transition-colors"
@@ -371,6 +421,7 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                                             </div>
                                         </button>
                                     )}
+
                                     {paypalConfig && (
                                         <button
                                             onClick={() => setPayMethod("paypal")}
@@ -383,11 +434,12 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                                             </div>
                                         </button>
                                     )}
-                                    {!asaasConfigured && !paypalConfig && (
+                                    {!asaasConfigured && !paypalConfig && !institutionPixKey && (
                                         <p className="text-sm text-muted-foreground italic">Nenhuma forma de pagamento configurada.</p>
                                     )}
                                 </div>
                             )}
+
 
                             {/* Pix QR Code */}
                             {payMethod === "pix" && (

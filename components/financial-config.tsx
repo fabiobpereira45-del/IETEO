@@ -35,6 +35,7 @@ export function FinancialConfig() {
     // Asaas states
     const [asaasApiKey, setAsaasApiKey] = useState("")
     const [asaasMode, setAsaasMode] = useState<"sandbox" | "production">("sandbox")
+    const [pixKey, setPixKey] = useState("")
 
     async function load() {
         setLoading(true)
@@ -62,6 +63,7 @@ export function FinancialConfig() {
         if (asaas) {
             setAsaasApiKey(asaas.apiKey || "")
             setAsaasMode(asaas.mode || "sandbox")
+            setPixKey((asaas as any).pixKey || "")
         }
         setLoading(false)
     }
@@ -86,8 +88,9 @@ export function FinancialConfig() {
                 }),
                 updateAsaasConfig({
                     apiKey: asaasApiKey,
-                    mode: asaasMode
-                })
+                    mode: asaasMode,
+                    pixKey
+                } as any)
             ])
             alert("Configurações salvas com sucesso!")
             await load()
@@ -237,6 +240,16 @@ export function FinancialConfig() {
                             placeholder="$aact_... (cole sua chave aqui)"
                         />
                         <span className="text-xs text-muted-foreground">Encontre em: asaas.com → Configurações → Integrações → API Key</span>
+                    </div>
+                    <div className="flex flex-col gap-1.5 md:col-span-2">
+                        <Label>Chave PIX da Instituição</Label>
+                        <Input
+                            type="text"
+                            value={pixKey}
+                            onChange={(e) => setPixKey(e.target.value)}
+                            placeholder="Ex: 12.345.678/0001-90 ou email@igreja.com ou (99) 90000-0000"
+                        />
+                        <span className="text-xs text-muted-foreground">Usada para gerar QR Code estático quando o Asaas não estiver configurado em modo produção.</span>
                     </div>
                 </div>
             </div>
