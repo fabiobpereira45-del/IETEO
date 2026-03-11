@@ -364,16 +364,33 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
 
                             {!payMethod && (
                                 <div className="space-y-3">
-                                    <p className="text-sm text-muted-foreground">Escolha a forma de pagamento:</p>
+                                    <p className="text-sm text-muted-foreground mr-1">Escolha a forma de pagamento:</p>
 
-                                    {/* Static PIX Key (always visible if configured — works in real banking apps) */}
-                                    {institutionPixKey && (
+                                    {/* 1. Asaas PIX - Automatic/Dynamic QR (Top Priority in Production) */}
+                                    {asaasConfigured && !asaasSandbox && (
+                                        <button
+                                            onClick={() => { setPayMethod("pix"); handlePixPay() }}
+                                            className="w-full flex items-center gap-3 border-2 border-green-600 bg-green-50 rounded-xl p-4 hover:bg-green-100 transition-all group"
+                                        >
+                                            <div className="h-10 w-10 bg-green-600 rounded-full flex items-center justify-center text-white group-hover:scale-110 transition-transform">
+                                                <QrCode className="h-6 w-6" />
+                                            </div>
+                                            <div className="text-left flex-1">
+                                                <p className="font-bold text-green-700">Pagar com Pix (Automático)</p>
+                                                <p className="text-xs text-green-600 font-medium">QR Code na tela · Aprovação Imediata</p>
+                                            </div>
+                                            <ChevronRight className="h-5 w-5 text-green-400" />
+                                        </button>
+                                    )}
+
+                                    {/* 2. Manual PIX Fallback (Primary in Sandbox or if Asaas not configured) */}
+                                    {institutionPixKey && (asaasSandbox || !asaasConfigured) && (
                                         <div className="border-2 border-green-500 bg-green-50 rounded-xl p-4 space-y-3">
                                             <div className="flex items-center gap-3">
                                                 <QrCode className="h-6 w-6 text-green-600 shrink-0" />
                                                 <div>
-                                                    <p className="font-bold text-green-700">Pagar com Pix</p>
-                                                    <p className="text-xs text-green-600">Copie a chave e pague no app do seu banco</p>
+                                                    <p className="font-bold text-green-700">Pagar com Pix (Chave Manual)</p>
+                                                    <p className="text-xs text-green-600 italic">Copie a chave e pague no app do seu banco</p>
                                                 </div>
                                             </div>
                                             <div className="bg-white rounded-xl p-3 border border-green-200">
@@ -388,8 +405,8 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                                                     </button>
                                                 </div>
                                             </div>
-                                            <p className="text-xs text-muted-foreground">
-                                                Valor: <strong>R$ {(settings?.enrollmentFee || 0).toFixed(2)}</strong> — Após o pagamento, clique em "Já Paguei" abaixo.
+                                            <p className="text-xs text-muted-foreground font-medium">
+                                                Valor Matrícula: <span className="text-green-700 font-bold">R$ {(settings?.enrollmentFee || 0).toFixed(2)}</span>
                                             </p>
                                             <button
                                                 onClick={async () => {
@@ -401,41 +418,42 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                                                         setEnrollError(e.message)
                                                     }
                                                 }}
-                                                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-xl transition-colors text-sm"
+                                                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-xl shadow-lg transition-transform active:scale-95 text-sm"
                                             >
                                                 Já Paguei — Confirmar Matrícula
                                             </button>
                                         </div>
                                     )}
 
-                                    {/* Asaas PIX (only show if in production mode) */}
-                                    {asaasConfigured && !asaasSandbox && !institutionPixKey && (
-                                        <button
-                                            onClick={() => { setPayMethod("pix"); handlePixPay() }}
-                                            className="w-full flex items-center gap-3 border-2 border-green-500 bg-green-50 rounded-xl p-4 hover:bg-green-100 transition-colors"
-                                        >
-                                            <QrCode className="h-6 w-6 text-green-600" />
-                                            <div className="text-left">
-                                                <p className="font-bold text-green-700">Pagar com Pix</p>
-                                                <p className="text-xs text-green-600">QR Code · Aprovação imediata</p>
-                                            </div>
-                                        </button>
-                                    )}
-
+                                    {/* 3. PayPal */}
                                     {paypalConfig && (
                                         <button
                                             onClick={() => setPayMethod("paypal")}
-                                            className="w-full flex items-center gap-3 border-2 border-yellow-400 bg-yellow-50 rounded-xl p-4 hover:bg-yellow-100 transition-colors"
+                                            className="w-full flex items-center gap-3 border border-border bg-white rounded-xl p-4 hover:bg-muted/30 transition-colors"
                                         >
-                                            <CreditCard className="h-6 w-6 text-yellow-600" />
-                                            <div className="text-left">
-                                                <p className="font-bold text-yellow-700">Pagar com PayPal</p>
-                                                <p className="text-xs text-yellow-600">Cartão ou conta PayPal</p>
+                                            <div className="h-10 w-10 bg-yellow-400/10 rounded-full flex items-center justify-center">
+                                                <CreditCard className="h-6 w-6 text-yellow-600" />
                                             </div>
+                                            <div className="text-left flex-1">
+                                                <p className="font-bold text-foreground">Outras formas (PayPal)</p>
+                                                <p className="text-xs text-muted-foreground">Cartão ou conta PayPal</p>
+                                            </div>
+                                            <ChevronRight className="h-5 w-5 text-muted-foreground/30" />
                                         </button>
                                     )}
+
+                                    {/* 4. Small link for Manual Fallback when in Production */}
+                                    {institutionPixKey && asaasConfigured && !asaasSandbox && (
+                                        <button
+                                            onClick={() => { setAsaasConfigured(false); setAsaasSandbox(true); }}
+                                            className="text-[10px] text-muted-foreground hover:text-primary underline text-center block w-full pt-1"
+                                        >
+                                            Problemas com o Pix automático? Clique aqui.
+                                        </button>
+                                    )}
+
                                     {!asaasConfigured && !paypalConfig && !institutionPixKey && (
-                                        <p className="text-sm text-muted-foreground italic">Nenhuma forma de pagamento configurada.</p>
+                                        <p className="text-sm text-muted-foreground italic text-center py-4">Nenhuma forma de pagamento configurada.</p>
                                     )}
                                 </div>
                             )}
