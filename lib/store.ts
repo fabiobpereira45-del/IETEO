@@ -866,9 +866,14 @@ export async function deleteClassSchedule(id: string): Promise<void> {
 
 export async function getStudents(): Promise<StudentProfile[]> {
   const supabase = createClient()
-  const { data } = await supabase.from('students').select('*').order('name', { ascending: true })
+  const { data } = await supabase
+    .from('students')
+    .select('*')
+    .not('status', 'eq', 'pending')
+    .order('name', { ascending: true })
   return (data || []).map(mapStudentProfile)
 }
+
 
 export async function updateStudent(id: string, data: {
   name?: string

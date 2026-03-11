@@ -103,8 +103,12 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
             })
             const body = await res.json()
             if (!res.ok) throw new Error(body.error || "Erro ao gerar Pix")
-            setPixQrcode(body.qrcode)
-            setPixCopyPaste(body.copyPaste)
+            setPixQrcode(body.pixQrcode || body.qrcode || "")
+            setPixCopyPaste(body.pixCopyPaste || body.copyPaste || "")
+            if (!body.pixQrcode && !body.qrcode) {
+                throw new Error("QR Code não foi gerado. Verifique a configuração do Asaas.")
+            }
+
         } catch (e: any) {
             setPixError(e.message)
         } finally {
