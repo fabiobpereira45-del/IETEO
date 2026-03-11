@@ -6,7 +6,7 @@ export type QuestionType = "multiple-choice" | "true-false" | "discursive" | "in
 export interface Choice { id: string; text: string }
 export interface MatchingPair { id: string; left: string; right: string }
 export interface Semester { id: string; name: string; order: number; shift?: string; createdAt: string }
-export interface Discipline { id: string; name: string; description?: string; semesterId?: string; professorName?: string; dayOfWeek?: string; shift?: string; createdAt: string }
+export interface Discipline { id: string; name: string; description?: string | null; semesterId?: string | null; professorName?: string | null; dayOfWeek?: string | null; shift?: string | null; createdAt: string }
 export interface StudyMaterial { id: string; disciplineId: string; title: string; description?: string; fileUrl: string; createdAt: string }
 export interface FinancialSettings { id: string; enrollmentFee: number; monthlyFee: number; secondCallFee: number; finalExamFee: number; totalMonths: number; updatedAt: string; }
 export interface PaypalConfig { id: string; clientId: string; secret: string; mode: "sandbox" | "live"; updatedAt: string; }
@@ -456,7 +456,7 @@ export async function getDisciplines(): Promise<Discipline[]> {
   const { data, error } = await supabase.from('disciplines').select('*')
   return (data || []).map(mapDiscipline).sort((a, b) => a.name.localeCompare(b.name))
 }
-export async function addDiscipline(name: string, description?: string, semesterId?: string, professorName?: string, dayOfWeek?: string, shift?: string): Promise<Discipline> {
+export async function addDiscipline(name: string, description?: string | null, semesterId?: string | null, professorName?: string | null, dayOfWeek?: string | null, shift?: string | null): Promise<Discipline> {
   const d = { id: uid(), name, description: description || null, semester_id: semesterId || null, professor_name: professorName || null, day_of_week: dayOfWeek || null, shift: shift || null, created_at: new Date().toISOString() }
   const supabase = createClient()
   await supabase.from('disciplines').insert(d)

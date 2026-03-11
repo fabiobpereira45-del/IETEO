@@ -127,8 +127,8 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
 
     async function handleSaveDisc() {
         if (!discName.trim() && !selectedPoolDisc) return
-        const semId = discSemId || undefined
-        const prof = discProfName === "none" ? undefined : discProfName
+        const semId = discSemId === "none" ? null : (discSemId || null)
+        const prof = discProfName === "none" ? null : discProfName
 
         if (selectedPoolDisc) {
             await updateDiscipline(selectedPoolDisc.id, {
@@ -136,7 +136,7 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
             })
         } else if (editingDisc) {
             await updateDiscipline(editingDisc.id, {
-                name: discName.trim(), description: discDesc.trim() || undefined,
+                name: discName.trim(), description: discDesc.trim() || null,
                 semesterId: semId, professorName: prof
             })
         } else {
@@ -147,7 +147,7 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
 
     // ── Unlink = remove from semester, send back to pool ──────────────────────
     async function handleUnlinkDisc(id: string) {
-        await updateDiscipline(id, { semesterId: undefined })
+        await updateDiscipline(id, { semesterId: null })
         setUnlinkDiscId(null); load()
     }
 
