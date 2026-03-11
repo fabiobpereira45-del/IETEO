@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react"
 import {
     Plus, Pencil, Trash2, CalendarDays, BookOpen, AlertCircle, X,
-    Search, LogOut, ArrowRightCircle
+    Search, LogOut, ArrowRightCircle, ChevronUp, ChevronDown
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -171,6 +171,35 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
         await deleteDiscipline(id); setDeleteDiscId(null); load()
     }
 
+    async function handleMoveDisc(disc: Discipline, direction: 'up' | 'down', semDiscs: Discipline[]) {
+        const idx = semDiscs.findIndex(d => d.id === disc.id)
+        if (direction === 'up' && idx === 0) return
+        if (direction === 'down' && idx === semDiscs.length - 1) return
+
+        const targetIdx = direction === 'up' ? idx - 1 : idx + 1
+        const otherDisc = semDiscs[targetIdx]
+
+        // Swap order
+        const currentOrder = disc.order
+        const targetOrder = otherDisc.order
+
+        // Se ambos forem 0, precisamos inicializar ordens baseadas no index atual
+        if (currentOrder === targetOrder) {
+            // Inicializar ordens para todos neste semestre para garantir consistência
+            await Promise.all(semDiscs.map((d, i) => {
+                let newOrder = i * 10
+                if (i === idx) newOrder = targetIdx * 10
+                if (i === targetIdx) newOrder = idx * 10
+                return updateDiscipline(d.id, { order: newOrder })
+            }))
+        } else {
+            await updateDiscipline(disc.id, { order: targetOrder })
+            await updateDiscipline(otherDisc.id, { order: currentOrder })
+        }
+
+        load()
+    }
+
     // ─── Render ───────────────────────────────────────────────────────────────
     return (
         <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto">
@@ -261,13 +290,29 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
                                                             <Pencil className="h-3 w-3" />
                                                         </button>
                                                         {isMaster && (
-                                                            <button
-                                                                className="h-6 w-6 rounded flex items-center justify-center bg-card border border-amber-300 hover:bg-amber-50 text-amber-600"
-                                                                onClick={() => setUnlinkDiscId(disc.id)}
-                                                                title="Remover do semestre"
-                                                            >
-                                                                <LogOut className="h-3 w-3" />
-                                                            </button>
+                                                            <>
+                                                                <button
+                                                                    className="h-6 w-6 rounded flex items-center justify-center bg-card border border-border hover:bg-muted text-muted-foreground"
+                                                                    onClick={() => handleMoveDisc(disc, 'up', semDiscs)}
+                                                                    title="Mover para cima"
+                                                                >
+                                                                    <ChevronUp className="h-3 w-3" />
+                                                                </button>
+                                                                <button
+                                                                    className="h-6 w-6 rounded flex items-center justify-center bg-card border border-border hover:bg-muted text-muted-foreground"
+                                                                    onClick={() => handleMoveDisc(disc, 'down', semDiscs)}
+                                                                    title="Mover para baixo"
+                                                                >
+                                                                    <ChevronDown className="h-3 w-3" />
+                                                                </button>
+                                                                <button
+                                                                    className="h-6 w-6 rounded flex items-center justify-center bg-card border border-amber-300 hover:bg-amber-50 text-amber-600"
+                                                                    onClick={() => setUnlinkDiscId(disc.id)}
+                                                                    title="Remover do semestre"
+                                                                >
+                                                                    <LogOut className="h-3 w-3" />
+                                                                </button>
+                                                            </>
                                                         )}
                                                     </div>
                                                     <h4 className="font-semibold text-sm pr-14 leading-snug">{disc.name}</h4>
