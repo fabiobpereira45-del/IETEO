@@ -108,23 +108,31 @@ export function ClassScheduleManager() {
     }, [formTimeStart, formTimeEnd, formLessonsCount])
 
     async function handleSave() {
-        if (!formClassId || !formDisciplineId || !formTimeStart || !formTimeEnd) return
+        if (!formClassId || !formDisciplineId || !formTimeStart || !formTimeEnd) {
+            alert("Preencha todos os campos obrigatórios.")
+            return
+        }
 
-        const prof = formProfessor === "none" ? "Sem Professor" : formProfessor
+        try {
+            const prof = formProfessor === "none" ? "Sem Professor" : formProfessor
 
-        await addClassSchedule({
-            classId: formClassId,
-            disciplineId: formDisciplineId,
-            professorName: prof,
-            dayOfWeek: formDay,
-            timeStart: formTimeStart,
-            timeEnd: formTimeEnd,
-            lessonsCount: formLessonsCount,
-            workload: formWorkload
-        })
+            await addClassSchedule({
+                classId: formClassId,
+                disciplineId: formDisciplineId,
+                professorName: prof,
+                dayOfWeek: formDay,
+                timeStart: formTimeStart,
+                timeEnd: formTimeEnd,
+                lessonsCount: formLessonsCount,
+                workload: formWorkload
+            })
 
-        setModalOpen(false)
-        loadData()
+            setModalOpen(false)
+            loadData()
+        } catch (err: any) {
+            console.error("Erro ao salvar horário:", err)
+            alert("Erro ao salvar: " + (err.message || "Erro desconhecido"))
+        }
     }
 
     async function handleDelete() {

@@ -828,6 +828,7 @@ export async function getClassSchedules(): Promise<ClassSchedule[]> {
 export async function addClassSchedule(data: Omit<ClassSchedule, "id" | "createdAt">): Promise<void> {
   const supabase = createClient()
   const dbData = {
+    id: uid(),
     class_id: data.classId,
     discipline_id: data.disciplineId,
     professor_name: data.professorName,
@@ -835,7 +836,8 @@ export async function addClassSchedule(data: Omit<ClassSchedule, "id" | "created
     time_start: data.timeStart,
     time_end: data.timeEnd,
     lessons_count: data.lessonsCount,
-    workload: data.workload
+    workload: data.workload,
+    created_at: new Date().toISOString()
   }
   const { error } = await supabase.from('class_schedules').insert(dbData)
   if (error) throw new Error(error.message)
