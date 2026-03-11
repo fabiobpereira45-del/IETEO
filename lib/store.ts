@@ -221,7 +221,32 @@ function mapQuestion(row: any): Question {
   const pairs = row.pairs || row.choices?.matchingPairs || undefined
   return { id: row.id, disciplineId: row.discipline_id, type: row.type, text: row.text, choices, pairs, correctAnswer: row.correct_answer, points: row.points, createdAt: row.created_at }
 }
-function mapAssessment(row: any): Assessment { return { id: row.id, title: row.title, disciplineId: row.discipline_id, professor: row.professor, institution: row.institution, questionIds: row.question_ids, pointsPerQuestion: row.points_per_question, totalPoints: row.total_points, openAt: row.open_at, closeAt: row.close_at, isPublished: row.is_published, archived: !!row.archived, shuffleVariants: row.shuffle_variants, logoBase64: row.logo_base64, rules: row.rules, releaseResults: row.release_results, modality: row.modality ?? "public", createdAt: row.created_at } }
+function mapAssessment(row: any): Assessment {
+  const modality = (row.modality || "public") as string
+  const isArchived = !!row.archived || modality.includes("_archived")
+  const cleanModality = modality.replace("_archived", "") as "public" | "private"
+
+  return {
+    id: row.id,
+    title: row.title,
+    disciplineId: row.discipline_id,
+    professor: row.professor,
+    institution: row.institution,
+    questionIds: row.question_ids,
+    pointsPerQuestion: row.points_per_question,
+    totalPoints: row.total_points,
+    openAt: row.open_at,
+    closeAt: row.close_at,
+    isPublished: row.is_published,
+    archived: isArchived,
+    shuffleVariants: row.shuffle_variants,
+    logoBase64: row.logo_base64,
+    rules: row.rules,
+    releaseResults: row.release_results,
+    modality: cleanModality,
+    createdAt: row.created_at
+  }
+}
 function mapSubmission(row: any): StudentSubmission { return { id: row.id, assessmentId: row.assessment_id, studentName: row.student_name, studentEmail: row.student_email, answers: row.answers, score: row.score, totalPoints: row.total_points, percentage: row.percentage, submittedAt: row.submitted_at, timeElapsedSeconds: row.time_elapsed_seconds } }
 function mapProfessor(row: any): ProfessorAccount { return { id: row.id, name: row.name, email: row.email, passwordHash: row.password_hash, role: row.role as any, createdAt: row.created_at } }
 function mapFinancialSettings(row: any): FinancialSettings { return { id: row.id, enrollmentFee: Number(row.enrollment_fee), monthlyFee: Number(row.monthly_fee), secondCallFee: Number(row.second_call_fee), finalExamFee: Number(row.final_exam_fee), totalMonths: Number(row.total_months), updatedAt: row.updated_at } }
@@ -551,7 +576,7 @@ export async function getActiveAssessment(assessmentId?: string): Promise<Assess
 }
 export async function addAssessment(data: Omit<Assessment, "id" | "createdAt" | "releaseResults" | "archived">): Promise<Assessment> {
   const a = { ...data, id: uid(), createdAt: new Date().toISOString(), releaseResults: false, archived: false }
-  const dbData = { id: a.id, title: a.title, discipline_id: a.disciplineId, professor: a.professor, institution: a.institution, question_ids: a.questionIds, points_per_question: a.pointsPerQuestion, total_points: a.totalPoints, open_at: a.openAt, close_at: a.closeAt, is_published: a.isPublished, archived: a.archived, shuffle_variants: a.shuffleVariants, logo_base64: a.logoBase64, rules: a.rules, release_results: a.releaseResults, modality: a.modality ?? "public", created_at: a.createdAt }
+  const dbData = { id: a.id, title: a.title, discipline_id: a.disciplineId, professor: a.professor, institution: a.institution, question_ids: a.questionIds, points_per_question: a.pointsPerQuestion, total_points: a.totalPoints, open_at: a.openAt, close_at: a.closeAt, is_published: a.isPublished, shuffle_variants: a.shuffleVariants, logo_base64: a.logoBase64, rules: a.rules, release_results: a.releaseResults, modality: a.modality ?? "public", created_at: a.createdAt }
   const supabase = createClient()
   const { error } = await supabase.from('assessments').insert(dbData)
   if (error) throw new Error(error.message)
@@ -569,14 +594,22 @@ export async function updateAssessment(id: string, data: Partial<Omit<Assessment
   if (data.openAt !== undefined) dbData.open_at = data.openAt
   if (data.closeAt !== undefined) dbData.close_at = data.closeAt
   if (data.isPublished !== undefined) dbData.is_published = data.isPublished
-  if (data.archived !== undefined) dbData.archived = data.archived
   if (data.shuffleVariants !== undefined) dbData.shuffle_variants = data.shuffleVariants
   if (data.logoBase64 !== undefined) dbData.logo_base64 = data.logoBase64
   if (data.rules !== undefined) dbData.rules = data.rules
   if (data.releaseResults !== undefined) dbData.release_results = data.releaseResults
-  if (data.modality !== undefined) dbData.modality = data.modality
 
   const supabase = createClient()
+
+  // Workaround for missing 'archived' column
+  if (data.archived !== undefined || data.modality !== undefined) {
+    const { data: current } = await supabase.from('assessments').select('modality').eq('id', id).maybeSingle()
+    const currentModality = (current?.modality || "public").replace("_archived", "")
+    const newModalityBase = data.modality || currentModality
+    const newArchived = data.archived !== undefined ? data.archived : (current?.modality?.includes("_archived") || false)
+
+    dbData.modality = newArchived ? `${newModalityBase}_archived` : newModalityBase
+  }
   await supabase.from('assessments').update(dbData).eq('id', id)
 }
 export async function deleteAssessment(id: string): Promise<void> {
