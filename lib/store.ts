@@ -120,6 +120,18 @@ export async function registerStudentAuth(name: string, cpf: string, password: s
 
 export async function registerStudentByAdmin(data: any): Promise<void> {
   const supabase = createClient()
+
+  // Vacancy check
+  if (data.classId) {
+    const { data: cls } = await supabase.from('classes').select('max_students').eq('id', data.classId).single()
+    if (cls) {
+      const { count } = await supabase.from('students').select('*', { count: 'exact', head: true }).eq('class_id', data.classId)
+      if (count !== null && count >= cls.max_students) {
+        throw new Error("Esta turma já está com as vagas esgotadas.")
+      }
+    }
+  }
+
   const cleanCpf = data.cpf ? data.cpf.replace(/\D/g, '') : ""
 
   // Use email if provided, else generate fake one
@@ -329,8 +341,34 @@ export async function updateAsaasConfig(config: Omit<AsaasConfig, "id" | "update
 
 export async function getClasses(): Promise<ClassRoom[]> {
   const supabase = createClient()
-  const { data } = await supabase.from('classes').select('*').order('created_at', { ascending: false })
-  return (data || []).map(mapClassRoom)
+  const { data: classes } = await supabase.from('classes').select('*').order('created_at', { ascending: false })
+  const { data: counts } = await supabase.from('students').select('class_id')
+
+  const studentCounts: Record<string, number> = {}
+  counts?.forEach(s => {
+    if (s.class_id) studentCounts[s.class_id] = (studentCounts[s.class_id] || 0) + 1
+  })
+
+  return (classes || []).map(c => ({
+    ...mapClassRoom(c),
+    studentCount: studentCounts[c.id] || 0
+  }))
+}
+
+export async function getPublicClasses(): Promise<ClassRoom[]> {
+  const supabase = createClient()
+  const { data: classes } = await supabase.from('classes').select('*').order('name', { ascending: true })
+  const { data: counts } = await supabase.from('students').select('class_id')
+
+  const studentCounts: Record<string, number> = {}
+  counts?.forEach(s => {
+    if (s.class_id) studentCounts[s.class_id] = (studentCounts[s.class_id] || 0) + 1
+  })
+
+  return (classes || []).map(c => ({
+    ...mapClassRoom(c),
+    studentCount: studentCounts[c.id] || 0
+  }))
 }
 export async function addClass(cls: Omit<ClassRoom, 'id' | 'createdAt' | 'studentCount'>): Promise<ClassRoom> {
   const supabase = createClient()

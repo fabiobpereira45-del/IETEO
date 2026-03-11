@@ -26,6 +26,17 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Este CPF já possui uma matrícula cadastrada." }, { status: 409 })
         }
 
+        // Vacancy check
+        if (classId) {
+            const { data: cls } = await supabase.from('classes').select('max_students').eq('id', classId).single()
+            if (cls) {
+                const { count } = await supabase.from('students').select('*', { count: 'exact', head: true }).eq('class_id', classId)
+                if (count !== null && count >= cls.max_students) {
+                    return NextResponse.json({ error: "Esta turma já está com as vagas esgotadas." }, { status: 403 })
+                }
+            }
+        }
+
         // Generate enrollment number
         const enrollmentNumber = `IETEO-${Date.now().toString().slice(-8)}`
 
