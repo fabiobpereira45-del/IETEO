@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select"
 import {
     type ClassSchedule, type ClassRoom, type Discipline, type ProfessorAccount,
-    getClassSchedules, addClassSchedule, deleteClassSchedule,
+    getClassSchedules, addClassSchedule, updateClassSchedule, deleteClassSchedule,
     getClasses, getDisciplines, getProfessorAccounts, MASTER_CREDENTIALS
 } from "@/lib/store"
 
@@ -52,8 +52,9 @@ export function ClassScheduleManager() {
     const [formLessonsCount, setFormLessonsCount] = useState<number>(1)
     const [formWorkload, setFormWorkload] = useState<number>(0)
 
-    // Deletar
+    // Deletar e Editar
     const [deleteId, setDeleteId] = useState<string | null>(null)
+    const [editId, setEditId] = useState<string | null>(null)
 
     async function loadData() {
         setLoading(true)
@@ -116,7 +117,7 @@ export function ClassScheduleManager() {
         try {
             const prof = formProfessor === "none" ? "Sem Professor" : formProfessor
 
-            await addClassSchedule({
+            const scheduleData = {
                 classId: formClassId,
                 disciplineId: formDisciplineId,
                 professorName: prof,
@@ -125,14 +126,47 @@ export function ClassScheduleManager() {
                 timeEnd: formTimeEnd,
                 lessonsCount: formLessonsCount,
                 workload: formWorkload
-            })
+            }
+
+            if (editId) {
+                await updateClassSchedule(editId, scheduleData)
+            } else {
+                await addClassSchedule(scheduleData)
+            }
 
             setModalOpen(false)
+            setEditId(null)
             loadData()
         } catch (err: any) {
             console.error("Erro ao salvar horário:", err)
             alert("Erro ao salvar: " + (err.message || "Erro desconhecido"))
         }
+    }
+
+    function openEditModal(sched: ClassSchedule) {
+        setEditId(sched.id)
+        setFormClassId(sched.classId)
+        setFormDisciplineId(sched.disciplineId)
+        setFormDay(sched.dayOfWeek)
+        setFormTimeStart(sched.timeStart)
+        setFormTimeEnd(sched.timeEnd)
+        setFormProfessor(sched.professorName || "none")
+        setFormLessonsCount(sched.lessonsCount)
+        setFormWorkload(sched.workload)
+        setModalOpen(true)
+    }
+
+    function openAddModal(day?: string) {
+        setEditId(null)
+        setFormClassId(activeClassId === "all" ? "" : activeClassId)
+        setFormDisciplineId("")
+        setFormDay(day || "segunda")
+        setFormTimeStart("19:00")
+        setFormTimeEnd("21:00")
+        setFormProfessor("none")
+        setFormLessonsCount(1)
+        setFormWorkload(0)
+        setModalOpen(true)
     }
 
     async function handleDelete() {
@@ -159,8 +193,8 @@ export function ClassScheduleManager() {
                         Gerencie as aulas, horários e professores de cada turma.
                     </p>
                 </div>
-                <Button onClick={() => openNewSchedule()}>
-                    <CalendarDays className="h-4 w-4 mr-2" /> Agendar Aula
+                <Button onClick={() => openAddModal()}>
+                    <Plus className="h-4 w-4 mr-2" /> Agendar Aula
                 </Button>
             </div>
 
@@ -192,7 +226,7 @@ export function ClassScheduleManager() {
                 <div className="border border-dashed border-border rounded-2xl p-12 text-center text-muted-foreground">
                     <CalendarDays className="h-10 w-10 mx-auto opacity-30 mb-3" />
                     <p className="text-sm">Nenhuma aula agendada para esta visão.</p>
-                    <Button size="sm" variant="outline" className="mt-4" onClick={() => openNewSchedule()}>
+                    <Button size="sm" variant="outline" className="mt-4" onClick={() => openAddModal()}>
                         <Plus className="h-3.5 w-3.5 mr-1.5" /> Fazer primeiro agendamento
                     </Button>
                 </div>
@@ -226,13 +260,22 @@ export function ClassScheduleManager() {
 
                                             return (
                                                 <div key={sched.id} className="group relative border border-border bg-background rounded-xl p-3 hover:border-primary/40 transition-colors">
-                                                    <button
-                                                        onClick={() => setDeleteId(sched.id)}
-                                                        className="absolute top-2 right-2 h-6 w-6 rounded flex items-center justify-center bg-card border border-destructive/30 hover:bg-destructive/10 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                                                        title="Excluir Agendamento"
-                                                    >
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                    </button>
+                                                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button
+                                                            onClick={() => openEditModal(sched)}
+                                                            className="h-6 w-6 rounded flex items-center justify-center bg-card border border-border hover:bg-muted text-muted-foreground"
+                                                            title="Editar Agendamento"
+                                                        >
+                                                            <Pencil className="h-3 w-3" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setDeleteId(sched.id)}
+                                                            className="h-6 w-6 rounded flex items-center justify-center bg-card border border-destructive/30 hover:bg-destructive/10 text-destructive"
+                                                            title="Excluir Agendamento"
+                                                        >
+                                                            <Trash2 className="h-3 w-3" />
+                                                        </button>
+                                                    </div>
 
                                                     <div className="flex items-center gap-1.5 text-xs font-semibold text-primary mb-1">
                                                         <Clock className="h-3.5 w-3.5" />
@@ -266,7 +309,7 @@ export function ClassScheduleManager() {
                                 </div>
                                 {activeClassId !== "all" && (
                                     <div className="p-3 border-t border-border bg-muted/20">
-                                        <Button variant="outline" size="sm" className="w-full text-xs h-8 border-dashed" onClick={() => openNewSchedule(day.value)}>
+                                        <Button variant="outline" size="sm" className="w-full text-xs h-8 border-dashed" onClick={() => openAddModal(day.value)}>
                                             <Plus className="h-3 w-3 mr-1" /> Adicionar neste dia
                                         </Button>
                                     </div>
@@ -280,7 +323,7 @@ export function ClassScheduleManager() {
             {/* Modal Nova Aula */}
             <Dialog open={modalOpen} onOpenChange={setModalOpen}>
                 <DialogContent className="sm:max-w-md">
-                    <DialogHeader><DialogTitle>Agendar Aula</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle>{editId ? 'Editar Agendamento' : 'Agendar Aula'}</DialogTitle></DialogHeader>
                     <div className="flex flex-col gap-4 py-2">
 
                         <div className="flex flex-col gap-1.5">

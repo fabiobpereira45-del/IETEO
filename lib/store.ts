@@ -842,6 +842,23 @@ export async function addClassSchedule(data: Omit<ClassSchedule, "id" | "created
   if (error) throw new Error(error.message)
 }
 
+export async function updateClassSchedule(id: string, data: Partial<Omit<ClassSchedule, "id" | "createdAt">>): Promise<void> {
+  const supabase = createClient()
+  const updateData: any = {}
+  if (data.classId !== undefined) updateData.class_id = data.classId
+  if (data.disciplineId !== undefined) updateData.discipline_id = data.disciplineId
+  if (data.professorName !== undefined) updateData.professor_name = data.professorName
+  if (data.dayOfWeek !== undefined) updateData.day_of_week = data.dayOfWeek
+  if (data.timeStart !== undefined) updateData.time_start = data.timeStart
+  if (data.timeEnd !== undefined) updateData.time_end = data.timeEnd
+  if (data.lessonsCount !== undefined) updateData.lessons_count = data.lessonsCount
+  if (data.workload !== undefined) updateData.workload = data.workload
+
+  const { error } = await supabase.from('class_schedules').update(updateData).eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+
 export async function deleteClassSchedule(id: string): Promise<void> {
   const supabase = createClient()
   await supabase.from('class_schedules').delete().eq('id', id)
