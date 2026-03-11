@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
-    getStudents, registerStudentByAdmin, getClasses, updateStudent, deleteStudent,
-    type StudentProfile, type ClassRoom, triggerN8nWebhook
+    getStudents, registerStudentByAdmin, getClasses, updateStudent, deleteStudent, getClassSchedules,
+    type StudentProfile, type ClassRoom, type ClassSchedule, triggerN8nWebhook
 } from "@/lib/store"
 import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -31,6 +31,7 @@ const SHIFT_LABELS: Record<string, string> = {
 export function StudentManager({ isMaster }: { isMaster?: boolean }) {
     const [students, setStudents] = useState<StudentProfile[]>([])
     const [classes, setClasses] = useState<ClassRoom[]>([])
+    const [schedules, setSchedules] = useState<ClassSchedule[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
 
@@ -72,9 +73,10 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
 
     async function load() {
         setLoading(true)
-        const [s, c] = await Promise.all([getStudents(), getClasses()])
+        const [s, c, sch] = await Promise.all([getStudents(), getClasses(), getClassSchedules()])
         setStudents(s)
         setClasses(c)
+        setSchedules(sch)
         setLoading(false)
     }
 
@@ -407,6 +409,18 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                                     <option value="none">Sem turma inicial</option>
                                     {classes.map(c => <option key={c.id} value={c.id}>{c.name} ({SHIFT_LABELS[c.shift] || c.shift})</option>)}
                                 </select>
+                                {classId !== "none" && (
+                                    <div className="mt-1 flex flex-wrap gap-1">
+                                        {schedules.filter(s => s.classId === classId).map(s => (
+                                            <span key={s.id} className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium uppercase">
+                                                {{
+                                                    segunda: "Seg", terca: "Ter", quarta: "Qua",
+                                                    quinta: "Qui", sexta: "Sex", sabado: "Sab"
+                                                }[s.dayOfWeek] || s.dayOfWeek}: {s.timeStart.substring(0, 5)}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                             <div className="flex flex-col gap-1.5">
                                 <Label className="text-xs">Status Financeiro</Label>
@@ -471,6 +485,18 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                                     <option value="none">Sem turma</option>
                                     {classes.map(c => <option key={c.id} value={c.id}>{c.name} ({SHIFT_LABELS[c.shift] || c.shift})</option>)}
                                 </select>
+                                {editClassId !== "none" && (
+                                    <div className="mt-1 flex flex-wrap gap-1">
+                                        {schedules.filter(s => s.classId === editClassId).map(s => (
+                                            <span key={s.id} className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium uppercase">
+                                                {{
+                                                    segunda: "Seg", terca: "Ter", quarta: "Qua",
+                                                    quinta: "Qui", sexta: "Sex", sabado: "Sab"
+                                                }[s.dayOfWeek] || s.dayOfWeek}: {s.timeStart.substring(0, 5)}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

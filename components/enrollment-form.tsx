@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { X, ChevronRight, ChevronLeft, User, Phone, MapPin, Church, BookOpen, CreditCard, QrCode, Loader2, CheckCircle2, AlertCircle, Copy } from "lucide-react"
-import { getClasses, getFinancialSettings, getPaypalConfig, getAsaasConfig, type ClassRoom, type FinancialSettings } from "@/lib/store"
+import { getClasses, getFinancialSettings, getPaypalConfig, getAsaasConfig, getClassSchedules, type ClassRoom, type FinancialSettings, type ClassSchedule } from "@/lib/store"
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js"
 
 interface EnrollmentFormProps {
@@ -36,6 +36,7 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
     const [step, setStep] = useState<Step>("personal")
     const [form, setForm] = useState<FormData>(EMPTY_FORM)
     const [classes, setClasses] = useState<ClassRoom[]>([])
+    const [schedules, setSchedules] = useState<ClassSchedule[]>([])
     const [settings, setSettings] = useState<FinancialSettings | null>(null)
     const [paypalConfig, setPaypalConfig] = useState<{ clientId: string; mode: string } | null>(null)
     const [asaasConfigured, setAsaasConfigured] = useState(false)
@@ -57,10 +58,11 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
 
     useEffect(() => {
         async function load() {
-            const [cls, fin, pp, asaas] = await Promise.all([
-                getClasses(), getFinancialSettings(), getPaypalConfig(), getAsaasConfig()
+            const [cls, fin, pp, asaas, scheds] = await Promise.all([
+                getClasses(), getFinancialSettings(), getPaypalConfig(), getAsaasConfig(), getClassSchedules()
             ])
             setClasses(cls)
+            setSchedules(scheds)
             setSettings(fin)
             if (pp?.clientId) setPaypalConfig({ clientId: pp.clientId, mode: pp.mode })
             if (asaas?.apiKey) setAsaasConfigured(true)
@@ -289,13 +291,32 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                                             <div className="flex items-center justify-between">
                                                 <div>
                                                     <p className="font-semibold text-sm">{c.name}</p>
-                                                    <p className="text-xs text-muted-foreground mt-0.5">
-                                                        {c.dayOfWeek ? ({
-                                                            monday: "Segunda", tuesday: "Terça", wednesday: "Quarta",
-                                                            thursday: "Quinta", friday: "Sexta", saturday: "Sábado"
-                                                        }[c.dayOfWeek] || c.dayOfWeek) + " • " : ""}
-                                                        {{ morning: "Manhã", afternoon: "Tarde", evening: "Noite", ead: "EAD/Online" }[c.shift]}
-                                                    </p>
+                                                    <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5">
+                                                        <p>
+                                                            {{ morning: "Manhã", afternoon: "Tarde", evening: "Noite", ead: "EAD/Online" }[c.shift]}
+                                                        </p>
+                                                        {schedules.filter(s => s.classId === c.id).length > 0 ? (
+                                                            <div className="flex flex-col gap-0.5">
+                                                                {schedules.filter(s => s.classId === c.id).map(s => (
+                                                                    <p key={s.id} className="text-[10px] font-medium text-primary/80 uppercase tracking-tight">
+                                                                        {{
+                                                                            segunda: "Segunda", terca: "Terça", quarta: "Quarta",
+                                                                            quinta: "Quinta", sexta: "Sexta", sabado: "Sábado"
+                                                                        }[s.dayOfWeek] || s.dayOfWeek} • {s.timeStart.substring(0, 5)} - {s.timeEnd.substring(0, 5)}
+                                                                    </p>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            c.dayOfWeek && (
+                                                                <p className="text-[10px] uppercase">
+                                                                    {{
+                                                                        monday: "Segunda", tuesday: "Terça", wednesday: "Quarta",
+                                                                        thursday: "Quinta", friday: "Sexta", saturday: "Sábado"
+                                                                    }[c.dayOfWeek] || c.dayOfWeek}
+                                                                </p>
+                                                            )
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="text-sm font-bold text-accent">{c.maxStudents} vagas</p>
