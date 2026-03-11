@@ -451,7 +451,24 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                                         </div>
                                     ) : pixError ? (
                                         <div className="space-y-3">
-                                            <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">{pixError}</div>
+                                            <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+                                                <p className="font-bold mb-1">Ops! Ocorreu um erro:</p>
+                                                {pixError}
+                                            </div>
+
+                                            {institutionPixKey && (
+                                                <div className="bg-green-50 border border-green-200 p-4 rounded-xl space-y-2">
+                                                    <p className="text-sm font-bold text-green-800">Dica: Tente o Pix Manual</p>
+                                                    <p className="text-xs text-green-700">Você pode usar a chave direta da instituição para concluir agora.</p>
+                                                    <button
+                                                        onClick={() => { setPixError(""); setPayMethod(null); }}
+                                                        className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-lg text-xs transition-colors"
+                                                    >
+                                                        Ir para Pix Manual
+                                                    </button>
+                                                </div>
+                                            )}
+
                                             <button
                                                 onClick={() => { setPixError(""); setPayMethod(null); }}
                                                 className="w-full flex items-center justify-center gap-2 bg-muted hover:bg-muted/80 text-foreground font-medium py-2.5 rounded-xl transition-colors text-sm"
