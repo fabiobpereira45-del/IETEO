@@ -39,6 +39,7 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
     const [editingSem, setEditingSem] = useState<Semester | null>(null)
     const [semName, setSemName] = useState("")
     const [semOrder, setSemOrder] = useState("")
+    const [selectedPoolDiscs, setSelectedPoolDiscs] = useState<Set<string>>(new Set())
     const [deleteSemId, setDeleteSemId] = useState<string | null>(null)
 
     // Discipline modal
@@ -83,9 +84,23 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
     // ── Semester actions ──────────────────────────────────────────────────────
     async function handleSaveSem() {
         if (!semName.trim() || !semOrder.trim()) return
-        if (editingSem) await updateSemester(editingSem.id, { name: semName.trim(), order: parseInt(semOrder, 10) })
-        else await addSemester(semName.trim(), parseInt(semOrder, 10))
-        setSemModal(false); load()
+        let semId = ""
+        if (editingSem) {
+            await updateSemester(editingSem.id, { name: semName.trim(), order: parseInt(semOrder, 10) })
+            semId = editingSem.id
+        } else {
+            const newSem = await addSemester(semName.trim(), parseInt(semOrder, 10))
+            semId = newSem.id
+        }
+
+        // Link selected disciplines
+        if (selectedPoolDiscs.size > 0) {
+            await Promise.all(
+                Array.from(selectedPoolDiscs).map(id => updateDiscipline(id, { semesterId: semId }))
+            )
+        }
+
+        setSemModal(false); setSelectedPoolDiscs(new Set()); load()
     }
 
     async function handleDeleteSem(id: string) {
@@ -170,7 +185,7 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" onClick={() => {
-                        setEditingSem(null); setSemName(""); setSemOrder(String(semesters.length + 1)); setSemModal(true)
+                        setEditingSem(null); setSemName(""); setSemOrder(String(semesters.length + 1)); setSelectedPoolDiscs(new Set()); setSemModal(true)
                     }}>
                         <CalendarDays className="h-4 w-4 mr-2" /> Novo Semestre
                     </Button>
@@ -215,7 +230,7 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
                                     <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-primary gap-1" onClick={() => openNewDisc(sem.id)}>
                                         <Plus className="h-3.5 w-3.5" /> Disciplina
                                     </Button>
-                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { setEditingSem(sem); setSemName(sem.name); setSemOrder(String(sem.order)); setSemModal(true) }}>
+                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { setEditingSem(sem); setSemName(sem.name); setSemOrder(String(sem.order)); setSelectedPoolDiscs(new Set()); setSemModal(true) }}>
                                         <Pencil className="h-3.5 w-3.5" />
                                     </Button>
                                     {isMaster && (
@@ -327,6 +342,32 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
                             <Label>Ordem de exibição *</Label>
                             <Input type="number" min={1} value={semOrder} onChange={e => setSemOrder(e.target.value)} placeholder="Ex: 1" />
                         </div>
+
+                        {poolDiscs.length > 0 && (
+                            <div className="flex flex-col gap-2 mt-2">
+                                <Label className="text-primary font-bold">Vincular Disciplinas do Banco ({poolDiscs.length} disponíveis)</Label>
+                                <div className="border border-border rounded-xl p-3 max-h-48 overflow-y-auto space-y-2 bg-muted/20">
+                                    {poolDiscs.map(d => (
+                                        <label key={d.id} className="flex items-center gap-3 p-2 hover:bg-background rounded-lg cursor-pointer transition-colors border border-transparent hover:border-border">
+                                            <input
+                                                type="checkbox"
+                                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                                checked={selectedPoolDiscs.has(d.id)}
+                                                onChange={() => {
+                                                    setSelectedPoolDiscs(prev => {
+                                                        const next = new Set(prev)
+                                                        next.has(d.id) ? next.delete(d.id) : next.add(d.id)
+                                                        return next
+                                                    })
+                                                }}
+                                            />
+                                            <span className="text-sm font-medium">{d.name}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-widest px-1">Selecione as disciplinas que deseja alocar neste semestre</p>
+                            </div>
+                        )}
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setSemModal(false)}>Cancelar</Button>

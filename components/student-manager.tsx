@@ -27,6 +27,16 @@ const SHIFT_LABELS: Record<string, string> = {
     ead: "EAD",
 }
 
+const DAY_ORDER: Record<string, number> = {
+    monday: 1,
+    tuesday: 2,
+    wednesday: 3,
+    thursday: 4,
+    friday: 5,
+    saturday: 6,
+    sunday: 7,
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function StudentManager({ isMaster }: { isMaster?: boolean }) {
@@ -79,7 +89,16 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
         setLoading(true)
         const [s, c, sch] = await Promise.all([getStudents(), getClasses(), getClassSchedules()])
         setStudents(s)
-        setClasses(c)
+
+        // Sort classes by day of week
+        const sortedClasses = [...c].sort((a, b) => {
+            const orderA = a.dayOfWeek ? (DAY_ORDER[a.dayOfWeek] || 99) : 100
+            const orderB = b.dayOfWeek ? (DAY_ORDER[b.dayOfWeek] || 99) : 100
+            if (orderA !== orderB) return orderA - orderB
+            return a.name.localeCompare(b.name)
+        })
+
+        setClasses(sortedClasses)
         setSchedules(sch)
         setLoading(false)
     }

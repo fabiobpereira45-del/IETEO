@@ -37,6 +37,16 @@ const SHIFT_LABEL: Record<string, string> = {
     ead: "EAD/Online",
 }
 
+const DAY_ORDER: Record<string, number> = {
+    monday: 1,
+    tuesday: 2,
+    wednesday: 3,
+    thursday: 4,
+    friday: 5,
+    saturday: 6,
+    sunday: 7,
+}
+
 type FormState = { name: string; shift: ClassRoom["shift"]; dayOfWeek: string; maxStudents: number }
 const EMPTY_FORM: FormState = { name: "", shift: "ead", dayOfWeek: "", maxStudents: 30 }
 
@@ -104,7 +114,16 @@ export function ClassManager() {
     async function load() {
         setLoading(true)
         const [cls, stds] = await Promise.all([getClasses(), getStudents()])
-        setClasses(cls)
+
+        // Sort classes by day of week
+        const sortedCls = [...cls].sort((a, b) => {
+            const orderA = a.dayOfWeek ? (DAY_ORDER[a.dayOfWeek] || 99) : 100
+            const orderB = b.dayOfWeek ? (DAY_ORDER[b.dayOfWeek] || 99) : 100
+            if (orderA !== orderB) return orderA - orderB
+            return a.name.localeCompare(b.name)
+        })
+
+        setClasses(sortedCls)
         setStudents(stds)
         setLoading(false)
     }
