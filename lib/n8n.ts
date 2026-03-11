@@ -3,6 +3,7 @@ export async function triggerN8nWebhook(flowId: string, payload: any): Promise<v
     const url = `${N8N_WEBHOOK_URL}/${flowId}`;
 
     try {
+        console.log(`Triggering n8n webhook: ${url}`);
         const response = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -16,6 +17,8 @@ export async function triggerN8nWebhook(flowId: string, payload: any): Promise<v
         if (!response.ok) {
             const errorText = await response.text();
             console.error(`n8n trigger failed: ${response.status} ${errorText}`);
+        } else {
+            console.log(`n8n trigger success: ${flowId}`);
         }
     } catch (error) {
         console.error("n8n connection error:", error);
