@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
     getStudents, registerStudentByAdmin, getClasses, updateStudent, deleteStudent,
-    type StudentProfile, type ClassRoom, triggerFlowGravit
+    type StudentProfile, type ClassRoom, triggerN8nWebhook
 } from "@/lib/store"
 import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -308,7 +308,7 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                                                     size="sm" variant="ghost"
                                                     className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
                                                     title="Enviar WhatsApp"
-                                                    onClick={() => triggerFlowGravit('mensagem_manual', { type: 'manual', name: stu.name, phone: stu.phone })}
+                                                    onClick={() => triggerN8nWebhook('mensagem_manual', { type: 'manual', name: stu.name, phone: stu.phone })}
                                                 >
                                                     <MessageSquare className="h-4 w-4" />
                                                 </Button>

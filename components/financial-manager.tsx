@@ -18,7 +18,7 @@ import {
 import {
     type FinancialCharge, type StudentProfile, type FinancialSettings, type Assessment,
     getFinancialCharges, addFinancialCharge, updateFinancialChargeStatus, deleteFinancialCharge,
-    getFinancialSettings, getAssessments, triggerFlowGravit
+    getFinancialSettings, getAssessments, triggerN8nWebhook
 } from "@/lib/store"
 import { createClient } from "@/lib/supabase/client"
 
