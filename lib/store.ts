@@ -148,17 +148,17 @@ export async function registerStudentByAdmin(data: any): Promise<void> {
   })
   if (dbError) throw new Error(dbError.message)
 
-  // Trigger Flow-Gravit WhatsApp
+  // Trigger n8n WhatsApp
   try {
     const student = { name: data.name, phone: data.phone };
-    await triggerFlowGravit('boas_vindas', {
+    await triggerN8nWebhook('matricula_confirmada', {
       type: 'enrollment',
       name: student.name,
       phone: student.phone,
       matricula
     });
   } catch (err) {
-    console.error("Erro ao disparar WhatsApp de boas-vindas:", err);
+    console.error("Erro ao disparar WhatsApp n8n de boas-vindas:", err);
   }
 }
 
@@ -375,6 +375,24 @@ export async function addFinancialCharge(charge: Omit<FinancialCharge, "id" | "c
   }
   const { data, error } = await supabase.from('financial_charges').insert(dbData).select().single()
   if (error) throw new Error(error.message)
+
+  // Trigger n8n for new charge
+  try {
+    const { data: student } = await supabase.from('students').select('name, phone').eq('id', charge.studentId).maybeSingle()
+    if (student) {
+      await triggerN8nWebhook('pagamento_gerado', {
+        type: 'financial',
+        studentName: student.name,
+        studentPhone: student.phone,
+        amount: charge.amount,
+        description: charge.description,
+        dueDate: charge.dueDate
+      });
+    }
+  } catch (err) {
+    console.error("Erro ao disparar WhatsApp n8n financeiro:", err);
+  }
+
   return mapFinancialCharge(data)
 }
 export async function updateFinancialChargeStatus(id: string, status: FinancialCharge["status"]): Promise<void> {
@@ -610,7 +628,26 @@ export async function updateAssessment(id: string, data: Partial<Omit<Assessment
 
     dbData.modality = newArchived ? `${newModalityBase}_archived` : newModalityBase
   }
-  await supabase.from('assessments').update(dbData).eq('id', id)
+  const { error } = await supabase.from('assessments').update(dbData).eq('id', id)
+  if (error) throw new Error(error.message)
+
+  // Trigger n8n if published
+  if (data.isPublished === true) {
+    try {
+      const { data: assessment } = await supabase.from('assessments').select('title, discipline_id').eq('id', id).maybeSingle()
+      if (assessment) {
+        const { data: discipline } = await supabase.from('disciplines').select('name').eq('id', assessment.discipline_id).maybeSingle()
+        await triggerN8nWebhook('prova_publicada', {
+          type: 'assessment',
+          assessmentTitle: assessment.title,
+          disciplineName: discipline?.name || 'Disciplina',
+          assessmentId: id
+        });
+      }
+    } catch (err) {
+      console.error("Erro ao disparar WhatsApp n8n de prova:", err);
+    }
+  }
 }
 export async function deleteAssessment(id: string): Promise<void> {
   const supabase = createClient()
@@ -831,26 +868,29 @@ export async function saveAttendance(studentId: string, disciplineId: string, da
   }
 }
 
-// ─── Flow-Gravit Integration ──────────────────────────────────────────────
+// ─── n8n WhatsApp Integration ──────────────────────────────────────────────
 
-export async function triggerFlowGravit(workflowId: string, payload: any): Promise<void> {
-  // Use the environment variable for flexibility (local vs production)
-  const FLOW_GRAVIT_BASE_URL = process.env.NEXT_PUBLIC_FLOW_GRAVIT_URL || "https://flow-gravit.vercel.app";
-  const url = `${FLOW_GRAVIT_BASE_URL}/api/webhook/${workflowId}`;
+export async function triggerN8nWebhook(flowId: string, payload: any): Promise<void> {
+  const N8N_WEBHOOK_URL = process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL || "https://n8n.webhook.com";
+  const url = `${N8N_WEBHOOK_URL}/${flowId}`;
 
   try {
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        ...payload,
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV
+      }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`Flow-Gravit trigger failed: ${response.status} ${errorText}`);
+      console.error(`n8n trigger failed: ${response.status} ${errorText}`);
     }
   } catch (error) {
-    console.error("Flow-Gravit connection error:", error);
+    console.error("n8n connection error:", error);
   }
 }
 
