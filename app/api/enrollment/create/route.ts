@@ -51,16 +51,17 @@ export async function POST(req: Request) {
                 address: address.trim(),
                 church: church.trim(),
                 pastor_name: pastor.trim(),
-                class_id: classId || null,
-                auth_user_id: '00000000-0000-0000-0000-000000000000' // placeholder
+                class_id: classId || null
             })
             .select()
             .single()
 
+
         if (studentErr) {
             console.error("Erro ao criar aluno:", studentErr)
-            return NextResponse.json({ error: "Erro ao registrar candidato. Tente novamente." }, { status: 500 })
+            return NextResponse.json({ error: `Erro ao registrar candidato: ${studentErr.message}` }, { status: 500 })
         }
+
 
         // Create enrollment charge
         const dueDate = new Date()
