@@ -49,6 +49,8 @@ export function ClassScheduleManager() {
     const [formTimeEnd, setFormTimeEnd] = useState("21:00")
     const [formDisciplineId, setFormDisciplineId] = useState("")
     const [formProfessor, setFormProfessor] = useState("")
+    const [formLessonsCount, setFormLessonsCount] = useState<number>(1)
+    const [formWorkload, setFormWorkload] = useState<number>(0)
 
     // Deletar
     const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -79,8 +81,31 @@ export function ClassScheduleManager() {
         setFormTimeEnd("21:00")
         setFormDisciplineId("")
         setFormProfessor("none")
+        setFormLessonsCount(1)
+        setFormWorkload(0)
         setModalOpen(true)
     }
+
+    // Calcular Carga Horária automaticamente
+    useEffect(() => {
+        if (!formTimeStart || !formTimeEnd || !formLessonsCount) {
+            setFormWorkload(0)
+            return
+        }
+
+        const [hS, mS] = formTimeStart.split(":").map(Number)
+        const [hE, mE] = formTimeEnd.split(":").map(Number)
+
+        const startMinutes = hS * 60 + mS
+        const endMinutes = hE * 60 + mE
+
+        let diff = endMinutes - startMinutes
+        if (diff < 0) diff += 24 * 60 // Caso passe da meia-noite
+
+        const hoursPerLesson = diff / 60
+        const totalWorkload = hoursPerLesson * formLessonsCount
+        setFormWorkload(Number(totalWorkload.toFixed(1)))
+    }, [formTimeStart, formTimeEnd, formLessonsCount])
 
     async function handleSave() {
         if (!formClassId || !formDisciplineId || !formTimeStart || !formTimeEnd) return
@@ -93,7 +118,9 @@ export function ClassScheduleManager() {
             professorName: prof,
             dayOfWeek: formDay,
             timeStart: formTimeStart,
-            timeEnd: formTimeEnd
+            timeEnd: formTimeEnd,
+            lessonsCount: formLessonsCount,
+            workload: formWorkload
         })
 
         setModalOpen(false)
@@ -215,6 +242,14 @@ export function ClassScheduleManager() {
                                                         <span className="flex items-center gap-1.5">
                                                             <BookOpen className="h-3 w-3" /> Prof: {sched.professorName}
                                                         </span>
+                                                        <div className="mt-2 pt-2 border-t border-border/50 flex items-center justify-between">
+                                                            <span className="px-2 py-0.5 bg-accent/10 text-accent rounded-md font-bold">
+                                                                {sched.lessonsCount} {sched.lessonsCount === 1 ? 'aula' : 'aulas'}
+                                                            </span>
+                                                            <span className="font-mono font-bold text-foreground">
+                                                                CH: {sched.workload}h
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             )
@@ -281,6 +316,19 @@ export function ClassScheduleManager() {
                                         {professors.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="flex flex-col gap-1.5">
+                                <Label>Quantidade de Aulas *</Label>
+                                <Input type="number" min={1} value={formLessonsCount} onChange={e => setFormLessonsCount(Number(e.target.value))} />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <Label>Carga Horária (Calculada)</Label>
+                                <div className="h-10 px-3 py-2 rounded-md border border-input bg-muted/50 flex items-center font-mono font-bold text-primary">
+                                    {formWorkload}h
+                                </div>
                             </div>
                         </div>
 
