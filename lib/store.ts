@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client"
 import { triggerN8nWebhook } from "@/lib/n8n"
+export { triggerN8nWebhook }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type QuestionType = "multiple-choice" | "true-false" | "discursive" | "incorrect-alternative" | "fill-in-the-blank" | "matching"

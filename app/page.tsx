@@ -10,6 +10,7 @@ import { AdminDashboard } from "@/components/admin-dashboard"
 import { StudentDashboard } from "@/components/student-dashboard"
 import { EnrollmentForm } from "@/components/enrollment-form"
 import { GradeViewer } from "@/components/grade-viewer"
+import { InstitutionalManager } from "@/components/institutional-manager"
 import {
   getStudentSession,
   getSubmissionByEmailAndAssessment,
@@ -239,6 +240,15 @@ export default function HomePage() {
                 <h2 className="text-xl font-extrabold mb-1 text-foreground">Prova Pública</h2>
                 <p className="text-sm text-muted-foreground">Acesso aberto para avaliações públicas sem matrícula.</p>
               </button>
+            </div>
+
+            {/* Inclusão Institucional */}
+            <div className="pt-8 border-t border-border mt-12">
+              <div className="mb-8">
+                <h2 className="text-3xl font-black text-foreground tracking-tight">Informações Institucionais</h2>
+                <p className="text-muted-foreground">Conheça nossa missão e diretoria</p>
+              </div>
+              <InstitutionalManager />
             </div>
           </div>
         )}
