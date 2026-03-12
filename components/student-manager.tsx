@@ -82,6 +82,8 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
     const [editChurch, setEditChurch] = useState("")
     const [editPastor, setEditPastor] = useState("")
     const [editClassId, setEditClassId] = useState("none")
+    const [editPaymentStatus, setEditPaymentStatus] = useState("pending")
+    const [editStatus, setEditStatus] = useState<StudentProfile['status']>('pending')
 
     // ─── Data Load ────────────────────────────────────────────────────────────
 
@@ -108,9 +110,10 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
     // ─── Filtered list ────────────────────────────────────────────────────────
 
     const filtered = useMemo(() => {
+        const activeStudents = students.filter(s => s.status === 'active' || !s.status) // Fallback for old records
         const q = search.toLowerCase()
-        if (!q) return students
-        return students.filter(s =>
+        if (!q) return activeStudents
+        return activeStudents.filter(s =>
             s.name.toLowerCase().includes(q) ||
             (s.enrollment_number || "").toLowerCase().includes(q) ||
             (s.cpf || "").includes(q) ||
@@ -164,6 +167,8 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
         setEditChurch(stu.church || "")
         setEditPastor(stu.pastor_name || "")
         setEditClassId(stu.class_id || "none")
+        setEditPaymentStatus(stu.payment_status || "pending")
+        setEditStatus(stu.status || 'pending')
         setIsEditOpen(true)
     }
 
@@ -182,6 +187,8 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                 church: editChurch.trim(),
                 pastor_name: editPastor.trim(),
                 class_id: editClassId === "none" ? null : editClassId,
+                payment_status: editPaymentStatus,
+                status: editStatus,
             })
             setIsEditOpen(false)
             await load()
@@ -263,7 +270,7 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
             <div className="flex justify-between items-center glass rounded-2xl p-6 premium-shadow">
                 <div>
                     <h2 className="text-xl font-bold font-serif text-foreground">Gestão de Alunos</h2>
-                    <p className="text-muted-foreground text-sm">Visualize, edite e gerencie os alunos matriculados.</p>
+                    <p className="text-muted-foreground text-sm">Visualize, edite e gerencie os alunos com matrícula ativa.</p>
                 </div>
                 <Button
                     onClick={() => { resetAddForm(); setIsAddOpen(true) }}
@@ -389,7 +396,7 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                 </div>
                 {search && filtered.length > 0 && (
                     <div className="px-4 py-2 border-t border-border text-xs text-muted-foreground">
-                        Mostrando {filtered.length} de {students.length} alunos
+                        Mostrando {filtered.length} de {students.filter(s => s.status === 'active' || !s.status).length} alunos
                     </div>
                 )}
             </div>
@@ -545,6 +552,22 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                                     </div>
                                 )}
                             </div>
+                            <div className="flex flex-col gap-1.5">
+                                <Label className="text-xs">Status Financeiro</Label>
+                                <select value={editPaymentStatus} onChange={e => setEditPaymentStatus(e.target.value)} className="w-full text-sm h-9 border border-input rounded-md px-3 bg-background">
+                                    <option value="paid">Pago</option>
+                                    <option value="pending">Pendente</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                            <Label className="text-xs">Status da Matrícula</Label>
+                            <select value={editStatus} onChange={e => setEditStatus(e.target.value as any)} className="w-full text-sm h-9 border border-input rounded-md px-3 bg-background">
+                                <option value="pending">Pendente (Oculto na listagem)</option>
+                                <option value="active">Ativo (Visível na listagem)</option>
+                                <option value="inactive">Inativo</option>
+                            </select>
                         </div>
                     </div>
                     <DialogFooter>

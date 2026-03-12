@@ -132,7 +132,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
         )
     }
 
-    const isLocked = charges.some(c => c.type === 'enrollment' && c.status !== 'paid')
+    const isLocked = profile.payment_status !== 'paid' && charges.some(c => c.type === 'enrollment' && c.status !== 'paid')
 
     const navItems: { id: Tab; label: string; icon: any }[] = [
         { id: "overview", label: "Visão Geral", icon: Home },
@@ -150,9 +150,9 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
     const filteredMaterials = materials.filter(m => !m.disciplineId || myDisciplineIds.has(m.disciplineId))
 
     const SidebarContent = () => (
-        <div className="flex flex-col h-full text-slate-100" style={{ backgroundColor: '#0f172a' }}>
+        <div className="flex flex-col h-[100dvh] text-slate-100 pt-[env(safe-area-inset-top,0px)]" style={{ backgroundColor: '#0f172a' }}>
             <div className="p-6 border-b border-white/20 mb-4 bg-black/40 backdrop-blur-md">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white p-0.5 mb-4 overflow-hidden border border-white/10">
+                <div className="flex h-12 w-12 items-center justify-center mb-4 rounded-full shrink-0 overflow-hidden border border-white/20 shadow-md">
                     <img src="/ieteo-logo.jpg" alt="Logo IETEO" className="h-full w-full object-cover" />
                 </div>
                 <h2 className="text-base font-bold tracking-tight text-white">IETEO</h2>
@@ -211,7 +211,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                 </div>
             </ScrollArea>
 
-            <div className="p-4 mt-auto border-t border-white/10 bg-black/10">
+            <div className="p-4 mt-auto border-t border-white/10 bg-black/10 pb-[calc(1rem+env(safe-area-inset-bottom,20px))]">
                 <button
                     onClick={handlePortalLogout}
                     className="flex items-center gap-3 w-full px-4 py-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl text-sm font-medium transition-colors"
@@ -233,7 +233,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
                 {/* Header */}
-                <header className="h-20 flex-shrink-0 border-b border-border/50 bg-white shadow-sm flex items-center justify-between px-6 z-30">
+                <header className="h-[calc(5rem+env(safe-area-inset-top,0px))] md:h-20 flex-shrink-0 border-b border-border/50 bg-white shadow-sm flex items-center justify-between px-6 z-30 pt-[env(safe-area-inset-top,0px)]">
                     <div className="flex items-center gap-4">
                         <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                             <SheetTrigger asChild>
@@ -246,10 +246,22 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                             </SheetContent>
                         </Sheet>
                         <div className="flex flex-col">
-                            <h2 className="font-bold text-lg text-foreground tracking-tight flex items-center gap-2">
-                                <GraduationCap className="h-5 w-5 text-accent" />
-                                {navItems.find(t => t.id === tab)?.label || "Menu"}
-                            </h2>
+                            <div className="flex items-center gap-2">
+                                {tab !== "overview" && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => setTab("overview")}
+                                        className="h-8 w-8 rounded-lg hover:bg-slate-100 -ml-1"
+                                    >
+                                        <ArrowLeft className="h-4 w-4 text-muted-foreground" />
+                                    </Button>
+                                )}
+                                <h2 className="font-bold text-lg text-foreground tracking-tight flex items-center gap-2">
+                                    <GraduationCap className="h-5 w-5 text-accent" />
+                                    {navItems.find(t => t.id === tab)?.label || "Menu"}
+                                </h2>
+                            </div>
                             <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest leading-none mt-1">
                                 {profile.enrollment_number} • Teologia Bíblica (Básico)
                             </p>
@@ -264,6 +276,16 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
 
                         <Button variant="outline" size="sm" onClick={onBack} className="hidden sm:flex gap-2 text-xs font-bold rounded-xl border-accent/20 text-accent hover:bg-accent/10 h-10 px-4">
                             <BookOpen className="h-4 w-4" /> Sala de Provas
+                        </Button>
+
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={handlePortalLogout}
+                            className="text-red-500 hover:text-red-600 hover:bg-red-50 sm:hidden h-10 w-10"
+                            title="Sair do Portal"
+                        >
+                            <LogOut className="h-5 w-5" />
                         </Button>
                     </div>
                 </header>

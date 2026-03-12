@@ -102,9 +102,9 @@ export function ProfessorLogin({ onLogin, onBack }: Props) {
   return (
     <div className="w-full max-w-sm mx-auto">
       <div className="text-center mb-10 group">
-        <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-sm mb-6 border border-border shadow-xl p-2 relative overflow-hidden transition-transform duration-500 group-hover:scale-105">
-          <div className="absolute inset-0 bg-gradient-to-br from-accent/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <img src="/ieteo-logo.jpg" alt="IETEO" className="w-full h-full object-contain relative z-10" />
+        <div className="inline-flex items-center justify-center w-24 h-24 mb-6 rounded-full relative overflow-hidden shadow-xl border border-white/5 transition-transform duration-500 group-hover:scale-105">
+          <div className="absolute inset-0 bg-gradient-to-br from-accent/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-20" />
+          <img src="/ieteo-logo.jpg" alt="IETEO" className="w-full h-full object-cover relative z-10" />
         </div>
         <h1 className="text-2xl font-extrabold text-foreground tracking-tight leading-tight">Painel do Professor</h1>
         <p className="text-accent text-xs font-bold uppercase tracking-widest mt-2">Instituto de Ensino Teológico</p>

@@ -8,10 +8,8 @@ export interface MatchingPair { id: string; left: string; right: string }
 export interface Semester { id: string; name: string; order: number; shift?: string; createdAt: string }
 export interface Discipline { id: string; name: string; description?: string | null; semesterId?: string | null; professorName?: string | null; dayOfWeek?: string | null; shift?: string | null; order: number; createdAt: string }
 export interface StudyMaterial { id: string; disciplineId: string; title: string; description?: string; fileUrl: string; createdAt: string }
-export interface FinancialSettings { id: string; enrollmentFee: number; monthlyFee: number; secondCallFee: number; finalExamFee: number; totalMonths: number; updatedAt: string; }
-export interface PaypalConfig { id: string; clientId: string; secret: string; mode: "sandbox" | "live"; updatedAt: string; }
-export interface AsaasConfig { id: string; apiKey: string; mode: "sandbox" | "production"; pixKey?: string; updatedAt: string; }
-export interface FinancialCharge { id: string; studentId: string; type: "enrollment" | "monthly" | "second_call" | "final_exam" | "other"; description: string; amount: number; dueDate: string; status: "pending" | "paid" | "cancelled" | "late"; paymentDate?: string; paypalOrderId?: string; asaasPaymentId?: string; pixQrcode?: string; pixCopyPaste?: string; createdAt: string; }
+export interface FinancialSettings { id: string; enrollmentFee: number; monthlyFee: number; secondCallFee: number; finalExamFee: number; totalMonths: number; creditCardUrl?: string; pixKey?: string; updatedAt: string; }
+export interface FinancialCharge { id: string; studentId: string; type: "enrollment" | "monthly" | "second_call" | "final_exam" | "other"; description: string; amount: number; dueDate: string; status: "pending" | "paid" | "cancelled" | "late"; paymentDate?: string; pixQrcode?: string; pixCopyPaste?: string; createdAt: string; }
 export interface Question { id: string; disciplineId: string; type: QuestionType; text: string; choices: Choice[]; pairs?: MatchingPair[]; correctAnswer: string; points: number; createdAt: string }
 export interface Assessment { id: string; title: string; disciplineId: string; professor: string; institution: string; questionIds: string[]; pointsPerQuestion: number; totalPoints: number; openAt: string | null; closeAt: string | null; isPublished: boolean; archived: boolean; shuffleVariants?: boolean; logoBase64?: string; rules?: string; releaseResults?: boolean; modality?: "public" | "private"; createdAt: string }
 export interface StudentAnswer { questionId: string; answer: string }
@@ -19,9 +17,11 @@ export interface StudentSubmission { id: string; assessmentId: string; studentNa
 export interface ProfessorAccount { id: string; name: string; email: string; passwordHash: string; role: "master" | "professor"; createdAt: string }
 export interface ProfessorSession { loggedIn: boolean; professorId: string; role: "master" | "professor"; expiresAt: string }
 export interface StudentSession { name: string; email: string; assessmentId: string; startedAt: string }
-export interface StudentProfile { id: string; auth_user_id: string; name: string; cpf: string; enrollment_number: string; phone?: string; address?: string; church?: string; pastor_name?: string; class_id?: string; payment_status?: string; created_at: string; }
+export interface StudentProfile { id: string; auth_user_id: string; name: string; cpf: string; enrollment_number: string; phone?: string; address?: string; church?: string; pastor_name?: string; class_id?: string; payment_status?: string; status: "pending" | "active" | "inactive"; created_at: string; }
 export interface ChatMessage { id: string; studentId: string; disciplineId: string; message: string; isFromStudent: boolean; read: boolean; createdAt: string; }
 export interface Attendance { id: string; studentId: string; disciplineId: string; date: string; isPresent: boolean; createdAt: string; }
+export interface BoardMember { id: string; name: string; role: string; category: string; createdAt: string; }
+export interface ProfessorDiscipline { id: string; professorId: string; disciplineId: string; createdAt: string; }
 export interface ClassRoom { id: string; name: string; shift: "morning" | "afternoon" | "evening" | "ead"; dayOfWeek?: string; maxStudents: number; studentCount?: number; createdAt: string; }
 export interface ClassSchedule { id: string; classId: string; disciplineId: string; professorName: string; dayOfWeek: string; timeStart: string; timeEnd: string; lessonsCount: number; workload: number; createdAt: string; }
 export interface StudentGrade {
@@ -262,16 +262,16 @@ function mapAssessment(row: any): Assessment {
 }
 function mapSubmission(row: any): StudentSubmission { return { id: row.id, assessmentId: row.assessment_id, studentName: row.student_name, studentEmail: row.student_email, answers: row.answers, score: row.score, totalPoints: row.total_points, percentage: row.percentage, submittedAt: row.submitted_at, timeElapsedSeconds: row.time_elapsed_seconds } }
 function mapProfessor(row: any): ProfessorAccount { return { id: row.id, name: row.name, email: row.email, passwordHash: row.password_hash, role: row.role as any, createdAt: row.created_at } }
-function mapFinancialSettings(row: any): FinancialSettings { return { id: row.id, enrollmentFee: Number(row.enrollment_fee), monthlyFee: Number(row.monthly_fee), secondCallFee: Number(row.second_call_fee), finalExamFee: Number(row.final_exam_fee), totalMonths: Number(row.total_months), updatedAt: row.updated_at } }
-function mapPaypalConfig(row: any): PaypalConfig { return { id: row.id, clientId: row.client_id, secret: row.secret, mode: row.mode as "sandbox" | "live", updatedAt: row.updated_at } }
-function mapAsaasConfig(row: any): AsaasConfig { return { id: row.id, apiKey: row.api_key, mode: row.mode as "sandbox" | "production", pixKey: row.pix_key || undefined, updatedAt: row.updated_at } }
-function mapFinancialCharge(row: any): FinancialCharge { return { id: row.id, studentId: row.student_id, type: row.type, description: row.description, amount: Number(row.amount), dueDate: row.due_date, status: row.status, paymentDate: row.payment_date || undefined, paypalOrderId: row.paypal_order_id || undefined, asaasPaymentId: row.asaas_payment_id || undefined, pixQrcode: row.pix_qrcode || undefined, pixCopyPaste: row.pix_copy_paste || undefined, createdAt: row.created_at } }
-function mapStudentProfile(row: any): StudentProfile { return { id: row.id, auth_user_id: row.auth_user_id, name: row.name, cpf: row.cpf, enrollment_number: row.enrollment_number, phone: row.phone || undefined, address: row.address || undefined, church: row.church || undefined, pastor_name: row.pastor_name || undefined, class_id: row.class_id || undefined, created_at: row.created_at } }
+function mapFinancialSettings(row: any): FinancialSettings { return { id: row.id, enrollmentFee: Number(row.enrollment_fee), monthlyFee: Number(row.monthly_fee), secondCallFee: Number(row.second_call_fee), finalExamFee: Number(row.final_exam_fee), totalMonths: Number(row.total_months), creditCardUrl: row.credit_card_url || undefined, pixKey: row.pix_key || undefined, updatedAt: row.updated_at } }
+function mapFinancialCharge(row: any): FinancialCharge { return { id: row.id, studentId: row.student_id, type: row.type, description: row.description, amount: Number(row.amount), dueDate: row.due_date, status: row.status, paymentDate: row.payment_date || undefined, pixQrcode: row.pix_qrcode || undefined, pixCopyPaste: row.pix_copy_paste || undefined, createdAt: row.created_at } }
+function mapStudentProfile(row: any): StudentProfile { return { id: row.id, auth_user_id: row.auth_user_id, name: row.name, cpf: row.cpf, enrollment_number: row.enrollment_number, phone: row.phone || undefined, address: row.address || undefined, church: row.church || undefined, pastor_name: row.pastor_name || undefined, class_id: row.class_id || undefined, payment_status: row.payment_status || undefined, status: row.status || 'pending', created_at: row.created_at } }
 function mapChatMessage(row: any): ChatMessage { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, message: row.message, isFromStudent: row.is_from_student, read: row.read, createdAt: row.created_at } }
 function mapAttendance(row: any): Attendance { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, date: row.date, isPresent: row.is_present, createdAt: row.created_at } }
 function mapClassRoom(row: any): ClassRoom { return { id: row.id, name: row.name, shift: row.shift as ClassRoom['shift'], dayOfWeek: row.day_of_week || undefined, maxStudents: Number(row.max_students), studentCount: row.student_count !== undefined ? Number(row.student_count) : undefined, createdAt: row.created_at } }
 function mapClassSchedule(row: any): ClassSchedule { return { id: row.id, classId: row.class_id, disciplineId: row.discipline_id, professorName: row.professor_name, dayOfWeek: row.day_of_week, timeStart: row.time_start, timeEnd: row.time_end, lessonsCount: Number(row.lessons_count || 1), workload: Number(row.workload || 0), createdAt: row.created_at } }
 function mapStudentGrade(row: any): StudentGrade { return { id: row.id, studentIdentifier: row.student_identifier, studentName: row.student_name, disciplineId: row.discipline_id || undefined, isPublic: row.is_public, examGrade: Number(row.exam_grade), worksGrade: Number(row.works_grade), seminarGrade: Number(row.seminar_grade), participationBonus: Number(row.participation_bonus), attendanceScore: Number(row.attendance_score), customDivisor: Number(row.custom_divisor), createdAt: row.created_at } }
+function mapBoardMember(row: any): BoardMember { return { id: row.id, name: row.name, role: row.role, category: row.category, createdAt: row.created_at } }
+function mapProfessorDiscipline(row: any): ProfessorDiscipline { return { id: row.id, professorId: row.professor_id, disciplineId: row.discipline_id, createdAt: row.created_at } }
 
 // ─── Async Supabase Operations ───────────────────────────────────────────────
 
@@ -288,6 +288,8 @@ export async function updateFinancialSettings(settings: Omit<FinancialSettings, 
     second_call_fee: settings.secondCallFee,
     final_exam_fee: settings.finalExamFee,
     total_months: settings.totalMonths,
+    credit_card_url: settings.creditCardUrl || null,
+    pix_key: settings.pixKey || null,
     updated_at: new Date().toISOString()
   }
   const { data: existing } = await supabase.from('financial_settings').select('id').limit(1).maybeSingle()
@@ -298,48 +300,6 @@ export async function updateFinancialSettings(settings: Omit<FinancialSettings, 
   }
 }
 
-export async function getPaypalConfig(): Promise<PaypalConfig | null> {
-  const supabase = createClient()
-  const { data } = await supabase.from('paypal_config').select('*').limit(1).maybeSingle()
-  return data ? mapPaypalConfig(data) : null
-}
-export async function updatePaypalConfig(config: Omit<PaypalConfig, "id" | "updatedAt">): Promise<void> {
-  const supabase = createClient()
-  const dbData = {
-    client_id: config.clientId,
-    secret: config.secret,
-    mode: config.mode,
-    updated_at: new Date().toISOString()
-  }
-  const { data: existing } = await supabase.from('paypal_config').select('id').limit(1).maybeSingle()
-  if (existing) {
-    await supabase.from('paypal_config').update(dbData).eq('id', existing.id)
-  } else {
-    await supabase.from('paypal_config').insert(dbData)
-  }
-}
-
-export async function getAsaasConfig(): Promise<AsaasConfig | null> {
-  const supabase = createClient()
-  const { data } = await supabase.from('asaas_config').select('*').limit(1).maybeSingle()
-  return data ? mapAsaasConfig(data) : null
-}
-export async function updateAsaasConfig(config: Omit<AsaasConfig, "id" | "updatedAt">): Promise<void> {
-  const supabase = createClient()
-  const dbData: any = {
-    api_key: config.apiKey,
-    mode: config.mode,
-    updated_at: new Date().toISOString()
-  }
-  if (config.pixKey !== undefined) dbData.pix_key = config.pixKey
-
-  const { data: existing } = await supabase.from('asaas_config').select('id').limit(1).maybeSingle()
-  if (existing) {
-    await supabase.from('asaas_config').update(dbData).eq('id', existing.id)
-  } else {
-    await supabase.from('asaas_config').insert(dbData)
-  }
-}
 
 export async function getClasses(): Promise<ClassRoom[]> {
   const supabase = createClient()
@@ -411,7 +371,6 @@ export async function addFinancialCharge(charge: Omit<FinancialCharge, "id" | "c
     amount: charge.amount,
     due_date: charge.dueDate,
     status: 'pending',
-    paypal_order_id: charge.paypalOrderId || null,
     created_at: new Date().toISOString()
   }
   const { data, error } = await supabase.from('financial_charges').insert(dbData).select().single()
@@ -511,6 +470,37 @@ export async function getDisciplines(): Promise<Discipline[]> {
       if (a.order !== b.order) return a.order - b.order
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     })
+}
+
+export async function getDisciplinesByProfessor(professorId: string): Promise<Discipline[]> {
+  const supabase = createClient()
+  const { data: links } = await supabase.from('professor_disciplines').select('discipline_id').eq('professor_id', professorId)
+  if (!links || links.length === 0) return []
+  const ids = links.map(l => l.discipline_id)
+  const { data } = await supabase.from('disciplines').select('*').in('id', ids)
+  return (data || []).map(mapDiscipline)
+}
+
+export async function getProfessorDisciplines(professorId: string): Promise<ProfessorDiscipline[]> {
+  const supabase = createClient()
+  const { data } = await supabase.from('professor_disciplines').select('*').eq('professor_id', professorId)
+  return (data || []).map(mapProfessorDiscipline)
+}
+
+export async function linkProfessorToDiscipline(professorId: string, disciplineId: string): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('professor_disciplines').upsert({ professor_id: professorId, discipline_id: disciplineId }, { onConflict: 'professor_id,discipline_id' })
+}
+
+export async function unlinkProfessorFromDiscipline(professorId: string, disciplineId: string): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('professor_disciplines').delete().match({ professor_id: professorId, discipline_id: disciplineId })
+}
+
+export async function getBoardMembers(): Promise<BoardMember[]> {
+  const supabase = createClient()
+  const { data } = await supabase.from('board_members').select('*').order('category', { ascending: false })
+  return (data || []).map(mapBoardMember)
 }
 export async function addDiscipline(name: string, description?: string | null, semesterId?: string | null, professorName?: string | null, dayOfWeek?: string | null, shift?: string | null, order?: number): Promise<Discipline> {
   const d = { id: uid(), name, description: description || null, semester_id: semesterId || null, professor_name: professorName || null, day_of_week: dayOfWeek || null, shift: shift || null, "order": order || 0, created_at: new Date().toISOString() }
@@ -896,6 +886,8 @@ export async function updateStudent(id: string, data: {
   church?: string
   pastor_name?: string
   class_id?: string | null
+  payment_status?: string
+  status?: "pending" | "active" | "inactive"
 }): Promise<void> {
   const supabase = createClient()
   const updateData: any = {}
@@ -906,9 +898,21 @@ export async function updateStudent(id: string, data: {
   if (data.church !== undefined) updateData.church = data.church || null
   if (data.pastor_name !== undefined) updateData.pastor_name = data.pastor_name || null
   if (data.class_id !== undefined) updateData.class_id = data.class_id || null
+  if (data.payment_status !== undefined) updateData.payment_status = data.payment_status || null
+  if (data.status !== undefined) updateData.status = data.status
 
   const { error } = await supabase.from('students').update(updateData).eq('id', id)
   if (error) throw new Error(error.message)
+
+  // Trigger activation if payment_status changed to paid
+  if (data.payment_status === 'paid') {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : 'https://ieteo-dashboard.vercel.app')
+    fetch(`${baseUrl}/api/student/activate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ studentId: id })
+    }).catch(e => console.error("Manual Activation trigger error:", e))
+  }
 }
 
 export async function deleteStudent(id: string): Promise<void> {
@@ -983,7 +987,6 @@ export async function saveAttendance(studentId: string, disciplineId: string, da
 }
 
 // ─── n8n WhatsApp Integration ──────────────────────────────────────────────
-export { triggerN8nWebhook }
 
 // ─── Notas (Student Grades) ───────────────────────────────────────────────────
 
@@ -1017,6 +1020,38 @@ export async function saveStudentGrade(grade: Omit<StudentGrade, 'id' | 'created
     if (error) throw new Error(error.message)
   }
 }
+
+export async function getAvailableSlots(): Promise<number> {
+  const supabase = createClient()
+
+  // Get total capacity from classes
+  const { data: classesData, error: classesError } = await supabase
+    .from('classes')
+    .select('max_students')
+
+  if (classesError) {
+    console.error("Error fetching classes capacity:", classesError)
+    return 0
+  }
+
+  const totalCapacity = classesData.reduce((acc, curr) => acc + (curr.max_students || 0), 0)
+
+  // Get current student count
+  const { count, error: studentsError } = await supabase
+    .from('students')
+    .select('*', { count: 'exact', head: true })
+
+  if (studentsError) {
+    console.error("Error fetching student count:", studentsError)
+    return 0
+  }
+
+  const currentStudents = count || 0
+  const available = totalCapacity - currentStudents
+
+  return available > 0 ? available : 0
+}
+
 
 export async function deleteStudentGrade(id: string): Promise<void> {
   const supabase = createClient()

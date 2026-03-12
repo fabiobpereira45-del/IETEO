@@ -1,9 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { X, ChevronRight, ChevronLeft, User, Phone, MapPin, Church, BookOpen, CreditCard, QrCode, Loader2, CheckCircle2, AlertCircle, Copy } from "lucide-react"
-import { getClasses, getFinancialSettings, getPaypalConfig, getAsaasConfig, getClassSchedules, type ClassRoom, type FinancialSettings, type ClassSchedule } from "@/lib/store"
-import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js"
+import { X, ChevronRight, ChevronLeft, User, Phone, MapPin, Church, BookOpen, CreditCard, QrCode, Loader2, CheckCircle2, AlertCircle, Copy, MessageCircle, Clock } from "lucide-react"
+import { getClasses, getFinancialSettings, getClassSchedules, type ClassRoom, type FinancialSettings, type ClassSchedule } from "@/lib/store"
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface EnrollmentFormProps {
     onClose: () => void
@@ -11,7 +14,7 @@ interface EnrollmentFormProps {
 }
 
 type Step = "personal" | "class" | "payment"
-type PayMethod = "pix" | "paypal" | null
+type PayMethod = "pix" | "card" | null
 
 interface FormData {
     name: string
@@ -38,40 +41,30 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
     const [classes, setClasses] = useState<ClassRoom[]>([])
     const [schedules, setSchedules] = useState<ClassSchedule[]>([])
     const [settings, setSettings] = useState<FinancialSettings | null>(null)
-    const [paypalConfig, setPaypalConfig] = useState<{ clientId: string; mode: string } | null>(null)
-    const [asaasConfigured, setAsaasConfigured] = useState(false)
-    const [asaasSandbox, setAsaasSandbox] = useState(true)
-    const [institutionPixKey, setInstitutionPixKey] = useState("")
+
     const [payMethod, setPayMethod] = useState<PayMethod>(null)
     const [loading, setLoading] = useState(true)
+
     // Pix state
-    const [pixLoading, setPixLoading] = useState(false)
-    const [pixQrcode, setPixQrcode] = useState("")
-    const [pixCopyPaste, setPixCopyPaste] = useState("")
-    const [pixError, setPixError] = useState("")
     const [pixCopied, setPixCopied] = useState(false)
-    const [pixVerifying, setPixVerifying] = useState(false)
-    const [pixVerifyMsg, setPixVerifyMsg] = useState<"" | "paid" | "pending" | "error">("")
-    const [enrolledChargeId, setEnrolledChargeId] = useState<string | null>(null)
     const [enrollmentDetails, setEnrollmentDetails] = useState<{ enrollmentNumber: string, name: string } | null>(null)
+    const [enrolledChargeId, setEnrolledChargeId] = useState<string | null>(null)
+
     // Success
     const [success, setSuccess] = useState(false)
     const [enrollError, setEnrollError] = useState("")
+    const [creating, setCreating] = useState(false)
+    const [exitConfirmOpen, setExitConfirmOpen] = useState(false)
+    const [isPaidLater, setIsPaidLater] = useState(false)
 
     useEffect(() => {
         async function load() {
-            const [cls, fin, pp, asaas, scheds] = await Promise.all([
-                getClasses(), getFinancialSettings(), getPaypalConfig(), getAsaasConfig(), getClassSchedules()
+            const [cls, fin, scheds] = await Promise.all([
+                getClasses(), getFinancialSettings(), getClassSchedules()
             ])
             setClasses(cls)
             setSchedules(scheds)
             setSettings(fin)
-            if (pp?.clientId) setPaypalConfig({ clientId: pp.clientId, mode: pp.mode })
-            if (asaas?.apiKey) {
-                setAsaasConfigured(true)
-                setAsaasSandbox(asaas.mode === "sandbox")
-            }
-            if ((asaas as any)?.pixKey) setInstitutionPixKey((asaas as any).pixKey)
             setLoading(false)
         }
         load()
@@ -81,6 +74,8 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
     const isClassValid = !!form.classId
 
     async function handleCreateEnrollment() {
+        if (creating) return
+        setCreating(true)
         try {
             const res = await fetch("/api/enrollment/create", {
                 method: "POST",
@@ -90,85 +85,52 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
             const body = await res.json()
             if (!res.ok) throw new Error(body.error || "Erro ao criar matrícula")
             setEnrollmentDetails({ enrollmentNumber: body.enrollmentNumber, name: form.name })
+            setEnrolledChargeId(body.chargeId)
             return body
         } catch (e: any) {
+            setEnrollError(e.message)
             throw e
-        }
-    }
-
-    async function handlePixPay() {
-        setPixLoading(true)
-        setPixError("")
-        try {
-            const data = await handleCreateEnrollment()
-            setEnrolledChargeId(data.chargeId)
-            const res = await fetch("/api/asaas/create-pix", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ chargeId: data.chargeId })
-            })
-            const body = await res.json()
-            if (!res.ok) throw new Error(body.error || "Erro ao gerar Pix")
-            setPixQrcode(body.pixQrcode || body.qrcode || "")
-            setPixCopyPaste(body.pixCopyPaste || body.copyPaste || "")
-            if (!body.pixQrcode && !body.qrcode) {
-                throw new Error("QR Code não foi gerado. Verifique a configuração do Asaas.")
-            }
-
-        } catch (e: any) {
-            setPixError(e.message)
         } finally {
-            setPixLoading(false)
+            setCreating(false)
         }
     }
 
-    async function handleCheckPixStatus() {
-        if (!enrolledChargeId) return
-        setPixVerifying(true)
-        setPixVerifyMsg("")
-        try {
-            const res = await fetch("/api/asaas/check-status", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ chargeId: enrolledChargeId })
-            })
-            const body = await res.json()
-            if (body.status === "paid") {
-                setPixVerifyMsg("paid")
-                setTimeout(() => { setSuccess(true) }, 1500)
-            } else {
-                setPixVerifyMsg("pending")
-            }
-        } catch { setPixVerifyMsg("error") } finally { setPixVerifying(false) }
+    const institutionPixKey = "SEU_PIX_AQUI" // This should ideally come from a global setting
+
+    function handleWhatsAppConfirm() {
+        const message = `Olá! Acabei de realizar minha matrícula no IETEO.\n\n*Dados:* \nNome: ${form.name}\nCPF: ${form.cpf}\nMatrícula: ${enrollmentDetails?.enrollmentNumber}\n\n*Estou enviando o comprovante de pagamento em anexo.*`
+        const encoded = encodeURIComponent(message)
+        window.open(`https://wa.me/5571987483103?text=${encoded}`, "_blank") // Updated to final contact
     }
 
-    async function handlePayPalApprove(orderId: string) {
-        try {
-            let chargeId = enrolledChargeId
-            if (!chargeId) {
-                const data = await handleCreateEnrollment()
-                chargeId = data.chargeId
-                setEnrolledChargeId(chargeId)
-            }
-            const res = await fetch("/api/paypal/capture-order", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orderId, chargeId })
-            })
-            if (res.ok) setSuccess(true)
-        } catch (e: any) { setEnrollError(e.message) }
+    async function handleCardPay() {
+        if (!enrolledChargeId) {
+            await handleCreateEnrollment()
+        }
+        if (settings?.creditCardUrl) {
+            window.open(settings.creditCardUrl, "_blank")
+        } else {
+            alert("Link de pagamento não configurado. Entre em contato com a secretaria.")
+        }
     }
 
-    async function createPayPalOrder() {
-        const data = await handleCreateEnrollment()
-        setEnrolledChargeId(data.chargeId)
-        const res = await fetch("/api/paypal/create-order", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ chargeId: data.chargeId })
-        })
-        const body = await res.json()
-        return body.orderId
+    async function handlePayLater() {
+        if (creating) return
+        try {
+            await handleCreateEnrollment()
+            setIsPaidLater(true)
+            setSuccess(true)
+        } catch (e) {
+            // Error already handled in handleCreateEnrollment
+        }
+    }
+
+    function handleAttemptClose() {
+        if (success) {
+            onClose()
+        } else {
+            setExitConfirmOpen(true)
+        }
     }
 
     if (success) {
@@ -180,20 +142,20 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                             <CheckCircle2 className="h-10 w-10 text-green-600" />
                         </div>
                     </div>
-                    <h2 className="text-3xl font-serif font-bold text-foreground mb-2">Matrícula Confirmada!</h2>
-                    <p className="text-muted-foreground mb-8">Sua matrícula foi concluída e o pagamento recebido com sucesso.</p>
+                    <h2 className="text-3xl font-serif font-bold text-foreground mb-2">
+                        {isPaidLater ? "Pré-Matrícula Realizada!" : "Matrícula Confirmada!"}
+                    </h2>
+                    <p className="text-muted-foreground mb-8">
+                        {isPaidLater 
+                            ? "Sua pré-matrícula foi registrada. Lembre-se: ela só será efetivada após a comprovação do pagamento em até 5 dias." 
+                            : "Sua matrícula foi concluída com sucesso. Assim que o pagamento for confirmado, você receberá seus dados de acesso."}
+                    </p>
 
                     <div className="w-full bg-muted/40 border border-border rounded-2xl p-6 text-left mb-8 shadow-sm">
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Comprovante de Matrícula</p>
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Número de Pré-Matrícula</p>
 
                         <div className="space-y-4">
                             <div>
-                                <p className="text-xs text-muted-foreground mb-1">Aluno(a)</p>
-                                <p className="font-semibold text-foreground text-lg">{enrollmentDetails?.name}</p>
-                            </div>
-
-                            <div>
-                                <p className="text-xs text-muted-foreground mb-1">Número de Matrícula</p>
                                 <div className="flex items-center justify-between bg-background border border-border rounded-lg p-3">
                                     <span className="font-mono text-xl font-bold tracking-widest text-primary">{enrollmentDetails?.enrollmentNumber}</span>
                                     <button
@@ -209,15 +171,10 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                                 </div>
                             </div>
                         </div>
-
-                        <div className="mt-5 pt-5 border-t border-border flex items-start gap-3 bg-blue-50/50 p-3 rounded-xl border-blue-100">
-                            <AlertCircle className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
-                            <p className="text-xs text-blue-800 font-medium leading-relaxed">Guarde o seu <strong>Número de Matrícula</strong> com segurança. Ele será necessário para o seu primeiro acesso à Área do Aluno.</p>
-                        </div>
                     </div>
 
                     <button onClick={() => { onSuccess?.(); onClose() }} className="w-full bg-accent text-accent-foreground font-bold py-3.5 rounded-xl hover:bg-accent/90 transition-colors shadow-md">
-                        Acessar Área do Aluno
+                        Fechar
                     </button>
                 </div>
             </div>
@@ -233,7 +190,7 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                         <h2 className="font-bold text-lg">Faça sua Matrícula</h2>
                         <p className="text-xs text-primary-foreground/70">IETEO — Instituto de Ensino Teológico</p>
                     </div>
-                    <button onClick={onClose} className="rounded-full p-1.5 hover:bg-white/10 transition-colors">
+                    <button onClick={handleAttemptClose} className="rounded-full p-1.5 hover:bg-white/10 transition-colors">
                         <X className="h-5 w-5" />
                     </button>
                 </div>
@@ -329,8 +286,11 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                                                     </div>
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="text-sm font-bold text-accent">{c.maxStudents} vagas</p>
+                                                    <p className={`text-sm font-bold ${c.maxStudents - (c.studentCount || 0) <= 5 ? "text-destructive" : "text-accent"}`}>
+                                                        {Math.max(0, c.maxStudents - (c.studentCount || 0))} vagas restantes
+                                                    </p>
                                                     {form.classId === c.id && <CheckCircle2 className="h-4 w-4 text-green-500 ml-auto mt-1" />}
+                                                    {c.maxStudents - (c.studentCount || 0) <= 0 && <span className="text-[10px] font-bold text-destructive uppercase">Esgotado</span>}
                                                 </div>
                                             </div>
                                         </button>
@@ -366,200 +326,217 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                                 <div className="space-y-3">
                                     <p className="text-sm text-muted-foreground mr-1">Escolha a forma de pagamento:</p>
 
-                                    {/* 1. Asaas PIX - Automatic/Dynamic QR (Top Priority in Production) */}
-                                    {asaasConfigured && !asaasSandbox && (
-                                        <button
-                                            onClick={() => { setPayMethod("pix"); handlePixPay() }}
-                                            className="w-full flex items-center gap-3 border-2 border-green-600 bg-green-50 rounded-xl p-4 hover:bg-green-100 transition-all group"
-                                        >
-                                            <div className="h-10 w-10 bg-green-600 rounded-full flex items-center justify-center text-white group-hover:scale-110 transition-transform">
-                                                <QrCode className="h-6 w-6" />
-                                            </div>
-                                            <div className="text-left flex-1">
-                                                <p className="font-bold text-green-700">Pagar com Pix (Automático)</p>
-                                                <p className="text-xs text-green-600 font-medium">QR Code na tela · Aprovação Imediata</p>
-                                            </div>
-                                            <ChevronRight className="h-5 w-5 text-green-400" />
-                                        </button>
-                                    )}
-
-                                    {/* 2. Manual PIX Fallback (Primary in Sandbox or if Asaas not configured) */}
-                                    {institutionPixKey && (asaasSandbox || !asaasConfigured) && (
-                                        <div className="border-2 border-green-500 bg-green-50 rounded-xl p-4 space-y-3">
-                                            <div className="flex items-center gap-3">
-                                                <QrCode className="h-6 w-6 text-green-600 shrink-0" />
-                                                <div>
-                                                    <p className="font-bold text-green-700">Pagar com Pix (Chave Manual)</p>
-                                                    <p className="text-xs text-green-600 italic">Copie a chave e pague no app do seu banco</p>
-                                                </div>
-                                            </div>
-                                            <div className="bg-white rounded-xl p-3 border border-green-200">
-                                                <p className="text-xs font-semibold text-muted-foreground mb-1">Chave Pix:</p>
-                                                <div className="flex gap-2 items-center">
-                                                    <p className="text-sm font-mono flex-1 break-all">{institutionPixKey}</p>
-                                                    <button
-                                                        onClick={async () => { await navigator.clipboard.writeText(institutionPixKey); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000) }}
-                                                        className="shrink-0 bg-green-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1"
-                                                    >
-                                                        <Copy className="h-3 w-3" />{pixCopied ? "Copiado!" : "Copiar"}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <p className="text-xs text-muted-foreground font-medium">
-                                                Valor Matrícula: <span className="text-green-700 font-bold">R$ {(settings?.enrollmentFee || 0).toFixed(2)}</span>
-                                            </p>
-                                            <button
-                                                onClick={async () => {
-                                                    setPayMethod("pix")
-                                                    try {
-                                                        const data = await handleCreateEnrollment()
-                                                        setEnrolledChargeId(data.chargeId)
-                                                    } catch (e: any) {
-                                                        setEnrollError(e.message)
-                                                    }
-                                                }}
-                                                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 rounded-xl shadow-lg transition-transform active:scale-95 text-sm"
-                                            >
-                                                Já Paguei — Confirmar Matrícula
-                                            </button>
+                                    {/* Manual PIX */}
+                                    <button
+                                        onClick={() => setPayMethod("pix")}
+                                        className="w-full flex items-center gap-3 border-2 border-green-600 bg-green-50 rounded-xl p-4 hover:bg-green-100 transition-all group"
+                                    >
+                                        <div className="h-10 w-10 bg-green-600 rounded-full flex items-center justify-center text-white group-hover:scale-110 transition-transform">
+                                            <QrCode className="h-6 w-6" />
                                         </div>
-                                    )}
+                                        <div className="text-left flex-1">
+                                            <p className="font-bold text-green-700">Pagar com Pix</p>
+                                            <p className="text-xs text-green-600 font-medium">Chave para transferência manual</p>
+                                        </div>
+                                        <ChevronRight className="h-5 w-5 text-green-400" />
+                                    </button>
 
-                                    {/* 3. PayPal */}
-                                    {paypalConfig && (
+                                    {/* Manual Credit Card Link */}
+                                    {settings?.creditCardUrl && (
                                         <button
-                                            onClick={() => setPayMethod("paypal")}
-                                            className="w-full flex items-center gap-3 border border-border bg-white rounded-xl p-4 hover:bg-muted/30 transition-colors"
+                                            onClick={() => setPayMethod("card")}
+                                            className="w-full flex items-center gap-3 border-2 border-blue-600 bg-blue-50 rounded-xl p-4 hover:bg-blue-100 transition-all group"
                                         >
-                                            <div className="h-10 w-10 bg-yellow-400/10 rounded-full flex items-center justify-center">
-                                                <CreditCard className="h-6 w-6 text-yellow-600" />
+                                            <div className="h-10 w-10 bg-blue-600 rounded-full flex items-center justify-center text-white group-hover:scale-110 transition-transform">
+                                                <CreditCard className="h-6 w-6" />
                                             </div>
                                             <div className="text-left flex-1">
-                                                <p className="font-bold text-foreground">Outras formas (PayPal)</p>
-                                                <p className="text-xs text-muted-foreground">Cartão ou conta PayPal</p>
+                                                <p className="font-bold text-blue-700">Pagar com Cartão (Link Externo)</p>
+                                                <p className="text-xs text-blue-600 font-medium">Pagamento via Mercado Pago / PicPay</p>
                                             </div>
-                                            <ChevronRight className="h-5 w-5 text-muted-foreground/30" />
+                                            <ChevronRight className="h-5 w-5 text-blue-400" />
                                         </button>
                                     )}
 
-                                    {/* 4. Small link for Manual Fallback when in Production */}
-                                    {institutionPixKey && asaasConfigured && !asaasSandbox && (
-                                        <button
-                                            onClick={() => { setAsaasConfigured(false); setAsaasSandbox(true); }}
-                                            className="text-[10px] text-muted-foreground hover:text-primary underline text-center block w-full pt-1"
-                                        >
-                                            Problemas com o Pix automático? Clique aqui.
-                                        </button>
-                                    )}
-
-                                    {!asaasConfigured && !paypalConfig && !institutionPixKey && (
-                                        <p className="text-sm text-muted-foreground italic text-center py-4">Nenhuma forma de pagamento configurada.</p>
-                                    )}
+                                    {/* Pay Later Option */}
+                                    <button
+                                        onClick={handlePayLater}
+                                        disabled={creating}
+                                        className="w-full flex items-center gap-3 border-2 border-amber-500 bg-amber-50 rounded-xl p-4 hover:bg-amber-100 transition-all group"
+                                    >
+                                        <div className="h-10 w-10 bg-amber-500 rounded-full flex items-center justify-center text-white group-hover:scale-110 transition-transform">
+                                            <Clock className="h-6 w-6" />
+                                        </div>
+                                        <div className="text-left flex-1">
+                                            <p className="font-bold text-amber-700">Concluir matrícula e pagar depois</p>
+                                            <p className="text-xs text-amber-600 font-medium">A matrícula só será efetivada após o pagamento (prazo: 5 dias)</p>
+                                        </div>
+                                        {creating ? <Loader2 className="h-5 w-5 animate-spin text-amber-400" /> : <ChevronRight className="h-5 w-5 text-amber-400" />}
+                                    </button>
                                 </div>
                             )}
 
 
-                            {/* Pix QR Code */}
+                            {/* Pix Flow */}
                             {payMethod === "pix" && (
                                 <div className="space-y-4">
-                                    {pixLoading ? (
-                                        <div className="flex flex-col items-center gap-3 py-8">
-                                            <Loader2 className="h-8 w-8 text-accent animate-spin" />
-                                            <p className="text-sm text-muted-foreground">Gerando QR Code...</p>
-                                        </div>
-                                    ) : pixError ? (
-                                        <div className="space-y-3">
-                                            <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
-                                                <p className="font-bold mb-1">Ops! Ocorreu um erro:</p>
-                                                {pixError}
+                                    <div className="border border-green-200 bg-white rounded-xl p-4 space-y-3 shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                            <QrCode className="h-6 w-6 text-green-600 shrink-0" />
+                                            <div>
+                                                <p className="font-bold text-green-700">Pagamento via Pix</p>
+                                                <p className="text-xs text-muted-foreground italic">Copie a chave abaixo e realize o pagamento</p>
                                             </div>
-
-                                            {institutionPixKey && (
-                                                <div className="bg-green-50 border border-green-200 p-4 rounded-xl space-y-2">
-                                                    <p className="text-sm font-bold text-green-800">Dica: Tente o Pix Manual</p>
-                                                    <p className="text-xs text-green-700">Você pode usar a chave direta da instituição para concluir agora.</p>
+                                        </div>
+                                        <div className="bg-muted/30 rounded-xl p-3 border border-border">
+                                            <p className="text-xs font-semibold text-muted-foreground mb-1">Chave Pix da Instituição:</p>
+                                            <div className="flex gap-2 items-center">
+                                                <p className="text-sm font-mono flex-1 break-all">{settings?.pixKey || "Chave PIX não configurada"}</p>
+                                                <button
+                                                    onClick={async () => {
+                                                        const key = settings?.pixKey || ""
+                                                        if (!key) {
+                                                            alert("Chave PIX não configurada!")
+                                                            return
+                                                        }
+                                                        await navigator.clipboard.writeText(key)
+                                                        setPixCopied(true)
+                                                        setTimeout(() => setPixCopied(false), 2000)
+                                                    }}
+                                                    className="shrink-0 bg-green-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1"
+                                                >
+                                                    <Copy className="h-3 w-3" />{pixCopied ? "Copiado!" : "Copiar"}
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col gap-2 pt-2">
+                                            {!enrollmentDetails ? (
+                                                <button
+                                                    onClick={handleCreateEnrollment}
+                                                    disabled={creating}
+                                                    className="w-full bg-accent text-accent-foreground font-bold py-3 rounded-xl shadow-md transition-all active:scale-95 text-sm flex items-center justify-center gap-2"
+                                                >
+                                                    {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
+                                                    Gerar QR Code e Matrícula
+                                                </button>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-700 text-center font-medium">
+                                                        Sua matrícula foi gerada! Conclua o processo abaixo após realizar o pagamento.
+                                                    </div>
                                                     <button
-                                                        onClick={() => { setPixError(""); setPayMethod(null); }}
-                                                        className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-lg text-xs transition-colors"
+                                                        onClick={() => setSuccess(true)}
+                                                        className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow-md transition-all active:scale-95 text-sm flex items-center justify-center gap-2"
                                                     >
-                                                        Ir para Pix Manual
+                                                        <CheckCircle2 className="h-4 w-4" />
+                                                        Concluir Matrícula
+                                                    </button>
+                                                    <button
+                                                        onClick={handleWhatsAppConfirm}
+                                                        className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2.5 rounded-xl shadow-sm transition-all text-xs flex items-center justify-center gap-2"
+                                                    >
+                                                        <MessageCircle className="h-4 w-4" />
+                                                        Confirmar Pagamento no WhatsApp
                                                     </button>
                                                 </div>
                                             )}
-
-                                            <button
-                                                onClick={() => { setPixError(""); setPayMethod(null); }}
-                                                className="w-full flex items-center justify-center gap-2 bg-muted hover:bg-muted/80 text-foreground font-medium py-2.5 rounded-xl transition-colors text-sm"
-                                            >
-                                                <ChevronLeft className="h-4 w-4" /> Voltar e escolher outro método
-                                            </button>
                                         </div>
-                                    ) : pixQrcode ? (
-                                        <div className="space-y-3">
-                                            <div className="flex justify-center">
-                                                <img src={`data:image/png;base64,${pixQrcode}`} alt="QR Code Pix" className="h-48 w-48 rounded-xl border border-border" />
-                                            </div>
-                                            <p className="text-xs text-center text-muted-foreground">Escaneie com o app do seu banco</p>
-                                            <div className="bg-muted/50 rounded-xl p-3">
-                                                <p className="text-xs font-semibold text-muted-foreground mb-1">Código Pix:</p>
-                                                <div className="flex gap-2 items-center">
-                                                    <p className="text-xs font-mono truncate flex-1">{pixCopyPaste.slice(0, 40)}...</p>
-                                                    <button onClick={async () => { await navigator.clipboard.writeText(pixCopyPaste); setPixCopied(true); setTimeout(() => setPixCopied(false), 2000) }}
-                                                        className="shrink-0 bg-green-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1">
-                                                        <Copy className="h-3 w-3" />{pixCopied ? "Copiado!" : "Copiar"}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <button
-                                                onClick={handleCheckPixStatus}
-                                                disabled={pixVerifying}
-                                                className={`w-full flex items-center justify-center gap-2 font-bold px-4 py-3 rounded-xl transition-colors disabled:opacity-60 text-white ${pixVerifyMsg === "pending" ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"}`}
-                                            >
-                                                {pixVerifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                                                {pixVerifying ? "Verificando..." : "Já Paguei — Verificar"}
-                                            </button>
-                                            {pixVerifyMsg === "pending" && <p className="text-xs text-center text-muted-foreground">Pagamento ainda não identificado.</p>}
-                                        </div>
-                                    ) : null}
-                                </div>
-                            )}
-
-                            {/* PayPal */}
-                            {payMethod === "paypal" && paypalConfig && (
-                                <div className="space-y-3">
-                                    <PayPalScriptProvider options={{ clientId: paypalConfig.clientId, currency: "BRL" }}>
-                                        <PayPalButtons
-                                            style={{ layout: "vertical", color: "gold", shape: "rect", label: "pay" }}
-                                            createOrder={createPayPalOrder}
-                                            onApprove={async (data) => { await handlePayPalApprove(data.orderID) }}
-                                            onError={() => setEnrollError("Erro no PayPal. Tente novamente.")}
-                                        />
-                                    </PayPalScriptProvider>
+                                    </div>
                                     <button onClick={() => setPayMethod(null)} className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-2">← Voltar às opções</button>
                                 </div>
                             )}
+
+                            {/* Card Flow */}
+                            {payMethod === "card" && (
+                                <div className="space-y-4">
+                                    <div className="border border-blue-200 bg-white rounded-xl p-4 space-y-3 shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                            <CreditCard className="h-6 w-6 text-blue-600 shrink-0" />
+                                            <div>
+                                                <p className="font-bold text-blue-700">Pagamento via Cartão</p>
+                                                <p className="text-xs text-muted-foreground italic">Clique no botão para abrir o link de pagamento</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-col gap-2 pt-2">
+                                            {!enrollmentDetails ? (
+                                                <button
+                                                    onClick={handleCardPay}
+                                                    disabled={creating}
+                                                    className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-md transition-all active:scale-95 text-sm flex items-center justify-center gap-2"
+                                                >
+                                                    {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                                                    Abrir Link e Gerar Matrícula
+                                                </button>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-700 text-center font-medium">
+                                                        Link aberto! Conclua o processo abaixo após realizar o pagamento.
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setSuccess(true)}
+                                                        className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow-md transition-all active:scale-95 text-sm flex items-center justify-center gap-2"
+                                                    >
+                                                        <CheckCircle2 className="h-4 w-4" />
+                                                        Concluir Matrícula
+                                                    </button>
+                                                    <button
+                                                        onClick={handleWhatsAppConfirm}
+                                                        className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2.5 rounded-xl shadow-sm transition-all text-xs flex items-center justify-center gap-2"
+                                                    >
+                                                        <MessageCircle className="h-4 w-4" />
+                                                        Confirmar Pagamento no WhatsApp
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <button onClick={() => setPayMethod(null)} className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-2">← Voltar às opções</button>
+                                </div>
+                            )}
+
+
                         </div>
                     )}
                 </div>
 
                 {/* Footer Nav */}
-                {step !== "payment" && !loading && (
+                {!loading && (
                     <div className="px-6 py-4 border-t border-border flex gap-3 shrink-0">
                         {step !== "personal" && (
                             <button onClick={() => setStep(step === "class" ? "personal" : "class")} className="flex-1 flex items-center justify-center gap-2 border border-border rounded-xl py-3 text-sm font-medium hover:bg-muted transition-colors">
                                 <ChevronLeft className="h-4 w-4" /> Voltar
                             </button>
                         )}
-                        <button
-                            onClick={() => setStep(step === "personal" ? "class" : "payment")}
-                            disabled={(step === "personal" && !isPersonalValid) || (step === "class" && !isClassValid)}
-                            className="flex-1 flex items-center justify-center gap-2 bg-accent text-accent-foreground font-bold rounded-xl py-3 text-sm disabled:opacity-50 hover:bg-accent/90 transition-colors"
-                        >
-                            {step === "class" ? "Ir para Pagamento" : "Próximo"} <ChevronRight className="h-4 w-4" />
-                        </button>
+                        {step !== "payment" && (
+                            <button
+                                onClick={() => setStep(step === "personal" ? "class" : "payment")}
+                                disabled={(step === "personal" && !isPersonalValid) || (step === "class" && !isClassValid)}
+                                className="flex-1 flex items-center justify-center gap-2 bg-accent text-accent-foreground font-bold rounded-xl py-3 text-sm disabled:opacity-50 hover:bg-accent/90 transition-colors"
+                            >
+                                {step === "class" ? "Ir para Pagamento" : "Próximo"} <ChevronRight className="h-4 w-4" />
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
+
+            <AlertDialog open={exitConfirmOpen} onOpenChange={setExitConfirmOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Matrícula não concluída</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Sua matrícula ainda não foi finalizada. Se você sair agora, seus dados não serão salvos. Tem certeza que deseja sair?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Continuar Matrícula</AlertDialogCancel>
+                        <AlertDialogAction onClick={onClose} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Sair e Cancelar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

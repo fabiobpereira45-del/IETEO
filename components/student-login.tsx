@@ -153,8 +153,8 @@ export function StudentLogin({ onLogin, onResult, onBack, preloadedAssessmentId 
       {assessment ? (
         <div className="w-full rounded-2xl bg-gradient-to-br from-primary to-maroon-light text-primary-foreground p-8 flex flex-col items-center gap-5 text-center shadow-lg border border-white/10 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-accent/10 rounded-full -mr-16 -mt-16 blur-3xl" />
-          <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-md text-accent shadow-xl border border-white/20 p-2">
-            <img src="/ieteo-logo.jpg" alt="Logo" className="w-full h-full object-contain" />
+          <div className="flex h-20 w-20 items-center justify-center rounded-full shadow-xl overflow-hidden border border-white/20 mb-2">
+            <img src="/ieteo-logo.jpg" alt="Logo" className="w-full h-full object-cover" />
           </div>
           <div className="relative z-10">
             {assessment.institution && (

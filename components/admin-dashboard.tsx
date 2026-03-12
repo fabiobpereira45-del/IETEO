@@ -43,6 +43,7 @@ import { GradesManager } from "@/components/grades-manager"
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
+import { InstitutionalManager } from "@/components/institutional-manager"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -59,7 +60,7 @@ function formatTime(s: number) {
   return `${m}m${sec.toString().padStart(2, "0")}s`
 }
 
-type Tab = "overview" | "students" | "grades" | "submissions" | "questions" | "assessments" | "professors" | "semesters" | "class_schedules" | "materials" | "financial" | "settings" | "chat" | "attendance" | "classes"
+type Tab = "overview" | "students" | "grades" | "submissions" | "questions" | "assessments" | "professors" | "semesters" | "class_schedules" | "materials" | "financial" | "settings" | "chat" | "attendance" | "classes" | "institutional"
 
 interface Props {
   onLogout: () => void
@@ -1023,6 +1024,12 @@ export function AdminDashboard({ onLogout }: Props) {
       ]
     },
     {
+      title: "Institucional",
+      items: [
+        { id: "institutional", label: "Quem Somos / Missão", icon: <Building2 className="h-4 w-4" /> },
+      ]
+    },
+    {
       title: "Acadêmico",
       items: [
         { id: "students", label: "Alunos", icon: <Users className="h-4 w-4" /> },
@@ -1077,11 +1084,11 @@ export function AdminDashboard({ onLogout }: Props) {
     <div className="flex flex-col h-full bg-card border-r border-border/50">
       <div className="p-6">
         <div className="flex items-center gap-3 mb-1">
-          <div className="w-12 h-12 relative">
+          <div className="w-12 h-12 relative rounded-full overflow-hidden shadow-md border border-border/50">
             <img
               src="/ieteo-logo.jpg"
               alt="IETEO Logo"
-              className="w-full h-full object-contain drop-shadow-md"
+              className="w-full h-full object-cover"
             />
           </div>
           <div>
@@ -1159,8 +1166,8 @@ export function AdminDashboard({ onLogout }: Props) {
         {/* Mobile Header */}
         <header className="lg:hidden h-16 border-b border-border/50 premium-gradient sticky top-0 z-40 px-4 flex items-center justify-between shadow-lg">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20 p-1">
-              <img src="/ieteo-logo.jpg" alt="Logo" className="w-full h-full object-contain" />
+            <div className="w-10 h-10 flex items-center justify-center rounded-full shrink-0 overflow-hidden border border-white/20 shadow-md">
+              <img src="/ieteo-logo.jpg" alt="Logo" className="w-full h-full object-cover" />
             </div>
             <div>
               <h1 className="font-bold text-white text-sm leading-tight">IETEO</h1>
@@ -1244,6 +1251,7 @@ export function AdminDashboard({ onLogout }: Props) {
               {tab === "chat" && <ProfessorChatView />}
               {tab === "financial" && <FinancialManager />}
               {tab === "professors" && isMaster && <ProfessorManager />}
+              {tab === "institutional" && <InstitutionalManager />}
               {tab === "settings" && <SettingsTab assessments={assessments} onRefresh={refresh} onLogout={onLogout} />}
             </div>
           )}

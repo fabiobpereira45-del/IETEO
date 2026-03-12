@@ -41,7 +41,7 @@ export async function POST(req: Request) {
         // 4. Create Auth User
         const cleanCpf = student.cpf.replace(/\D/g, '')
         const email = `${cleanCpf}@student.ieteo.com`
-        const password = "ieteo2026"
+        const password = "123456"
 
         // Use admin client to create user without confirmation
         const { data: authUser, error: authErr } = await supabase.auth.admin.createUser({
@@ -74,6 +74,7 @@ export async function POST(req: Request) {
         }
 
         // 6. Trigger n8n Welcome (with credentials)
+        /* TEMPORARILY DISABLED: Usuário enviará mensagens via comando humano
         try {
             await triggerN8nWebhook('matricula_confirmada', {
                 type: 'enrollment',
@@ -87,6 +88,7 @@ export async function POST(req: Request) {
         } catch (err) {
             console.error("n8n Trigger Error:", err)
         }
+        */
 
         return NextResponse.json({ success: true, message: "Aluno ativado e credenciais geradas." })
 

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/select"
 import {
     type Discipline, type StudentProfile, type Attendance,
-    getDisciplines, getStudents, getAttendances, saveAttendance, getProfessorSession
+    getDisciplines, getStudents, getAttendances, saveAttendance, getProfessorSession, getDisciplinesByProfessor
 } from "@/lib/store"
 
 export function AttendanceManager() {
@@ -28,9 +28,20 @@ export function AttendanceManager() {
     // Initialize
     useEffect(() => {
         async function loadData() {
-            const [d, s] = await Promise.all([getDisciplines(), getStudents()])
+            setLoading(true)
+            const session = getProfessorSession()
+            let d: Discipline[] = []
+            
+            if (session?.role === 'master') {
+                d = await getDisciplines()
+            } else if (session?.professorId) {
+                d = await getDisciplinesByProfessor(session.professorId)
+            }
+            
+            const s = await getStudents()
             setDisciplines(d)
             setStudents(s)
+            setLoading(false)
         }
         loadData()
     }, [])

@@ -18,7 +18,7 @@ import {
 import {
     type FinancialCharge, type StudentProfile, type FinancialSettings, type Assessment,
     getFinancialCharges, addFinancialCharge, updateFinancialChargeStatus, deleteFinancialCharge,
-    getFinancialSettings, getAssessments, triggerN8nWebhook
+    getFinancialSettings, updateFinancialSettings, getAssessments, triggerN8nWebhook
 } from "@/lib/store"
 import { createClient } from "@/lib/supabase/client"
 
@@ -60,6 +60,15 @@ export function FinancialManager() {
         setSettings(config)
         setLoading(false)
     }
+
+    const [settingsModal, setSettingsModal] = useState(false)
+    const [tempCard, setTempCard] = useState("")
+    const [tempPix, setTempPix] = useState("")
+    const [tempEnrollment, setTempEnrollment] = useState("")
+    const [tempMonthly, setTempMonthly] = useState("")
+    const [tempSecondCall, setTempSecondCall] = useState("")
+    const [tempFinalExam, setTempFinalExam] = useState("")
+    const [tempMonths, setTempMonths] = useState("")
 
     useEffect(() => { load() }, [])
 
@@ -103,6 +112,25 @@ export function FinancialManager() {
     async function handleStatusChange(id: string, newStatus: FinancialCharge["status"]) {
         try {
             await updateFinancialChargeStatus(id, newStatus)
+
+            if (newStatus === "paid") {
+                const charge = charges.find(c => c.id === id)
+                if (charge && charge.type === "enrollment") {
+                    try {
+                        const res = await fetch('/api/student/activate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ studentId: charge.studentId })
+                        })
+                        if (!res.ok) {
+                            console.error("Falha ao ativar aluno:", await res.text())
+                        }
+                    } catch (actErr) {
+                        console.error("Erro de rede na ativação:", actErr)
+                    }
+                }
+            }
+
             load()
         } catch (e: any) {
             alert("Erro ao atualizar status: " + e.message)
@@ -187,6 +215,29 @@ export function FinancialManager() {
         }
     }
 
+    async function handleSaveSettings() {
+        if (!settings) return
+        setSaving(true)
+        try {
+            await updateFinancialSettings({
+                enrollmentFee: Number(tempEnrollment),
+                monthlyFee: Number(tempMonthly),
+                secondCallFee: Number(tempSecondCall),
+                finalExamFee: Number(tempFinalExam),
+                totalMonths: Number(tempMonths),
+                creditCardUrl: tempCard,
+                pixKey: tempPix
+            })
+            alert("Configurações salvas com sucesso!")
+            setSettingsModal(false)
+            load()
+        } catch (e: any) {
+            alert("Erro ao salvar configurações: " + e.message)
+        } finally {
+            setSaving(false)
+        }
+    }
+
     function getStatusBadge(status: string) {
         if (status === 'paid') return <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded font-medium flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Pago</span>
         if (status === 'late') return <span className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded font-medium flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Atrasado</span>
@@ -202,6 +253,18 @@ export function FinancialManager() {
                     <p className="text-muted-foreground text-sm">Controle de mensalidades e recebimentos</p>
                 </div>
                 <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => {
+                        setTempCard(settings?.creditCardUrl || "")
+                        setTempPix(settings?.pixKey || "")
+                        setTempEnrollment(settings?.enrollmentFee.toString() || "0")
+                        setTempMonthly(settings?.monthlyFee.toString() || "0")
+                        setTempSecondCall(settings?.secondCallFee.toString() || "0")
+                        setTempFinalExam(settings?.finalExamFee.toString() || "0")
+                        setTempMonths(settings?.totalMonths.toString() || "12")
+                        setSettingsModal(true)
+                    }} className="border-primary text-primary hover:bg-primary/10">
+                        Configurar Pagamentos
+                    </Button>
                     <Button variant="outline" onClick={handleTriggerReminders} disabled={saving} className="border-accent text-accent hover:bg-accent hover:text-accent-foreground transition-all shadow-sm">
                         {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}
                         Disparar Lembretes
@@ -352,6 +415,65 @@ export function FinancialManager() {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setChargeModal(false)}>Cancelar</Button>
                         <Button onClick={handleSaveCharge} disabled={saving}>Gerar Boleto/Cobrança</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={settingsModal} onOpenChange={setSettingsModal}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Configurações de Pagamento Manual</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-4 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="flex flex-col gap-1.5">
+                                <Label>Taxa de Matrícula (R$)</Label>
+                                <Input type="number" step="0.01" value={tempEnrollment} onChange={e => setTempEnrollment(e.target.value)} />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <Label>Mensalidade (R$)</Label>
+                                <Input type="number" step="0.01" value={tempMonthly} onChange={e => setTempMonthly(e.target.value)} />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <Label>2ª Chamada (R$)</Label>
+                                <Input type="number" step="0.01" value={tempSecondCall} onChange={e => setTempSecondCall(e.target.value)} />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <Label>Prova Final (R$)</Label>
+                                <Input type="number" step="0.01" value={tempFinalExam} onChange={e => setTempFinalExam(e.target.value)} />
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                            <Label>Duração do Curso (Meses)</Label>
+                            <Input type="number" value={tempMonths} onChange={e => setTempMonths(e.target.value)} />
+                        </div>
+
+                        <div className="flex flex-col gap-1.5 pt-2 border-t mt-2">
+                            <Label className="font-bold">Integrações de Pagamento Manual</Label>
+                            <Label className="text-[11px] text-muted-foreground">Links e Chaves mostradas ao aluno na matrícula</Label>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                            <Label>Link de Pagamento (Cartão de Crédito)</Label>
+                            <Input
+                                value={tempCard}
+                                onChange={e => setTempCard(e.target.value)}
+                                placeholder="Link do Mercado Pago, PicPay, etc."
+                            />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <Label>Chave PIX para Recebimento</Label>
+                            <Input
+                                value={tempPix}
+                                onChange={e => setTempPix(e.target.value)}
+                                placeholder="E-mail, CPF, CNPJ ou Aleatória"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setSettingsModal(false)}>Cancelar</Button>
+                        <Button onClick={handleSaveSettings} disabled={saving}>Salvar Configurações</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

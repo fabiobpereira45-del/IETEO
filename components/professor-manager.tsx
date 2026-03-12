@@ -12,10 +12,15 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
-  type ProfessorAccount,
+  type ProfessorAccount, type Discipline, type ProfessorDiscipline,
   getProfessorAccounts, addProfessorAccount, updateProfessorAccount, deleteProfessorAccount,
+  getDisciplines, getProfessorDisciplines, linkProfessorToDiscipline, unlinkProfessorFromDiscipline,
   MASTER_CREDENTIALS,
 } from "@/lib/store"
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog"
+import { BookOpen, Link2, Unlink } from "lucide-react"
 
 // ─── Form ─────────────────────────────────────────────────────────────────────
 
@@ -136,6 +141,7 @@ export function ProfessorManager() {
   const [adding, setAdding] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [linkProfId, setLinkProfId] = useState<string | null>(null)
 
   async function refresh() {
     setAccounts(await getProfessorAccounts())
@@ -299,6 +305,13 @@ export function ProfessorManager() {
                     </span>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                       <Button
+                        size="sm" variant="ghost" className="h-7 w-7 p-0 text-primary hover:bg-primary/10"
+                        onClick={() => setLinkProfId(account.id)}
+                        title="Vincular Disciplinas"
+                      >
+                        <Link2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
                         size="sm" variant="ghost" className="h-7 w-7 p-0"
                         onClick={() => { setEditingId(account.id); setAdding(false) }}
                         title="Editar"
@@ -341,6 +354,99 @@ export function ProfessorManager() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!linkProfId} onOpenChange={(o) => !o && setLinkProfId(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Vincular Disciplinas - {accounts.find(a => a.id === linkProfId)?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <ProfessorDisciplineManager professorId={linkProfId!} />
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+function ProfessorDisciplineManager({ professorId }: { professorId: string }) {
+  const [disciplines, setDisciplines] = useState<Discipline[]>([])
+  const [linkedIds, setLinkedIds] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+
+  async function refresh() {
+    setLoading(true)
+    const [all, linked] = await Promise.all([
+      getDisciplines(),
+      getProfessorDisciplines(professorId)
+    ])
+    setDisciplines(all)
+    setLinkedIds(linked.map(l => l.disciplineId))
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    refresh()
+  }, [professorId])
+
+  async function toggleLink(disciplineId: string) {
+    const isLinked = linkedIds.includes(disciplineId)
+    try {
+      if (isLinked) {
+        await unlinkProfessorFromDiscipline(professorId, disciplineId)
+      } else {
+        await linkProfessorToDiscipline(professorId, disciplineId)
+      }
+      await refresh()
+    } catch (e: any) {
+      alert("Erro ao alterar vínculo: " + e.message)
+    }
+  }
+
+  if (loading) return <div className="flex justify-center p-8 text-muted-foreground"><ShieldCheck className="h-6 w-6 animate-spin mr-2" /> Carregando...</div>
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground mb-4">Selecione as disciplinas que este professor leciona. Ele terá acesso a estas salas no painel dele.</p>
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[400px] overflow-y-auto pr-2">
+        {disciplines.length === 0 ? (
+          <p className="col-span-2 text-center text-muted-foreground py-8">Nenhuma disciplina cadastrada na grade curricular.</p>
+        ) : (
+          disciplines.map(d => {
+            const isLinked = linkedIds.includes(d.id)
+            return (
+              <div 
+                key={d.id} 
+                className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                  isLinked 
+                  ? "bg-primary/5 border-primary/30" 
+                  : "bg-background border-border hover:bg-muted/50"
+                }`}
+              >
+                <div className="flex-1 min-w-0 pr-2">
+                   <p className="text-sm font-semibold truncate text-foreground">{d.name}</p>
+                   {d.professorName && (
+                     <p className="text-[10px] text-muted-foreground">Original: {d.professorName}</p>
+                   )}
+                </div>
+                <Button 
+                  size="sm" 
+                  variant={isLinked ? "destructive" : "default"}
+                  className="h-8 px-2"
+                  onClick={() => toggleLink(d.id)}
+                >
+                  {isLinked ? (
+                    <><Unlink className="h-3 w-3 mr-1" /> Remover</>
+                  ) : (
+                    <><Link2 className="h-3 w-3 mr-1" /> Vincular</>
+                  )}
+                </Button>
+              </div>
+            )
+          })
+        )}
+      </div>
     </div>
   )
 }

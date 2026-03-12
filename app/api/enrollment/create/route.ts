@@ -94,6 +94,7 @@ export async function POST(req: Request) {
         }
 
         // Trigger n8n WhatsApp (Online Enrollment)
+        /* TEMPORARILY DISABLED: Usuário enviará mensagens via comando humano
         try {
             await triggerN8nWebhook('matricula_realizada_online', {
                 type: 'online_enrollment',
@@ -106,6 +107,7 @@ export async function POST(req: Request) {
         } catch (err) {
             console.error("Erro ao disparar n8n em matrícula online:", err)
         }
+        */
 
         return NextResponse.json({
             chargeId: charge.id,

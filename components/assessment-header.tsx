@@ -23,7 +23,7 @@ export function AssessmentHeader({
         <div className="flex items-center justify-between gap-4">
           {/* Logo + Brand */}
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white p-0.5 shadow-sm border border-white/20 shrink-0 overflow-hidden">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full shadow-sm shrink-0 overflow-hidden">
               <img src="/ieteo-logo.jpg" alt="IETEO" className="h-full w-full object-cover" />
             </div>
             <div>

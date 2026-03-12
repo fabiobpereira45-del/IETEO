@@ -1,18 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { DollarSign, Save, Loader2 } from "lucide-react"
+import { DollarSign, Save, Loader2, CreditCard } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
     type FinancialSettings,
-    type PaypalConfig,
-    type AsaasConfig,
-    getFinancialSettings, updateFinancialSettings,
-    getPaypalConfig, updatePaypalConfig,
-    getAsaasConfig, updateAsaasConfig
+    getFinancialSettings, updateFinancialSettings
 } from "@/lib/store"
 
 export function FinancialConfig() {
@@ -26,23 +22,14 @@ export function FinancialConfig() {
     const [secondCallFee, setSecondCallFee] = useState("0")
     const [finalExamFee, setFinalExamFee] = useState("0")
     const [totalMonths, setTotalMonths] = useState("24")
+    const [creditCardUrl, setCreditCardUrl] = useState("")
 
-    // PayPal states
-    const [paypalClientId, setPaypalClientId] = useState("")
-    const [paypalSecret, setPaypalSecret] = useState("")
-    const [paypalMode, setPaypalMode] = useState<"sandbox" | "live">("sandbox")
 
-    // Asaas states
-    const [asaasApiKey, setAsaasApiKey] = useState("")
-    const [asaasMode, setAsaasMode] = useState<"sandbox" | "production">("sandbox")
-    const [pixKey, setPixKey] = useState("")
 
     async function load() {
         setLoading(true)
-        const [data, paypal, asaas] = await Promise.all([
-            getFinancialSettings(),
-            getPaypalConfig(),
-            getAsaasConfig()
+        const [data] = await Promise.all([
+            getFinancialSettings()
         ])
 
         if (data) {
@@ -52,19 +39,10 @@ export function FinancialConfig() {
             setSecondCallFee(data.secondCallFee.toString())
             setFinalExamFee(data.finalExamFee.toString())
             setTotalMonths(data.totalMonths.toString())
+            setCreditCardUrl(data.creditCardUrl || "")
         }
 
-        if (paypal) {
-            setPaypalClientId(paypal.clientId || "")
-            setPaypalSecret(paypal.secret || "")
-            setPaypalMode(paypal.mode || "sandbox")
-        }
 
-        if (asaas) {
-            setAsaasApiKey(asaas.apiKey || "")
-            setAsaasMode(asaas.mode || "sandbox")
-            setPixKey((asaas as any).pixKey || "")
-        }
         setLoading(false)
     }
 
@@ -80,17 +58,8 @@ export function FinancialConfig() {
                     secondCallFee: parseFloat(secondCallFee) || 0,
                     finalExamFee: parseFloat(finalExamFee) || 0,
                     totalMonths: parseInt(totalMonths) || 12,
-                }),
-                updatePaypalConfig({
-                    clientId: paypalClientId,
-                    secret: paypalSecret,
-                    mode: paypalMode
-                }),
-                updateAsaasConfig({
-                    apiKey: asaasApiKey,
-                    mode: asaasMode,
-                    pixKey
-                } as any)
+                    creditCardUrl: creditCardUrl
+                })
             ])
             alert("Configurações salvas com sucesso!")
             await load()
@@ -164,98 +133,24 @@ export function FinancialConfig() {
                     />
                     <span className="text-xs text-muted-foreground">O sistema usará isso para prever o total de mensalidades.</span>
                 </div>
-            </div>
 
-            <div className="mt-8 border-t border-border pt-6">
-                <div className="flex items-center gap-2 mb-6">
-                    <div className="h-8 w-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold font-serif text-lg">P</div>
-                    <div>
-                        <h3 className="text-lg font-semibold text-foreground">Integração PayPal</h3>
-                        <p className="text-xs text-muted-foreground">Insira as credenciais para receber pagamentos automáticos.</p>
+                <div className="flex flex-col gap-1.5 md:col-span-2 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                    <div className="flex items-center gap-2 mb-1">
+                        <CreditCard className="h-4 w-4 text-blue-600" />
+                        <Label className="text-blue-700 font-bold text-sm">Link de Pagamento (Cartão de Crédito)</Label>
                     </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="flex flex-col gap-1.5 md:col-span-2">
-                        <Label>Ambiente (Modo)</Label>
-                        <Select value={paypalMode} onValueChange={(val: "sandbox" | "live") => setPaypalMode(val)}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Selecione o ambiente" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="sandbox">Sandbox (Testes)</SelectItem>
-                                <SelectItem value="live">Live (Produção Real)</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="flex flex-col gap-1.5 md:col-span-2">
-                        <Label>Client ID</Label>
-                        <Input
-                            type="text"
-                            value={paypalClientId}
-                            onChange={(e) => setPaypalClientId(e.target.value)}
-                            placeholder="AdV... (exemplo)"
-                        />
-                    </div>
-                    <div className="flex flex-col gap-1.5 md:col-span-2">
-                        <Label>Secret Key</Label>
-                        <Input
-                            type="password"
-                            value={paypalSecret}
-                            onChange={(e) => setPaypalSecret(e.target.value)}
-                            placeholder="EGB... (mantenha em segredo)"
-                        />
-                    </div>
+                    <Input
+                        type="text"
+                        value={creditCardUrl}
+                        onChange={(e) => setCreditCardUrl(e.target.value)}
+                        placeholder="Ex: https://link.mercadopago.com.br/meu-pagamento"
+                        className="border-blue-200 focus:ring-blue-500"
+                    />
+                    <span className="text-[10px] text-blue-600 font-medium italic">Insira o link externo (Mercado Pago, PicPay, etc.) para recebimento via cartão.</span>
                 </div>
             </div>
 
-            <div className="mt-8 border-t border-border pt-6">
-                <div className="flex items-center gap-2 mb-6">
-                    <div className="h-8 w-8 bg-green-100 text-green-700 rounded-full flex items-center justify-center font-bold text-sm">Pix</div>
-                    <div>
-                        <h3 className="text-lg font-semibold text-foreground">Integração Pix (Asaas)</h3>
-                        <p className="text-xs text-muted-foreground">Insira a API Key do Asaas para receber pagamentos via Pix.</p>
-                    </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="flex flex-col gap-1.5 md:col-span-2">
-                        <Label className="text-green-700 font-bold">Chave PIX da Instituição (Manual Fallback)</Label>
-                        <Input
-                            type="text"
-                            value={pixKey}
-                            onChange={(e) => setPixKey(e.target.value)}
-                            placeholder="CPF, CNPJ, E-mail ou Telefone da Igreja"
-                            className="border-green-300 focus:ring-green-500"
-                        />
-                        <span className="text-[10px] text-green-600 font-medium">ESTE É O MAIS IMPORTANTE: Preencha aqui para garantir que os alunos consigam pagar via Pix mesmo que a API do Asaas falhe.</span>
-                    </div>
-
-                    <div className="flex flex-col gap-1.5 md:col-span-2">
-                        <Label>Ambiente (Modo Asaas)</Label>
-                        <Select value={asaasMode} onValueChange={(val: "sandbox" | "production") => setAsaasMode(val)}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Selecione o ambiente" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="sandbox">Sandbox (Testes)</SelectItem>
-                                <SelectItem value="production">Produção (Real)</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <div className="flex flex-col gap-1.5 md:col-span-2">
-                        <Label>API Key do Asaas (Automático)</Label>
-                        <Input
-                            type="password"
-                            value={asaasApiKey}
-                            onChange={(e) => setAsaasApiKey(e.target.value)}
-                            placeholder="$aact_... (cole sua chave aqui)"
-                        />
-                        <span className="text-xs text-muted-foreground">Opcional para automação. Encontre em: asaas.com → Configurações → Integrações → API Key</span>
-                    </div>
-                </div>
-            </div>
 
             <div className="mt-6 flex justify-end">
                 <Button onClick={handleSave} disabled={saving}>

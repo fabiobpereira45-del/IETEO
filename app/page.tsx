@@ -16,6 +16,8 @@ import {
   getProfessorSession,
   type StudentSession,
   type StudentSubmission,
+  type FinancialSettings,
+  getAvailableSlots,
 } from "@/lib/store"
 import { BookOpen, GraduationCap, ClipboardList, User } from "lucide-react"
 
@@ -28,6 +30,7 @@ export default function HomePage() {
   const [mounted, setMounted] = useState(false)
   const [showEnroll, setShowEnroll] = useState(false)
   const [showGrade, setShowGrade] = useState(false)
+  const [availableSlots, setAvailableSlots] = useState<number | null>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -54,7 +57,14 @@ export default function HomePage() {
         }
       }
     }
+
+    async function fetchSlots() {
+      const slots = await getAvailableSlots()
+      setAvailableSlots(slots)
+    }
+
     checkStudentSession()
+    fetchSlots()
   }, [])
 
   // Hash routing for admin panel: /admin
@@ -113,20 +123,22 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <AssessmentHeader
-        studentName={session?.name}
-        studentEmail={session?.email}
-        onAdminClick={() => setView("professor-login")}
-        onStudentAreaClick={session ? () => setView("student-dashboard") : undefined}
-        onEnrollClick={() => setShowEnroll(true)}
-      />
+      {!["student-dashboard", "student-portal-login", "student-assessment", "student-result"].includes(view) && (
+        <AssessmentHeader
+          studentName={session?.name}
+          studentEmail={session?.email}
+          onAdminClick={() => setView("professor-login")}
+          onStudentAreaClick={session ? () => setView("student-dashboard") : undefined}
+          onEnrollClick={() => setShowEnroll(true)}
+        />
+      )}
 
       <main className="mx-auto max-w-[1400px] px-4 py-8">
         {/* Landing Page */}
         {view === "landing" && (
           <div className="space-y-8">
             {/* Hero */}
-            <div className="bg-gradient-to-br from-[#450a0a] to-[#991b1b] rounded-3xl p-8 md:p-12 text-white shadow-2xl border border-white/10 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-10">
+            <div className="bg-maroon-dark bg-gradient-to-br from-[#450a0a] to-[#991b1b] rounded-3xl p-8 md:p-12 text-white shadow-2xl border border-white/10 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-10">
               <div className="absolute top-0 left-0 w-96 h-96 bg-white/5 rounded-full -ml-48 -mt-48 blur-3xl" />
 
               <div className="text-left relative z-10 flex-1 space-y-4">
@@ -140,22 +152,39 @@ export default function HomePage() {
                 <p className="text-white/80 text-lg font-serif italic max-w-lg">
                   "Veritas • Sapientia • Fides"
                 </p>
-                <div className="pt-4 flex gap-4">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] uppercase text-white/40 font-bold tracking-tighter">Campus</span>
-                    <span className="text-sm font-bold">Salvador / BA</span>
+                <div className="pt-4 flex flex-col sm:flex-row gap-6 items-start sm:items-center">
+                  <div className="flex gap-4">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] uppercase text-white/40 font-bold tracking-tighter">Campus</span>
+                      <span className="text-sm font-bold">Salvador / BA</span>
+                    </div>
+                    <div className="w-px h-8 bg-white/10" />
+                    <div className="flex flex-col">
+                      <span className="text-[10px] uppercase text-white/40 font-bold tracking-tighter">Fundação</span>
+                      <span className="text-sm font-bold">2026</span>
+                    </div>
                   </div>
-                  <div className="w-px h-8 bg-white/10" />
-                  <div className="flex flex-col">
-                    <span className="text-[10px] uppercase text-white/40 font-bold tracking-tighter">Fundação</span>
-                    <span className="text-sm font-bold">2026</span>
+
+                  {/* Promo Banner */}
+                  <div className="bg-maroon/40 border border-accent/40 rounded-2xl p-4 backdrop-blur-md animate-pulse shadow-[0_0_25px_rgba(180,83,9,0.3)]">
+                    <p className="text-[10px] font-black uppercase tracking-[2px] text-accent mb-1 flex items-center gap-1.5">
+                       <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-ping"></span> 
+                       Corra! Vagas Limitadas
+                    </p>
+                    <div className="flex flex-col gap-0.5">
+                      <p className="text-xs font-bold text-white">Matrícula: <span className="text-accent-foreground bg-accent px-1.5 rounded ml-1">R$ 120,00</span></p>
+                      <p className="text-xs font-bold text-white mt-1">Mensalidade: <span className="text-accent-foreground bg-accent px-1.5 rounded ml-1">R$ 60,00</span></p>
+                    </div>
+                    <p className="text-[9px] font-black text-accent mt-2 tracking-widest uppercase">
+                      • {availableSlots !== null ? `${availableSlots} Vagas Restantes` : "Matrículas Abertas"} •
+                    </p>
                   </div>
                 </div>
               </div>
 
               <div className="relative z-10 flex-shrink-0 group">
                 <div className="absolute inset-0 bg-accent/20 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                <div className="relative z-10 w-64 h-64 md:w-80 md:h-80 rounded-full border-4 border-[#b45309]/30 p-1 bg-white shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-transform duration-500 hover:scale-105 overflow-hidden">
+                <div className="relative z-10 w-64 h-64 md:w-80 md:h-80 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-transform duration-500 hover:scale-105 overflow-hidden">
                   <img
                     src="/ieteo-logo.jpg"
                     alt="IETEO Logo"
