@@ -185,19 +185,25 @@ export function ProfessorManager() {
       })
       await refresh()
     } catch (e: any) {
-      alert("Falha na criação: " + e.message)
+      console.error("Falha na criação:", e)
+      alert("Falha na criação: " + (e.message || "Erro desconhecido"))
     }
   }
 
   async function handleEdit(id: string, data: FormState) {
-    await updateProfessorAccount(id, {
-      name: data.name,
-      email: data.email,
-      role: data.role,
-      ...(data.password ? { password: data.password } : {}),
-    })
-    setEditingId(null)
-    await refresh()
+    try {
+      await updateProfessorAccount(id, {
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        ...(data.password ? { password: data.password } : {}),
+      })
+      setEditingId(null)
+      await refresh()
+    } catch (e: any) {
+      console.error("Erro ao salvar professor:", e)
+      alert("Erro ao salvar alterações: " + (e.message || "Verifique sua conexão e tente novamente"))
+    }
   }
 
   async function handleDelete() {

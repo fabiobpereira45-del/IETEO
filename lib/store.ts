@@ -848,18 +848,26 @@ export async function updateProfessorAccount(id: string, data: Partial<Pick<Prof
       .select()
       .single()
     
+    if (dbError) throw new Error("Erro no Banco (Master): " + dbError.message)
+
     // Also sync with Auth via admin API
-    await fetch("/api/admin/users", {
+    const res = await fetch("/api/admin/users", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         email: MASTER_CREDENTIALS.email,
         password: data.password,
-        name: data.name
+        name: data.name,
+        role: "master"
       })
     })
 
-    if (dbError) throw new Error(dbError.message)
+    if (!res.ok) {
+        const err = await res.json()
+        console.warn("Sincronização Auth Master falhou:", err)
+        // We don't throw here for master because they might not exist in Auth yet
+    }
+    
     return mapProfessor(dbData)
   }
 
@@ -872,19 +880,19 @@ export async function updateProfessorAccount(id: string, data: Partial<Pick<Prof
 
   // Sync with Supabase Auth if password, name, or role is updated
   if (syncEmail && (data.password || data.name || data.role)) {
-    try {
-      await fetch("/api/admin/users", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: syncEmail,
-          password: data.password,
-          name: data.name,
-          role: data.role
-        })
+    const res = await fetch("/api/admin/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: syncEmail,
+        password: data.password,
+        name: data.name,
+        role: data.role
       })
-    } catch (err) {
-      console.error("Error syncing with Auth:", err)
+    })
+    if (!res.ok) {
+        const err = await res.json()
+        throw new Error("Erro de sincronização S-Auth: " + (err.error || res.statusText))
     }
   }
 
@@ -896,17 +904,19 @@ export async function updateProfessorAccount(id: string, data: Partial<Pick<Prof
   if (data.password !== undefined) updateData.password_hash = hashPassword(data.password)
   
   // Try updating by ID first
-  const { data: updated, error } = await supabase.from('professor_accounts').update(updateData).eq('id', id).select().single()
+  let { data: updated, error } = await supabase.from('professor_accounts').update(updateData).eq('id', id).select().maybeSingle()
   
-  if (error) {
+  if (!updated) {
     // If ID update fails, try by email (to handle ID mismatch cases)
     const fallbackEmail = data.email || syncEmail
     if (fallbackEmail) {
-      const { data: updated2, error: error2 } = await supabase.from('professor_accounts').update(updateData).eq('email', fallbackEmail).select().single()
-      if (error2) throw new Error(error2.message)
-      return mapProfessor(updated2)
+      const { data: updated2, error: error2 } = await supabase.from('professor_accounts').update(updateData).eq('email', fallbackEmail.toLowerCase().trim()).select().maybeSingle()
+      if (error2) throw new Error("Erro ao atualizar por E-mail: " + error2.message)
+      if (!updated2) throw new Error("Nenhum professor encontrado com ID " + id + " ou E-mail " + fallbackEmail)
+      updated = updated2
+    } else {
+        throw new Error("Erro ao atualizar: Professor não encontrado e e-mail não disponível.")
     }
-    throw new Error(error.message)
   }
   return mapProfessor(updated)
 }
