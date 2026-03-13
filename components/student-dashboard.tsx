@@ -36,7 +36,7 @@ interface Props {
     onLogout: () => void
 }
 
-type Tab = "overview" | "class-info" | "curriculum" | "materials" | "grades" | "exams" | "financial" | "chat" | "senha"
+type Tab = "overview" | "class-info" | "curriculum" | "materials" | "grades" | "exams" | "financial" | "chat" | "perfil"
 
 export function StudentDashboard({ session, onBack, onLogout }: Props) {
     const [profile, setProfile] = useState<StudentProfile | null>(null)
@@ -44,6 +44,9 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
     const [tab, setTab] = useState<Tab>("overview")
     const [newPassword, setNewPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
+    const [editName, setEditName] = useState("")
+    const [editBio, setEditBio] = useState("")
+    const [isUpdatingProfile, setIsUpdatingProfile] = useState(false)
     const [showPwd, setShowPwd] = useState(false)
     const [pwdLoading, setPwdLoading] = useState(false)
     const [pwdMsg, setPwdMsg] = useState("")
@@ -67,6 +70,8 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
         const p = await getStudentProfileAuth()
         setProfile(p)
         if (p) {
+            setEditName(p.name || "")
+            setEditBio(p.bio || "")
             setDataLoading(true)
             const [s, d, m, c, cls, sch] = await Promise.all([
                 getSemesters(), getDisciplines(), getStudyMaterials(), getFinancialCharges(p.id),
@@ -102,22 +107,43 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
         setProfile(null)
     }
 
-    async function handleChangePassword(e: React.FormEvent) {
+    async function handleUpdateProfile(e: React.FormEvent) {
         e.preventDefault()
         setPwdErr("")
         setPwdMsg("")
-        if (newPassword.length < 6) { setPwdErr("A senha deve ter no mínimo 6 caracteres."); return }
-        if (newPassword !== confirmPassword) { setPwdErr("As senhas não coincidem."); return }
+        
+        if (!editName.trim()) { setPwdErr("O nome não pode ficar vazio."); return }
+        if (newPassword && newPassword.length < 6) { setPwdErr("A nova senha deve ter no mínimo 6 caracteres."); return }
+        if (newPassword && newPassword !== confirmPassword) { setPwdErr("As senhas não coincidem."); return }
+        
         setPwdLoading(true)
         try {
-            const { error } = await supabase.auth.updateUser({ password: newPassword })
-            if (error) throw error
-            setPwdMsg("Senha alterada com sucesso!")
+            // Update Auth (Name + Password)
+            const authUpdates: any = { data: { full_name: editName.trim() } }
+            if (newPassword) authUpdates.password = newPassword
+            
+            const { error: authError } = await supabase.auth.updateUser(authUpdates)
+            if (authError) throw authError
+
+            // Update Database Profile
+            if (profile) {
+                const { error: dbError } = await supabase.from('students').update({
+                    name: editName.trim(),
+                    bio: editBio.trim()
+                }).eq('id', profile.id)
+                
+                if (dbError) throw dbError
+            }
+
+            setPwdMsg("Perfil atualizado com sucesso!")
             setNewPassword("")
             setConfirmPassword("")
+            checkAuth() // Refresh profile data
         } catch (err: any) {
-            setPwdErr(err.message || "Erro ao alterar senha.")
-        } finally { setPwdLoading(false) }
+            setPwdErr(err.message || "Erro ao atualizar o perfil.")
+        } finally {
+            setPwdLoading(false)
+        }
     }
 
     if (loading) {
@@ -154,7 +180,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
         { id: "grades", label: "Boletim e Notas", icon: FileText },
         { id: "financial", label: "Financeiro", icon: Clock },
         { id: "chat", label: "Mensagens", icon: MessageSquare },
-        { id: "senha", label: "Minha Senha", icon: KeyRound },
+        { id: "perfil", label: "Meu Perfil", icon: User },
     ]
 
     const myDisciplineIds = new Set(mySchedules.map(s => s.disciplineId))
@@ -731,46 +757,83 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                                 </div>
                             )}
 
-                            {tab === "senha" && (
+                            {tab === "perfil" && (
                                 <div className="max-w-xl mx-auto animate-in fade-in zoom-in-95 duration-500">
                                     <div className="bg-white border border-border/50 rounded-3xl p-10 shadow-xl shadow-black/5">
                                         <div className="flex flex-col items-center text-center mb-8">
-                                            <div className="h-20 w-20 bg-accent/10 rounded-3xl flex items-center justify-center mb-4 ring-8 ring-accent/5">
-                                                <KeyRound className="h-10 w-10 text-accent" />
+                                            <div className="flex flex-col items-center gap-4 mb-2">
+                                                <AvatarUpload 
+                                                    currentUrl={profile.avatar_url}
+                                                    userId={profile.id}
+                                                    userName={profile.name}
+                                                    type="student"
+                                                    onUploadSuccess={(url) => {
+                                                        checkAuth()
+                                                    }}
+                                                />
+                                                <p className="text-xs text-muted-foreground">Clique na câmera para alterar sua foto</p>
                                             </div>
-                                            <h3 className="text-2xl font-bold text-foreground">Trocar de Senha</h3>
-                                            <p className="text-sm text-muted-foreground mt-2 max-w-xs">Escolha uma nova senha segura para proteger o seu acesso ao portal.</p>
+                                            <h3 className="text-2xl font-bold text-foreground">Meu Perfil</h3>
+                                            <p className="text-sm text-muted-foreground mt-2 max-w-xs">Mantenha seus dados atualizados.</p>
                                         </div>
-                                        <form onSubmit={handleChangePassword} className="flex flex-col gap-6">
+                                        <form onSubmit={handleUpdateProfile} className="flex flex-col gap-6">
                                             <div className="space-y-2">
-                                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Nova Senha</label>
-                                                <div className="relative group">
-                                                    <input
-                                                        type={showPwd ? "text" : "password"}
-                                                        className="w-full border border-border rounded-2xl px-5 pr-12 py-4 text-base bg-slate-50 focus:bg-white focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all font-medium"
-                                                        placeholder="Mínimo 6 dígitos"
-                                                        value={newPassword}
-                                                        onChange={e => setNewPassword(e.target.value)}
-                                                    />
-                                                    <button type="button" onClick={() => setShowPwd(p => !p)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-accent p-2 rounded-lg hover:bg-accent/5 transition-all">
-                                                        {showPwd ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Confirmar Senha</label>
+                                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Nome Completo</label>
                                                 <input
-                                                    type={showPwd ? "text" : "password"}
+                                                    type="text"
                                                     className="w-full border border-border rounded-2xl px-5 py-4 text-base bg-slate-50 focus:bg-white focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all font-medium"
-                                                    placeholder="Digite novamente"
-                                                    value={confirmPassword}
-                                                    onChange={e => setConfirmPassword(e.target.value)}
+                                                    value={editName}
+                                                    onChange={e => setEditName(e.target.value)}
                                                 />
                                             </div>
+                                            
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Mini Biografia (Bio)</label>
+                                                <textarea
+                                                    className="w-full min-h-[100px] border border-border rounded-2xl px-5 py-4 text-base bg-slate-50 focus:bg-white focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all font-medium resize-y"
+                                                    placeholder="Fale um pouco sobre você, sua igreja, seu ministério..."
+                                                    value={editBio}
+                                                    onChange={e => setEditBio(e.target.value)}
+                                                />
+                                            </div>
+                                            
+                                            <div className="mt-4 pt-4 border-t border-border">
+                                                <h4 className="text-sm font-bold text-foreground mb-4">Alterar Senha (Opcional)</h4>
+                                                <div className="space-y-4">
+                                                    <div className="space-y-2">
+                                                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Nova Senha</label>
+                                                        <div className="relative group">
+                                                            <input
+                                                                type={showPwd ? "text" : "password"}
+                                                                className="w-full border border-border rounded-2xl px-5 pr-12 py-3 text-base bg-slate-50 focus:bg-white focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all"
+                                                                placeholder="Mínimo 6 dígitos (deixe em branco se não quiser alterar)"
+                                                                value={newPassword}
+                                                                onChange={e => setNewPassword(e.target.value)}
+                                                            />
+                                                            <button type="button" onClick={() => setShowPwd(p => !p)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-accent p-2 rounded-lg hover:bg-accent/5 transition-all">
+                                                                {showPwd ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    {newPassword && (
+                                                    <div className="space-y-2">
+                                                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Confirmar Nova Senha</label>
+                                                        <input
+                                                            type={showPwd ? "text" : "password"}
+                                                            className="w-full border border-border rounded-2xl px-5 py-3 text-base bg-slate-50 focus:bg-white focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all font-medium"
+                                                            placeholder="Digite novamente"
+                                                            value={confirmPassword}
+                                                            onChange={e => setConfirmPassword(e.target.value)}
+                                                        />
+                                                    </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
                                             {pwdErr && <p className="text-sm font-bold text-destructive bg-destructive/10 rounded-2xl px-5 py-3 border border-destructive/10 animate-shake">{pwdErr}</p>}
                                             {pwdMsg && <p className="text-sm font-bold text-green-700 bg-green-50 rounded-2xl px-5 py-3 flex items-center gap-2 border border-green-100 animate-in bounce-in"><CheckCircle2 className="h-5 w-5" />{pwdMsg}</p>}
                                             <Button type="submit" disabled={pwdLoading} className="w-full bg-accent hover:bg-accent/90 text-navy font-bold py-7 rounded-2xl shadow-lg shadow-accent/20 transition-all text-base">
-                                                {pwdLoading ? "Processando..." : "ATUALIZAR MINHA SENHA"}
+                                                {pwdLoading ? "Processando..." : "SALVAR PERFIL"}
                                             </Button>
                                         </form>
                                     </div>

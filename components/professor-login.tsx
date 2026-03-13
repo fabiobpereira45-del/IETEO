@@ -72,11 +72,15 @@ export function ProfessorLogin({ onLogin, onBack }: Props) {
         }
       } else {
         const normalizedEmail = email.toLowerCase().trim()
-        const isMaster = normalizedEmail === MASTER_CREDENTIALS.email || normalizedEmail === "professor@ibad.com"
-        if (isMaster && password === MASTER_CREDENTIALS.password) {
-          saveProfessorSession("master", "master")
-          onLogin()
-          return
+        const isHardcodedMaster = normalizedEmail === MASTER_CREDENTIALS.email || normalizedEmail === "professor@ibad.com"
+        
+        if (isHardcodedMaster && password === MASTER_CREDENTIALS.password) {
+            // Check if account exists in DB first to get photo, etc.
+            const dbProfile = await getProfessorByEmail(normalizedEmail)
+            const finalAvatar = dbProfile?.avatar_url || null
+            saveProfessorSession("master", "master", finalAvatar)
+            onLogin()
+            return
         }
         const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
         if (signInError) throw signInError
@@ -90,7 +94,7 @@ export function ProfessorLogin({ onLogin, onBack }: Props) {
             const dbProfile = await getProfessorByEmail(data.user.email)
             if (dbProfile) {
                 finalRole = dbProfile.role
-                finalAvatar = dbProfile.avatar_url
+                finalAvatar = dbProfile?.avatar_url || null
             }
           }
 

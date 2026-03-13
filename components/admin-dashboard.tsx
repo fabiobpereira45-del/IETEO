@@ -757,6 +757,7 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [bio, setBio] = useState("")
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false)
 
   useEffect(() => {
@@ -765,10 +766,16 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
       if (user) {
         setName(user.user_metadata?.full_name || "")
         setEmail(user.email || "")
+        
+        // Fetch bio from professor_accounts table
+        if (session?.professorId) {
+            const { data } = await supabase.from('professor_accounts').select('bio').eq('id', session.professorId).maybeSingle()
+            if (data?.bio) setBio(data.bio)
+        }
       }
     }
     fetchUserInfo()
-  }, [])
+  }, [session?.professorId])
 
   async function handleUpdateProfile(e: React.FormEvent) {
     e.preventDefault()
@@ -792,6 +799,7 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
             const up = await updateProfessorAccount(session.professorId, {
                 name: name.trim(),
                 email: email.trim(),
+                bio: bio.trim(),
                 ...(password ? { password } : {})
             })
             if (session && up) {
@@ -885,24 +893,37 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Label htmlFor="profile-name">Nome Completo</Label>
-              <Input
-                id="profile-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Seu nome completo"
-                className="h-10"
-              />
+              <div className="space-y-2">
+                <Label htmlFor="profile-name">Nome Completo</Label>
+                <Input
+                  id="profile-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Seu nome completo"
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="profile-email">E-mail</Label>
+                <Input
+                  id="profile-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                  className="h-10"
+                />
+              </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Label htmlFor="profile-email">E-mail</Label>
-              <Input
-                id="profile-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="seu@email.com"
-                className="h-10"
+            
+            <div className="space-y-2">
+              <Label htmlFor="profile-bio">Mini Biografia</Label>
+              <textarea
+                id="profile-bio"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                placeholder="Fale um pouco sobre você, sua formação ou experiência..."
+                className="w-full min-h-[100px] p-3 rounded-md border border-input bg-transparent shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 resize-y text-sm"
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

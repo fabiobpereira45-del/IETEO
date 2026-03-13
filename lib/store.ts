@@ -15,10 +15,10 @@ export interface Question { id: string; disciplineId: string; type: QuestionType
 export interface Assessment { id: string; title: string; disciplineId: string; professor: string; institution: string; questionIds: string[]; pointsPerQuestion: number; totalPoints: number; openAt: string | null; closeAt: string | null; isPublished: boolean; archived: boolean; shuffleVariants?: boolean; logoBase64?: string; rules?: string; releaseResults?: boolean; modality?: "public" | "private"; createdAt: string }
 export interface StudentAnswer { questionId: string; answer: string }
 export interface StudentSubmission { id: string; assessmentId: string; studentName: string; studentEmail: string; answers: StudentAnswer[]; score: number; totalPoints: number; percentage: number; submittedAt: string; timeElapsedSeconds: number }
-export interface ProfessorAccount { id: string; name: string; email: string; passwordHash: string; role: "master" | "professor"; avatar_url?: string | null; createdAt: string; active?: boolean }
+export interface ProfessorAccount { id: string; name: string; email: string; passwordHash: string; role: "master" | "professor"; avatar_url?: string | null; bio?: string | null; createdAt: string; active?: boolean }
 export interface ProfessorSession { loggedIn: boolean; professorId: string; role: "master" | "professor"; avatar_url?: string | null; expiresAt: string }
 export interface StudentSession { name: string; email: string; assessmentId: string; startedAt: string }
-export interface StudentProfile { id: string; auth_user_id: string; name: string; cpf: string; enrollment_number: string; phone?: string; address?: string; church?: string; pastor_name?: string; class_id?: string; payment_status?: string; avatar_url?: string | null; status: "pending" | "active" | "inactive"; created_at: string; }
+export interface StudentProfile { id: string; auth_user_id: string; name: string; cpf: string; enrollment_number: string; phone?: string; address?: string; church?: string; pastor_name?: string; class_id?: string; payment_status?: string; avatar_url?: string | null; bio?: string | null; status: "pending" | "active" | "inactive"; created_at: string; }
 export interface ChatMessage { id: string; studentId: string; disciplineId: string; message: string; isFromStudent: boolean; read: boolean; createdAt: string; }
 export interface Attendance { id: string; studentId: string; disciplineId: string; date: string; isPresent: boolean; createdAt: string; }
 export interface BoardMember { id: string; name: string; role: string; category: string; avatar_url?: string | null; createdAt: string; }
@@ -85,8 +85,12 @@ export function getProfessorSession(): ProfessorSession | null {
   return s
 }
 export function saveProfessorSession(professorId: string, role: "master" | "professor", avatar_url?: string | null): void {
-  const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString()
-  writeLocal<ProfessorSession>(KEYS.PROFESSOR_SESSION, { loggedIn: true, professorId, role, avatar_url, expiresAt })
+  try {
+    const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString()
+    writeLocal<ProfessorSession>(KEYS.PROFESSOR_SESSION, { loggedIn: true, professorId, role, avatar_url, expiresAt })
+  } catch (err) {
+    console.error("Erro ao salvar sessão do professor:", err)
+  }
 }
 export function clearProfessorSession(): void {
   if (typeof window !== "undefined") localStorage.removeItem(KEYS.PROFESSOR_SESSION)
@@ -275,6 +279,7 @@ function mapProfessor(p: any): ProfessorAccount {
       passwordHash: "",
       role: "professor",
       avatar_url: null,
+      bio: null,
       createdAt: new Date().toISOString(),
       active: false
     }
@@ -286,13 +291,14 @@ function mapProfessor(p: any): ProfessorAccount {
     passwordHash: p.password_hash || "",
     role: p.role || "professor",
     avatar_url: p.avatar_url,
+    bio: p.bio || null,
     createdAt: p.created_at || new Date().toISOString(),
     active: p.active !== false // Default to true if null/undefined
   }
 }
 function mapFinancialSettings(row: any): FinancialSettings { return { id: row.id, enrollmentFee: Number(row.enrollment_fee), monthlyFee: Number(row.monthly_fee), secondCallFee: Number(row.second_call_fee), finalExamFee: Number(row.final_exam_fee), totalMonths: Number(row.total_months), creditCardUrl: row.credit_card_url || undefined, pixKey: row.pix_key || undefined, updatedAt: row.updated_at } }
 function mapFinancialCharge(row: any): FinancialCharge { return { id: row.id, studentId: row.student_id, type: row.type, description: row.description, amount: Number(row.amount), dueDate: row.due_date, status: row.status, paymentDate: row.payment_date || undefined, pixQrcode: row.pix_qrcode || undefined, pixCopyPaste: row.pix_copy_paste || undefined, createdAt: row.created_at } }
-function mapStudentProfile(row: any): StudentProfile { return { id: row.id, auth_user_id: row.auth_user_id, name: row.name, cpf: row.cpf, enrollment_number: row.enrollment_number, phone: row.phone || undefined, address: row.address || undefined, church: row.church || undefined, pastor_name: row.pastor_name || undefined, class_id: row.class_id || undefined, payment_status: row.payment_status || undefined, avatar_url: row.avatar_url || null, status: row.status || 'pending', created_at: row.created_at } }
+function mapStudentProfile(row: any): StudentProfile { return { id: row.id, auth_user_id: row.auth_user_id, name: row.name, cpf: row.cpf, enrollment_number: row.enrollment_number, phone: row.phone || undefined, address: row.address || undefined, church: row.church || undefined, pastor_name: row.pastor_name || undefined, class_id: row.class_id || undefined, payment_status: row.payment_status || undefined, avatar_url: row.avatar_url || null, bio: row.bio || null, status: row.status || 'pending', created_at: row.created_at } }
 function mapChatMessage(row: any): ChatMessage { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, message: row.message, isFromStudent: row.is_from_student, read: row.read, createdAt: row.created_at } }
 function mapAttendance(row: any): Attendance { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, date: row.date, isPresent: row.is_present, createdAt: row.created_at } }
 function mapClassRoom(row: any): ClassRoom { return { id: row.id, name: row.name, shift: row.shift as ClassRoom['shift'], dayOfWeek: row.day_of_week || undefined, maxStudents: Number(row.max_students), studentCount: row.student_count !== undefined ? Number(row.student_count) : undefined, createdAt: row.created_at } }
@@ -875,7 +881,7 @@ export async function getProfessorByEmail(email: string): Promise<ProfessorAccou
   return data ? mapProfessor(data) : null
 }
 
-export async function updateProfessorAccount(id: string, data: Partial<Pick<ProfessorAccount, "name" | "email" | "role" | "active">> & { password?: string }): Promise<ProfessorAccount> {
+export async function updateProfessorAccount(id: string, data: Partial<Pick<ProfessorAccount, "name" | "email" | "role" | "active" | "bio">> & { password?: string }): Promise<ProfessorAccount> {
   const supabase = createClient()
   
   if (id === "master") {
@@ -946,6 +952,7 @@ export async function updateProfessorAccount(id: string, data: Partial<Pick<Prof
   if (data.email !== undefined) updateData.email = data.email.toLowerCase().trim()
   if (data.role !== undefined) updateData.role = data.role
   if (data.active !== undefined) updateData.active = data.active
+  if (data.bio !== undefined) updateData.bio = data.bio
   if (data.password !== undefined) updateData.password_hash = hashPassword(data.password)
   
   // Try updating by ID first

@@ -31,6 +31,9 @@ const FORMAT_LABELS: Record<AssessmentFormat, string> = {
   "true-false": "Verdadeiro ou Falso",
   "objective-only": "Múltipla Escolha + V/F",
   discursive: "Discursiva",
+  "fill-in-the-blank": "Preencher as Lacunas",
+  "incorrect-alternative": "Alternativa Incorreta",
+  matching: "Associação",
   mixed: "Mista (todos os tipos)",
 }
 
