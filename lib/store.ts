@@ -1439,3 +1439,6 @@ export async function updateFinancialCharge(id: string, data: {
   const { error } = await supabase.from('financial_charges').update(dbData).eq('id', id)
   if (error) throw new Error(error.message)
 }
+
+// Build timestamp: 2026-03-13 10:59
+

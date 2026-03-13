@@ -784,6 +784,7 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
     if (password && password.length < 6) return alert("A senha deve ter no mínimo 6 caracteres.")
 
     setIsUpdatingProfile(true)
+    console.log("DEBUG: Iniciando handleUpdateProfile...");
     try {
       // 1. Update Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.updateUser({
@@ -802,6 +803,7 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
                 bio: bio.trim(),
                 ...(password ? { password } : {})
             })
+            console.log("DEBUG: updateProfessorAccount result:", up);
             if (session && up) {
                 // Safe access to prevent "undefined" crash
                 const newAvatar = up?.avatar_url || session?.avatar_url || null
