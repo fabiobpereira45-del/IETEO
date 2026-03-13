@@ -1324,10 +1324,25 @@ export async function updateProfileAvatar(
     return
   }
 
-  const { error } = await supabase
+  let { error } = await supabase
     .from(table)
     .update({ avatar_url: avatarUrl })
     .eq('id', userId)
+
+  if (error) {
+    console.warn(`Tentativa de atualização por ID (${userId}) falhou:`, error.message)
+    // Fallback: Tentativa por Email se estivermos em professor_accounts
+    if (table === 'professor_accounts') {
+        // Buscamos o email do professor para fallback
+        const { data: prof } = await supabase.from('professor_accounts').select('email').eq('id', userId).maybeSingle()
+        if (prof?.email) {
+            const { error: error2 } = await supabase.from('professor_accounts').update({ avatar_url: avatarUrl }).eq('email', prof.email)
+            if (error2) throw new Error("Fallback por email falhou: " + error2.message)
+        }
+    } else {
+        throw new Error(error.message)
+    }
+  }
 
   if (type === 'professor') {
      // Always try by email as a fallback for professors due to ID mismatches

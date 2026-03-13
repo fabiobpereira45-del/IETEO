@@ -88,11 +88,13 @@ export function ProfessorLogin({ onLogin, onBack }: Props) {
           // Fetch full profile from DB to seed the session correctly
           const authRole = data.user.user_metadata?.role || data.user.user_metadata?.type
           let finalRole = authRole
+          let finalId = data.user.id
           let finalAvatar = null
           
           if (data.user.email) {
             const dbProfile = await getProfessorByEmail(data.user.email)
             if (dbProfile) {
+                finalId = dbProfile.id // Use DB ID instead of Auth UUID
                 finalRole = dbProfile.role
                 finalAvatar = dbProfile?.avatar_url || null
             }
@@ -103,7 +105,7 @@ export function ProfessorLogin({ onLogin, onBack }: Props) {
             throw new Error("Acesso negado. Esta área é restrita a professores.")
           }
 
-          saveProfessorSession(data.user.id, finalRole, finalAvatar)
+          saveProfessorSession(finalId, finalRole, finalAvatar)
           // Sync ID with professor_accounts table
           if (data.user.email) {
             await ensureProfessorSync(data.user.email, data.user.id)
