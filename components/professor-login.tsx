@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
-import { saveProfessorSession, MASTER_CREDENTIALS, ensureProfessorSync } from "@/lib/store"
+import { saveProfessorSession, MASTER_CREDENTIALS, ensureProfessorSync, getProfessorByEmail } from "@/lib/store"
 
 interface Props {
   onLogin: () => void
@@ -81,26 +81,25 @@ export function ProfessorLogin({ onLogin, onBack }: Props) {
         const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
         if (signInError) throw signInError
         if (data.session) {
-          const role = data.user.user_metadata?.role || data.user.user_metadata?.type
+          // Fetch full profile from DB to seed the session correctly
+          const authRole = data.user.user_metadata?.role || data.user.user_metadata?.type
+          let finalRole = authRole
+          let finalAvatar = null
           
-          // Check if professor is active in professor_accounts table
-          const { data: profAcc, error: profError } = await supabase
-            .from('professor_accounts')
-            .select('active')
-            .eq('email', data.user.email)
-            .maybeSingle()
-
-          if (!profError && profAcc && profAcc.active === false) {
-            await supabase.auth.signOut()
-            throw new Error("Sua conta está desativada. Entre em contato com o administrador.")
+          if (data.user.email) {
+            const dbProfile = await getProfessorByEmail(data.user.email)
+            if (dbProfile) {
+                finalRole = dbProfile.role
+                finalAvatar = dbProfile.avatar_url
+            }
           }
 
-          if (role !== "master" && role !== "professor") {
+          if (finalRole !== "master" && finalRole !== "professor") {
             await supabase.auth.signOut()
             throw new Error("Acesso negado. Esta área é restrita a professores.")
           }
 
-          saveProfessorSession(data.user.id, role)
+          saveProfessorSession(data.user.id, finalRole, finalAvatar)
           // Sync ID with professor_accounts table
           if (data.user.email) {
             await ensureProfessorSync(data.user.email, data.user.id)

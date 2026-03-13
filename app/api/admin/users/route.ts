@@ -67,7 +67,10 @@ export async function PATCH(request: Request) {
                 ...(existingUser?.user_metadata || {})
             }
             if (name) updateData.user_metadata.full_name = name
-            if (role) updateData.user_metadata.role = role
+            if (role) {
+                updateData.user_metadata.role = role
+                updateData.user_metadata.type = role // Sync both for compatibility
+            }
         }
 
         const { data: authData, error: authError } = await supabase.auth.admin.updateUserById(

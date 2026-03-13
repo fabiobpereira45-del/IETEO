@@ -831,6 +831,38 @@ export async function addProfessorAccount(data: Omit<ProfessorAccount, "id" | "c
   await supabase.from('professor_accounts').insert(account)
   return mapProfessor(account)
 }
+/**
+ * Fetches a professor profile by email.
+ */
+export async function getProfessorByEmail(email: string): Promise<ProfessorAccount | null> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('professor_accounts')
+    .select('*')
+    .eq('email', email.toLowerCase().trim())
+    .maybeSingle()
+  
+  if (error) {
+    console.error("Erro ao buscar professor por e-mail:", error)
+    return null
+  }
+  
+  if (!data && email === MASTER_CREDENTIALS.email) {
+    return {
+        id: 'master',
+        name: 'Administrador Master',
+        email: MASTER_CREDENTIALS.email,
+        role: 'master',
+        active: true,
+        avatar_url: null,
+        passwordHash: '',
+        createdAt: new Date().toISOString()
+    }
+  }
+
+  return data ? mapProfessor(data) : null
+}
+
 export async function updateProfessorAccount(id: string, data: Partial<Pick<ProfessorAccount, "name" | "email" | "role" | "active">> & { password?: string }): Promise<ProfessorAccount> {
   const supabase = createClient()
   
@@ -850,7 +882,6 @@ export async function updateProfessorAccount(id: string, data: Partial<Pick<Prof
     
     if (dbError) throw new Error("Erro no Banco (Master): " + dbError.message)
 
-    // Also sync with Auth via admin API
     const res = await fetch("/api/admin/users", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -865,10 +896,12 @@ export async function updateProfessorAccount(id: string, data: Partial<Pick<Prof
     if (!res.ok) {
         const err = await res.json()
         console.warn("Sincronização Auth Master falhou:", err)
-        // We don't throw here for master because they might not exist in Auth yet
     }
     
-    return mapProfessor(dbData)
+    // Fetch newly updated/created master record
+    const updatedMaster = await getProfessorByEmail(MASTER_CREDENTIALS.email)
+    if (!updatedMaster) throw new Error("Falha ao recuperar conta Master após salvamento")
+    return updatedMaster
   }
 
   // Get current email if not provided, to find user in Auth
@@ -1276,15 +1309,13 @@ export async function updateProfileAvatar(
     .update({ avatar_url: avatarUrl })
     .eq('id', userId)
 
-  if (error || (userId !== 'master' && type === 'professor')) {
-     // Check if actually updated OR if it's a professor (to handle ID mismatch)
-     const { data: check } = await supabase.from(table).select('id').eq('id', userId).maybeSingle()
-     if (!check && type === 'professor') {
-        // Fetch current user email from Auth to match record
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user && user.email) {
-           await supabase.from('professor_accounts').update({ avatar_url: avatarUrl }).eq('email', user.email)
-        }
+  if (type === 'professor') {
+     // Always try by email as a fallback for professors due to ID mismatches
+     const { data: { user } } = await supabase.auth.getUser()
+     if (user && user.email) {
+        await supabase.from('professor_accounts')
+          .update({ avatar_url: avatarUrl })
+          .eq('email', user.email.toLowerCase().trim())
      }
   }
 
