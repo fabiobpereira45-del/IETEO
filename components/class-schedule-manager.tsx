@@ -51,6 +51,7 @@ export function ClassScheduleManager() {
     const [formProfessor, setFormProfessor] = useState("")
     const [formLessonsCount, setFormLessonsCount] = useState<number>(1)
     const [formWorkload, setFormWorkload] = useState<number>(0)
+    const [formStartDate, setFormStartDate] = useState("")
 
     // Deletar e Editar
     const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -84,6 +85,7 @@ export function ClassScheduleManager() {
         setFormProfessor("none")
         setFormLessonsCount(1)
         setFormWorkload(0)
+        setFormStartDate("")
         setModalOpen(true)
     }
 
@@ -125,7 +127,8 @@ export function ClassScheduleManager() {
                 timeStart: formTimeStart,
                 timeEnd: formTimeEnd,
                 lessonsCount: formLessonsCount,
-                workload: formWorkload
+                workload: formWorkload,
+                startDate: formStartDate || undefined
             }
 
             if (editId) {
@@ -153,6 +156,7 @@ export function ClassScheduleManager() {
         setFormProfessor(sched.professorName || "none")
         setFormLessonsCount(sched.lessonsCount)
         setFormWorkload(sched.workload)
+        setFormStartDate(sched.startDate || "")
         setModalOpen(true)
     }
 
@@ -166,6 +170,7 @@ export function ClassScheduleManager() {
         setFormProfessor("none")
         setFormLessonsCount(1)
         setFormWorkload(0)
+        setFormStartDate("")
         setModalOpen(true)
     }
 
@@ -277,9 +282,17 @@ export function ClassScheduleManager() {
                                                         </button>
                                                     </div>
 
-                                                    <div className="flex items-center gap-1.5 text-xs font-semibold text-primary mb-1">
-                                                        <Clock className="h-3.5 w-3.5" />
-                                                        {sched.timeStart.substring(0, 5)} - {sched.timeEnd.substring(0, 5)}
+                                                    <div className="flex items-center justify-between gap-1.5 text-xs font-semibold text-primary mb-1">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <Clock className="h-3.5 w-3.5" />
+                                                            {sched.timeStart.substring(0, 5)} - {sched.timeEnd.substring(0, 5)}
+                                                        </div>
+                                                        {sched.startDate && (
+                                                            <div className="flex items-center gap-1 opacity-70">
+                                                                <CalendarDays className="h-3 w-3" />
+                                                                {new Date(sched.startDate + "T00:00:00").toLocaleDateString('pt-BR')}
+                                                            </div>
+                                                        )}
                                                     </div>
 
                                                     <h4 className="font-bold text-sm leading-tight pr-6 mb-1">
@@ -400,6 +413,11 @@ export function ClassScheduleManager() {
                                 <Label>Horário de Término *</Label>
                                 <Input type="time" value={formTimeEnd} onChange={e => setFormTimeEnd(e.target.value)} />
                             </div>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                            <Label>Data de Início das Aulas</Label>
+                            <Input type="date" value={formStartDate} onChange={e => setFormStartDate(e.target.value)} />
                         </div>
 
                     </div>

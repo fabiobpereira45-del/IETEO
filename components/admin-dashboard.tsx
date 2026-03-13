@@ -784,7 +784,7 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
     if (password && password.length < 6) return alert("A senha deve ter no mínimo 6 caracteres.")
 
     setIsUpdatingProfile(true)
-    console.log("DEBUG-V1.2.1: Iniciando handleUpdateProfile...");
+    console.log("DEBUG-V1.2.2: Iniciando handleUpdateProfile...");
     try {
       // 1. Update Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.updateUser({
@@ -803,7 +803,7 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
                 bio: bio.trim(),
                 ...(password ? { password } : {})
             })
-            console.log("DEBUG-V1.2.1: updateProfessorAccount result:", up);
+            console.log("DEBUG-V1.2.2: updateProfessorAccount result:", up);
             if (session && up) {
                 // Safe access to prevent "undefined" crash
                 const newAvatar = up?.avatar_url || session?.avatar_url || null
@@ -980,7 +980,7 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
             <div className="space-y-2">
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Versão do Sistema:</span>
-                <span className="font-mono font-medium text-primary">v1.2.1-bio-fix</span>
+                <span className="font-mono font-medium text-primary">v1.2.2-cloud</span>
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Status do Banco:</span>

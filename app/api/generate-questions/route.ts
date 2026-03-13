@@ -1,7 +1,7 @@
-// ─── Groq via OpenAI-compatible API ──────────────────────────────────────────
-
-const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-const GROQ_MODEL = "llama-3.3-70b-versatile"
+import { google } from "@ai-sdk/google"
+import { generateText } from "ai"
+import { parseOffice } from "officeparser"
+import PDFParser from "pdf2json"
 
 // ─── System prompt ────────────────────────────────────────────────────────────
 
@@ -45,12 +45,10 @@ RELACIONAR COLUNAS (matching):
 - choices = [] (array vazio), correctAnswer = "" (string vazia)
 - pairs = array com pares: [{"id":"p1","left":"Termo","right":"Definição"}]
 
-IMPORTANTE: Retorne APENAS um objeto JSON válido com esta estrutura exata, sem texto adicional, sem markdown, sem blocos de código:
+IMPORTANTE: Retorne APENAS um objeto JSON válido com esta estrutura exata:
 {"questions":[{"type":"...","text":"...","choices":[{"id":"opt_a","text":"..."}],"pairs":[{"id":"p1","left":"...","right":"..."}],"correctAnswer":"...","explanation":"..."}]}`
 
 // ─── Route handler ────────────────────────────────────────────────────────────
-import { parseOffice } from "officeparser"
-import PDFParser from "pdf2json"
 
 export async function POST(req: Request) {
   try {
@@ -135,37 +133,18 @@ ${fileText ? `\nBaseie-se ESTRITAMENTE no texto abaixo:\n---\n${fileText.substri
 
 Retorne um JSON com exatamente ${safeCount} questões.`
 
-    const response = await fetch(GROQ_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: GROQ_MODEL,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.7,
-        max_tokens: 8192,
-        response_format: { type: "json_object" },
-      }),
+    const { text } = await generateText({
+      model: google("gemini-2.0-flash-exp"),
+      system: SYSTEM_PROMPT,
+      prompt: userPrompt,
+      temperature: 0.7,
     })
-
-    if (!response.ok) {
-      const err = await response.text()
-      throw new Error(`Groq API error ${response.status}: ${err}`)
-    }
-
-    const data = await response.json()
-    const rawText = data.choices?.[0]?.message?.content || ""
 
     let parsed: any
     try {
-      parsed = JSON.parse(rawText)
+      parsed = JSON.parse(text)
     } catch {
-      const match = rawText.match(/\{[\s\S]*\}/)
+      const match = text.match(/\{[\s\S]*\}/)
       if (match) parsed = JSON.parse(match[0])
       else throw new Error("A IA não retornou um JSON válido. Tente novamente.")
     }
