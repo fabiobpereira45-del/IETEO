@@ -57,8 +57,15 @@ export async function PATCH(request: Request) {
 
         const updateData: any = {}
         if (password) updateData.password = password
+
         if (name || role) {
-            updateData.user_metadata = {}
+            // Fetch existing metadata to avoid overwriting other keys
+            const { data: { user: existingUser }, error: fetchError } = await supabase.auth.admin.getUserById(targetId)
+            if (fetchError) throw fetchError
+
+            updateData.user_metadata = { 
+                ...(existingUser?.user_metadata || {})
+            }
             if (name) updateData.user_metadata.full_name = name
             if (role) updateData.user_metadata.role = role
         }

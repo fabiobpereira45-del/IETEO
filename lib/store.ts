@@ -895,9 +895,35 @@ export async function updateProfessorAccount(id: string, data: Partial<Pick<Prof
   if (data.active !== undefined) updateData.active = data.active
   if (data.password !== undefined) updateData.password_hash = hashPassword(data.password)
   
+  // Try updating by ID first
   const { data: updated, error } = await supabase.from('professor_accounts').update(updateData).eq('id', id).select().single()
-  if (error) throw new Error(error.message)
+  
+  if (error) {
+    // If ID update fails, try by email (to handle ID mismatch cases)
+    const fallbackEmail = data.email || syncEmail
+    if (fallbackEmail) {
+      const { data: updated2, error: error2 } = await supabase.from('professor_accounts').update(updateData).eq('email', fallbackEmail).select().single()
+      if (error2) throw new Error(error2.message)
+      return mapProfessor(updated2)
+    }
+    throw new Error(error.message)
+  }
   return mapProfessor(updated)
+}
+
+/**
+ * Ensures a professor's database ID matches their Supabase Auth ID.
+ * This solves the mismatch between random uid() and Auth ID.
+ */
+export async function ensureProfessorSync(email: string, authId: string): Promise<void> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('professor_accounts')
+    .update({ id: authId })
+    .eq('email', email.toLowerCase().trim())
+    .neq('id', authId) // Only update if they differ
+  
+  if (error) console.error("Falha ao sincronizar ID de professor:", error)
 }
 export async function deleteProfessorAccount(id: string): Promise<void> {
   const supabase = createClient()
@@ -1239,6 +1265,18 @@ export async function updateProfileAvatar(
     .from(table)
     .update({ avatar_url: avatarUrl })
     .eq('id', userId)
+
+  if (error || (userId !== 'master' && type === 'professor')) {
+     // Check if actually updated OR if it's a professor (to handle ID mismatch)
+     const { data: check } = await supabase.from(table).select('id').eq('id', userId).maybeSingle()
+     if (!check && type === 'professor') {
+        // Fetch current user email from Auth to match record
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user && user.email) {
+           await supabase.from('professor_accounts').update({ avatar_url: avatarUrl }).eq('email', user.email)
+        }
+     }
+  }
 
   if (error) throw new Error(error.message)
 }

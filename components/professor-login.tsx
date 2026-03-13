@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
-import { saveProfessorSession, MASTER_CREDENTIALS } from "@/lib/store"
+import { saveProfessorSession, MASTER_CREDENTIALS, ensureProfessorSync } from "@/lib/store"
 
 interface Props {
   onLogin: () => void
@@ -101,6 +101,10 @@ export function ProfessorLogin({ onLogin, onBack }: Props) {
           }
 
           saveProfessorSession(data.user.id, role)
+          // Sync ID with professor_accounts table
+          if (data.user.email) {
+            await ensureProfessorSync(data.user.email, data.user.id)
+          }
           onLogin()
         }
       }
