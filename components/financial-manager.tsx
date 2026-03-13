@@ -48,7 +48,7 @@ export function FinancialManager() {
     const supabase = createClient()
 
     async function fetchAllStudents() {
-        const { data } = await supabase.from('students').select('*').order('name')
+        const { data } = await supabase.from('students').select('*').eq('status', 'active').order('name')
         return data || []
     }
 
