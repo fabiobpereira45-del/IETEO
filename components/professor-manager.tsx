@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import {
-  Plus, Pencil, Trash2, ShieldCheck, User, Eye, EyeOff, X, Check,
+  Plus, Pencil, Trash2, ShieldCheck, User, Eye, EyeOff, X, Check, CheckCircle2, XCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,6 +29,7 @@ interface FormState {
   email: string
   password: string
   role: "master" | "professor"
+  active?: boolean
 }
 
 const EMPTY_FORM: FormState = { name: "", email: "", password: "", role: "professor" }
@@ -294,16 +295,31 @@ export function ProfessorManager() {
                       }
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{account.name}</p>
+                      <p className={`text-sm font-medium truncate ${account.active === false ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{account.name}</p>
                       <p className="text-xs text-muted-foreground truncate">{account.email}</p>
                     </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${account.role === "master"
-                      ? "bg-primary/15 text-primary"
-                      : "bg-muted text-muted-foreground"
-                      }`}>
-                      {account.role === "master" ? "Master" : "Professor"}
-                    </span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${account.active === false
+                        ? "bg-destructive/10 text-destructive"
+                        : "bg-green-500/10 text-green-600"
+                        }`}>
+                        {account.active === false ? "Inativo" : "Ativo"}
+                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${account.role === "master"
+                        ? "bg-primary/15 text-primary"
+                        : "bg-muted text-muted-foreground"
+                        }`}>
+                        {account.role === "master" ? "Master" : "Professor"}
+                      </span>
+                    </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                      <Button
+                        size="sm" variant="ghost" className={`h-7 w-7 p-0 ${account.active === false ? 'text-green-600 hover:bg-green-50' : 'text-amber-600 hover:bg-amber-50'}`}
+                        onClick={() => handleEdit(account.id, { ...account, active: account.active === false ? true : false, password: "" })}
+                        title={account.active === false ? "Ativar" : "Desativar"}
+                      >
+                        {account.active === false ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+                      </Button>
                       <Button
                         size="sm" variant="ghost" className="h-7 w-7 p-0 text-primary hover:bg-primary/10"
                         onClick={() => setLinkProfId(account.id)}

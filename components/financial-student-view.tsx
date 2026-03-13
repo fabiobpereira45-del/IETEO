@@ -115,15 +115,18 @@ export function FinancialStudentView({ studentId }: Props) {
 
                         <div className="space-y-4">
                             {/* Option 1: Pix */}
-                            <div className="border border-green-200 bg-green-50/30 rounded-xl p-4 space-y-3">
-                                <div className="flex items-center gap-2">
-                                    <QrCode className="h-5 w-5 text-green-600" />
-                                    <p className="font-bold text-green-700 text-sm">Opção 1: Pagar com Pix</p>
-                                </div>
-                                <div className="bg-white border border-green-100 rounded-lg p-3">
-                                    <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Chave Pix (E-mail):</p>
+                            <div className="border-2 border-green-500 bg-green-50/50 rounded-xl p-5 space-y-3 shadow-sm">
+                                <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <code className="text-xs font-mono font-bold flex-1 truncate">{settings?.pixKey || "Chave PIX não configurada"}</code>
+                                        <QrCode className="h-6 w-6 text-green-600" />
+                                        <p className="font-black text-green-700 text-base">Opção 1: Pix (Imediato)</p>
+                                    </div>
+                                    <span className="text-[10px] font-bold bg-green-600 text-white px-2 py-0.5 rounded-full uppercase">Melhor Opção</span>
+                                </div>
+                                <div className="bg-white border border-green-200 rounded-lg p-4 shadow-inner">
+                                    <p className="text-[10px] uppercase font-black text-muted-foreground mb-1 tracking-widest">Chave Pix para Pagamento:</p>
+                                    <div className="flex items-center gap-3">
+                                        <code className="text-sm font-mono font-black text-foreground flex-1 break-all">{settings?.pixKey || "Chave PIX não configurada"}</code>
                                         <button
                                             onClick={async () => {
                                                 if (!settings?.pixKey) {
@@ -134,11 +137,30 @@ export function FinancialStudentView({ studentId }: Props) {
                                                 setPixCopied(true)
                                                 setTimeout(() => setPixCopied(false), 2000)
                                             }}
-                                            className="bg-green-600 text-white text-[10px] font-bold px-2 py-1.5 rounded-md flex items-center gap-1 shrink-0"
+                                            className="bg-green-600 hover:bg-green-700 text-white text-xs font-black px-4 py-2 rounded-lg flex items-center gap-2 transition-all active:scale-95"
                                         >
-                                            <Copy className="h-3 w-3" /> {pixCopied ? "Copiado!" : "Copiar"}
+                                            <Copy className="h-4 w-4" /> {pixCopied ? "Copiado!" : "Copiar Chave"}
                                         </button>
                                     </div>
+                                </div>
+                                <p className="text-[10px] text-green-700/70 font-medium italic">* O desconto de 5% já está aplicado no valor total acima para 2+ meses.</p>
+                            </div>
+
+                            {/* Option 2: Boleto */}
+                            <div className="border border-amber-200 bg-amber-50/30 rounded-xl p-4 space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <DollarSign className="h-5 w-5 text-amber-600" />
+                                    <p className="font-bold text-amber-700 text-sm">Opção 2: Boleto Bancário</p>
+                                </div>
+                                <div className="bg-white border border-amber-100 rounded-lg p-3 text-center">
+                                    <p className="text-xs text-amber-800 font-medium mb-2">Para pagar via boleto, solicite ao suporte ou aguarde o envio mensal.</p>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => window.open(`https://wa.me/5521974796365?text=Olá, gostaria de solicitar um boleto para minha mensalidade.`, "_blank")}
+                                        className="w-full border-amber-300 text-amber-700 hover:bg-amber-50 font-bold h-9 text-[11px]"
+                                    >
+                                        Solicitar Boleto via WhatsApp
+                                    </Button>
                                 </div>
                             </div>
 

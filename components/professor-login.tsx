@@ -82,6 +82,18 @@ export function ProfessorLogin({ onLogin, onBack }: Props) {
         if (signInError) throw signInError
         if (data.session) {
           const role = data.user.user_metadata?.role || data.user.user_metadata?.type
+          
+          // Check if professor is active in professor_accounts table
+          const { data: profAcc, error: profError } = await supabase
+            .from('professor_accounts')
+            .select('active')
+            .eq('email', data.user.email)
+            .maybeSingle()
+
+          if (!profError && profAcc && profAcc.active === false) {
+            await supabase.auth.signOut()
+            throw new Error("Sua conta está desativada. Entre em contato com o administrador.")
+          }
 
           if (role !== "master" && role !== "professor") {
             await supabase.auth.signOut()

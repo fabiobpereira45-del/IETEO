@@ -18,8 +18,10 @@ import {
 import {
     type FinancialCharge, type StudentProfile, type FinancialSettings, type Assessment,
     getFinancialCharges, addFinancialCharge, updateFinancialChargeStatus, deleteFinancialCharge,
-    getFinancialSettings, updateFinancialSettings, getAssessments, triggerN8nWebhook
+    getFinancialSettings, updateFinancialSettings, getAssessments, triggerN8nWebhook,
+    generateMonthlyCharges
 } from "@/lib/store"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { createClient } from "@/lib/supabase/client"
 
 export function FinancialManager() {
@@ -40,6 +42,8 @@ export function FinancialManager() {
     const [dueDate, setDueDate] = useState("")
 
     const [deleteId, setDeleteId] = useState<string | null>(null)
+    const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null)
+    const [isGenerating, setIsGenerating] = useState(false)
 
     const supabase = createClient()
 
@@ -204,6 +208,25 @@ export function FinancialManager() {
         }
     }
 
+    async function handleGeneratePlan(uid: string) {
+        if (!settings?.monthlyFee) {
+            alert("Configure a mensalidade nas configurações antes de gerar.")
+            return
+        }
+        if (!confirm("Deseja gerar as 18 mensalidades (Abril 2026 a Setembro 2027) para este aluno?")) return
+
+        setIsGenerating(true)
+        try {
+            await generateMonthlyCharges(uid, settings.monthlyFee)
+            alert("Mensalidades geradas com sucesso!")
+            load()
+        } catch (actErr: any) {
+            alert("Erro ao gerar mensalidades: " + actErr.message)
+        } finally {
+            setIsGenerating(false)
+        }
+    }
+
     async function handleDelete() {
         if (!deleteId) return
         try {
@@ -250,7 +273,7 @@ export function FinancialManager() {
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-xl font-bold font-serif text-foreground">Gestão Financeira</h2>
-                    <p className="text-muted-foreground text-sm">Controle de mensalidades e recebimentos</p>
+                    <p className="text-muted-foreground text-sm">Controle de mensalidades e extratos individuais</p>
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" onClick={() => {
@@ -284,72 +307,103 @@ export function FinancialManager() {
             </div>
 
             <div className="bg-card border border-border shadow-sm rounded-xl overflow-hidden">
+                <div className="p-4 border-b border-border bg-muted/20">
+                    <h3 className="font-bold text-sm text-foreground">Lista de Alunos e Situação Financeira</h3>
+                </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
                         <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-semibold">
                             <tr>
                                 <th className="px-4 py-3">Aluno</th>
-                                <th className="px-4 py-3">Descrição / Tipo</th>
-                                <th className="px-4 py-3">Vencimento</th>
-                                <th className="px-4 py-3">Valor</th>
-                                <th className="px-4 py-3">Status</th>
+                                <th className="px-4 py-3">Matrícula</th>
+                                <th className="px-4 py-3">Situação</th>
+                                <th className="px-4 py-3">Saldo</th>
                                 <th className="px-4 py-3 text-right">Ações</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                            {charges.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground italic">
-                                        Nenhuma cobrança registrada.
-                                    </td>
-                                </tr>
-                            ) : (
-                                charges.map(c => {
-                                    const student = students.find(s => s.id === c.studentId)
-                                    return (
-                                        <tr key={c.id} className="hover:bg-muted/30 transition-colors">
-                                            <td className="px-4 py-3 font-medium text-foreground">
-                                                {student?.name || "Aluno Excluído"}
-                                                <div className="text-xs text-muted-foreground font-normal">{student?.enrollment_number}</div>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <div>{c.description}</div>
-                                                <div className="text-xs text-muted-foreground capitalize">{c.type.replace('_', ' ')}</div>
-                                            </td>
-                                            <td className="px-4 py-3 text-muted-foreground">
-                                                {new Date(c.dueDate).toLocaleDateString("pt-BR")}
-                                            </td>
-                                            <td className="px-4 py-3 font-medium">
-                                                R$ {c.amount.toFixed(2)}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                {getStatusBadge(c.status)}
-                                            </td>
-                                            <td className="px-4 py-3 text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    {c.status !== 'paid' && (
-                                                        <Button size="sm" variant="outline" className="h-7 text-xs border-green-200 text-green-700 hover:bg-green-50" onClick={() => handleStatusChange(c.id, 'paid')}>
-                                                            Baixar Pago
-                                                        </Button>
-                                                    )}
-                                                    {c.status === 'paid' && (
-                                                        <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => handleStatusChange(c.id, 'pending')}>
-                                                            Estornar
-                                                        </Button>
-                                                    )}
-                                                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10" onClick={() => setDeleteId(c.id)}>
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    )
-                                })
-                            )}
+                            {students.map(s => {
+                                const studentCharges = charges.filter(c => c.studentId === s.id)
+                                const pending = studentCharges.filter(c => c.status === 'pending' || c.status === 'late')
+                                const totalPending = pending.reduce((acc, curr) => acc + curr.amount, 0)
+                                return (
+                                    <tr key={s.id} className="hover:bg-muted/30 transition-colors">
+                                        <td className="px-4 py-3 font-medium text-foreground">{s.name}</td>
+                                        <td className="px-4 py-3 text-muted-foreground">{s.enrollment_number}</td>
+                                        <td className="px-4 py-3">
+                                            {pending.some(c => c.status === 'late') ? (
+                                                <span className="text-destructive font-bold flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Inadimplente</span>
+                                            ) : pending.length > 0 ? (
+                                                <span className="text-amber-600 font-bold flex items-center gap-1"><Clock className="h-3 w-3" /> Pendente</span>
+                                            ) : (
+                                                <span className="text-green-600 font-bold flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Em dia</span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3 font-bold">R$ {totalPending.toFixed(2)}</td>
+                                        <td className="px-4 py-3 text-right">
+                                            <Button size="sm" variant="ghost" className="text-primary gap-2" onClick={() => setSelectedStudent(s)}>
+                                                <Eye className="h-4 w-4" /> Ver
+                                            </Button>
+                                        </td>
+                                    </tr>
+                                )
+                            })}
                         </tbody>
                     </table>
                 </div>
             </div>
+
+            {/* Student Detail Modal */}
+            <Dialog open={!!selectedStudent} onOpenChange={(o) => !o && setSelectedStudent(null)}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+                    <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b">
+                        <div>
+                            <DialogTitle className="text-xl font-serif">{selectedStudent?.name}</DialogTitle>
+                            <p className="text-sm text-muted-foreground">{selectedStudent?.enrollment_number}</p>
+                        </div>
+                        <div className="flex gap-2">
+                             <Button size="sm" variant="outline" className="h-8 text-xs font-bold border-accent text-accent hover:bg-accent/10" 
+                                onClick={() => handleGeneratePlan(selectedStudent!.id)}
+                                disabled={isGenerating}>
+                                {isGenerating ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <DollarSign className="h-3 w-3 mr-2" />}
+                                Gerar Carnê 18x
+                             </Button>
+                        </div>
+                    </DialogHeader>
+
+                    <ScrollArea className="flex-1 -mx-6 px-6 py-4">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-semibold">
+                                <tr>
+                                    <th className="px-4 py-3">Descrição</th>
+                                    <th className="px-4 py-3">Vencimento</th>
+                                    <th className="px-4 py-3">Valor</th>
+                                    <th className="px-4 py-3">Status</th>
+                                    <th className="px-4 py-3 text-right">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                                {charges.filter(c => c.studentId === selectedStudent?.id).sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()).map(c => (
+                                    <tr key={c.id}>
+                                        <td className="px-4 py-3 font-medium">{c.description}</td>
+                                        <td className="px-4 py-3 text-muted-foreground">{new Date(c.dueDate).toLocaleDateString("pt-BR")}</td>
+                                        <td className="px-4 py-3 font-bold">R$ {c.amount.toFixed(2)}</td>
+                                        <td className="px-4 py-3">{getStatusBadge(c.status)}</td>
+                                        <td className="px-4 py-3 text-right">
+                                            <div className="flex justify-end gap-1">
+                                                {c.status !== 'paid' && (
+                                                    <Button size="sm" variant="ghost" className="h-8 text-[10px] text-green-700 hover:bg-green-50" onClick={() => handleStatusChange(c.id, 'paid')}>Baixar</Button>
+                                                )}
+                                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={() => setDeleteId(c.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </ScrollArea>
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={chargeModal} onOpenChange={setChargeModal}>
                 <DialogContent className="sm:max-w-md">

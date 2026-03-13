@@ -23,6 +23,8 @@ import {
   getSubmissions, deleteSubmission, updateSubmissionScore,
   getQuestions, getDisciplines, clearProfessorSession, MASTER_CREDENTIALS,
   getProfessorSession, getStudentGrades, saveStudentGrade, deleteStudentGrade, getStudents, updateProfessorAccount,
+  saveProfessorSession,
+  type Semester, type StudyMaterial, type FinancialCharge, type ClassRoom, type ClassSchedule,
 } from "@/lib/store"
 import { printStudentPDF, printBlankAssessmentPDF, printCompiledSubmissionsPDF, printOverviewPDF, printAnswerKeyPDF, printSubmissionsTablePDF } from "@/lib/pdf"
 import { ErrorBoundary } from "@/components/error-boundary"
@@ -44,6 +46,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/co
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import { InstitutionalManager } from "@/components/institutional-manager"
+import { AvatarUpload } from "@/components/avatar-upload"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -785,13 +788,16 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
       if (authError) throw authError
 
       // 2. Update local professor_accounts table for consistency
-      if (session?.professorId) {
-        await updateProfessorAccount(session.professorId, {
-          name: name.trim(),
-          email: email.trim(),
-          ...(password ? { password } : {})
-        })
-      }
+        if (session?.professorId) {
+            const up = await updateProfessorAccount(session.professorId, {
+                name: name.trim(),
+                email: email.trim(),
+                ...(password ? { password } : {})
+            })
+            if (session) {
+                saveProfessorSession(session.professorId, session.role, up.avatar_url)
+            }
+        }
 
       alert("Perfil atualizado com sucesso!")
       setPassword("") // Clear password field
@@ -861,8 +867,22 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
             <UserCircle className="h-5 w-5" />
             <h3 className="font-bold text-foreground">Meu Perfil</h3>
           </div>
-          <form onSubmit={handleUpdateProfile} className="space-y-4">
-            <div className="space-y-1.5">
+          <form onSubmit={handleUpdateProfile} className="flex flex-col gap-6">
+            <div className="flex flex-col items-center gap-4 mb-4">
+                <AvatarUpload 
+                    currentUrl={session?.avatar_url}
+                    userId={session?.professorId || ""}
+                    userName={name}
+                    type="professor"
+                    onUploadSuccess={(url) => {
+                        if (session) saveProfessorSession(session.professorId, session.role, url)
+                        onRefresh(false)
+                    }}
+                />
+                <p className="text-xs text-muted-foreground">Clique na câmera para alterar sua foto de perfil</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Label htmlFor="profile-name">Nome Completo</Label>
               <Input
                 id="profile-name"
@@ -872,7 +892,7 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
                 className="h-10"
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Label htmlFor="profile-email">E-mail</Label>
               <Input
                 id="profile-email"
@@ -883,7 +903,7 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
                 className="h-10"
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Label htmlFor="profile-password">Nova Senha (opcional)</Label>
               <Input
                 id="profile-password"
@@ -1081,74 +1101,73 @@ export function AdminDashboard({ onLogout }: Props) {
   )
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-card border-r border-border/50">
-      <div className="p-6">
-        <div className="flex items-center gap-3 mb-1">
-          <div className="w-12 h-12 relative rounded-full overflow-hidden shadow-md border border-border/50">
-            <img
-              src="/ieteo-logo.jpg"
-              alt="IETEO Logo"
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <div>
-            <h2 className="font-bold text-foreground leading-tight tracking-tight">IETEO</h2>
-            <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold">Instituto de Ensino</p>
-          </div>
-        </div>
-      </div>
-
-      <ScrollArea className="flex-1 min-h-0 px-4">
-        <div className="space-y-6 pb-6 pt-2">
-          {menuGroups.map((group) => {
-            const visibleItems = group.items.filter(i => !i.masterOnly || isMaster)
-            if (visibleItems.length === 0) return null
-            return (
-              <div key={group.title} className="space-y-1">
-                <h3 className="px-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-2">
-                  {group.title}
-                </h3>
-                <div className="grid gap-1">
-                  {visibleItems.map(item => (
-                    <NavItem key={item.id} item={item} />
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </ScrollArea>
-
-      <div className="p-4 pb-8 mt-auto border-t border-border/50 bg-muted/30 space-y-3">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full premium-gradient flex items-center justify-center text-white font-bold shadow-md">
-            {username.charAt(0)}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold truncate text-foreground">{username}</p>
-            <p className="text-[10px] text-muted-foreground truncate">{userEmail}</p>
-          </div>
-        </div>
-
-        <div className="grid gap-1">
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all group w-full"
-          >
-            <div className="p-1.5 rounded-md bg-muted group-hover:bg-destructive/20 transition-colors">
-              <LogOut className="h-3.5 w-3.5" />
+    <div className="flex flex-col h-full bg-card border-r border-border/50 overflow-hidden">
+      <div className="flex flex-col h-full text-slate-100 bg-navy">
+        {/* Perfil Header na Sidebar */}
+        <div className="p-6 border-b border-white/10 mb-2 bg-black/20 overflow-hidden relative">
+          <div className="flex items-center gap-4">
+            <div className="shrink-0 relative group">
+              <AvatarUpload 
+                currentUrl={session?.avatar_url}
+                userId={session?.professorId || ""}
+                userName={username || "Professor"}
+                type="professor"
+                onUploadSuccess={(url) => {
+                  if (session) saveProfessorSession(session.professorId, session.role, url)
+                  refresh(false)
+                }}
+              />
             </div>
-            <span>Sair do Sistema</span>
-          </button>
+            <div>
+              <h2 className="text-sm font-bold tracking-tight text-white leading-tight truncate w-32">{username || "Professor"}</h2>
+              <p className="text-[9px] text-slate-400 uppercase tracking-widest font-bold">IETEO • {isMaster ? "Painel Master" : "Painel Docente"}</p>
+            </div>
+          </div>
+        </div>
 
+        <ScrollArea className="flex-1 min-h-0 px-4">
+          <div className="space-y-6 pb-6 pt-2">
+            {menuGroups.map((group) => {
+              const visibleItems = group.items.filter(i => !i.masterOnly || isMaster)
+              if (visibleItems.length === 0) return null
+              return (
+                <div key={group.title} className="space-y-1">
+                  <h3 className="px-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-2">
+                    {group.title}
+                  </h3>
+                  <div className="grid gap-1">
+                    {visibleItems.map(item => (
+                      <NavItem key={item.id} item={item} />
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </ScrollArea>
+
+        <div className="p-4 pb-8 mt-auto border-t border-white/10 bg-black/20 space-y-3">
+          <div className="flex items-center gap-3 px-3 py-2">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold truncate text-white">{username}</p>
+              <p className="text-[10px] text-slate-400 truncate">{userEmail}</p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start text-slate-400 hover:text-white hover:bg-white/10 h-9"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-4 w-4 mr-2" /> Sair do Sistema
+          </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={onLogout}
-            className="w-full justify-start text-[10px] text-muted-foreground/70 hover:text-foreground h-8"
+            className="w-full justify-start text-[10px] text-slate-500 hover:text-slate-300 h-8"
           >
-            <ArrowLeft className="h-3 w-3 mr-2" />
-            Voltar ao Portal
+            <ArrowLeft className="h-3 w-3 mr-2" /> Voltar ao Portal
           </Button>
         </div>
       </div>

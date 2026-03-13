@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import {
     LogOut, BookOpen, Clock, FileText, Loader2, ArrowLeft, Download,
     Library, CalendarDays, MessageSquare, KeyRound, CheckCircle2,
-    Eye, EyeOff, Users, Menu, X, ChevronRight, GraduationCap, Home, BookOpenCheck
+    Eye, EyeOff, Users, Menu, X, ChevronRight, GraduationCap, Home, BookOpenCheck, User, AlertCircle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,6 +15,7 @@ import { FinancialStudentView } from "@/components/financial-student-view"
 import { StudentChatView } from "@/components/student-chat-view"
 import { StudentGradesView } from "@/components/student-grades-view"
 import { StudentAssessmentView } from "@/components/student-assessment-view"
+import { AvatarUpload } from "@/components/avatar-upload"
 import { createClient } from "@/lib/supabase/client"
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -152,10 +153,16 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
     const SidebarContent = () => (
         <div className="flex flex-col h-[100dvh] text-slate-100 pt-[env(safe-area-inset-top,0px)]" style={{ backgroundColor: '#0f172a' }}>
             <div className="p-6 border-b border-white/20 mb-4 bg-black/40 backdrop-blur-md">
-                <div className="flex h-12 w-12 items-center justify-center mb-4 rounded-full shrink-0 overflow-hidden border border-white/20 shadow-md">
-                    <img src="/ieteo-logo.jpg" alt="Logo IETEO" className="h-full w-full object-cover" />
+                <div className="relative mb-4 group inline-block">
+                    <AvatarUpload 
+                        currentUrl={profile.avatar_url} 
+                        userId={profile.id} 
+                        userName={profile.name} 
+                        type="student" 
+                        onUploadSuccess={(url) => setProfile(prev => prev ? { ...prev, avatar_url: url } : null)}
+                    />
                 </div>
-                <h2 className="text-base font-bold tracking-tight text-white">IETEO</h2>
+                <h2 className="text-base font-bold tracking-tight text-white">{profile.name}</h2>
                 <p className="text-[10px] text-slate-300 uppercase tracking-[2px] font-bold">Portal do Aluno</p>
             </div>
 
@@ -274,6 +281,14 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                             <p className="text-[11px] text-muted-foreground mt-1 leading-none">Matrícula Ativa</p>
                         </div>
 
+                        <div className="h-10 w-10 rounded-full overflow-hidden border border-border shadow-sm flex-shrink-0 bg-muted flex items-center justify-center">
+                            {profile.avatar_url ? (
+                                <img src={profile.avatar_url} alt={profile.name} className="w-full h-full object-cover" />
+                            ) : (
+                                <User className="h-5 w-5 text-muted-foreground" />
+                            )}
+                        </div>
+
                         <Button variant="outline" size="sm" onClick={onBack} className="hidden sm:flex gap-2 text-xs font-bold rounded-xl border-accent/20 text-accent hover:bg-accent/10 h-10 px-4">
                             <BookOpen className="h-4 w-4" /> Sala de Provas
                         </Button>
@@ -312,7 +327,38 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                         <div className="w-full max-w-[1600px] mx-auto">
                             {tab === "overview" && (
                                 <div className="flex flex-col gap-8 animate-in fade-in duration-500">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    {/* Financial Alertas */}
+                    {charges.some(c => c.status === 'late') && (
+                        <div className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4 flex gap-4 items-center animate-pulse">
+                            <div className="bg-red-500 p-2 rounded-xl text-white">
+                                <AlertCircle className="h-6 w-6" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="font-black text-red-800 text-sm">ATENÇÃO: Mensalidade em Atraso!</p>
+                                <p className="text-xs text-red-700">Regularize sua situação financeira para evitar o bloqueio do seu acesso.</p>
+                            </div>
+                            <Button size="sm" onClick={() => setTab("financial")} className="bg-red-600 hover:bg-red-700 text-white font-bold h-9">
+                                Ver Contas
+                            </Button>
+                        </div>
+                    )}
+                    
+                    {charges.some(c => c.status === 'pending') && !charges.some(c => c.status === 'late') && (
+                         <div className="mb-6 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-4 items-center">
+                            <div className="bg-amber-500 p-2 rounded-xl text-white">
+                                <Clock className="h-6 w-6" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="font-bold text-amber-800 text-sm">Fatura Pendente</p>
+                                <p className="text-xs text-amber-700">Você possui uma fatura próxima do vencimento. Aproveite o desconto de 5% pagando em lote!</p>
+                            </div>
+                            <Button size="sm" variant="outline" onClick={() => setTab("financial")} className="border-amber-400 text-amber-700 hover:bg-amber-100 font-bold h-9">
+                                Pagar
+                            </Button>
+                        </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                         <div className="md:col-span-2 rounded-3xl p-8 text-white relative overflow-hidden shadow-2xl border border-white/10" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}>
                                             <div className="absolute top-0 right-0 w-64 h-64 rounded-full -mr-32 -mt-32 blur-3xl opacity-30" style={{ backgroundColor: '#b45309' }} />
                                             <div className="relative z-10 flex flex-col h-full justify-between gap-6">
