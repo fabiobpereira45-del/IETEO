@@ -1129,6 +1129,19 @@ export async function getStudentProfile(id: string): Promise<StudentProfile | nu
   return data as StudentProfile
 }
 
+export async function getClassmates(classId: string): Promise<StudentProfile[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('students')
+    .select('*')
+    .eq('class_id', classId)
+    .eq('status', 'active')
+    .order('name')
+  
+  if (error) return []
+  return data as StudentProfile[]
+}
+
 export async function getProfessorAccount(id: string): Promise<ProfessorAccount | null> {
   const supabase = createClient()
   const { data, error } = await supabase

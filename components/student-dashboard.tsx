@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button"
 import {
     type StudentSession, type StudentProfile, getStudentProfileAuth, logoutStudentAuth,
     type Semester, type Discipline, type StudyMaterial, type FinancialCharge, type ClassRoom, type ClassSchedule,
-    getSemesters, getDisciplines, getStudyMaterials, getFinancialCharges, getClasses, getClassSchedules
+    getSemesters, getDisciplines, getStudyMaterials, getFinancialCharges, getClasses, getClassSchedules,
+    getClassmates, getStudentGrades, type StudentGrade
 } from "@/lib/store"
 import { StudentAuth } from "@/components/student-auth"
 import { FinancialStudentView } from "@/components/financial-student-view"
@@ -56,6 +57,8 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
     const [charges, setCharges] = useState<FinancialCharge[]>([])
     const [myClass, setMyClass] = useState<ClassRoom | null>(null)
     const [mySchedules, setMySchedules] = useState<ClassSchedule[]>([])
+    const [classmates, setClassmates] = useState<StudentProfile[]>([])
+    const [officialGrades, setOfficialGrades] = useState<StudentGrade[]>([])
 
     const [dataLoading, setDataLoading] = useState(false)
 
@@ -77,6 +80,13 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                 const foundClass = cls.find(cl => cl.id === p.class_id)
                 if (foundClass) setMyClass(foundClass)
                 setMySchedules(sch.filter(sh => sh.classId === p.class_id))
+                
+                const [members, grades] = await Promise.all([
+                    getClassmates(p.class_id),
+                    getStudentGrades()
+                ])
+                setClassmates(members.filter(m => m.id !== p.id))
+                setOfficialGrades(grades.filter(g => g.studentIdentifier === p.cpf || g.studentIdentifier === p.id))
             }
             setDataLoading(false)
         }
@@ -430,35 +440,143 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                                                     </span>
                                                 </div>
                                             </div>
+
+                                            {/* Meus Colegas de Classe */}
+                                            {classmates.length > 0 && (
+                                                <div className="flex flex-col gap-2">
+                                                    <p className="text-[10px] font-black uppercase tracking-[2px] text-muted-foreground">Estudando comigo ({classmates.length})</p>
+                                                    <div className="flex -space-x-3 overflow-hidden">
+                                                        {classmates.slice(0, 5).map(c => (
+                                                            <div key={c.id} className="inline-block h-10 w-10 rounded-full ring-4 ring-white bg-slate-200 overflow-hidden" title={c.name}>
+                                                                {c.avatar_url ? (
+                                                                    <img src={c.avatar_url} alt={c.name} className="h-full w-full object-cover" />
+                                                                ) : (
+                                                                    <div className="h-full w-full flex items-center justify-center text-[10px] font-bold text-slate-500 uppercase">
+                                                                        {c.name.substring(0, 2)}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                        {classmates.length > 5 && (
+                                                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-800 text-[11px] font-bold text-white ring-4 ring-white">
+                                                                +{classmates.length - 5}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
-                                        <h4 className="text-xs font-bold uppercase tracking-[2px] text-muted-foreground mb-6 flex items-center gap-4">
-                                            <span>Quadro de Horários Semanais</span>
-                                            <div className="h-px bg-border flex-1" />
-                                        </h4>
-                                        {mySchedules.length === 0 ? (
-                                            <div className="text-center py-20 bg-slate-50 border border-border border-dashed rounded-3xl">
-                                                <CalendarDays className="h-10 w-10 text-muted-foreground opacity-20 mx-auto mb-4" />
-                                                <p className="text-muted-foreground font-medium italic">Nenhum horário cadastrado para esta turma ainda.</p>
+                                        <div className="space-y-12">
+                                            {/* Seção 1: Disciplina em Foco */}
+                                            <div>
+                                                <h4 className="text-xs font-bold uppercase tracking-[2px] text-amber-600 mb-6 flex items-center gap-4">
+                                                    <span>Disciplina em Foco (Mês Atual)</span>
+                                                    <div className="h-px bg-amber-200 flex-1" />
+                                                </h4>
+                                                
+                                                {mySchedules.filter(s => {
+                                                    const disc = disciplines.find(d => d.id === s.disciplineId)
+                                                    return disc?.description?.toLowerCase().includes(new Date().toLocaleString('pt-br', { month: 'long' }).toLowerCase())
+                                                }).length === 0 ? (
+                                                    <div className="p-8 bg-slate-50 border border-border border-dashed rounded-3xl text-center text-muted-foreground italic text-sm">
+                                                        Nenhuma disciplina específica destacada para este mês.
+                                                    </div>
+                                                ) : (
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                        {mySchedules.filter(s => {
+                                                            const disc = disciplines.find(d => d.id === s.disciplineId)
+                                                            return disc?.description?.toLowerCase().includes(new Date().toLocaleString('pt-br', { month: 'long' }).toLowerCase())
+                                                        }).map(sched => {
+                                                            const disc = disciplines.find(d => d.id === sched.disciplineId)
+                                                            return (
+                                                                <div key={sched.id} className="bg-gradient-to-br from-amber-50 to-white border-2 border-amber-200 p-8 rounded-3xl shadow-sm relative overflow-hidden group">
+                                                                    <div className="absolute top-0 right-0 bg-amber-500 text-white text-[10px] font-black px-4 py-1.5 uppercase rounded-bl-2xl tracking-widest animate-pulse">
+                                                                        Em Curso
+                                                                    </div>
+                                                                    <div className="flex items-start gap-4 mb-4">
+                                                                        <div className="h-12 w-12 bg-amber-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-amber-200">
+                                                                            <BookOpen className="h-6 w-6" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="text-2xl font-black text-foreground leading-tight">{disc?.name || "Disciplina"}</p>
+                                                                            <p className="text-sm text-amber-700 font-bold uppercase tracking-tighter mt-1">
+                                                                                {DAY_LABEL[sched.dayOfWeek] || sched.dayOfWeek} — {sched.timeStart} às {sched.timeEnd}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-3 text-muted-foreground font-medium bg-white/50 p-3 rounded-xl border border-amber-100">
+                                                                        <GraduationCap className="h-5 w-5 text-amber-500" />
+                                                                        <span>Prof. {sched.professorName || disc?.professorName || "Docente Central"}</span>
+                                                                    </div>
+                                                                </div>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                )}
                                             </div>
-                                        ) : (
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                                {mySchedules.map(sched => {
-                                                    const disc = disciplines.find(d => d.id === sched.disciplineId)
-                                                    return (
-                                                        <div key={sched.id} className="bg-white border border-border p-6 rounded-2xl shadow-sm hover:shadow-md hover:border-accent/30 transition-all group">
-                                                            <div className="bg-accent/10 text-accent font-bold px-3 py-1.5 rounded-lg text-xs inline-block mb-4 tracking-tighter uppercase group-hover:bg-accent group-hover:text-white transition-colors">
-                                                                {DAY_LABEL[sched.dayOfWeek] || sched.dayOfWeek} — {sched.timeStart} às {sched.timeEnd}
-                                                            </div>
-                                                            <p className="font-bold text-lg text-foreground mb-1 line-clamp-1 leading-tight" title={disc?.name}>{disc?.name || "Disciplina"}</p>
-                                                            <p className="text-sm text-muted-foreground font-medium flex items-center gap-2 mt-2">
-                                                                <GraduationCap className="h-4 w-4 opacity-40" /> Prof. {sched.professorName}
-                                                            </p>
-                                                        </div>
-                                                    )
-                                                })}
+
+                                            {/* Seção 2: Mural da Turma / Horários Completos */}
+                                            <div>
+                                                <h4 className="text-xs font-bold uppercase tracking-[2px] text-muted-foreground mb-6 flex items-center gap-4">
+                                                    <span>Histórico e Próximas Disciplinas</span>
+                                                    <div className="h-px bg-border flex-1" />
+                                                </h4>
+                                                
+                                                {mySchedules.length === 0 ? (
+                                                    <div className="text-center py-20 bg-slate-50 border border-border border-dashed rounded-3xl">
+                                                        <CalendarDays className="h-10 w-10 text-muted-foreground opacity-20 mx-auto mb-4" />
+                                                        <p className="text-muted-foreground font-medium italic">Nenhum horário cadastrado.</p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                        {mySchedules.map(sched => {
+                                                            const disc = disciplines.find(d => d.id === sched.disciplineId)
+                                                            const grade = officialGrades.find(g => g.disciplineId === sched.disciplineId)
+                                                            
+                                                            const totalGrade = grade ? (
+                                                                (grade.examGrade || 0) + (grade.worksGrade || 0) + (grade.seminarGrade || 0) + (grade.participationBonus || 0) + (grade.attendanceScore || 0)
+                                                            ) : 0
+                                                            const divisor = (grade?.customDivisor && grade.customDivisor > 0) ? grade.customDivisor : 1
+                                                            const average = grade ? totalGrade / divisor : null
+                                                            
+                                                            const isCurrentMonth = disc?.description?.toLowerCase().includes(new Date().toLocaleString('pt-br', { month: 'long' }).toLowerCase())
+                                                            if (isCurrentMonth) return null // Skip as it's already in the highlight section
+
+                                                            return (
+                                                                <div key={sched.id} className="bg-white border border-border p-6 rounded-2xl shadow-sm hover:shadow-md transition-all group opacity-85 hover:opacity-100 italic">
+                                                                    <div className="bg-slate-100 text-slate-500 font-bold px-3 py-1.5 rounded-lg text-xs inline-block mb-4 tracking-tighter uppercase">
+                                                                        {DAY_LABEL[sched.dayOfWeek] || sched.dayOfWeek}
+                                                                    </div>
+                                                                    <p className="font-bold text-lg text-foreground mb-1 line-clamp-1 leading-tight">{disc?.name || "Disciplina"}</p>
+                                                                    <p className="text-xs text-muted-foreground flex items-center gap-2 mt-2">
+                                                                        <GraduationCap className="h-3 w-3 opacity-40" /> {sched.professorName || disc?.professorName || "Docente Central"}
+                                                                    </p>
+
+                                                                    <div className="mt-4 pt-4 border-t border-dashed border-border/60">
+                                                                        {average !== null ? (
+                                                                            <div className="flex items-center justify-between">
+                                                                                <span className="text-[9px] uppercase font-bold text-muted-foreground tracking-widest">Status:</span>
+                                                                                <div className={cn(
+                                                                                    "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest",
+                                                                                    average >= 7 ? "bg-green-50 text-green-600 border border-green-100" : "bg-red-50 text-red-600 border border-red-100"
+                                                                                )}>
+                                                                                    {average >= 7 ? "Aprovado" : "Reprovado"}
+                                                                                </div>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="flex items-center justify-between opacity-40">
+                                                                                <span className="text-[9px] uppercase font-bold text-slate-400">Pendente</span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                )}
                                             </div>
-                                        )}
+                                        </div>
                                     </div>
                                 </div>
                             )}
