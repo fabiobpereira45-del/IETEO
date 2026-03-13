@@ -441,7 +441,7 @@ function ProfessorDisciplineManager({ professorId }: { professorId: string }) {
                 }`}
               >
                 <div className="flex-1 min-w-0 pr-2">
-                   <p className="text-sm font-semibold truncate text-foreground">{d.name}</p>
+                   <p className="text-sm font-semibold text-foreground leading-tight whitespace-normal">{d.name}</p>
                    {d.professorName && (
                      <p className="text-[10px] text-muted-foreground">Original: {d.professorName}</p>
                    )}

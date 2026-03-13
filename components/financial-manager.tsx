@@ -314,11 +314,11 @@ export function FinancialManager() {
                     <table className="w-full text-sm text-left">
                         <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-semibold">
                             <tr>
-                                <th className="px-4 py-3">Aluno</th>
-                                <th className="px-4 py-3">Matrícula</th>
-                                <th className="px-4 py-3">Situação</th>
-                                <th className="px-4 py-3">Saldo</th>
-                                <th className="px-4 py-3 text-right">Ações</th>
+                                <th className="px-4 py-3">ALUNO</th>
+                                <th className="px-4 py-3">MATRÍCULA</th>
+                                <th className="px-4 py-3">SITUAÇÃO</th>
+                                <th className="px-4 py-3">SALDO</th>
+                                <th className="px-4 py-3 text-right">AÇÕES</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
@@ -391,8 +391,10 @@ export function FinancialManager() {
                                         <td className="px-4 py-3">{getStatusBadge(c.status)}</td>
                                         <td className="px-4 py-3 text-right">
                                             <div className="flex justify-end gap-1">
-                                                {c.status !== 'paid' && (
+                                                {c.status !== 'paid' ? (
                                                     <Button size="sm" variant="ghost" className="h-8 text-[10px] text-green-700 hover:bg-green-50" onClick={() => handleStatusChange(c.id, 'paid')}>Baixar</Button>
+                                                ) : (
+                                                    <Button size="sm" variant="ghost" className="h-8 text-[10px] text-amber-700 hover:bg-amber-50" onClick={() => handleStatusChange(c.id, 'pending')}>Estornar</Button>
                                                 )}
                                                 <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={() => setDeleteId(c.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                                             </div>
