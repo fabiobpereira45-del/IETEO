@@ -267,14 +267,26 @@ function mapAssessment(row: any): Assessment {
 }
 function mapSubmission(row: any): StudentSubmission { return { id: row.id, assessmentId: row.assessment_id, studentName: row.student_name, studentEmail: row.student_email, answers: row.answers, score: row.score, totalPoints: row.total_points, percentage: row.percentage, submittedAt: row.submitted_at, timeElapsedSeconds: row.time_elapsed_seconds } }
 function mapProfessor(p: any): ProfessorAccount {
+  if (!p) {
+    return {
+      id: "unknown",
+      name: "Professor",
+      email: "",
+      passwordHash: "",
+      role: "professor",
+      avatar_url: null,
+      createdAt: new Date().toISOString(),
+      active: false
+    }
+  }
   return {
-    id: p.id,
-    name: p.name,
-    email: p.email,
-    passwordHash: p.password_hash,
-    role: p.role,
+    id: p.id || "unknown",
+    name: p.name || "Professor",
+    email: p.email || "",
+    passwordHash: p.password_hash || "",
+    role: p.role || "professor",
     avatar_url: p.avatar_url,
-    createdAt: p.created_at,
+    createdAt: p.created_at || new Date().toISOString(),
     active: p.active !== false // Default to true if null/undefined
   }
 }

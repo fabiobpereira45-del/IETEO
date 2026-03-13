@@ -795,7 +795,9 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
                 ...(password ? { password } : {})
             })
             if (session && up) {
-                saveProfessorSession(session.professorId, session.role, up.avatar_url || session.avatar_url)
+                // Safe access to prevent "undefined" crash
+                const newAvatar = up?.avatar_url || session?.avatar_url || null
+                saveProfessorSession(session.professorId, session.role, newAvatar)
             }
         }
 
