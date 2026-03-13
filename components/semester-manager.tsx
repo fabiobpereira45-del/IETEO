@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react"
 import {
     Plus, Pencil, Trash2, CalendarDays, BookOpen, AlertCircle, X,
-    Search, LogOut, ArrowRightCircle, ChevronUp, ChevronDown
+    Search, LogOut, ArrowRightCircle, ChevronUp, ChevronDown, Download
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,6 +25,7 @@ import {
     getDisciplines, updateDiscipline, addDiscipline, deleteDiscipline,
     getProfessorAccounts, MASTER_CREDENTIALS
 } from "@/lib/store"
+import { printCurriculumPDF } from "@/lib/pdf"
 
 // ─── Componente Removido: Dias e Turnos agora vivem no Quadro de Horários ─────
 
@@ -213,6 +214,9 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
                     </p>
                 </div>
                 <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => printCurriculumPDF(semesters, disciplines)} className="border-primary text-primary hover:bg-primary/10">
+                        <Download className="h-4 w-4 mr-2" /> Exportar PDF
+                    </Button>
                     <Button variant="outline" onClick={() => {
                         setEditingSem(null); setSemName(""); setSemOrder(String(semesters.length + 1)); setSelectedPoolDiscs(new Set()); setSemModal(true)
                     }}>

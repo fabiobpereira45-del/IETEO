@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CalendarDays, Save, CheckCircle2, User, Search, RefreshCw, AlertCircle } from "lucide-react"
+import { CalendarDays, Save, CheckCircle2, User, Search, RefreshCw, AlertCircle, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,6 +12,7 @@ import {
     type Discipline, type StudentProfile, type Attendance,
     getDisciplines, getStudents, getAttendances, saveAttendance, getProfessorSession, getDisciplinesByProfessor
 } from "@/lib/store"
+import { printAttendanceReportPDF } from "@/lib/pdf"
 
 export function AttendanceManager() {
     const [disciplines, setDisciplines] = useState<Discipline[]>([])
@@ -105,10 +106,25 @@ export function AttendanceManager() {
                     <h2 className="text-lg font-semibold text-foreground">Diário de Classe (Frequência)</h2>
                     <p className="text-sm text-muted-foreground">Registre a presença dos alunos nas suas disciplinas</p>
                 </div>
-                <Button onClick={handleSave} disabled={saving || selectedDisciplineId === "none" || !selectedDate}>
-                    {saving ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                    Salvar Frequência
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={async () => {
+                        if (selectedDisciplineId === "none") return alert("Selecione uma disciplina.")
+                        setLoading(true)
+                        try {
+                            const att = await getAttendances(selectedDisciplineId)
+                            const discName = disciplines.find(d => d.id === selectedDisciplineId)?.name || ""
+                            printAttendanceReportPDF(att, students, discName)
+                        } catch (e: any) { alert("Erro ao gerar PDF: " + e.message) }
+                        setLoading(false)
+                    }} className="border-primary text-primary hover:bg-primary/10">
+                        <Download className="h-4 w-4 mr-2" />
+                        Exportar PDF
+                    </Button>
+                    <Button onClick={handleSave} disabled={saving || selectedDisciplineId === "none" || !selectedDate}>
+                        {saving ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                        Salvar Frequência
+                    </Button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-muted/30 border border-border rounded-xl p-4">

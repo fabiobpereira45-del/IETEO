@@ -490,7 +490,33 @@ export async function getDisciplines(): Promise<Discipline[]> {
 
 export async function getDisciplinesByProfessor(professorId: string): Promise<Discipline[]> {
   const supabase = createClient()
-  const { data: links } = await supabase.from('professor_disciplines').select('discipline_id').eq('professor_id', professorId)
+  
+  // Try to find the professor account by the provided ID (UUID or custom ID)
+  // or by email if the ID is a UUID from auth
+  let internalId = professorId
+  
+  const { data: profAcc } = await supabase
+    .from('professor_accounts')
+    .select('id, email')
+    .or(`id.eq.${professorId},id.eq.${professorId}`) // This is a bit redundant but safe
+    .maybeSingle()
+
+  if (!profAcc) {
+     // If not found by ID, maybe it's an auth user UUID, let's try to find by email if we can get the email from auth
+     const { data: { user } } = await supabase.auth.getUser()
+     if (user && user.id === professorId) {
+       const { data: profByEmail } = await supabase
+         .from('professor_accounts')
+         .select('id')
+         .eq('email', user.email)
+         .maybeSingle()
+       if (profByEmail) internalId = profByEmail.id
+     }
+  } else {
+    internalId = profAcc.id
+  }
+
+  const { data: links } = await supabase.from('professor_disciplines').select('discipline_id').eq('professor_id', internalId)
   if (!links || links.length === 0) return []
   const ids = links.map(l => l.discipline_id)
   const { data } = await supabase.from('disciplines').select('*').in('id', ids)
@@ -500,6 +526,12 @@ export async function getDisciplinesByProfessor(professorId: string): Promise<Di
 export async function getProfessorDisciplines(professorId: string): Promise<ProfessorDiscipline[]> {
   const supabase = createClient()
   const { data } = await supabase.from('professor_disciplines').select('*').eq('professor_id', professorId)
+  return (data || []).map(mapProfessorDiscipline)
+}
+
+export async function getAllProfessorDisciplines(): Promise<ProfessorDiscipline[]> {
+  const supabase = createClient()
+  const { data } = await supabase.from('professor_disciplines').select('*')
   return (data || []).map(mapProfessorDiscipline)
 }
 
@@ -799,7 +831,7 @@ export async function addProfessorAccount(data: Omit<ProfessorAccount, "id" | "c
   await supabase.from('professor_accounts').insert(account)
   return mapProfessor(account)
 }
-export async function updateProfessorAccount(id: string, data: Partial<Pick<ProfessorAccount, "name" | "email" | "role" | "active">> & { password?: string }): Promise<void> {
+export async function updateProfessorAccount(id: string, data: Partial<Pick<ProfessorAccount, "name" | "email" | "role" | "active">> & { password?: string }): Promise<ProfessorAccount> {
   const updateData: any = {}
   if (data.name !== undefined) updateData.name = data.name
   if (data.email !== undefined) updateData.email = data.email.toLowerCase().trim()
@@ -807,7 +839,9 @@ export async function updateProfessorAccount(id: string, data: Partial<Pick<Prof
   if (data.active !== undefined) updateData.active = data.active
   if (data.password !== undefined) updateData.password_hash = hashPassword(data.password)
   const supabase = createClient()
-  await supabase.from('professor_accounts').update(updateData).eq('id', id)
+  const { data: updated, error } = await supabase.from('professor_accounts').update(updateData).eq('id', id).select().single()
+  if (error) throw new Error(error.message)
+  return mapProfessor(updated)
 }
 export async function deleteProfessorAccount(id: string): Promise<void> {
   const supabase = createClient()
@@ -1183,5 +1217,22 @@ export async function generateMonthlyCharges(studentId: string, monthlyFee: numb
   }
 
   const { error } = await supabase.from('financial_charges').insert(charges)
+  if (error) throw new Error(error.message)
+}
+
+export async function updateFinancialCharge(id: string, data: {
+  amount?: number
+  description?: string
+  dueDate?: string
+  status?: FinancialCharge["status"]
+}): Promise<void> {
+  const supabase = createClient()
+  const dbData: any = {}
+  if (data.amount !== undefined) dbData.amount = data.amount
+  if (data.description !== undefined) dbData.description = data.description
+  if (data.dueDate !== undefined) dbData.due_date = data.dueDate
+  if (data.status !== undefined) dbData.status = data.status
+
+  const { error } = await supabase.from('financial_charges').update(dbData).eq('id', id)
   if (error) throw new Error(error.message)
 }

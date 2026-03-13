@@ -507,7 +507,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                                                                     </div>
                                                                     <div className="flex items-center gap-3 text-muted-foreground font-medium bg-white/50 p-3 rounded-xl border border-amber-100">
                                                                         <GraduationCap className="h-5 w-5 text-amber-500" />
-                                                                        <span>Prof. {sched.professorName || disc?.professorName || "Docente Central"}</span>
+                                                                        <span>Prof. {sched.professorName && sched.professorName !== "Sem Professor" ? sched.professorName : (disc?.professorName || "Docente Central")}</span>
                                                                     </div>
                                                                 </div>
                                                             )
@@ -516,6 +516,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                                                 )}
                                             </div>
 
+                                            {/* Seção 2: Mural da Turma / Horários Completos */}
                                             {/* Seção 2: Mural da Turma / Horários Completos */}
                                             <div>
                                                 <h4 className="text-xs font-bold uppercase tracking-[2px] text-muted-foreground mb-6 flex items-center gap-4">
@@ -550,7 +551,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                                                                     </div>
                                                                     <p className="font-bold text-lg text-foreground mb-1 line-clamp-1 leading-tight">{disc?.name || "Disciplina"}</p>
                                                                     <p className="text-xs text-muted-foreground flex items-center gap-2 mt-2">
-                                                                        <GraduationCap className="h-3 w-3 opacity-40" /> {sched.professorName || disc?.professorName || "Docente Central"}
+                                                                        <GraduationCap className="h-3 w-3 opacity-40" /> {sched.professorName && sched.professorName !== "Sem Professor" ? sched.professorName : (disc?.professorName || "Docente Central")}
                                                                     </p>
 
                                                                     <div className="mt-4 pt-4 border-t border-dashed border-border/60">
@@ -575,6 +576,32 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                                                         })}
                                                     </div>
                                                 )}
+                                            </div>
+
+                                            {/* Seção 3: Colegas de Classe */}
+                                            <div>
+                                                <h4 className="text-xs font-bold uppercase tracking-[2px] text-muted-foreground mb-6 flex items-center gap-4">
+                                                    <span>Meus Colegas de Classe</span>
+                                                    <div className="h-px bg-border flex-1" />
+                                                </h4>
+                                                
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                                    {classmates.map(student => (
+                                                        <div key={student.id} className="bg-white border border-border p-4 rounded-2xl flex flex-col items-center text-center group hover:shadow-md transition-all">
+                                                            <div className="h-16 w-16 rounded-full bg-slate-100 mb-3 border-2 border-slate-50 overflow-hidden relative group-hover:scale-105 transition-transform">
+                                                                {student.avatar_url ? (
+                                                                    <img src={student.avatar_url} alt={student.name} className="h-full w-full object-cover" />
+                                                                ) : (
+                                                                    <div className="h-full w-full flex items-center justify-center text-lg font-bold text-slate-400">
+                                                                        {student.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-sm font-bold text-foreground line-clamp-1">{student.name}</p>
+                                                            <p className="text-[10px] text-muted-foreground uppercase font-semibold mt-1">Acadêmico</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

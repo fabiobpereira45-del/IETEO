@@ -342,7 +342,11 @@ export function ClassScheduleManager() {
                                 <SelectTrigger><SelectValue placeholder="Selecione a disciplina" /></SelectTrigger>
                                 <SelectContent>
                                     {disciplines.length === 0 && <SelectItem value="none" disabled>Nenhuma disciplina cadastrada</SelectItem>}
-                                    {disciplines.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                                    {disciplines.map(d => (
+                                        <SelectItem key={d.id} value={d.id} className="h-auto whitespace-normal">
+                                            {d.name}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -364,7 +368,11 @@ export function ClassScheduleManager() {
                                     <SelectContent>
                                         <SelectItem value="none">Outro / Sem atribuição</SelectItem>
                                         <SelectItem value={MASTER_CREDENTIALS.name}>{MASTER_CREDENTIALS.name}</SelectItem>
-                                        {professors.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
+                                        {professors.map(p => (
+                                            <SelectItem key={p.id} value={p.name} className="h-auto whitespace-normal">
+                                                {p.name}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>

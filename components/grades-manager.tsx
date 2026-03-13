@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import {
-    Plus, Pencil, Trash2, GraduationCap, Calculator, Loader2, Save, X
+    Plus, Pencil, Trash2, GraduationCap, Calculator, Loader2, Save, X, Download
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,6 +15,7 @@ import {
     StudentGrade, getStudentGrades, saveStudentGrade, deleteStudentGrade,
     StudentProfile, getStudents, Discipline, getDisciplines
 } from "@/lib/store"
+import { printGradesReportPDF } from "@/lib/pdf"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { Switch } from "@/components/ui/switch"
 
@@ -150,17 +151,25 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                         </h2>
                         <p className="text-muted-foreground mt-1">Gere as notas de alunos matriculados e alunos de prova pública.</p>
                     </div>
-                    <Button onClick={() => {
-                        setFormData({
-                            studentIdentifier: "", studentName: "", disciplineId: "", isPublic: false,
-                            examGrade: "", worksGrade: "", seminarGrade: "", participationBonus: "", attendanceScore: "", customDivisor: "4"
-                        })
-                        setIsCreating(true)
-                        setIsEditing(null)
-                    }}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Lançar Notas
-                    </Button>
+                    <div className="flex gap-2">
+                        {isMaster && (
+                            <Button variant="outline" onClick={() => printGradesReportPDF(grades, "Relatório Geral de Notas")} className="border-primary text-primary hover:bg-primary/10">
+                                <Download className="h-4 w-4 mr-2" />
+                                Exportar PDF
+                            </Button>
+                        )}
+                        <Button onClick={() => {
+                            setFormData({
+                                studentIdentifier: "", studentName: "", disciplineId: "", isPublic: false,
+                                examGrade: "", worksGrade: "", seminarGrade: "", participationBonus: "", attendanceScore: "", customDivisor: "4"
+                            })
+                            setIsCreating(true)
+                            setIsEditing(null)
+                        }}>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Lançar Notas
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Lançamento / Edição de Notas */}

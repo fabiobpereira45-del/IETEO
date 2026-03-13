@@ -794,8 +794,8 @@ function SettingsTab({ assessments, onRefresh, onLogout }: {
                 email: email.trim(),
                 ...(password ? { password } : {})
             })
-            if (session) {
-                saveProfessorSession(session.professorId, session.role, up.avatar_url)
+            if (session && up) {
+                saveProfessorSession(session.professorId, session.role, up.avatar_url || session.avatar_url)
             }
         }
 

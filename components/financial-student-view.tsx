@@ -108,9 +108,9 @@ export function FinancialStudentView({ studentId }: Props) {
                         </div>
 
                         <div className="bg-muted/40 rounded-xl p-4 text-center mb-6 flex flex-col items-center">
-                            {hasDiscount && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold mb-1">5% de Desconto Aplicado!</span>}
-                            <span className="text-3xl font-black text-foreground">R$ {finalAmount.toFixed(2)}</span>
-                            {hasDiscount && <span className="text-xs text-muted-foreground line-through opacity-70">R$ {totalSelectedAmount.toFixed(2)}</span>}
+                            {hasDiscount && <span className="text-[10px] bg-green-100 text-green-700 px-3 py-1 rounded-full font-black mb-2 uppercase tracking-tight">Economia de R$ {(totalSelectedAmount - finalAmount).toFixed(2)} acumulada!</span>}
+                            <span className="text-3xl font-black text-foreground tracking-tight">R$ {finalAmount.toFixed(2)}</span>
+                            {hasDiscount && <span className="text-xs text-muted-foreground line-through opacity-70 mt-1 italic font-medium">R$ {totalSelectedAmount.toFixed(2)} sem desconto</span>}
                         </div>
 
                         <div className="space-y-4">
@@ -297,7 +297,14 @@ export function FinancialStudentView({ studentId }: Props) {
                         </div>
                         <div>
                             <p className="text-[10px] text-muted-foreground font-black uppercase tracking-tighter">Total a Pagar</p>
-                            <p className="text-2xl font-black text-foreground leading-none">R$ {finalAmount.toFixed(2)}</p>
+                            <div className="flex items-baseline gap-2">
+                                <p className="text-2xl font-black text-foreground leading-none">R$ {finalAmount.toFixed(2)}</p>
+                                {hasDiscount && (
+                                    <p className="text-[11px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full animate-bounce">
+                                        Economize R$ {(totalSelectedAmount - finalAmount).toFixed(2)}!
+                                    </p>
+                                )}
+                            </div>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">

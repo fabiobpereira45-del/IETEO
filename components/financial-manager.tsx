@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { DollarSign, Plus, Eye, CheckCircle2, AlertCircle, Clock, Trash2, Zap, Loader2 } from "lucide-react"
+import { DollarSign, Plus, Eye, CheckCircle2, AlertCircle, Clock, Trash2, Zap, Loader2, Download, FileText, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -17,10 +17,11 @@ import {
 } from "@/components/ui/alert-dialog"
 import {
     type FinancialCharge, type StudentProfile, type FinancialSettings, type Assessment,
-    getFinancialCharges, addFinancialCharge, updateFinancialChargeStatus, deleteFinancialCharge,
+    getFinancialCharges, addFinancialCharge, updateFinancialChargeStatus, deleteFinancialCharge, updateFinancialCharge,
     getFinancialSettings, updateFinancialSettings, getAssessments, triggerN8nWebhook,
     generateMonthlyCharges
 } from "@/lib/store"
+import { printFinancialReportPDF } from "@/lib/pdf"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { createClient } from "@/lib/supabase/client"
 
@@ -45,6 +46,18 @@ export function FinancialManager() {
     const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null)
     const [isGenerating, setIsGenerating] = useState(false)
 
+    // Edit Charge State
+    const [editingCharge, setEditingCharge] = useState<FinancialCharge | null>(null)
+    const [editAmount, setEditAmount] = useState("")
+    const [editDescription, setEditDescription] = useState("")
+    const [editDueDate, setEditDueDate] = useState("")
+
+    // Filter state
+    const [searchName, setSearchName] = useState("")
+    const [searchEnrollment, setSearchEnrollment] = useState("")
+    const [searchClass, setSearchClass] = useState("all")
+    const [allClasses, setAllClasses] = useState<any[]>([])
+
     const supabase = createClient()
 
     async function fetchAllStudents() {
@@ -54,14 +67,16 @@ export function FinancialManager() {
 
     async function load() {
         setLoading(true)
-        const [c, s, config] = await Promise.all([
+        const [c, s, config, { data: classesData }] = await Promise.all([
             getFinancialCharges(),
             fetchAllStudents(),
-            getFinancialSettings()
+            getFinancialSettings(),
+            supabase.from('classes').select('*').order('name')
         ])
         setCharges(c)
         setStudents(s)
         setSettings(config)
+        setAllClasses(classesData || [])
         setLoading(false)
     }
 
@@ -238,6 +253,28 @@ export function FinancialManager() {
         }
     }
 
+    async function handleEditCharge() {
+        if (!editingCharge || !editAmount || !editDueDate || !editDescription.trim()) {
+            alert("Preencha todos os campos corretamente.")
+            return
+        }
+
+        setSaving(true)
+        try {
+            await updateFinancialCharge(editingCharge.id, {
+                amount: parseFloat(editAmount),
+                description: editDescription.trim(),
+                dueDate: editDueDate
+            })
+            setEditingCharge(null)
+            load()
+        } catch (e: any) {
+            alert("Erro ao editar cobrança: " + e.message)
+        } finally {
+            setSaving(false)
+        }
+    }
+
     async function handleSaveSettings() {
         if (!settings) return
         setSaving(true)
@@ -292,6 +329,10 @@ export function FinancialManager() {
                         {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}
                         Disparar Lembretes
                     </Button>
+                    <Button variant="outline" onClick={() => printFinancialReportPDF(charges, students)} className="border-primary text-primary hover:bg-primary/10">
+                        <Download className="h-4 w-4 mr-2" />
+                        Exportar PDF
+                    </Button>
                     <Button onClick={() => {
                         setStudentId("")
                         setType("monthly")
@@ -302,6 +343,67 @@ export function FinancialManager() {
                     }}>
                         <Plus className="h-4 w-4 mr-2" />
                         Nova Cobrança
+                    </Button>
+                </div>
+            </div>
+
+            {/* Filters */}
+            <div className="bg-card border border-border shadow-sm rounded-xl p-4 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Nome do Aluno</Label>
+                    <Input 
+                        placeholder="Buscar por nome..." 
+                        value={searchName} 
+                        onChange={e => setSearchName(e.target.value)}
+                        className="h-9"
+                    />
+                </div>
+                <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Matrícula</Label>
+                    <Input 
+                        placeholder="Buscar matrícula..." 
+                        value={searchEnrollment} 
+                        onChange={e => setSearchEnrollment(e.target.value)}
+                        className="h-9"
+                    />
+                </div>
+                <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Turma</Label>
+                    <Select value={searchClass} onValueChange={setSearchClass}>
+                        <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Todas as Turmas" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todas as Turmas</SelectItem>
+                            {allClasses.map(c => (
+                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="flex gap-2">
+                    <Button variant="outline" className="h-9 flex-1" onClick={() => {
+                        setSearchName("")
+                        setSearchEnrollment("")
+                        setSearchClass("all")
+                    }}>
+                        Limpar
+                    </Button>
+                    <Button 
+                        variant="outline" 
+                        className="h-9 flex-1 border-primary text-primary hover:bg-primary/5"
+                        onClick={() => {
+                            const filteredStudents = students.filter(s => {
+                                const matchName = s.name.toLowerCase().includes(searchName.toLowerCase())
+                                const matchEnroll = s.enrollment_number.toLowerCase().includes(searchEnrollment.toLowerCase())
+                                const matchClass = searchClass === "all" || s.class_id === searchClass
+                                return matchName && matchEnroll && matchClass
+                            })
+                            const filteredCharges = charges.filter(c => filteredStudents.some(s => s.id === c.studentId))
+                            printFinancialReportPDF(filteredCharges, filteredStudents)
+                        }}
+                    >
+                        <Download className="h-4 w-4 mr-2" /> PDF Filtro
                     </Button>
                 </div>
             </div>
@@ -322,32 +424,43 @@ export function FinancialManager() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                            {students.map(s => {
-                                const studentCharges = charges.filter(c => c.studentId === s.id)
-                                const pending = studentCharges.filter(c => c.status === 'pending' || c.status === 'late')
-                                const totalPending = pending.reduce((acc, curr) => acc + curr.amount, 0)
-                                return (
-                                    <tr key={s.id} className="hover:bg-muted/30 transition-colors">
-                                        <td className="px-4 py-3 font-medium text-foreground">{s.name}</td>
-                                        <td className="px-4 py-3 text-muted-foreground">{s.enrollment_number}</td>
-                                        <td className="px-4 py-3">
-                                            {pending.some(c => c.status === 'late') ? (
-                                                <span className="text-destructive font-bold flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Inadimplente</span>
-                                            ) : pending.length > 0 ? (
-                                                <span className="text-amber-600 font-bold flex items-center gap-1"><Clock className="h-3 w-3" /> Pendente</span>
-                                            ) : (
-                                                <span className="text-green-600 font-bold flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Em dia</span>
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-3 font-bold">R$ {totalPending.toFixed(2)}</td>
-                                        <td className="px-4 py-3 text-right">
-                                            <Button size="sm" variant="ghost" className="text-primary gap-2" onClick={() => setSelectedStudent(s)}>
-                                                <Eye className="h-4 w-4" /> Ver
-                                            </Button>
-                                        </td>
-                                    </tr>
-                                )
-                            })}
+                            {students
+                                .filter(s => {
+                                    const matchName = s.name.toLowerCase().includes(searchName.toLowerCase())
+                                    const matchEnroll = s.enrollment_number.toLowerCase().includes(searchEnrollment.toLowerCase())
+                                    const matchClass = searchClass === "all" || s.class_id === searchClass
+                                    return matchName && matchEnroll && matchClass
+                                })
+                                .map(s => {
+                                    const studentCharges = charges.filter(c => c.studentId === s.id)
+                                    const pending = studentCharges.filter(c => c.status === 'pending' || c.status === 'late')
+                                    const totalPending = pending.reduce((acc, curr) => acc + curr.amount, 0)
+                                    const turmaName = allClasses.find(c => c.id === s.class_id)?.name || "-"
+                                    return (
+                                        <tr key={s.id} className="hover:bg-muted/30 transition-colors">
+                                            <td className="px-4 py-3">
+                                                <div className="font-bold text-foreground">{s.name}</div>
+                                                <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{turmaName}</div>
+                                            </td>
+                                            <td className="px-4 py-3 text-muted-foreground">{s.enrollment_number}</td>
+                                            <td className="px-4 py-3">
+                                                {pending.some(c => c.status === 'late') ? (
+                                                    <span className="text-destructive font-bold flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Inadimplente</span>
+                                                ) : pending.length > 0 ? (
+                                                    <span className="text-amber-600 font-bold flex items-center gap-1"><Clock className="h-3 w-3" /> Pendente</span>
+                                                ) : (
+                                                    <span className="text-green-600 font-bold flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Em dia</span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 font-bold">R$ {totalPending.toFixed(2)}</td>
+                                            <td className="px-4 py-3 text-right">
+                                                <Button size="sm" variant="ghost" className="text-primary gap-2 hover:bg-primary/10" onClick={() => setSelectedStudent(s)}>
+                                                    <Eye className="h-4 w-4" /> Ver Histórico
+                                                </Button>
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
                         </tbody>
                     </table>
                 </div>
@@ -355,54 +468,71 @@ export function FinancialManager() {
 
             {/* Student Detail Modal */}
             <Dialog open={!!selectedStudent} onOpenChange={(o) => !o && setSelectedStudent(null)}>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-                    <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b">
-                        <div>
-                            <DialogTitle className="text-xl font-serif">{selectedStudent?.name}</DialogTitle>
-                            <p className="text-sm text-muted-foreground">{selectedStudent?.enrollment_number}</p>
-                        </div>
-                        <div className="flex gap-2">
-                             <Button size="sm" variant="outline" className="h-8 text-xs font-bold border-accent text-accent hover:bg-accent/10" 
-                                onClick={() => handleGeneratePlan(selectedStudent!.id)}
-                                disabled={isGenerating}>
-                                {isGenerating ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <DollarSign className="h-3 w-3 mr-2" />}
-                                Gerar Carnê 18x
-                             </Button>
+                <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden flex flex-col p-0">
+                    <DialogHeader className="p-6 pb-4 border-b bg-muted/30">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div>
+                                <DialogTitle className="text-xl font-serif">{selectedStudent?.name}</DialogTitle>
+                                <p className="text-sm text-muted-foreground">{selectedStudent?.enrollment_number}</p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <Button size="sm" variant="outline" className="h-9 text-xs font-bold border-primary text-primary hover:bg-primary/10"
+                                    onClick={() => {
+                                        const studentCharges = charges.filter(c => c.studentId === selectedStudent?.id)
+                                        printFinancialReportPDF(studentCharges, [selectedStudent!])
+                                    }}>
+                                    <FileText className="h-4 w-4 mr-2" /> PDF Extrato
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-9 text-xs font-bold border-accent text-accent hover:bg-accent/10" 
+                                    onClick={() => handleGeneratePlan(selectedStudent!.id)}
+                                    disabled={isGenerating}>
+                                    {isGenerating ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <DollarSign className="h-3 w-3 mr-2" />}
+                                    Gerar Carnê 18x
+                                </Button>
+                            </div>
                         </div>
                     </DialogHeader>
 
-                    <ScrollArea className="flex-1 -mx-6 px-6 py-4">
-                        <table className="w-full text-sm text-left">
-                            <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-semibold">
-                                <tr>
-                                    <th className="px-4 py-3">Descrição</th>
-                                    <th className="px-4 py-3">Vencimento</th>
-                                    <th className="px-4 py-3">Valor</th>
-                                    <th className="px-4 py-3">Status</th>
-                                    <th className="px-4 py-3 text-right">Ação</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border">
-                                {charges.filter(c => c.studentId === selectedStudent?.id).sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()).map(c => (
-                                    <tr key={c.id}>
-                                        <td className="px-4 py-3 font-medium">{c.description}</td>
-                                        <td className="px-4 py-3 text-muted-foreground">{new Date(c.dueDate).toLocaleDateString("pt-BR")}</td>
-                                        <td className="px-4 py-3 font-bold">R$ {c.amount.toFixed(2)}</td>
-                                        <td className="px-4 py-3">{getStatusBadge(c.status)}</td>
-                                        <td className="px-4 py-3 text-right">
-                                            <div className="flex justify-end gap-1">
-                                                {c.status !== 'paid' ? (
-                                                    <Button size="sm" variant="ghost" className="h-8 text-[10px] text-green-700 hover:bg-green-50" onClick={() => handleStatusChange(c.id, 'paid')}>Baixar</Button>
-                                                ) : (
-                                                    <Button size="sm" variant="ghost" className="h-8 text-[10px] text-amber-700 hover:bg-amber-50" onClick={() => handleStatusChange(c.id, 'pending')}>Estornar</Button>
-                                                )}
-                                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive" onClick={() => setDeleteId(c.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                                            </div>
-                                        </td>
+                    <ScrollArea className="flex-1 px-6 py-4">
+                        <div className="min-w-full overflow-x-auto pb-4">
+                            <table className="w-full text-sm text-left border-collapse table-fixed">
+                                <thead className="bg-muted/50 text-muted-foreground text-[10px] uppercase font-bold tracking-wider sticky top-0">
+                                    <tr>
+                                        <th className="px-4 py-3 first:rounded-l-lg w-[40%]">Descrição</th>
+                                        <th className="px-4 py-3 w-[15%] text-center">Vencimento</th>
+                                        <th className="px-4 py-3 w-[15%] text-center">Valor</th>
+                                        <th className="px-4 py-3 w-[15%] text-center">Status</th>
+                                        <th className="px-4 py-3 text-right last:rounded-r-lg w-[15%]">Ação</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-border">
+                                    {charges.filter(c => c.studentId === selectedStudent?.id).sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()).map(c => (
+                                        <tr key={c.id} className="hover:bg-muted/30 transition-colors">
+                                            <td className="px-4 py-3 font-medium text-foreground truncate" title={c.description}>{c.description}</td>
+                                            <td className="px-4 py-3 text-muted-foreground text-center">{new Date(c.dueDate).toLocaleDateString("pt-BR")}</td>
+                                            <td className="px-4 py-3 font-bold text-foreground text-center">R$ {c.amount.toFixed(2)}</td>
+                                            <td className="px-4 py-3 text-center">{getStatusBadge(c.status)}</td>
+                                            <td className="px-4 py-3 text-right">
+                                                <div className="flex justify-end gap-1">
+                                                    {c.status !== 'paid' ? (
+                                                        <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600 hover:bg-green-50" onClick={() => handleStatusChange(c.id, 'paid')} title="Marcar como Pago"><CheckCircle2 className="h-4 w-4" /></Button>
+                                                    ) : (
+                                                        <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600 hover:bg-amber-50" onClick={() => handleStatusChange(c.id, 'pending')} title="Estornar"><Clock className="h-4 w-4" /></Button>
+                                                    )}
+                                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-blue-600 hover:bg-blue-50" onClick={() => {
+                                                        setEditingCharge(c)
+                                                        setEditAmount(c.amount.toString())
+                                                        setEditDescription(c.description)
+                                                        setEditDueDate(c.dueDate)
+                                                    }} title="Editar"><Pencil className="h-4 w-4" /></Button>
+                                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:bg-destructive/10" title="Excluir" onClick={() => setDeleteId(c.id)}><Trash2 className="h-4 w-4" /></Button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </ScrollArea>
                 </DialogContent>
             </Dialog>
@@ -419,7 +549,9 @@ export function FinancialManager() {
                                 <SelectTrigger><SelectValue placeholder="Selecione um aluno" /></SelectTrigger>
                                 <SelectContent>
                                     {students.map(s => (
-                                        <SelectItem key={s.id} value={s.id}>{s.name} ({s.enrollment_number})</SelectItem>
+                                        <SelectItem key={s.id} value={s.id} className="h-auto whitespace-normal">
+                                            {s.name} ({s.enrollment_number})
+                                        </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -530,6 +662,47 @@ export function FinancialManager() {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setSettingsModal(false)}>Cancelar</Button>
                         <Button onClick={handleSaveSettings} disabled={saving}>Salvar Configurações</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Charge Dialog */}
+            <Dialog open={!!editingCharge} onOpenChange={(o) => !o && setEditingCharge(null)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Editar Cobrança</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-4 py-2">
+                        <div className="flex flex-col gap-1.5">
+                            <Label>Descrição</Label>
+                            <Input
+                                value={editDescription}
+                                onChange={e => setEditDescription(e.target.value)}
+                            />
+                        </div>
+                        <div className="flex gap-4">
+                            <div className="flex flex-col gap-1.5 flex-1">
+                                <Label>Valor (R$)</Label>
+                                <Input
+                                    type="number"
+                                    step="0.01"
+                                    value={editAmount}
+                                    onChange={e => setEditAmount(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1.5 flex-1">
+                                <Label>Vencimento</Label>
+                                <Input
+                                    type="date"
+                                    value={editDueDate}
+                                    onChange={e => setEditDueDate(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditingCharge(null)}>Cancelar</Button>
+                        <Button onClick={handleEditCharge} disabled={saving}>Salvar Alterações</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

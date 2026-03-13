@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import {
-  Plus, Pencil, Trash2, ShieldCheck, User, Eye, EyeOff, X, Check, CheckCircle2, XCircle,
+  Plus, Pencil, Trash2, ShieldCheck, User, Eye, EyeOff, X, Check, CheckCircle2, XCircle, Download,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,13 +14,14 @@ import {
 import {
   type ProfessorAccount, type Discipline, type ProfessorDiscipline,
   getProfessorAccounts, addProfessorAccount, updateProfessorAccount, deleteProfessorAccount,
-  getDisciplines, getProfessorDisciplines, linkProfessorToDiscipline, unlinkProfessorFromDiscipline,
+  getDisciplines, getProfessorDisciplines, getAllProfessorDisciplines, linkProfessorToDiscipline, unlinkProfessorFromDiscipline,
   MASTER_CREDENTIALS,
 } from "@/lib/store"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
 import { BookOpen, Link2, Unlink } from "lucide-react"
+import { printProfessorsPDF } from "@/lib/pdf"
 
 // ─── Form ─────────────────────────────────────────────────────────────────────
 
@@ -240,14 +241,21 @@ export function ProfessorManager() {
       <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <User className="h-4 w-4 text-muted-foreground" />
             Professores cadastrados
           </h3>
-          {!adding && (
-            <Button size="sm" onClick={() => setAdding(true)}>
-              <Plus className="h-4 w-4 mr-1.5" /> Adicionar professor
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={async () => {
+              const [p, a, d] = await Promise.all([getProfessorAccounts(), getAllProfessorDisciplines(), getDisciplines()])
+              printProfessorsPDF(p, a, d)
+            }} className="border-primary text-primary hover:bg-primary/10">
+              <Download className="h-4 w-4 mr-1.5" /> Exportar PDF
             </Button>
-          )}
+            {!adding && (
+              <Button size="sm" onClick={() => setAdding(true)}>
+                <Plus className="h-4 w-4 mr-1.5" /> Adicionar professor
+              </Button>
+            )}
+          </div>
         </div>
 
         {adding && (
@@ -441,7 +449,7 @@ function ProfessorDisciplineManager({ professorId }: { professorId: string }) {
                 }`}
               >
                 <div className="flex-1 min-w-0 pr-2">
-                   <p className="text-sm font-semibold text-foreground leading-tight whitespace-normal">{d.name}</p>
+                   <p className="text-sm font-semibold text-foreground leading-tight whitespace-normal break-words">{d.name}</p>
                    {d.professorName && (
                      <p className="text-[10px] text-muted-foreground">Original: {d.professorName}</p>
                    )}
