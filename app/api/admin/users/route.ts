@@ -33,6 +33,52 @@ export async function POST(request: Request) {
     }
 }
 
+export async function PATCH(request: Request) {
+    try {
+        const { id, email, password, name, role } = await request.json()
+
+        if (!id && !email) {
+            return NextResponse.json({ error: "User ID or Email is required" }, { status: 400 })
+        }
+
+        const supabase = createAdminClient()
+        let targetId = id
+
+        if (!targetId && email) {
+            const { data: { users }, error } = await supabase.auth.admin.listUsers()
+            if (error) throw error
+            const user = users.find(u => u.email === email)
+            if (user) {
+                targetId = user.id
+            } else {
+                return NextResponse.json({ error: "User not found in Auth" }, { status: 404 })
+            }
+        }
+
+        const updateData: any = {}
+        if (password) updateData.password = password
+        if (name || role) {
+            updateData.user_metadata = {}
+            if (name) updateData.user_metadata.full_name = name
+            if (role) updateData.user_metadata.role = role
+        }
+
+        const { data: authData, error: authError } = await supabase.auth.admin.updateUserById(
+            targetId,
+            updateData
+        )
+
+        if (authError) {
+            return NextResponse.json({ error: authError.message }, { status: 400 })
+        }
+
+        return NextResponse.json({ user: authData.user })
+
+    } catch (err: any) {
+        return NextResponse.json({ error: err.message }, { status: 500 })
+    }
+}
+
 export async function DELETE(request: Request) {
     try {
         const { searchParams } = new URL(request.url)

@@ -280,13 +280,13 @@ function mapProfessor(p: any): ProfessorAccount {
 }
 function mapFinancialSettings(row: any): FinancialSettings { return { id: row.id, enrollmentFee: Number(row.enrollment_fee), monthlyFee: Number(row.monthly_fee), secondCallFee: Number(row.second_call_fee), finalExamFee: Number(row.final_exam_fee), totalMonths: Number(row.total_months), creditCardUrl: row.credit_card_url || undefined, pixKey: row.pix_key || undefined, updatedAt: row.updated_at } }
 function mapFinancialCharge(row: any): FinancialCharge { return { id: row.id, studentId: row.student_id, type: row.type, description: row.description, amount: Number(row.amount), dueDate: row.due_date, status: row.status, paymentDate: row.payment_date || undefined, pixQrcode: row.pix_qrcode || undefined, pixCopyPaste: row.pix_copy_paste || undefined, createdAt: row.created_at } }
-function mapStudentProfile(row: any): StudentProfile { return { id: row.id, auth_user_id: row.auth_user_id, name: row.name, cpf: row.cpf, enrollment_number: row.enrollment_number, phone: row.phone || undefined, address: row.address || undefined, church: row.church || undefined, pastor_name: row.pastor_name || undefined, class_id: row.class_id || undefined, payment_status: row.payment_status || undefined, status: row.status || 'pending', created_at: row.created_at } }
+function mapStudentProfile(row: any): StudentProfile { return { id: row.id, auth_user_id: row.auth_user_id, name: row.name, cpf: row.cpf, enrollment_number: row.enrollment_number, phone: row.phone || undefined, address: row.address || undefined, church: row.church || undefined, pastor_name: row.pastor_name || undefined, class_id: row.class_id || undefined, payment_status: row.payment_status || undefined, avatar_url: row.avatar_url || null, status: row.status || 'pending', created_at: row.created_at } }
 function mapChatMessage(row: any): ChatMessage { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, message: row.message, isFromStudent: row.is_from_student, read: row.read, createdAt: row.created_at } }
 function mapAttendance(row: any): Attendance { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, date: row.date, isPresent: row.is_present, createdAt: row.created_at } }
 function mapClassRoom(row: any): ClassRoom { return { id: row.id, name: row.name, shift: row.shift as ClassRoom['shift'], dayOfWeek: row.day_of_week || undefined, maxStudents: Number(row.max_students), studentCount: row.student_count !== undefined ? Number(row.student_count) : undefined, createdAt: row.created_at } }
 function mapClassSchedule(row: any): ClassSchedule { return { id: row.id, classId: row.class_id, disciplineId: row.discipline_id, professorName: row.professor_name, dayOfWeek: row.day_of_week, timeStart: row.time_start, timeEnd: row.time_end, lessonsCount: Number(row.lessons_count || 1), workload: Number(row.workload || 0), createdAt: row.created_at } }
 function mapStudentGrade(row: any): StudentGrade { return { id: row.id, studentIdentifier: row.student_identifier, studentName: row.student_name, disciplineId: row.discipline_id || undefined, isPublic: row.is_public, examGrade: Number(row.exam_grade), worksGrade: Number(row.works_grade), seminarGrade: Number(row.seminar_grade), participationBonus: Number(row.participation_bonus), attendanceScore: Number(row.attendance_score), customDivisor: Number(row.custom_divisor), createdAt: row.created_at } }
-function mapBoardMember(row: any): BoardMember { return { id: row.id, name: row.name, role: row.role, category: row.category, createdAt: row.created_at } }
+function mapBoardMember(row: any): BoardMember { return { id: row.id, name: row.name, role: row.role, category: row.category, avatar_url: row.avatar_url, createdAt: row.created_at } }
 function mapProfessorDiscipline(row: any): ProfessorDiscipline { return { id: row.id, professorId: row.professor_id, disciplineId: row.discipline_id, createdAt: row.created_at } }
 
 // ─── Async Supabase Operations ───────────────────────────────────────────────
@@ -832,13 +832,69 @@ export async function addProfessorAccount(data: Omit<ProfessorAccount, "id" | "c
   return mapProfessor(account)
 }
 export async function updateProfessorAccount(id: string, data: Partial<Pick<ProfessorAccount, "name" | "email" | "role" | "active">> & { password?: string }): Promise<ProfessorAccount> {
+  const supabase = createClient()
+  
+  if (id === "master") {
+    // For master account, we use upsert to ensure the record exists
+    const { data: dbData, error: dbError } = await supabase
+      .from('professor_accounts')
+      .upsert({
+        name: data.name,
+        email: MASTER_CREDENTIALS.email,
+        password_hash: data.password ? hashPassword(data.password) : undefined,
+        role: "master",
+        active: true
+      }, { onConflict: 'email' })
+      .select()
+      .single()
+    
+    // Also sync with Auth via admin API
+    await fetch("/api/admin/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: MASTER_CREDENTIALS.email,
+        password: data.password,
+        name: data.name
+      })
+    })
+
+    if (dbError) throw new Error(dbError.message)
+    return mapProfessor(dbData)
+  }
+
+  // Get current email if not provided, to find user in Auth
+  let syncEmail = data.email
+  if (!syncEmail) {
+    const { data: current } = await supabase.from('professor_accounts').select('email').eq('id', id).single()
+    if (current) syncEmail = current.email
+  }
+
+  // Sync with Supabase Auth if password, name, or role is updated
+  if (syncEmail && (data.password || data.name || data.role)) {
+    try {
+      await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: syncEmail,
+          password: data.password,
+          name: data.name,
+          role: data.role
+        })
+      })
+    } catch (err) {
+      console.error("Error syncing with Auth:", err)
+    }
+  }
+
   const updateData: any = {}
   if (data.name !== undefined) updateData.name = data.name
   if (data.email !== undefined) updateData.email = data.email.toLowerCase().trim()
   if (data.role !== undefined) updateData.role = data.role
   if (data.active !== undefined) updateData.active = data.active
   if (data.password !== undefined) updateData.password_hash = hashPassword(data.password)
-  const supabase = createClient()
+  
   const { data: updated, error } = await supabase.from('professor_accounts').update(updateData).eq('id', id).select().single()
   if (error) throw new Error(error.message)
   return mapProfessor(updated)
@@ -939,8 +995,30 @@ export async function updateStudent(id: string, data: {
   class_id?: string | null
   payment_status?: string
   status?: "pending" | "active" | "inactive"
+  password?: string
 }): Promise<void> {
   const supabase = createClient()
+
+  // Sync with Supabase Auth if password is provided
+  if (data.password || data.name) {
+    try {
+      const { data: stu } = await supabase.from('students').select('auth_user_id').eq('id', id).single()
+      if (stu?.auth_user_id) {
+        await fetch("/api/admin/users", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: stu.auth_user_id,
+            password: data.password,
+            name: data.name
+          })
+        })
+      }
+    } catch (err) {
+      console.error("Error syncing student with Auth:", err)
+    }
+  }
+
   const updateData: any = {}
   if (data.name !== undefined) updateData.name = data.name
   if (data.cpf !== undefined) updateData.cpf = data.cpf.replace(/\D/g, '')
@@ -1143,6 +1221,20 @@ export async function updateProfileAvatar(
   else if (type === 'professor') table = 'professor_accounts'
   else if (type === 'board') table = 'board_members'
 
+  if (userId === 'master' && type === 'professor') {
+    const { error } = await supabase
+      .from('professor_accounts')
+      .upsert({ 
+        email: MASTER_CREDENTIALS.email,
+        avatar_url: avatarUrl,
+        name: MASTER_CREDENTIALS.name,
+        role: 'master',
+        active: true
+      }, { onConflict: 'email' })
+    if (error) throw new Error(error.message)
+    return
+  }
+
   const { error } = await supabase
     .from(table)
     .update({ avatar_url: avatarUrl })
@@ -1178,6 +1270,19 @@ export async function getClassmates(classId: string): Promise<StudentProfile[]> 
 
 export async function getProfessorAccount(id: string): Promise<ProfessorAccount | null> {
   const supabase = createClient()
+  
+  if (id === 'master') {
+    const { data, error } = await supabase
+      .from('professor_accounts')
+      .select('*')
+      .eq('email', MASTER_CREDENTIALS.email)
+      .maybeSingle()
+    
+    if (data) return mapProfessor(data)
+    // Fallback to hardcoded credentials if DB record doesn't exist yet
+    return { ...MASTER_CREDENTIALS, id: 'master', passwordHash: '', createdAt: new Date().toISOString() }
+  }
+
   const { data, error } = await supabase
     .from('professor_accounts')
     .select('*')
@@ -1185,7 +1290,7 @@ export async function getProfessorAccount(id: string): Promise<ProfessorAccount 
     .single()
   
   if (error) return null
-  return data as ProfessorAccount
+  return mapProfessor(data)
 }
 export async function generateMonthlyCharges(studentId: string, monthlyFee: number): Promise<void> {
   const supabase = createClient()

@@ -54,9 +54,10 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
     const [isCustomMsgOpen, setIsCustomMsgOpen] = useState(false)
     const [customMessage, setCustomMessage] = useState("")
     const [sendingMsg, setSendingMsg] = useState(false)
-
     const [saving, setSaving] = useState(false)
     const [deleting, setDeleting] = useState(false)
+    const [editPassword, setEditPassword] = useState("")
+    const [showEditPassword, setShowEditPassword] = useState(false)
 
     // Selected student (for edit / delete / view)
     const [selected, setSelected] = useState<StudentProfile | null>(null)
@@ -169,6 +170,7 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
         setEditClassId(stu.class_id || "none")
         setEditPaymentStatus(stu.payment_status || "pending")
         setEditStatus(stu.status || 'pending')
+        setEditPassword("")
         setIsEditOpen(true)
     }
 
@@ -189,6 +191,7 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                 class_id: editClassId === "none" ? null : editClassId,
                 payment_status: editPaymentStatus,
                 status: editStatus,
+                ...(editPassword ? { password: editPassword } : {}),
             })
             setIsEditOpen(false)
             await load()
@@ -568,6 +571,22 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                                 <option value="active">Ativo (Visível na listagem)</option>
                                 <option value="inactive">Inativo</option>
                             </select>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                            <Label className="text-xs">Alterar Senha (Opcional)</Label>
+                            <div className="relative">
+                                <Input 
+                                    type={showEditPassword ? "text" : "password"} 
+                                    className="pr-8 text-sm h-9" 
+                                    value={editPassword} 
+                                    onChange={e => setEditPassword(e.target.value)} 
+                                    placeholder="Deixe em branco para manter a atual"
+                                />
+                                <button type="button" onClick={() => setShowEditPassword(p => !p)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                                    {showEditPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <DialogFooter>
