@@ -493,9 +493,9 @@ export function FinancialManager() {
                         </div>
                     </DialogHeader>
 
-                    <ScrollArea className="flex-1 px-6 py-4">
-                        <div className="min-w-full overflow-x-auto pb-4">
-                            <table className="w-full text-sm text-left border-collapse">
+                    <div className="flex-1 overflow-y-auto p-0 md:p-6 px-4 py-4">
+                        <div className="w-full overflow-x-auto pb-4">
+                            <table className="w-full min-w-[750px] text-sm text-left border-collapse">
                                 <thead className="bg-muted/50 text-muted-foreground text-[10px] uppercase font-bold tracking-wider sticky top-0 z-10">
                                     <tr>
                                         <th className="px-4 py-3 first:rounded-l-lg w-auto min-w-[220px]">Descrição da Cobrança</th>
@@ -544,7 +544,7 @@ export function FinancialManager() {
                                 </tbody>
                             </table>
                         </div>
-                    </ScrollArea>
+                    </div>
                 </DialogContent>
             </Dialog>
 
