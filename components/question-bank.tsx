@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import {
-  type Discipline, type Question, type QuestionType, type Choice,
+  type Discipline, type Question, type QuestionType, type Choice, type MatchingPair,
   getDisciplines, addDiscipline, updateDiscipline, deleteDiscipline,
   getQuestionsByDiscipline, addQuestion, updateQuestion, deleteQuestion, uid, getDisciplineQuestionCounts,
 } from "@/lib/store"
@@ -132,6 +132,10 @@ function QuestionModal({
     { id: uid(), text: "" },
     { id: uid(), text: "" },
   ])
+  const [pairs, setPairs] = useState<MatchingPair[]>([
+    { id: uid(), left: "", right: "" },
+    { id: uid(), left: "", right: "" },
+  ])
   const [correctAnswer, setCorrectAnswer] = useState("")
   const [points, setPoints] = useState(1)
 
@@ -147,6 +151,7 @@ function QuestionModal({
       )
       setCorrectAnswer(question.correctAnswer)
       setPoints(question.points)
+      setPairs(question.pairs && question.pairs.length > 0 ? question.pairs : [{ id: uid(), left: "", right: "" }, { id: uid(), left: "", right: "" }])
     } else {
       setType("multiple-choice")
       setText("")
@@ -155,6 +160,10 @@ function QuestionModal({
         { id: uid(), text: "" },
         { id: uid(), text: "" },
         { id: uid(), text: "" },
+      ])
+      setPairs([
+        { id: uid(), left: "", right: "" },
+        { id: uid(), left: "", right: "" },
       ])
       setCorrectAnswer("")
       setPoints(1)
@@ -180,6 +189,19 @@ function QuestionModal({
     if (correctAnswer === id) setCorrectAnswer("")
   }
 
+  function handlePairChange(id: string, field: 'left' | 'right', value: string) {
+    setPairs(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p))
+  }
+
+  function addPair() {
+    setPairs(prev => [...prev, { id: uid(), left: "", right: "" }])
+  }
+
+  function removePair(id: string) {
+    if (pairs.length <= 2) return
+    setPairs(prev => prev.filter(p => p.id !== id))
+  }
+
   function isValid() {
     if (!text.trim()) return false
     if (type === "multiple-choice") {
@@ -187,6 +209,13 @@ function QuestionModal({
       return filled.length >= 2 && !!correctAnswer
     }
     if (type === "true-false") return !!correctAnswer
+    if (type === "fill-in-the-blank") {
+      return text.includes("[[") && text.includes("]]")
+    }
+    if (type === "matching") {
+      const filled = pairs.filter(p => p.left.trim() && p.right.trim())
+      return filled.length >= 2
+    }
     return true // discursive
   }
 
@@ -197,6 +226,7 @@ function QuestionModal({
       type,
       text: text.trim(),
       choices: type === "multiple-choice" ? choices.filter((c) => c.text.trim()) : [],
+      pairs: type === "matching" ? pairs.filter(p => p.left.trim() && p.right.trim()) : [],
       correctAnswer: type === "discursive" ? "" : correctAnswer,
       points,
     }
@@ -324,6 +354,57 @@ function QuestionModal({
           {type === "discursive" && (
             <div className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
               Questões discursivas não possuem gabarito automático. A correção deve ser feita manualmente pelo professor.
+            </div>
+          )}
+
+          {/* Fill in the blank note */}
+          {type === "fill-in-the-blank" && (
+            <div className="flex flex-col gap-2">
+              <div className="rounded-lg bg-blue-50 border border-blue-100 p-3 text-sm text-blue-800">
+                <p className="font-semibold mb-1 flex items-center gap-1.5"><Sparkles className="h-4 w-4" /> Como usar:</p>
+                <p>Use colchetes duplos para indicar a lacuna. O texto dentro será a resposta correta.</p>
+                <p className="mt-1 font-mono text-[11px] bg-white/50 p-1.5 rounded border border-blue-200">Ex: O céu é [[azul]] e o sol é [[quente]].</p>
+              </div>
+            </div>
+          )}
+
+          {/* Matching / Association */}
+          {type === "matching" && (
+            <div className="flex flex-col gap-3">
+              <Label>Pares de Associação * <span className="text-muted-foreground font-normal text-xs">(Lado Esquerdo vs Lado Direito)</span></Label>
+              <div className="flex flex-col gap-2">
+                {pairs.map((p, i) => (
+                  <div key={p.id} className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-muted-foreground w-4">{i + 1}</span>
+                    <Input
+                      value={p.left}
+                      onChange={(e) => handlePairChange(p.id, 'left', e.target.value)}
+                      placeholder="Conceito / Pergunta"
+                      className="flex-1"
+                    />
+                    <div className="text-muted-foreground">→</div>
+                    <Input
+                      value={p.right}
+                      onChange={(e) => handlePairChange(p.id, 'right', e.target.value)}
+                      placeholder="Resposta / Definição"
+                      className="flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removePair(p.id)}
+                      disabled={pairs.length <= 2}
+                      className="text-muted-foreground hover:text-destructive disabled:opacity-30 transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {pairs.length < 8 && (
+                <Button type="button" variant="outline" size="sm" onClick={addPair} className="self-start">
+                  <Plus className="h-3.5 w-3.5 mr-1.5" /> Adicionar par
+                </Button>
+              )}
             </div>
           )}
         </div>

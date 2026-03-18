@@ -111,7 +111,8 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
     // ─── Filtered list ────────────────────────────────────────────────────────
 
     const filtered = useMemo(() => {
-        const activeStudents = students.filter(s => s.status === 'active' || !s.status) // Fallback for old records
+        // Agora exibimos todos, inclusive os pendentes (aguardando pagamento inicial)
+        const activeStudents = students;
         const q = search.toLowerCase()
         if (!q) return activeStudents
         return activeStudents.filter(s =>
@@ -309,7 +310,8 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                                 <th className="text-left px-6 py-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Aluno</th>
                                 <th className="text-left px-6 py-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider hidden sm:table-cell">Matrícula</th>
                                 <th className="text-center px-6 py-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider hidden md:table-cell">Turma</th>
-                                <th className="text-center px-6 py-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Status F.</th>
+                                <th className="text-center px-6 py-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Status Financeiro</th>
+                                <th className="text-center px-6 py-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider hidden lg:table-cell">Status Conta</th>
                                 <th className="text-right px-6 py-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Ações</th>
                             </tr>
                         </thead>
@@ -339,6 +341,21 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                                             ) : (
                                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase bg-amber-100 text-amber-700 px-2 py-0.5 rounded">
                                                     Pendente
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3 text-center hidden lg:table-cell">
+                                            {stu.status === "pending" ? (
+                                                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200">
+                                                    Aguard. Pagto.
+                                                </span>
+                                            ) : stu.status === "inactive" ? (
+                                                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase bg-red-100 text-red-700 px-2 py-0.5 rounded">
+                                                    Inativo
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">
+                                                    Ativo
                                                 </span>
                                             )}
                                         </td>
@@ -399,7 +416,7 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                 </div>
                 {search && filtered.length > 0 && (
                     <div className="px-4 py-2 border-t border-border text-xs text-muted-foreground">
-                        Mostrando {filtered.length} de {students.filter(s => s.status === 'active' || !s.status).length} alunos
+                        Mostrando {filtered.length} de {students.length} alunos
                     </div>
                 )}
             </div>

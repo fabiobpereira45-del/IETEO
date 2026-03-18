@@ -59,6 +59,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
   const [format, setFormat] = useState<AssessmentFormat>("multiple-choice")
   const [questionCount, setQuestionCount] = useState(10)
   const [pointsPerQuestion, setPointsPerQuestion] = useState(1)
+  const [timeLimitMinutes, setTimeLimitMinutes] = useState<number>(0)
 
   // Step 3
   const [selectionMode, setSelectionMode] = useState<SelectionMode>("auto")
@@ -81,6 +82,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
         setRules(assessment.rules ?? "")
         setModality(assessment.modality ?? "public")
         setPointsPerQuestion(assessment.pointsPerQuestion)
+        setTimeLimitMinutes(assessment.timeLimitMinutes ?? 0)
         setQuestionCount(assessment.questionIds.length)
         setSelectedIds(new Set(assessment.questionIds))
         setStep(1)
@@ -93,6 +95,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
         setFormat("multiple-choice")
         setQuestionCount(10)
         setPointsPerQuestion(1)
+        setTimeLimitMinutes(0)
         setSelectionMode("auto")
         setSelectedIds(new Set())
         setStep(1)
@@ -223,6 +226,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
         pointsPerQuestion,
         totalPoints,
         modality,
+        timeLimitMinutes: timeLimitMinutes > 0 ? timeLimitMinutes : null,
       })
     } else {
       await addAssessment({
@@ -239,6 +243,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
         closeAt: null,
         isPublished: false,
         modality,
+        timeLimitMinutes: timeLimitMinutes > 0 ? timeLimitMinutes : null,
       })
     }
 
@@ -413,6 +418,22 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
                   />
                   <p className="text-xs text-muted-foreground">Total: {totalPoints.toFixed(1)} pts</p>
                 </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="time-limit">Tempo Limite (minutos - 0 para ilimitado)</Label>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="time-limit"
+                    type="number"
+                    min={0}
+                    value={timeLimitMinutes}
+                    onChange={(e) => setTimeLimitMinutes(Number(e.target.value))}
+                    className="pl-9"
+                    placeholder="Ex: 60"
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground italic">Se definido, o cronômetro aparecerá para o aluno e a prova será enviada automaticamente ao expirar.</p>
               </div>
             </div>
           )}
@@ -615,6 +636,22 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
                             <div className="border-b border-gray-300 w-full" />
                             <div className="border-b border-gray-300 w-full" />
                             <div className="border-b border-gray-300 w-full" />
+                          </div>
+                        )}
+                        {q.type === "fill-in-the-blank" && (
+                          <div className="mt-2 ml-6 text-sm text-gray-700 italic border-l-2 border-gray-200 pl-3">
+                            (Esta questão contém lacunas para o aluno preencher online)
+                          </div>
+                        )}
+                        {q.type === "matching" && q.pairs && (
+                          <div className="mt-3 ml-6 flex flex-col gap-2">
+                            {q.pairs.map((p, pIdx) => (
+                              <div key={p.id} className="flex items-center gap-4 text-sm">
+                                <div className="flex-1 border p-2 rounded bg-gray-50">{p.left}</div>
+                                <div className="w-10 text-center font-bold">---</div>
+                                <div className="flex-1 border p-2 rounded bg-gray-50">{p.right}</div>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>

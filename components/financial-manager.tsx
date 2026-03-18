@@ -495,37 +495,48 @@ export function FinancialManager() {
 
                     <ScrollArea className="flex-1 px-6 py-4">
                         <div className="min-w-full overflow-x-auto pb-4">
-                            <table className="w-full text-sm text-left border-collapse table-fixed">
-                                <thead className="bg-muted/50 text-muted-foreground text-[10px] uppercase font-bold tracking-wider sticky top-0">
+                            <table className="w-full text-sm text-left border-collapse">
+                                <thead className="bg-muted/50 text-muted-foreground text-[10px] uppercase font-bold tracking-wider sticky top-0 z-10">
                                     <tr>
-                                        <th className="px-4 py-3 first:rounded-l-lg w-[40%]">Descrição</th>
-                                        <th className="px-4 py-3 w-[15%] text-center">Vencimento</th>
-                                        <th className="px-4 py-3 w-[15%] text-center">Valor</th>
-                                        <th className="px-4 py-3 w-[15%] text-center">Status</th>
-                                        <th className="px-4 py-3 text-right last:rounded-r-lg w-[15%]">Ação</th>
+                                        <th className="px-4 py-3 first:rounded-l-lg w-auto min-w-[220px]">Descrição da Cobrança</th>
+                                        <th className="px-4 py-3 w-[130px] text-center whitespace-nowrap">Vencimento</th>
+                                        <th className="px-4 py-3 w-[130px] text-center whitespace-nowrap">Valor (R$)</th>
+                                        <th className="px-4 py-3 w-[120px] text-center">Status</th>
+                                        <th className="px-4 py-3 text-right last:rounded-r-lg w-[120px]">Ação</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border">
                                     {charges.filter(c => c.studentId === selectedStudent?.id).sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()).map(c => (
                                         <tr key={c.id} className="hover:bg-muted/30 transition-colors">
-                                            <td className="px-4 py-3 font-medium text-foreground truncate" title={c.description}>{c.description}</td>
-                                            <td className="px-4 py-3 text-muted-foreground text-center">{new Date(c.dueDate).toLocaleDateString("pt-BR")}</td>
-                                            <td className="px-4 py-3 font-bold text-foreground text-center">R$ {c.amount.toFixed(2)}</td>
-                                            <td className="px-4 py-3 text-center">{getStatusBadge(c.status)}</td>
-                                            <td className="px-4 py-3 text-right">
-                                                <div className="flex justify-end gap-1">
+                                            <td className="px-4 py-4">
+                                                <div className="font-medium text-foreground leading-tight">{c.description}</div>
+                                                <div className="text-[10px] text-muted-foreground mt-1 uppercase tracking-tighter">{{ enrollment: "Matrícula", monthly: "Mensalidade", second_call: "2ª Chamada", final_exam: "Prova Final", other: "Outros" }[c.type] || c.type}</div>
+                                            </td>
+                                            <td className="px-4 py-4 text-muted-foreground text-center tabular-nums whitespace-nowrap">
+                                                {new Date(c.dueDate).toLocaleDateString("pt-BR")}
+                                            </td>
+                                            <td className="px-4 py-4 font-bold text-foreground text-center tabular-nums whitespace-nowrap">
+                                                R$ {c.amount.toFixed(2)}
+                                            </td>
+                                            <td className="px-4 py-4 text-center">
+                                                <div className="inline-flex justify-center">
+                                                    {getStatusBadge(c.status)}
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-4 text-right">
+                                                <div className="flex justify-end items-center gap-1">
                                                     {c.status !== 'paid' ? (
-                                                        <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600 hover:bg-green-50" onClick={() => handleStatusChange(c.id, 'paid')} title="Marcar como Pago"><CheckCircle2 className="h-4 w-4" /></Button>
+                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600 hover:bg-green-50" onClick={() => handleStatusChange(c.id, 'paid')} title="Marcar como Pago"><CheckCircle2 className="h-4 w-4" /></Button>
                                                     ) : (
-                                                        <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600 hover:bg-amber-50" onClick={() => handleStatusChange(c.id, 'pending')} title="Estornar"><Clock className="h-4 w-4" /></Button>
+                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-amber-600 hover:bg-amber-50" onClick={() => handleStatusChange(c.id, 'pending')} title="Estornar"><Clock className="h-4 w-4" /></Button>
                                                     )}
-                                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-blue-600 hover:bg-blue-50" onClick={() => {
+                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 hover:bg-blue-50" onClick={() => {
                                                         setEditingCharge(c)
                                                         setEditAmount(c.amount.toString())
                                                         setEditDescription(c.description)
                                                         setEditDueDate(c.dueDate)
                                                     }} title="Editar"><Pencil className="h-4 w-4" /></Button>
-                                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:bg-destructive/10" title="Excluir" onClick={() => setDeleteId(c.id)}><Trash2 className="h-4 w-4" /></Button>
+                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:bg-destructive/10" title="Excluir" onClick={() => setDeleteId(c.id)}><Trash2 className="h-4 w-4" /></Button>
                                                 </div>
                                             </td>
                                         </tr>

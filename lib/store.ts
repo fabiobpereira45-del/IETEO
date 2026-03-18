@@ -13,9 +13,9 @@ export interface StudyMaterial { id: string; disciplineId: string; title: string
 export interface FinancialSettings { id: string; enrollmentFee: number; monthlyFee: number; secondCallFee: number; finalExamFee: number; totalMonths: number; creditCardUrl?: string; pixKey?: string; updatedAt: string; }
 export interface FinancialCharge { id: string; studentId: string; type: "enrollment" | "monthly" | "second_call" | "final_exam" | "other"; description: string; amount: number; dueDate: string; status: "pending" | "paid" | "cancelled" | "late"; paymentDate?: string; pixQrcode?: string; pixCopyPaste?: string; createdAt: string; }
 export interface Question { id: string; disciplineId: string; type: QuestionType; text: string; choices: Choice[]; pairs?: MatchingPair[]; correctAnswer: string; points: number; createdAt: string }
-export interface Assessment { id: string; title: string; disciplineId: string; professor: string; institution: string; questionIds: string[]; pointsPerQuestion: number; totalPoints: number; openAt: string | null; closeAt: string | null; isPublished: boolean; archived: boolean; shuffleVariants?: boolean; logoBase64?: string; rules?: string; releaseResults?: boolean; modality?: "public" | "private"; createdAt: string }
+export interface Assessment { id: string; title: string; disciplineId: string; professor: string; institution: string; questionIds: string[]; pointsPerQuestion: number; totalPoints: number; openAt: string | null; closeAt: string | null; isPublished: boolean; archived: boolean; shuffleVariants?: boolean; timeLimitMinutes?: number | null; logoBase64?: string; rules?: string; releaseResults?: boolean; modality?: "public" | "private"; createdAt: string }
 export interface StudentAnswer { questionId: string; answer: string }
-export interface StudentSubmission { id: string; assessmentId: string; studentName: string; studentEmail: string; answers: StudentAnswer[]; score: number; totalPoints: number; percentage: number; submittedAt: string; timeElapsedSeconds: number }
+export interface StudentSubmission { id: string; assessmentId: string; studentName: string; studentEmail: string; answers: StudentAnswer[]; score: number; totalPoints: number; percentage: number; submittedAt: string; timeElapsedSeconds: number; focusLostCount?: number }
 export interface ProfessorAccount { id: string; name: string; email: string; passwordHash: string; role: "master" | "professor"; avatar_url?: string | null; bio?: string | null; createdAt: string; active?: boolean }
 export interface ProfessorSession { loggedIn: boolean; professorId: string; role: "master" | "professor"; avatar_url?: string | null; expiresAt: string }
 export interface StudentSession { name: string; email: string; assessmentId: string; startedAt: string }
@@ -263,6 +263,7 @@ function mapAssessment(row: any): Assessment {
     isPublished: row.is_published,
     archived: isArchived,
     shuffleVariants: row.shuffle_variants,
+    timeLimitMinutes: row.time_limit_minutes,
     logoBase64: row.logo_base64,
     rules: row.rules,
     releaseResults: row.release_results,
@@ -270,7 +271,7 @@ function mapAssessment(row: any): Assessment {
     createdAt: row.created_at
   }
 }
-function mapSubmission(row: any): StudentSubmission { return { id: row.id, assessmentId: row.assessment_id, studentName: row.student_name, studentEmail: row.student_email, answers: row.answers, score: row.score, totalPoints: row.total_points, percentage: row.percentage, submittedAt: row.submitted_at, timeElapsedSeconds: row.time_elapsed_seconds } }
+function mapSubmission(row: any): StudentSubmission { return { id: row.id, assessmentId: row.assessment_id, studentName: row.student_name, studentEmail: row.student_email, answers: row.answers, score: row.score, totalPoints: row.total_points, percentage: row.percentage, submittedAt: row.submitted_at, timeElapsedSeconds: row.time_elapsed_seconds, focusLostCount: row.focus_lost_count || 0 } }
 function mapProfessor(p: any): ProfessorAccount {
   if (!p) {
     return {
@@ -709,7 +710,7 @@ export async function getActiveAssessment(assessmentId?: string): Promise<Assess
 }
 export async function addAssessment(data: Omit<Assessment, "id" | "createdAt" | "releaseResults" | "archived">): Promise<Assessment> {
   const a = { ...data, id: uid(), createdAt: new Date().toISOString(), releaseResults: false, archived: false }
-  const dbData = { id: a.id, title: a.title, discipline_id: a.disciplineId, professor: a.professor, institution: a.institution, question_ids: a.questionIds, points_per_question: a.pointsPerQuestion, total_points: a.totalPoints, open_at: a.openAt, close_at: a.closeAt, is_published: a.isPublished, shuffle_variants: a.shuffleVariants, logo_base64: a.logoBase64, rules: a.rules, release_results: a.releaseResults, modality: a.modality ?? "public", created_at: a.createdAt }
+  const dbData = { id: a.id, title: a.title, discipline_id: a.disciplineId, professor: a.professor, institution: a.institution, question_ids: a.questionIds, points_per_question: a.pointsPerQuestion, total_points: a.totalPoints, open_at: a.openAt, close_at: a.closeAt, is_published: a.isPublished, shuffle_variants: a.shuffleVariants, time_limit_minutes: a.timeLimitMinutes, logo_base64: a.logoBase64, rules: a.rules, release_results: a.releaseResults, modality: a.modality ?? "public", created_at: a.createdAt }
   const supabase = createClient()
   const { error } = await supabase.from('assessments').insert(dbData)
   if (error) throw new Error(error.message)
@@ -731,6 +732,7 @@ export async function updateAssessment(id: string, data: Partial<Omit<Assessment
   if (data.logoBase64 !== undefined) dbData.logo_base64 = data.logoBase64
   if (data.rules !== undefined) dbData.rules = data.rules
   if (data.releaseResults !== undefined) dbData.release_results = data.releaseResults
+  if (data.timeLimitMinutes !== undefined) dbData.time_limit_minutes = data.timeLimitMinutes
 
   const supabase = createClient()
 
@@ -792,7 +794,8 @@ export async function saveSubmission(sub: StudentSubmission): Promise<StudentSub
     total_points: sub.totalPoints,
     percentage: sub.percentage,
     submitted_at: sub.submittedAt,
-    time_elapsed_seconds: sub.timeElapsedSeconds
+    time_elapsed_seconds: sub.timeElapsedSeconds,
+    focus_lost_count: sub.focusLostCount || 0
   }
 
   const { data, error } = await supabase.from('student_submissions').insert(record).select().single()
@@ -1007,13 +1010,39 @@ export async function authenticateProfessor(email: string, password: string): Pr
 }
 
 export function calculateScore(answers: StudentAnswer[], questions: Question[], pointsPerQuestion: number) {
-  const gradable = questions.filter((q) => q.type !== "discursive")
-  const totalPoints = questions.length * pointsPerQuestion
   let score = 0
-  for (const q of gradable) {
+  questions.forEach((q) => {
     const ans = answers.find((a) => a.questionId === q.id)
-    if (ans && ans.answer === q.correctAnswer) score += pointsPerQuestion
-  }
+    if (!ans) return
+
+    if (q.type === "multiple-choice" || q.type === "true-false" || q.type === "incorrect-alternative") {
+      if (ans.answer === q.correctAnswer) score += pointsPerQuestion
+    } else if (q.type === "fill-in-the-blank") {
+      const matches = q.text.match(/\[\[(.*?)\]\]/g)
+      if (matches) {
+        const correctWords = matches.map(m => m.slice(2, -2).trim().toLowerCase())
+        try {
+          const studentData = JSON.parse(ans.answer)
+          let correctBlanks = 0
+          correctWords.forEach((word, idx) => {
+            const studentWord = (studentData[`blank_${idx}`] || "").trim().toLowerCase()
+            if (studentWord === word) correctBlanks++
+          })
+          score += (correctBlanks / correctWords.length) * pointsPerQuestion
+        } catch { }
+      }
+    } else if (q.type === "matching" && q.pairs) {
+      try {
+        const studentData = JSON.parse(ans.answer)
+        let correctPairs = 0
+        q.pairs.forEach(p => {
+          if (studentData[p.id] === p.right) correctPairs++
+        })
+        score += (correctPairs / q.pairs.length) * pointsPerQuestion
+      } catch { }
+    }
+  })
+  const totalPoints = questions.length * pointsPerQuestion
   const percentage = totalPoints > 0 ? Math.round((score / totalPoints) * 100) : 0
   return { score, totalPoints, percentage }
 }
@@ -1070,7 +1099,6 @@ export async function getStudents(): Promise<StudentProfile[]> {
   const { data } = await supabase
     .from('students')
     .select('*')
-    .not('status', 'eq', 'pending')
     .order('name', { ascending: true })
   return (data || []).map(mapStudentProfile)
 }
@@ -1307,13 +1335,10 @@ export async function updateProfileAvatar(
 ): Promise<void> {
   const supabase = createClient()
   
-  let table = ''
-  if (type === 'student') table = 'students'
-  else if (type === 'professor') table = 'professor_accounts'
-  else if (type === 'board') table = 'board_members'
-
-  if (userId === 'master' && type === 'professor') {
-    const { error } = await supabase
+  // 1. Special Case: Master Professor Account
+  if (type === 'professor' && (userId === 'master' || userId === MASTER_CREDENTIALS.email)) {
+    console.log("DEBUG-V1.2.2: Atualizando Avatar do Master...");
+    const { error: masterError } = await supabase
       .from('professor_accounts')
       .upsert({ 
         email: MASTER_CREDENTIALS.email,
@@ -1322,41 +1347,73 @@ export async function updateProfileAvatar(
         role: 'master',
         active: true
       }, { onConflict: 'email' })
-    if (error) throw new Error(error.message)
-    return
+    
+    if (masterError) {
+      console.error("DEBUG-V1.2.2: Erro ao dar upsert no Master:", masterError.message);
+      throw new Error("Erro ao atualizar foto do Master: " + masterError.message);
+    }
+    return;
   }
 
-  let { error } = await supabase
+  // 2. Normal Case: Other Users
+  let table = ''
+  if (type === 'student') table = 'students'
+  else if (type === 'professor') table = 'professor_accounts'
+  else if (type === 'board') table = 'board_members'
+
+  if (!table) throw new Error("Tipo de perfil inválido para atualização de avatar.");
+
+  let success = false;
+  let lastError = "";
+
+  // Attempt 1: Update by ID
+  console.log(`DEBUG-V1.2.2: Tentando atualizar avatar na tabela ${table} por ID: ${userId}`);
+  const { data: idUpdate, error: idError } = await supabase
     .from(table)
     .update({ avatar_url: avatarUrl })
     .eq('id', userId)
+    .select()
+    .maybeSingle()
 
-  if (error) {
-    console.warn(`Tentativa de atualização por ID (${userId}) falhou:`, error.message)
-    // Fallback: Tentativa por Email se estivermos em professor_accounts
-    if (table === 'professor_accounts') {
-        // Buscamos o email do professor para fallback
-        const { data: prof } = await supabase.from('professor_accounts').select('email').eq('id', userId).maybeSingle()
-        if (prof?.email) {
-            const { error: error2 } = await supabase.from('professor_accounts').update({ avatar_url: avatarUrl }).eq('email', prof.email)
-            if (error2) throw new Error("Fallback por email falhou: " + error2.message)
+  if (idUpdate && !idError) {
+    success = true;
+    console.log("DEBUG-V1.2.2: Atualização por ID concluída com sucesso.");
+  } else {
+    lastError = idError?.message || "Nenhum registro encontrado por ID.";
+    console.warn("DEBUG-V1.2.2: Atualização por ID falhou ou não encontrou registro:", lastError);
+  }
+
+  // Attempt 2: Fallback to Email (for professors or students where we might have email)
+  if (!success && (type === 'professor' || type === 'student')) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const emailToTry = user?.email;
+
+      if (emailToTry) {
+        console.log(`DEBUG-V1.2.2: Tentando fallback por Email: ${emailToTry}`);
+        const { data: emailUpdate, error: emailError } = await supabase
+          .from(table)
+          .update({ avatar_url: avatarUrl })
+          .eq('email', emailToTry.toLowerCase().trim())
+          .select()
+          .maybeSingle();
+
+        if (emailUpdate && !emailError) {
+            success = true;
+            console.log("DEBUG-V1.2.2: Atualização por Email concluída com sucesso.");
+        } else {
+            lastError = emailError?.message || "Nenhum registro encontrado por Email.";
+            console.warn("DEBUG-V1.2.2: Fallback por email falhou:", lastError);
         }
-    } else {
-        throw new Error(error.message)
+      }
+    } catch (e: any) {
+      console.error("DEBUG-V1.2.2: Erro durante tentativa de fallback por email:", e);
     }
   }
 
-  if (type === 'professor') {
-     // Always try by email as a fallback for professors due to ID mismatches
-     const { data: { user } } = await supabase.auth.getUser()
-     if (user && user.email) {
-        await supabase.from('professor_accounts')
-          .update({ avatar_url: avatarUrl })
-          .eq('email', user.email.toLowerCase().trim())
-     }
+  if (!success) {
+    throw new Error(`Falha ao atualizar avatar em ${table}: ${lastError}`);
   }
-
-  if (error) throw new Error(error.message)
 }
 
 export async function getStudentProfile(id: string): Promise<StudentProfile | null> {

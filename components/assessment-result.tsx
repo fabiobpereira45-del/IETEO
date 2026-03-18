@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Download, CheckCircle2, XCircle, Clock, Award, Minus, BookOpenCheck } from "lucide-react"
+import { Download, CheckCircle2, XCircle, Clock, Award, Minus, BookOpenCheck, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   getAssessmentById, getQuestionsByDiscipline, getDisciplines, getSubmissionsByAssessment,
@@ -76,14 +76,43 @@ export function AssessmentResult({ submission, onBack }: Props) {
   // Build answer key (gabarito) — only for non-discursive
   const gabaritoItems = questions
     .filter((q) => q.type !== "discursive")
-    .map((q, i) => {
+    .map((q) => {
       const globalIdx = questions.findIndex((gq) => gq.id === q.id)
       const studentAns = submission.answers.find((a) => a.questionId === q.id)
-      const isCorrect = studentAns?.answer === q.correctAnswer
-      const correctLabel = q.type === "true-false"
-        ? (q.correctAnswer === "true" ? "Verdadeiro" : "Falso")
-        : q.choices.find((c) => c.id === q.correctAnswer)?.text ?? "—"
-      return { num: globalIdx + 1, text: q.text, correctLabel, isCorrect }
+      
+      let isCorrect = false
+      let label = "—"
+
+      if (q.type === "multiple-choice" || q.type === "true-false" || q.type === "incorrect-alternative") {
+        isCorrect = studentAns?.answer === q.correctAnswer
+        label = q.type === "true-false"
+          ? (q.correctAnswer === "true" ? "Verdadeiro" : "Falso")
+          : q.choices.find((c) => c.id === q.correctAnswer)?.text ?? "—"
+      } else if (q.type === "fill-in-the-blank") {
+        const matches = q.text.match(/\[\[(.*?)\]\]/g)
+        const correctWords = matches?.map(m => m.slice(2, -2).trim().toLowerCase()) || []
+        try {
+          const studentData = JSON.parse(studentAns?.answer || "{}")
+          let correctCount = 0
+          correctWords.forEach((word, idx) => {
+            if ((studentData[`blank_${idx}`] || "").trim().toLowerCase() === word) correctCount++
+          })
+          isCorrect = correctCount === correctWords.length
+          label = `${correctWords.length} lacuna(s)`
+        } catch { }
+      } else if (q.type === "matching" && q.pairs) {
+        try {
+          const studentData = JSON.parse(studentAns?.answer || "{}")
+          let correctCount = 0
+          q.pairs.forEach(p => {
+            if (studentData[p.id] === p.right) correctCount++
+          })
+          isCorrect = correctCount === q.pairs.length
+          label = `${q.pairs.length} associação(ões)`
+        } catch { }
+      }
+
+      return { num: globalIdx + 1, text: q.text, correctLabel: label, isCorrect, type: q.type }
     })
 
   if (isInitializing) {
@@ -182,6 +211,20 @@ export function AssessmentResult({ submission, onBack }: Props) {
             <p className="text-sm font-semibold text-foreground">{formatTime(submission.timeElapsedSeconds)}</p>
           </div>
         </div>
+        {(submission.focusLostCount ?? 0) > 0 && (
+          <div className={cn(
+            "rounded-xl border p-4 col-span-2 sm:col-span-1",
+            submission.focusLostCount! > 3 ? "border-red-200 bg-red-50" : "border-border bg-card"
+          )}>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Trocas de Aba</p>
+            <div className="flex items-center gap-1.5">
+              <AlertTriangle className={cn("h-3.5 w-3.5", submission.focusLostCount! > 3 ? "text-red-500" : "text-amber-500")} />
+              <p className={cn("text-sm font-semibold", submission.focusLostCount! > 3 ? "text-red-700" : "text-foreground")}>
+                {submission.focusLostCount} vez{submission.focusLostCount !== 1 ? "es" : ""}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {resultsReleased && (
@@ -232,6 +275,58 @@ export function AssessmentResult({ submission, onBack }: Props) {
                       {isDiscursive ? (
                         <div className="rounded-lg bg-muted p-3 text-sm text-foreground">
                           {studentLabel}
+                        </div>
+                      ) : q.type === "fill-in-the-blank" ? (
+                        <div className="flex flex-col gap-2">
+                          {(() => {
+                            const matches = q.text.match(/\[\[(.*?)\]\]/g)
+                            if (!matches) return null
+                            const correctWords = matches.map(m => m.slice(2, -2).trim())
+                            let studentData: Record<string, string> = {}
+                            try { studentData = JSON.parse(studentAns?.answer || "{}") } catch { }
+
+                            return (
+                              <div className="flex flex-wrap gap-x-4 gap-y-2 mt-1">
+                                {correctWords.map((word, wIdx) => {
+                                  const studentWord = studentData[`blank_${wIdx}`] || "—"
+                                  const isWordCorrect = studentWord.trim().toLowerCase() === word.trim().toLowerCase()
+                                  return (
+                                    <div key={wIdx} className="flex flex-col border-l-2 pl-2 border-muted">
+                                      <span className="text-[10px] text-muted-foreground uppercase">Lacuna {wIdx + 1}</span>
+                                      <div className="flex items-center gap-1.5">
+                                        {isWordCorrect ? <CheckCircle2 className="h-3 w-3 text-green-600" /> : <XCircle className="h-3 w-3 text-red-500" />}
+                                        <span className={cn("text-xs font-semibold", isWordCorrect ? "text-green-700" : "text-red-700")}>{studentWord}</span>
+                                        {!isWordCorrect && <span className="text-[10px] text-green-600 font-medium">(Correto: {word})</span>}
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )
+                          })()}
+                        </div>
+                      ) : q.type === "matching" && q.pairs ? (
+                        <div className="flex flex-col gap-2 mt-1">
+                          {(() => {
+                            let studentData: Record<string, string> = {}
+                            try { studentData = JSON.parse(studentAns?.answer || "{}") } catch { }
+
+                            return q.pairs.map((p, pIdx) => {
+                              const studentRight = studentData[p.id] || "—"
+                              const isPairCorrect = studentRight === p.right
+                              return (
+                                <div key={p.id} className="flex items-center gap-2 text-xs p-2 rounded bg-muted/30">
+                                  <div className="flex-1 font-medium">{p.left}</div>
+                                  <div className="text-muted-foreground">→</div>
+                                  <div className="flex-1 flex items-center gap-1.5">
+                                    {isPairCorrect ? <CheckCircle2 className="h-3 w-3 text-green-600" /> : <XCircle className="h-3 w-3 text-red-500" />}
+                                    <span className={cn("font-semibold", isPairCorrect ? "text-green-700" : "text-red-700")}>{studentRight}</span>
+                                    {!isPairCorrect && <span className="text-[10px] text-green-600">(Correto: {p.right})</span>}
+                                  </div>
+                                </div>
+                              )
+                            })
+                          })()}
                         </div>
                       ) : (
                         <>

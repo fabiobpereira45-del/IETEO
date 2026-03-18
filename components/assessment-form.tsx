@@ -9,6 +9,9 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select"
+import {
   getAssessmentById, getQuestionsByDiscipline, saveDraftAnswers, getDraftAnswers,
   saveSubmission, calculateScore, clearStudentSession, getDisciplines,
   type StudentSession, type StudentAnswer, type StudentSubmission, uid,
@@ -44,6 +47,8 @@ export function AssessmentForm({ session, onSubmit }: Props) {
   const [answers, setAnswers] = useState<StudentAnswer[]>(() => getDraftAnswers())
   const [showConfirm, setShowConfirm] = useState(false)
   const [elapsed, setElapsed] = useState(0)
+  const [timeLeft, setTimeLeft] = useState<number | null>(null)
+  const [focusLostCount, setFocusLostCount] = useState(0)
   const startedAt = useRef<Date>(new Date(session.startedAt))
 
   useEffect(() => {
@@ -58,9 +63,28 @@ export function AssessmentForm({ session, onSubmit }: Props) {
           getDisciplines()
         ])
         if (!mounted) return
-        const selectedQs = a.questionIds.map(id => allQs.find(q => q.id === id)).filter(Boolean) as Question[]
+        let selectedQs = a.questionIds.map(id => allQs.find(q => q.id === id)).filter(Boolean) as Question[]
+        
+        // Shuffle questions and choices if enabled
+        if (a.shuffleVariants) {
+          selectedQs = [...selectedQs].sort(() => Math.random() - 0.5)
+          selectedQs = selectedQs.map(q => {
+            if (q.type === "multiple-choice" && q.choices) {
+              return { ...q, choices: [...q.choices].sort(() => Math.random() - 0.5) }
+            }
+            return q
+          })
+        }
+        
         setQuestions(selectedQs)
         setDisc(allDs.find(d => d.id === a.disciplineId) || null)
+
+        // Initialize timer
+        if (a.timeLimitMinutes) {
+          const totalSecs = a.timeLimitMinutes * 60
+          const currentElapsed = Math.floor((Date.now() - startedAt.current.getTime()) / 1000)
+          setTimeLeft(Math.max(0, totalSecs - currentElapsed))
+        }
       }
       setIsInitializing(false)
     }
@@ -68,11 +92,53 @@ export function AssessmentForm({ session, onSubmit }: Props) {
     return () => { mounted = false }
   }, [session.assessmentId])
 
+  const handleFinalize = useCallback(async () => {
+    if (!assessment) return
+    const elapsedSecs = Math.floor((Date.now() - startedAt.current.getTime()) / 1000)
+    const { score, totalPoints, percentage } = calculateScore(answers, questions, assessment.pointsPerQuestion)
+
+    const sub: StudentSubmission = {
+      id: uid(),
+      assessmentId: assessment.id,
+      studentName: session.name,
+      studentEmail: session.email,
+      answers,
+      score,
+      totalPoints,
+      percentage,
+      submittedAt: new Date().toISOString(),
+      timeElapsedSeconds: elapsedSecs,
+      focusLostCount,
+    }
+    await saveSubmission(sub)
+    clearStudentSession()
+    onSubmit(sub)
+  }, [answers, assessment, questions, session, onSubmit, focusLostCount])
+
   useEffect(() => {
     const interval = setInterval(() => {
       setElapsed(Math.floor((Date.now() - startedAt.current.getTime()) / 1000))
+      setTimeLeft(prev => {
+        if (prev === null) return null
+        if (prev <= 1) {
+          clearInterval(interval)
+          handleFinalize()
+          return 0
+        }
+        return prev - 1
+      })
     }, 1000)
     return () => clearInterval(interval)
+  }, [handleFinalize])
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setFocusLostCount(prev => prev + 1)
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
   }, [])
 
   useEffect(() => {
@@ -96,27 +162,23 @@ export function AssessmentForm({ session, onSubmit }: Props) {
     })
   }, [])
 
-  const handleFinalize = useCallback(async () => {
-    if (!assessment) return
-    const elapsedSecs = Math.floor((Date.now() - startedAt.current.getTime()) / 1000)
-    const { score, totalPoints, percentage } = calculateScore(answers, questions, assessment.pointsPerQuestion)
+  const handleSubAnswer = useCallback((questionId: string, key: string, value: string) => {
+    setAnswers((prev) => {
+      const existing = prev.find(a => a.questionId === questionId)
+      let currentData: Record<string, string> = {}
+      if (existing) {
+        try { currentData = JSON.parse(existing.answer) } catch { }
+      }
+      currentData[key] = value
+      const answerStr = JSON.stringify(currentData)
+      
+      const filtered = prev.filter((a) => a.questionId !== questionId)
+      const updated = [...filtered, { questionId, answer: answerStr }]
+      saveDraftAnswers(updated)
+      return updated
+    })
+  }, [])
 
-    const sub: StudentSubmission = {
-      id: uid(),
-      assessmentId: assessment.id,
-      studentName: session.name,
-      studentEmail: session.email,
-      answers,
-      score,
-      totalPoints,
-      percentage,
-      submittedAt: new Date().toISOString(),
-      timeElapsedSeconds: elapsedSecs,
-    }
-    await saveSubmission(sub)
-    clearStudentSession()
-    onSubmit(sub)
-  }, [answers, assessment, questions, session, onSubmit])
 
   if (isInitializing) {
     return <div className="rounded-2xl border border-border bg-card p-10 text-center text-muted-foreground animate-pulse">Carregando avaliação...</div>
@@ -181,9 +243,16 @@ export function AssessmentForm({ session, onSubmit }: Props) {
             <span className="font-semibold text-foreground">{questions.length}</span>
             <span>respondidas</span>
           </div>
-          <div className="flex items-center gap-1.5 text-sm font-mono font-semibold text-muted-foreground">
+          <div className={cn(
+            "flex items-center gap-1.5 text-sm font-mono font-semibold transition-colors",
+            timeLeft !== null && timeLeft < 300 ? "text-red-500 animate-pulse" : "text-muted-foreground"
+          )}>
             <Clock className="h-4 w-4" />
-            {formatTime(elapsed)}
+            {timeLeft !== null ? (
+              <span title="Tempo restante">-{formatTime(timeLeft)}</span>
+            ) : (
+              formatTime(elapsed)
+            )}
           </div>
         </div>
         <Progress value={progress} className="h-2" />
@@ -286,6 +355,72 @@ export function AssessmentForm({ session, onSubmit }: Props) {
                   onChange={(e) => handleAnswer(q.id, e.target.value)}
                   className="resize-y"
                 />
+              )}
+
+              {/* Fill in the Blanks */}
+              {q.type === "fill-in-the-blank" && (
+                <div className="text-base leading-relaxed text-foreground bg-secondary/20 p-4 rounded-xl border border-secondary/30">
+                  {(() => {
+                    const parts = q.text.split(/(\[\[.*?\]\])/g)
+                    let blankIdx = 0
+                    let currentData: Record<string, string> = {}
+                    try { currentData = JSON.parse(selected) } catch { }
+                    
+                    return parts.map((part, pi) => {
+                      if (part.startsWith("[[") && part.endsWith("]]")) {
+                        const idx = blankIdx++
+                        const key = `blank_${idx}`
+                        return (
+                          <input
+                            key={pi}
+                            type="text"
+                            value={currentData[key] || ""}
+                            onChange={(e) => handleSubAnswer(q.id, key, e.target.value)}
+                            className="mx-1 px-2 py-0.5 border-b-2 border-primary bg-background focus:outline-none focus:border-accent min-w-[80px] text-center"
+                            placeholder="..."
+                          />
+                        )
+                      }
+                      return <span key={pi}>{part}</span>
+                    })
+                  })()}
+                </div>
+              )}
+
+              {/* Matching */}
+              {q.type === "matching" && q.pairs && (
+                <div className="flex flex-col gap-3">
+                  {(() => {
+                    let currentData: Record<string, string> = {}
+                    try { currentData = JSON.parse(selected) } catch { }
+
+                    // We shuffle the right side once or use fixed. 
+                    // To keep it simple, we just show choices as a Select.
+                    const allRights = q.pairs.map(p => p.right).sort()
+
+                    return q.pairs.map((p, pi) => (
+                      <div key={p.id} className="flex flex-col sm:flex-row items-center gap-3 p-3 rounded-lg border border-border bg-background">
+                        <div className="flex-1 text-sm font-medium">{p.left}</div>
+                        <div className="hidden sm:block text-muted-foreground">→</div>
+                        <div className="w-full sm:w-64">
+                          <Select
+                            value={currentData[p.id] || ""}
+                            onValueChange={(val: string) => handleSubAnswer(q.id, p.id, val)}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder="Selecione a correspondência" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {allRights.map((r, ri) => (
+                                <SelectItem key={ri} value={r}>{r}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    ))
+                  })()}
+                </div>
               )}
             </div>
           )
