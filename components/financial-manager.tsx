@@ -466,9 +466,17 @@ export function FinancialManager() {
                 </div>
             </div>
 
-            {/* Student Detail Modal */}
             <Dialog open={!!selectedStudent} onOpenChange={(o) => !o && setSelectedStudent(null)}>
                 <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden flex flex-col p-0">
+                    <DialogHeader className="p-6 border-b border-border bg-muted/30">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <DialogTitle className="text-xl font-bold font-serif">Extrato Financeiro</DialogTitle>
+                                <p className="text-sm text-muted-foreground">{selectedStudent?.name} ({selectedStudent?.enrollment_number})</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button size="sm" variant="outline" onClick={() => setSelectedStudent(null)}>
+                                    Fechar
                                 </Button>
                                 <Button size="sm" variant="outline" className="h-9 text-xs font-bold border-accent text-accent hover:bg-accent/10" 
                                     onClick={() => handleGeneratePlan(selectedStudent!.id)}
