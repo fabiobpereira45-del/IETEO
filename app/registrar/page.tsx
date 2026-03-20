@@ -180,7 +180,7 @@ function EnrollmentContent() {
                         </div>
                         <h1 className="text-2xl font-bold">Matrícula Online</h1>
                     </div>
-                    <p className="text-muted-foreground text-sm uppercase tracking-wider font-semibold">Instituto Educacional de Teologia Evangélica do Oeste - IETEO</p>
+                    <p className="text-muted-foreground text-sm uppercase tracking-wider font-semibold">Instituto de Ensino Teológico - IETEO</p>
                     <div className="space-y-4 pt-4">
                         <div className="flex gap-3">
                             <ShieldCheck className="h-5 w-5 text-green-600 shrink-0" />
