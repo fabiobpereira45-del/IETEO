@@ -469,19 +469,6 @@ export function FinancialManager() {
             {/* Student Detail Modal */}
             <Dialog open={!!selectedStudent} onOpenChange={(o) => !o && setSelectedStudent(null)}>
                 <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden flex flex-col p-0">
-                    <DialogHeader className="p-6 pb-4 border-b bg-muted/30">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div>
-                                <DialogTitle className="text-xl font-serif">{selectedStudent?.name}</DialogTitle>
-                                <p className="text-sm text-muted-foreground">{selectedStudent?.enrollment_number}</p>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                <Button size="sm" variant="outline" className="h-9 text-xs font-bold border-primary text-primary hover:bg-primary/10"
-                                    onClick={() => {
-                                        const studentCharges = charges.filter(c => c.studentId === selectedStudent?.id)
-                                        printFinancialReportPDF(studentCharges, [selectedStudent!])
-                                    }}>
-                                    <FileText className="h-4 w-4 mr-2" /> PDF Extrato
                                 </Button>
                                 <Button size="sm" variant="outline" className="h-9 text-xs font-bold border-accent text-accent hover:bg-accent/10" 
                                     onClick={() => handleGeneratePlan(selectedStudent!.id)}

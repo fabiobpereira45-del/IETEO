@@ -9,7 +9,6 @@ const ABOUT_US_TEXT = `O Instituto de Ensino Teológico - IETEO é uma institui�
 A diretoria é composta por uma equipe experiente:
 - PRESIDÊNCIA: Pr. Felipe das Virgens e Pr. Nicodemos Glória
 - REITORIA: Pb. Fábio Barreto e Pb. Aislan Bastos
-- DIRETORA EXECUTIVA: Eliana Mendes
 
 Nosso compromisso é com a verdade bíblica e o desenvolvimento integral de nossos estudantes.`
 
@@ -90,15 +89,7 @@ export function InstitutionalManager() {
             </div>
           </div>
 
-          <div className="space-y-4">
-            <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Diretoria Executiva</h4>
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
-                <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold">EM</div>
-                <p className="text-sm font-semibold">Eliana Mendes</p>
-              </div>
-            </div>
-          </div>
+
         </div>
       </div>
     </div>

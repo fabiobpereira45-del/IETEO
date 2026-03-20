@@ -47,13 +47,31 @@ export async function POST(req: Request) {
 
         // Generate enrollment number
         const enrollmentNumber = `IETEO-${Date.now().toString().slice(-8)}`
+        const cleanCpf = cpf.replace(/\D/g, '')
+        const email = `${cleanCpf}@student.ieteo.com`
+
+        // Create Auth User
+        const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+            email,
+            password: cleanCpf, // CPF as default password
+            email_confirm: true,
+            user_metadata: { name: name.trim(), type: 'student' }
+        })
+
+        if (authError && authError.message !== 'User already registered') {
+            console.error("Erro ao criar usuário Auth:", authError)
+            // Continue if user exists, maybe they abandoned previous attempt
+        }
+
+        const authUserId = authUser?.user?.id
 
         // Create student record with status 'pending' (awaiting payment)
         const { data: student, error: studentErr } = await supabase
             .from('students')
             .insert({
+                auth_user_id: authUserId,
                 name: name.trim(),
-                cpf: cpf.replace(/\D/g, ''),
+                cpf: cleanCpf,
                 enrollment_number: enrollmentNumber,
                 phone: phone.trim(),
                 address: address.trim(),

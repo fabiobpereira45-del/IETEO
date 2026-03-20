@@ -24,8 +24,8 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: "Avaliação Teológica — Instituto de Ensino Teológico - IETEO",
-  description: "Sistema de Avaliação Teológica do IETEO — Curso de Teologia, Disciplina: Livros Poéticos",
+  title: "Instituto de Ensino Teológico - IETEO",
+  description: "Sistema de Avaliação Teológica do IETEO",
   generator: "v0.app",
   manifest: "/manifest.json",
   appleWebApp: {

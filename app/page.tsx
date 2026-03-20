@@ -157,7 +157,7 @@ export default function HomePage() {
                   <div className="flex gap-4">
                     <div className="flex flex-col">
                       <span className="text-[10px] uppercase text-white/40 font-bold tracking-tighter">Campus</span>
-                      <span className="text-sm font-bold">Salvador / BA</span>
+                      <span className="text-sm font-bold">Tancredo Neves</span>
                     </div>
                     <div className="w-px h-8 bg-white/10" />
                     <div className="flex flex-col">
@@ -173,7 +173,7 @@ export default function HomePage() {
                        Corra! Vagas Limitadas
                     </p>
                     <div className="flex flex-col gap-0.5">
-                      <p className="text-xs font-bold text-white">Matrícula: <span className="text-accent-foreground bg-accent px-1.5 rounded ml-1">R$ 120,00</span></p>
+                      <p className="text-xs font-bold text-white">Matrícula + 1ª Mensalidade: <span className="text-accent-foreground bg-accent px-1.5 rounded ml-1">R$ 120,00</span></p>
                       <p className="text-xs font-bold text-white mt-1">Mensalidade: <span className="text-accent-foreground bg-accent px-1.5 rounded ml-1">R$ 60,00</span></p>
                     </div>
                     <p className="text-[9px] font-black text-accent mt-2 tracking-widest uppercase">

@@ -302,9 +302,12 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
             </div>
 
             {/* Table */}
-            <div className="bg-card border border-border/50 rounded-2xl overflow-hidden premium-shadow">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+            <div className="bg-card border border-border/50 rounded-2xl overflow-hidden premium-shadow relative">
+                {/* Scroll Indicator (Visual only) */}
+                <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-black/5 to-transparent pointer-events-none md:hidden" />
+                
+                <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-muted-foreground/20">
+                    <table className="w-full text-sm min-w-[600px] sm:min-w-0">
                         <thead>
                             <tr className="border-b border-border/50 bg-muted/20">
                                 <th className="text-left px-6 py-4 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Aluno</th>

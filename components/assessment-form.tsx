@@ -181,13 +181,27 @@ export function AssessmentForm({ session, onSubmit }: Props) {
 
 
   if (isInitializing) {
-    return <div className="rounded-2xl border border-border bg-card p-10 text-center text-muted-foreground animate-pulse">Carregando avaliação...</div>
+    return (
+      <div className="flex flex-col items-center justify-center p-20 min-h-[60vh]">
+        <Clock className="h-10 w-10 animate-pulse text-muted-foreground mb-4" />
+        <p className="text-muted-foreground font-serif animate-pulse">Preparando sua avaliação...</p>
+      </div>
+    )
   }
 
   if (!assessment) {
+    console.error("Assessment not found for ID:", session.assessmentId)
     return (
-      <div className="rounded-2xl border border-border bg-card p-10 text-center text-muted-foreground">
-        Avaliação não encontrada. Por favor, recarregue a página.
+      <div className="flex flex-col items-center justify-center p-12 sm:p-20 text-center glass rounded-3xl m-4 border-destructive/20 shadow-xl">
+        <AlertTriangle className="h-16 w-16 text-destructive mb-6" />
+        <h2 className="text-2xl sm:text-3xl font-bold font-serif">Avaliação não encontrada</h2>
+        <p className="text-muted-foreground mt-3 max-w-md mx-auto">
+          O link pode ter expirado ou o ID informado está incorreto. 
+          <span className="block mt-1 text-xs opacity-50 font-mono">ID: {session.assessmentId}</span>
+        </p>
+        <Button className="mt-8 px-8 py-6 text-lg rounded-2xl premium-shadow" onClick={() => window.location.href = "/"}>
+          Voltar ao Início
+        </Button>
       </div>
     )
   }
