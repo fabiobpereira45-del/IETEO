@@ -8,7 +8,7 @@ const ABOUT_US_TEXT = `O Instituto de Ensino Teológico - IETEO é uma institui�
 
 A diretoria é composta por uma equipe experiente:
 - PRESIDÊNCIA: Pr. Felipe das Virgens e Pr. Nicodemos Glória
-- REITORIA: Pb. Fábio Barreto e Pb. Aislan Bastos
+- REITORIA: Pr. Jonas Azevedo, Pb. Fábio Barreto e Pb. Aislan Bastos
 
 Nosso compromisso é com a verdade bíblica e o desenvolvimento integral de nossos estudantes.`
 
@@ -78,6 +78,10 @@ export function InstitutionalManager() {
           <div className="space-y-4">
             <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b border-border pb-2">Reitoria</h4>
             <div className="space-y-2">
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border border-primary/20">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">JA</div>
+                <p className="text-sm font-semibold">Pr. Jonas Azevedo</p>
+              </div>
               <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border border-primary/20">
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">FB</div>
                 <p className="text-sm font-semibold">Pb. Fábio Barreto</p>
