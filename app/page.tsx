@@ -174,7 +174,7 @@ export default function HomePage() {
                     </p>
                     <div className="flex flex-col gap-0.5">
                       <p className="text-xs font-bold text-white">Matrícula + 1ª Mensalidade: <span className="text-accent-foreground bg-accent px-1.5 rounded ml-1">R$ 120,00</span></p>
-                      <p className="text-xs font-bold text-white mt-1">Mensalidade: <span className="text-accent-foreground bg-accent px-1.5 rounded ml-1">R$ 60,00</span></p>
+                      <p className="text-xs font-bold text-white mt-1">Mensalidade fixa após a matrícula: <span className="text-accent-foreground bg-accent px-1.5 rounded ml-1">R$ 60,00</span></p>
                     </div>
                     <p className="text-[9px] font-black text-accent mt-2 tracking-widest uppercase">
                       • {availableSlots !== null ? `${availableSlots} Vagas Restantes` : "Matrículas Abertas"} •
