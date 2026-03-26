@@ -1,13 +1,13 @@
-import { createGoogleGenerativeAI } from "@ai-sdk/google"
+import { createOpenAI } from "@ai-sdk/openai"
 import { generateText } from "ai"
 import { parseOffice } from "officeparser"
 import PDFParser from "pdf2json"
 
 export const maxDuration = 60 // 60 seconds timeout
 
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-  baseURL: "https://generativelanguage.googleapis.com/v1", // Força v1 via URL
+const groq = createOpenAI({
+  apiKey: process.env.GROQ_API_KEY,
+  baseURL: "https://api.groq.com/openai/v1",
 })
 
 // ─── System prompt ────────────────────────────────────────────────────────────
@@ -141,8 +141,9 @@ ${fileText ? `\nBaseie-se ESTRITAMENTE no texto abaixo:\n---\n${fileText.substri
 Retorne um JSON com exatamente ${safeCount} questões.`
 
     const { text } = await generateText({
-      model: google("gemini-1.5-flash"),
-      prompt: `${SYSTEM_PROMPT}\n\n${userPrompt}`,
+      model: groq("llama-3.3-70b-versatile"), // Modelo ultrarrápido do Groq
+      system: SYSTEM_PROMPT,
+      prompt: userPrompt,
       temperature: 0.7,
     })
 
