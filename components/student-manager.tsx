@@ -62,6 +62,10 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
     const [deleting, setDeleting] = useState(false)
     const [editPassword, setEditPassword] = useState("")
     const [showEditPassword, setShowEditPassword] = useState(false)
+    const [isBulkOpen, setIsBulkOpen] = useState(false)
+    const [bulkText, setBulkText] = useState("")
+    const [bulkError, setBulkError] = useState("")
+    const [importing, setImporting] = useState(false)
 
     // Selected student (for edit / delete / view)
     const [selected, setSelected] = useState<StudentProfile | null>(null)
@@ -314,6 +318,54 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
         doc.save(`Relatorio_Alunos_${new Date().getTime()}.pdf`)
     }
 
+    async function handleBulkImport() {
+        if (!bulkText.trim()) return
+        setImporting(true)
+        setBulkError("")
+        
+        const lines = bulkText.split("\n").map(l => l.trim()).filter(Boolean)
+        let successCount = 0
+        let errors = []
+
+        for (const line of lines) {
+            // Skip header if present
+            if (line.toLowerCase().includes("nome;") || line.toLowerCase().includes("cpf;")) continue
+
+            const parts = line.split(";")
+            if (parts.length < 3) continue
+
+            try {
+                const [bulkName, bulkCpf, bulkEmail, bulkPhone, bulkClassId] = parts
+                
+                // If it's a PDF export from somewhere else, it might have noise or different order.
+                // We'll assume: Nome; CPF; Email; Telefone; ID_Turma
+                
+                await registerStudentByAdmin({
+                    name: bulkName?.trim() || "",
+                    email: bulkEmail?.trim() || "",
+                    password: "123456", // Default password
+                    cpf: bulkCpf?.trim() || "",
+                    phone: bulkPhone?.trim() || "",
+                    class_id: bulkClassId?.trim() === "none" ? undefined : bulkClassId?.trim(),
+                    payment_status: "paid" // Default to paid for bulk import unless specified
+                })
+                successCount++
+            } catch (err) {
+                console.error("Erro ao importar linha:", line, err)
+                errors.push(line)
+            }
+        }
+
+        if (successCount > 0) {
+            await load()
+            setIsBulkOpen(false)
+            setBulkText("")
+        } else {
+            setBulkError("Nenhum aluno foi importado. Verifique se o formato está correto (Nome; CPF; Email; Telefone; ID_Turma)")
+        }
+        setImporting(false)
+    }
+
     // ─── Render ───────────────────────────────────────────────────────────────
     if (loading) return (
         <div className="p-10 flex justify-center">
@@ -331,6 +383,13 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                     <p className="text-muted-foreground text-sm">Visualize, edite e gerencie os alunos com matrícula ativa.</p>
                 </div>
                 <div className="flex items-center gap-3">
+                    <Button
+                        variant="outline"
+                        onClick={() => setIsBulkOpen(true)}
+                        className="rounded-xl border border-border bg-background"
+                    >
+                        <Plus className="h-4 w-4 mr-1.5" /> Importar Lote
+                    </Button>
                     <Button
                         variant="outline"
                         onClick={downloadStudentsPDF}
@@ -795,6 +854,52 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Bulk Import Modal */}
+            <Dialog open={isBulkOpen} onOpenChange={setIsBulkOpen}>
+                <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Importar Alunos em Lote</DialogTitle>
+                        <DialogDescription>
+                            Cole abaixo a lista de alunos separados por ponto e vírgula (;). 
+                            <br />Formato: <code className="bg-muted px-1 rounded text-xs">Nome; CPF; Email; Telefone; ID_da_Turma</code>
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="flex flex-col gap-4 py-4">
+                        {bulkError && (
+                            <div className="bg-destructive/10 text-destructive p-3 rounded-xl text-xs font-semibold flex items-center gap-2">
+                                <AlertTriangle className="h-4 w-4" /> {bulkError}
+                            </div>
+                        )}
+                        <Textarea
+                            placeholder="Exemplo:&#10;João Silva; 123.456.789-01; joao@email.com; (11) 99999-9999; turma_id_ou_none"
+                            value={bulkText}
+                            onChange={(e) => setBulkText(e.target.value)}
+                            className="h-64 font-mono text-xs rounded-xl border-border/50 bg-muted/20"
+                        />
+                        <div className="text-[10px] text-muted-foreground bg-muted/30 p-3 rounded-lg border border-border/30">
+                            <strong>Dicas:</strong> 
+                            <ul className="list-disc ml-4 space-y-1 mt-1">
+                                <li>Para o ID da Turma, use 'none' se não quiser vincular agora.</li>
+                                <li>A senha padrão para todos os novos alunos será '123456'.</li>
+                                <li>Se a primeira linha for um cabeçalho, ela será ignorada automaticamente.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsBulkOpen(false)} disabled={importing}>
+                            Cancelar
+                        </Button>
+                        <Button onClick={handleBulkImport} disabled={!bulkText.trim() || importing} className="gap-2">
+                            {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                            Importar Agora
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
 
         </div >
     )

@@ -16,33 +16,32 @@ interface OverviewTabProps {
 export function OverviewTab({ profile, charges, onTabChange }: OverviewTabProps) {
   return (
     <div className="flex flex-col gap-8 animate-in fade-in duration-500">
-      {/* Financial Alertas */}
       {charges.some(c => c.status === 'late') && (
         <div className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4 flex gap-4 items-center animate-pulse">
           <div className="bg-red-500 p-2 rounded-xl text-white">
             <AlertCircle className="h-6 w-6" />
           </div>
           <div className="flex-1">
-            <p className="font-black text-red-800 text-sm">ATENÇÃO: Mensalidade em Atraso!</p>
-            <p className="text-xs text-red-700">Regularize sua situação financeira para evitar o bloqueio do seu acesso.</p>
+            <p className="font-black text-red-800 text-sm">PENDÊNCIA FINANCEIRA: Regularize seu acesso!</p>
+            <p className="text-xs text-red-700 font-medium">Sua mensalidade está vencida. Regularize sua situação para manter seu acesso aos materiais e avaliações.</p>
           </div>
-          <Button size="sm" onClick={() => onTabChange("financial")} className="bg-red-600 hover:bg-red-700 text-white font-bold h-9">
-            Ver Contas
+          <Button size="sm" onClick={() => onTabChange("financial")} className="bg-red-600 hover:bg-red-700 text-white font-bold h-9 shadow-lg shadow-red-200">
+            Regularizar
           </Button>
         </div>
       )}
 
       {charges.some(c => c.status === 'pending') && !charges.some(c => c.status === 'late') && (
-        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-4 items-center">
-          <div className="bg-amber-500 p-2 rounded-xl text-white">
-            <Clock className="h-6 w-6" />
+        <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex gap-4 items-center shadow-sm">
+          <div className="bg-emerald-500 p-2 rounded-xl text-white">
+            <CheckCircle2 className="h-6 w-6" />
           </div>
           <div className="flex-1">
-            <p className="font-bold text-amber-800 text-sm">Fatura Pendente</p>
-            <p className="text-xs text-amber-700">Você possui uma fatura próxima do vencimento. Aproveite o desconto de 5% pagando em lote!</p>
+            <p className="font-bold text-emerald-800 text-sm">Você está em dia! Que tal antecipar sua próxima mensalidade?</p>
+            <p className="text-xs text-emerald-700">Garanta sua tranquilidade e ajude a manter nossa instituição. Clique em pagar para ver as opções.</p>
           </div>
-          <Button size="sm" variant="outline" onClick={() => onTabChange("financial")} className="border-amber-400 text-amber-700 hover:bg-amber-100 font-bold h-9">
-            Pagar
+          <Button size="sm" variant="outline" onClick={() => onTabChange("financial")} className="border-emerald-400 text-emerald-700 hover:bg-emerald-100 font-bold h-9">
+            Antecipar
           </Button>
         </div>
       )}

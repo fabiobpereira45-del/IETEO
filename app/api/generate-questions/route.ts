@@ -1,4 +1,4 @@
-import { google } from "@ai-sdk/google"
+import { openai } from "@ai-sdk/openai"
 import { generateText } from "ai"
 import { parseOffice } from "officeparser"
 import PDFParser from "pdf2json"
@@ -134,7 +134,7 @@ ${fileText ? `\nBaseie-se ESTRITAMENTE no texto abaixo:\n---\n${fileText.substri
 Retorne um JSON com exatamente ${safeCount} questões.`
 
     const { text } = await generateText({
-      model: google("gemini-1.5-flash"),
+      model: openai("gpt-4o"),
       system: SYSTEM_PROMPT,
       prompt: userPrompt,
       temperature: 0.7,
