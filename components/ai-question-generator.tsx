@@ -252,6 +252,9 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded, defaultDisc
       formData.append("difficulty", difficulty)
 
       if (file) {
+        if (file.size > 10 * 1024 * 1024) {
+          throw new Error("O arquivo selecionado é muito grande (máximo 10MB). Por favor, use um PDF menor ou remova imagens pesadas.")
+        }
         formData.append("file", file)
       }
 
@@ -262,7 +265,7 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded, defaultDisc
 
       if (!res.ok) {
         if (res.status === 413) {
-          throw new Error("O arquivo enviado é muito grande. O limite geralmente é de 4MB.")
+          throw new Error("O arquivo enviado excede o limite do servidor (Vercel geralmente limita a 4.5MB). Tente um arquivo menor.")
         }
         const data = await res.json().catch(() => null)
         throw new Error(data?.error ?? `Erro no servidor (${res.status}).`)

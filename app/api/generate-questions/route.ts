@@ -3,6 +3,8 @@ import { generateText } from "ai"
 import { parseOffice } from "officeparser"
 import PDFParser from "pdf2json"
 
+export const maxDuration = 60 // 60 seconds timeout
+
 // ─── System prompt ────────────────────────────────────────────────────────────
 
 const SYSTEM_PROMPT = `Você é uma IA Teológica especializada em educação cristã. Você possui conhecimento profundo em:
