@@ -1,13 +1,4 @@
-import { createOpenAI } from "@ai-sdk/openai"
-import { generateText } from "ai"
-import { parseOffice } from "officeparser"
-import PDFParser from "pdf2json"
-
 export const maxDuration = 60 // 60 seconds timeout
-
-const openai = createOpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
 
 // ─── System prompt ────────────────────────────────────────────────────────────
 
@@ -54,9 +45,24 @@ RELACIONAR COLUNAS (matching):
 IMPORTANTE: Retorne APENAS um objeto JSON válido com esta estrutura exata:
 {"questions":[{"type":"...","text":"...","choices":[{"id":"opt_a","text":"..."}],"pairs":[{"id":"p1","left":"...","right":"..."}],"correctAnswer":"...","explanation":"..."}]}`
 
+import { createOpenAI } from "@ai-sdk/openai"
+import { generateText } from "ai"
+import { parseOffice } from "officeparser"
+import PDFParser from "pdf2json"
+
 // ─── Route handler ────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    return Response.json(
+      { error: "OPENAI_API_KEY não configurada no servidor. Adicione-a ao .env.local ou ao dashboard do Vercel." },
+      { status: 500 }
+    )
+  }
+
+  const openai = createOpenAI({ apiKey })
+
   try {
     const isFormData = req.headers.get("content-type")?.includes("multipart/form-data")
 
