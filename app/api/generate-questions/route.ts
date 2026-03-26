@@ -142,8 +142,7 @@ Retorne um JSON com exatamente ${safeCount} questões.`
 
     const { text } = await generateText({
       model: google("gemini-1.5-flash"),
-      system: SYSTEM_PROMPT,
-      prompt: userPrompt,
+      prompt: `${SYSTEM_PROMPT}\n\n${userPrompt}`,
       temperature: 0.7,
     })
 
