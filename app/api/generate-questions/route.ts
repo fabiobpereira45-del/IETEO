@@ -1,9 +1,14 @@
-import { google } from "@ai-sdk/google"
+import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { generateText } from "ai"
 import { parseOffice } from "officeparser"
 import PDFParser from "pdf2json"
 
 export const maxDuration = 60 // 60 seconds timeout
+
+const google = createGoogleGenerativeAI({
+  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+  baseURL: "https://generativelanguage.googleapis.com/v1", // Força v1 via URL
+})
 
 // ─── System prompt ────────────────────────────────────────────────────────────
 
