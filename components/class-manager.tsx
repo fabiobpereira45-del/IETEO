@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react"
 import { Plus, Trash2, Pencil, Save, X, Users, Clock, GraduationCap, Loader2, Calendar, Link, Check, Copy } from "lucide-react"
 import { getClasses, addClass, updateClass, deleteClass, getStudents, type ClassRoom, type StudentProfile } from "@/lib/store"
+import jsPDF from "jspdf"
+import "jspdf-autotable"
 
 const SHIFTS = [
     { value: "morning", label: "Manhã" },
@@ -166,6 +168,38 @@ export function ClassManager() {
     const handleEditFormChange = (field: keyof FormState, value: string | number) =>
         setEditForm(f => ({ ...f, [field]: value }))
 
+    function downloadClassPDF(c: ClassRoom, classStudents: StudentProfile[]) {
+        const doc = new jsPDF()
+        
+        // Title
+        doc.setFontSize(18)
+        doc.text(`Lista de Alunos - ${c.name}`, 14, 20)
+        
+        doc.setFontSize(10)
+        doc.setTextColor(100)
+        doc.text(`Turno: ${SHIFT_LABEL[c.shift] || c.shift} | Dia: ${c.dayOfWeek ? DAY_LABEL[c.dayOfWeek] : 'N/D'}`, 14, 28)
+        doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')}`, 14, 33)
+        
+        const tableData = classStudents.map((s, i) => [
+            i + 1,
+            s.name,
+            s.enrollment_number || "—",
+            s.phone || "—",
+            s.payment_status === "paid" ? "Pago" : "Pendente"
+        ])
+
+        ;(doc as any).autoTable({
+            startY: 40,
+            head: [['#', 'Nome do Aluno', 'Matrícula', 'Telefone', 'Status Fin.']],
+            body: tableData,
+            theme: 'striped',
+            headStyles: { fillColor: [31, 41, 55] },
+            styles: { fontSize: 9 }
+        })
+
+        doc.save(`Alunos_${c.name.replace(/\s+/g, '_')}.pdf`)
+    }
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -238,11 +272,20 @@ export function ClassManager() {
                                             </span>
                                             <span className="flex items-center gap-1 text-xs font-bold text-primary">
                                                 <Users className="h-3 w-3" />
-                                                {(c.maxStudents || 0) - (c.studentCount || 0)} vagas restantes
+                                                {c.studentCount || 0} matriculados ({c.maxStudents - (c.studentCount || 0)} vagas)
                                             </span>
                                         </div>
                                     </div>
                                     <div className="flex gap-2 shrink-0">
+                                        <button 
+                                            onClick={() => downloadClassPDF(c, students.filter(s => s.class_id === c.id))}
+                                            className="p-2 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 transition-colors" 
+                                            title="Baixar Lista em PDF"
+                                        >
+                                            <svg className="h-4 w-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
+                                        </button>
                                         <button onClick={() => copyLink(c.id)} className="p-2 rounded-lg border border-accent/30 bg-accent/5 hover:bg-accent/10 transition-colors" title="Copiar Link de Matrícula">
                                             <Link className="h-4 w-4 text-accent" />
                                         </button>

@@ -52,6 +52,7 @@ export function ClassScheduleManager() {
     const [formLessonsCount, setFormLessonsCount] = useState<number>(1)
     const [formWorkload, setFormWorkload] = useState<number>(0)
     const [formStartDate, setFormStartDate] = useState("")
+    const [formEndDate, setFormEndDate] = useState("")
 
     // Deletar e Editar
     const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -86,6 +87,7 @@ export function ClassScheduleManager() {
         setFormLessonsCount(1)
         setFormWorkload(0)
         setFormStartDate("")
+        setFormEndDate("")
         setModalOpen(true)
     }
 
@@ -128,7 +130,8 @@ export function ClassScheduleManager() {
                 timeEnd: formTimeEnd,
                 lessonsCount: formLessonsCount,
                 workload: formWorkload,
-                startDate: formStartDate || undefined
+                startDate: formStartDate || undefined,
+                endDate: formEndDate || undefined
             }
 
             if (editId) {
@@ -157,6 +160,7 @@ export function ClassScheduleManager() {
         setFormLessonsCount(sched.lessonsCount)
         setFormWorkload(sched.workload)
         setFormStartDate(sched.startDate || "")
+        setFormEndDate(sched.endDate || "")
         setModalOpen(true)
     }
 
@@ -171,6 +175,7 @@ export function ClassScheduleManager() {
         setFormLessonsCount(1)
         setFormWorkload(0)
         setFormStartDate("")
+        setFormEndDate("")
         setModalOpen(true)
     }
 
@@ -291,6 +296,7 @@ export function ClassScheduleManager() {
                                                             <div className="flex items-center gap-1 opacity-70">
                                                                 <CalendarDays className="h-3 w-3" />
                                                                 {new Date(sched.startDate + "T00:00:00").toLocaleDateString('pt-BR')}
+                                                                {sched.endDate && ` a ${new Date(sched.endDate + "T00:00:00").toLocaleDateString('pt-BR')}`}
                                                             </div>
                                                         )}
                                                     </div>
@@ -415,9 +421,15 @@ export function ClassScheduleManager() {
                             </div>
                         </div>
 
-                        <div className="flex flex-col gap-1.5">
-                            <Label>Data de Início das Aulas</Label>
-                            <Input type="date" value={formStartDate} onChange={e => setFormStartDate(e.target.value)} />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="flex flex-col gap-1.5">
+                                <Label>Data de Início</Label>
+                                <Input type="date" value={formStartDate} onChange={e => setFormStartDate(e.target.value)} />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <Label>Data Final</Label>
+                                <Input type="date" value={formEndDate} onChange={e => setFormEndDate(e.target.value)} />
+                            </div>
                         </div>
 
                     </div>

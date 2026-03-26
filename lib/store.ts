@@ -25,7 +25,7 @@ export interface Attendance { id: string; studentId: string; disciplineId: strin
 export interface BoardMember { id: string; name: string; role: string; category: string; avatar_url?: string | null; createdAt: string; }
 export interface ProfessorDiscipline { id: string; professorId: string; disciplineId: string; createdAt: string; }
 export interface ClassRoom { id: string; name: string; shift: "morning" | "afternoon" | "evening" | "ead"; dayOfWeek?: string; maxStudents: number; studentCount?: number; createdAt: string; }
-export interface ClassSchedule { id: string; classId: string; disciplineId: string; professorName: string; dayOfWeek: string; timeStart: string; timeEnd: string; lessonsCount: number; workload: number; startDate?: string; createdAt: string; }
+export interface ClassSchedule { id: string; classId: string; disciplineId: string; professorName: string; dayOfWeek: string; timeStart: string; timeEnd: string; lessonsCount: number; workload: number; startDate?: string; endDate?: string; createdAt: string; }
 export interface StudentGrade {
   id: string;
   studentIdentifier: string; // CPF or Email
@@ -304,7 +304,7 @@ function mapStudentProfile(row: any): StudentProfile { return { id: row.id, auth
 function mapChatMessage(row: any): ChatMessage { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, message: row.message, isFromStudent: row.is_from_student, read: row.read, createdAt: row.created_at } }
 function mapAttendance(row: any): Attendance { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, date: row.date, isPresent: row.is_present, createdAt: row.created_at } }
 function mapClassRoom(row: any): ClassRoom { return { id: row.id, name: row.name, shift: row.shift as ClassRoom['shift'], dayOfWeek: row.day_of_week || undefined, maxStudents: Number(row.max_students), studentCount: row.student_count !== undefined ? Number(row.student_count) : undefined, createdAt: row.created_at } }
-function mapClassSchedule(row: any): ClassSchedule { return { id: row.id, classId: row.class_id, disciplineId: row.discipline_id, professorName: row.professor_name, dayOfWeek: row.day_of_week, timeStart: row.time_start, timeEnd: row.time_end, lessonsCount: Number(row.lessons_count || 1), workload: Number(row.workload || 0), startDate: row.start_date || undefined, createdAt: row.created_at } }
+function mapClassSchedule(row: any): ClassSchedule { return { id: row.id, classId: row.class_id, disciplineId: row.discipline_id, professorName: row.professor_name, dayOfWeek: row.day_of_week, timeStart: row.time_start, timeEnd: row.time_end, lessonsCount: Number(row.lessons_count || 1), workload: Number(row.workload || 0), startDate: row.start_date || undefined, endDate: row.end_date || undefined, createdAt: row.created_at } }
 function mapStudentGrade(row: any): StudentGrade { return { id: row.id, studentIdentifier: row.student_identifier, studentName: row.student_name, disciplineId: row.discipline_id || undefined, isPublic: row.is_public, examGrade: Number(row.exam_grade), worksGrade: Number(row.works_grade), seminarGrade: Number(row.seminar_grade), participationBonus: Number(row.participation_bonus), attendanceScore: Number(row.attendance_score), customDivisor: Number(row.custom_divisor), createdAt: row.created_at } }
 function mapBoardMember(row: any): BoardMember { return { id: row.id, name: row.name, role: row.role, category: row.category, avatar_url: row.avatar_url, createdAt: row.created_at } }
 function mapProfessorDiscipline(row: any): ProfessorDiscipline { return { id: row.id, professorId: row.professor_id, disciplineId: row.discipline_id, createdAt: row.created_at } }
@@ -1065,6 +1065,7 @@ export async function addClassSchedule(data: Omit<ClassSchedule, "id" | "created
     lessons_count: data.lessonsCount,
     workload: data.workload,
     start_date: data.startDate || null,
+    end_date: data.endDate || null,
     created_at: new Date().toISOString()
   }
   const { error } = await supabase.from('class_schedules').insert(dbData)
@@ -1083,6 +1084,7 @@ export async function updateClassSchedule(id: string, data: Partial<Omit<ClassSc
   if (data.lessonsCount !== undefined) updateData.lessons_count = data.lessonsCount
   if (data.workload !== undefined) updateData.workload = data.workload
   if (data.startDate !== undefined) updateData.start_date = data.startDate || null
+  if (data.endDate !== undefined) updateData.end_date = data.endDate || null
 
   const { error } = await supabase.from('class_schedules').update(updateData).eq('id', id)
   if (error) throw new Error(error.message)

@@ -4,8 +4,10 @@ import { useState, useEffect, useMemo } from "react"
 import {
     Users, Plus, ShieldCheck, Mail, Loader2, CheckCircle2, User, Phone,
     MapPin, Building2, UserCircle2, MessageSquare, Search, Pencil, Trash2,
-    X, AlertTriangle, Eye, EyeOff, BookOpen, MessageCircle
+    X, AlertTriangle, Eye, EyeOff, BookOpen, MessageCircle, Download
 } from "lucide-react"
+import jsPDF from "jspdf"
+import "jspdf-autotable"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -45,6 +47,8 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
     const [schedules, setSchedules] = useState<ClassSchedule[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
+    const [filterClass, setFilterClass] = useState("all")
+    const [filterPayment, setFilterPayment] = useState("all")
 
     // Dialogs
     const [isAddOpen, setIsAddOpen] = useState(false)
@@ -111,17 +115,31 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
     // ─── Filtered list ────────────────────────────────────────────────────────
 
     const filtered = useMemo(() => {
-        // Agora exibimos todos, inclusive os pendentes (aguardando pagamento inicial)
-        const activeStudents = students;
+        let list = students;
+        
+        // Filter by Search
         const q = search.toLowerCase()
-        if (!q) return activeStudents
-        return activeStudents.filter(s =>
-            s.name.toLowerCase().includes(q) ||
-            (s.enrollment_number || "").toLowerCase().includes(q) ||
-            (s.cpf || "").includes(q) ||
-            (s.phone || "").includes(q)
-        )
-    }, [students, search])
+        if (q) {
+            list = list.filter(s =>
+                s.name.toLowerCase().includes(q) ||
+                (s.enrollment_number || "").toLowerCase().includes(q) ||
+                (s.cpf || "").includes(q) ||
+                (s.phone || "").includes(q)
+            )
+        }
+
+        // Filter by Class
+        if (filterClass !== "all") {
+            list = list.filter(s => s.class_id === filterClass)
+        }
+
+        // Filter by Payment
+        if (filterPayment !== "all") {
+            list = list.filter(s => s.payment_status === filterPayment)
+        }
+
+        return list
+    }, [students, search, filterClass, filterPayment])
 
     // ─── Create ───────────────────────────────────────────────────────────────
 
@@ -260,6 +278,42 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
         }
     }
 
+    function downloadStudentsPDF() {
+        const doc = new jsPDF()
+        doc.setFontSize(18)
+        doc.text("Relatório Geral de Alunos", 14, 20)
+        
+        doc.setFontSize(10)
+        doc.setTextColor(100)
+        const classLabel = filterClass === "all" ? "Todas" : (classes.find(c => c.id === filterClass)?.name || "N/D")
+        const payLabel = filterPayment === "all" ? "Todos" : (filterPayment === "paid" ? "Pago" : "Pendente")
+        doc.text(`Filtros - Turma: ${classLabel} | Financeiro: ${payLabel}`, 14, 28)
+        doc.text(`Total de registros: ${filtered.length} | Data: ${new Date().toLocaleDateString('pt-BR')}`, 14, 33)
+
+        const tableData = filtered.map((s, i) => {
+            const cls = classes.find(c => c.id === s.class_id)
+            return [
+                i + 1,
+                s.name,
+                s.enrollment_number || "—",
+                cls?.name || "Sem Turma",
+                s.payment_status === "paid" ? "Pago" : "Pendente",
+                s.phone || "—"
+            ]
+        })
+
+        ;(doc as any).autoTable({
+            startY: 40,
+            head: [['#', 'Nome', 'Matrícula', 'Turma', 'Financeiro', 'Telefone']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: { fillColor: [31, 41, 55], textColor: [255, 255, 255] },
+            styles: { fontSize: 8 }
+        })
+
+        doc.save(`Relatorio_Alunos_${new Date().getTime()}.pdf`)
+    }
+
     // ─── Render ───────────────────────────────────────────────────────────────
     if (loading) return (
         <div className="p-10 flex justify-center">
@@ -276,29 +330,62 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                     <h2 className="text-xl font-bold font-serif text-foreground">Gestão de Alunos</h2>
                     <p className="text-muted-foreground text-sm">Visualize, edite e gerencie os alunos com matrícula ativa.</p>
                 </div>
-                <Button
-                    onClick={() => { resetAddForm(); setIsAddOpen(true) }}
-                    className="rounded-xl shadow-lg shadow-primary/20"
-                >
-                    <Plus className="h-4 w-4 mr-1.5" /> Matricular Aluno
-                </Button>
+                <div className="flex items-center gap-3">
+                    <Button
+                        variant="outline"
+                        onClick={downloadStudentsPDF}
+                        disabled={filtered.length === 0}
+                        className="rounded-xl border border-border bg-background"
+                    >
+                        <Download className="h-4 w-4 mr-1.5" /> Exportar PDF
+                    </Button>
+                    <Button
+                        onClick={() => { resetAddForm(); setIsAddOpen(true) }}
+                        className="rounded-xl shadow-lg shadow-primary/20"
+                    >
+                        <Plus className="h-4 w-4 mr-1.5" /> Matricular Aluno
+                    </Button>
+                </div>
             </div>
 
 
-            {/* Search */}
-            <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                <Input
-                    placeholder="Buscar por nome, matrícula, CPF ou telefone..."
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    className="pl-11 h-12 text-sm rounded-xl border-border/50 bg-card hover:border-primary/30 focus:border-primary/50 transition-all premium-shadow shadow-sm"
-                />
-                {search && (
-                    <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                        <X className="h-4 w-4" />
-                    </button>
-                )}
+            {/* Search and Filters */}
+            <div className="flex flex-col md:flex-row gap-4 items-center">
+                <div className="relative group flex-1 w-full">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                    <Input
+                        placeholder="Buscar por nome, matrícula, CPF ou telefone..."
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        className="pl-11 h-12 text-sm rounded-xl border-border/50 bg-card hover:border-primary/30 focus:border-primary/50 transition-all premium-shadow shadow-sm"
+                    />
+                    {search && (
+                        <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                            <X className="h-4 w-4" />
+                        </button>
+                    )}
+                </div>
+
+                <div className="flex gap-2 w-full md:w-auto">
+                    <select
+                        value={filterClass}
+                        onChange={e => setFilterClass(e.target.value)}
+                        className="h-12 px-4 rounded-xl border border-border/50 bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all min-w-[140px]"
+                    >
+                        <option value="all">Todas as Turmas</option>
+                        {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+
+                    <select
+                        value={filterPayment}
+                        onChange={e => setFilterPayment(e.target.value)}
+                        className="h-12 px-4 rounded-xl border border-border/50 bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all min-w-[150px]"
+                    >
+                        <option value="all">Status Fin. (Todos)</option>
+                        <option value="paid">Pago</option>
+                        <option value="pending">Pendente</option>
+                    </select>
+                </div>
             </div>
 
             {/* Table */}

@@ -134,7 +134,7 @@ ${fileText ? `\nBaseie-se ESTRITAMENTE no texto abaixo:\n---\n${fileText.substri
 Retorne um JSON com exatamente ${safeCount} questões.`
 
     const { text } = await generateText({
-      model: google("gemini-2.0-flash-exp"),
+      model: google("gemini-1.5-flash"),
       system: SYSTEM_PROMPT,
       prompt: userPrompt,
       temperature: 0.7,
