@@ -140,7 +140,7 @@ ${fileText ? `\nBASE DE CONHECIMENTO OBRIGATÓRIA (Anexo):\n---\n${fileText.subs
 Retorne um JSON com exatamente ${safeCount} questões.`
 
     const { text } = await generateText({
-      model: google("gemini-1.5-flash-latest"), // Modelo Gemini Flash - Versão mais estável e compatível
+      model: google("gemini-1.5-pro-latest"), // Modelo Gemini Pro - Versão robusta e ativa no sistema
       system: SYSTEM_PROMPT,
       prompt: userPrompt,
       temperature: 0.7,
