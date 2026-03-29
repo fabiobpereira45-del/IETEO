@@ -142,7 +142,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
     const myDisciplineIds = new Set(mySchedules.map(s => s.disciplineId))
     const filteredMaterials = materials.filter(m => !m.disciplineId || myDisciplineIds.has(m.disciplineId))
 
-    const SidebarContent = () => (
+    const renderSidebar = () => (
         <div className="flex flex-col h-[100dvh] text-slate-100 pt-[env(safe-area-inset-top,0px)]" style={{ backgroundColor: '#0f172a' }}>
             <div className="p-6 border-b border-white/20 mb-4 bg-black/40 backdrop-blur-md">
                 <div className="relative mb-4 group inline-block">
@@ -226,7 +226,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
         <div className="flex h-screen w-full bg-[#f8fafc] overflow-hidden fixed inset-0">
             {/* Desktop Sidebar */}
             <aside className="hidden lg:block w-72 h-full flex-shrink-0 animate-in slide-in-from-left duration-500">
-                <SidebarContent />
+                {renderSidebar()}
             </aside>
 
             {/* Main Content Area */}
@@ -241,7 +241,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                                 </Button>
                             </SheetTrigger>
                             <SheetContent side="left" className="p-0 w-72 border-r-0" style={{ backgroundColor: '#0f172a' }}>
-                                <SidebarContent />
+                                {renderSidebar()}
                             </SheetContent>
                         </Sheet>
                         <div className="flex flex-col">

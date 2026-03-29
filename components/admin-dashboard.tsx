@@ -176,8 +176,9 @@ export function AdminDashboard({ onLogout }: Props) {
     }
   ]
 
-  const NavItem = ({ item }: { item: any }) => (
+  const renderNavItem = (item: any) => (
     <button
+      key={item.id}
       onClick={() => {
         setTab(item.id as Tab)
         setIsMobileMenuOpen(false)
@@ -200,7 +201,7 @@ export function AdminDashboard({ onLogout }: Props) {
     </button>
   )
 
-  const SidebarContent = () => (
+  const renderSidebar = () => (
     <div className="flex flex-col h-full bg-card border-r border-border/50 overflow-hidden">
       <div className="flex flex-col h-full text-slate-100 bg-navy">
         {/* Perfil Header na Sidebar */}
@@ -236,9 +237,7 @@ export function AdminDashboard({ onLogout }: Props) {
                     {group.title}
                   </h3>
                   <div className="grid gap-1">
-                    {visibleItems.map(item => (
-                      <NavItem key={item.id} item={item} />
-                    ))}
+                    {visibleItems.map(item => renderNavItem(item))}
                   </div>
                 </div>
               )
@@ -278,7 +277,7 @@ export function AdminDashboard({ onLogout }: Props) {
     <div className="min-h-screen bg-background flex text-foreground">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:block w-72 sticky top-0 h-[100dvh] overflow-hidden">
-        <SidebarContent />
+        {renderSidebar()}
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -301,7 +300,7 @@ export function AdminDashboard({ onLogout }: Props) {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="p-0 border-none w-72">
-              <SidebarContent />
+              {renderSidebar()}
             </SheetContent>
           </Sheet>
 
