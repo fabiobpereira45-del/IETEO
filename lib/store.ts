@@ -431,6 +431,16 @@ export async function addFinancialCharge(charge: Omit<FinancialCharge, "id" | "c
 
   return mapFinancialCharge(data)
 }
+export async function updateFinancialChargesStatusBatch(ids: string[], status: FinancialCharge["status"]): Promise<void> {
+  const supabase = createClient()
+  const dbData: any = { status }
+  if (status === 'paid') dbData.payment_date = new Date().toISOString()
+  if (status === 'pending') dbData.payment_date = null
+  
+  const { error } = await supabase.from('financial_charges').update(dbData).in('id', ids)
+  if (error) throw new Error(error.message)
+}
+
 export async function updateFinancialChargeStatus(id: string, status: FinancialCharge["status"]): Promise<void> {
   const supabase = createClient()
   const dbData: any = { status }

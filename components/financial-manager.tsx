@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import {
     type FinancialCharge, type StudentProfile, type FinancialSettings, type Assessment,
-    getFinancialCharges, addFinancialCharge, updateFinancialChargeStatus, deleteFinancialCharge, updateFinancialCharge,
+    getFinancialCharges, addFinancialCharge, updateFinancialChargeStatus, deleteFinancialCharge, updateFinancialCharge, updateFinancialChargesStatusBatch,
     getFinancialSettings, updateFinancialSettings, getAssessments, triggerN8nWebhook,
     generateMonthlyCharges
 } from "@/lib/store"
@@ -498,9 +498,8 @@ export function FinancialManager() {
                                         setIsGenerating(true)
                                         try {
                                             const newStatus = type === "100" ? "bolsa100" : "bolsa50"
-                                            for (const charge of stCharges) {
-                                                await updateFinancialChargeStatus(charge.id, newStatus)
-                                            }
+                                            const stChargeIds = stCharges.map(c => c.id)
+                                            await updateFinancialChargesStatusBatch(stChargeIds, newStatus)
                                             await load()
                                             alert("Bolsas aplicadas com sucesso!")
                                         } catch (e: any) { alert("Erro ao aplicar bolsas: " + e.message) } 
