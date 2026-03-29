@@ -51,6 +51,7 @@ export function FinancialManager() {
     const [editAmount, setEditAmount] = useState("")
     const [editDescription, setEditDescription] = useState("")
     const [editDueDate, setEditDueDate] = useState("")
+    const [editStatus, setEditStatus] = useState<FinancialCharge["status"]>("pending")
 
     // Filter state
     const [searchName, setSearchName] = useState("")
@@ -266,6 +267,9 @@ export function FinancialManager() {
                 description: editDescription.trim(),
                 dueDate: editDueDate
             })
+            if (editStatus !== editingCharge.status) {
+                await updateFinancialChargeStatus(editingCharge.id, editStatus)
+            }
             setEditingCharge(null)
             load()
         } catch (e: any) {
@@ -302,6 +306,8 @@ export function FinancialManager() {
         if (status === 'paid') return <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded font-medium flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Pago</span>
         if (status === 'late') return <span className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded font-medium flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Atrasado</span>
         if (status === 'cancelled') return <span className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded font-medium flex items-center gap-1">Cancelado</span>
+        if (status === 'bolsa100') return <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded font-medium flex items-center gap-1">Bolsa 100%</span>
+        if (status === 'bolsa50') return <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded font-medium flex items-center gap-1">Bolsa 50%</span>
         return <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded font-medium flex items-center gap-1"><Clock className="h-3 w-3" /> Pendente</span>
     }
 
@@ -478,6 +484,32 @@ export function FinancialManager() {
                                 <Button size="sm" variant="outline" onClick={() => setSelectedStudent(null)}>
                                     Fechar
                                 </Button>
+                                <Button size="sm" variant="outline" className="h-9 text-xs font-bold border-blue-500 text-blue-600 hover:bg-blue-50" 
+                                    onClick={async () => {
+                                        const type = window.prompt("Bolsa Lote (Mensalidades Pendentes):\nDigite 100 para Bolsa Integral\nDigite 50 para Bolsa Parcial")
+                                        if (type !== "100" && type !== "50") {
+                                            if (type !== null && type.trim() !== "") alert("Valor inválido. Use 100 ou 50.")
+                                            return
+                                        }
+                                        const stCharges = charges.filter(c => c.studentId === selectedStudent?.id && c.type === 'monthly' && (c.status === 'pending' || c.status === 'late'))
+                                        if (stCharges.length === 0) return alert("Nenhuma mensalidade pendente encontrada.")
+                                        if (!confirm(`Aplicar Bolsa ${type}% em ${stCharges.length} mensalidade(s)?`)) return
+                                        
+                                        setIsGenerating(true)
+                                        try {
+                                            const newStatus = type === "100" ? "bolsa100" : "bolsa50"
+                                            for (const charge of stCharges) {
+                                                await updateFinancialChargeStatus(charge.id, newStatus)
+                                            }
+                                            await load()
+                                            alert("Bolsas aplicadas com sucesso!")
+                                        } catch (e: any) { alert("Erro ao aplicar bolsas: " + e.message) } 
+                                        finally { setIsGenerating(false) }
+                                    }}
+                                    disabled={isGenerating}>
+                                    {isGenerating ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <DollarSign className="h-3 w-3 mr-2" />}
+                                    Aplicar Bolsa (Lote)
+                                </Button>
                                 <Button size="sm" variant="outline" className="h-9 text-xs font-bold border-accent text-accent hover:bg-accent/10" 
                                     onClick={() => handleGeneratePlan(selectedStudent!.id)}
                                     disabled={isGenerating}>
@@ -530,6 +562,7 @@ export function FinancialManager() {
                                                         setEditAmount(c.amount.toString())
                                                         setEditDescription(c.description)
                                                         setEditDueDate(c.dueDate)
+                                                        setEditStatus(c.status)
                                                     }} title="Editar"><Pencil className="h-4 w-4" /></Button>
                                                     <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:bg-destructive/10" title="Excluir" onClick={() => setDeleteId(c.id)}><Trash2 className="h-4 w-4" /></Button>
                                                 </div>
@@ -704,6 +737,20 @@ export function FinancialManager() {
                                     onChange={e => setEditDueDate(e.target.value)}
                                 />
                             </div>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <Label>Status</Label>
+                            <Select value={editStatus} onValueChange={(v: any) => setEditStatus(v)}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="pending">Pendente</SelectItem>
+                                    <SelectItem value="paid">Pago</SelectItem>
+                                    <SelectItem value="late">Atrasado</SelectItem>
+                                    <SelectItem value="cancelled">Cancelado</SelectItem>
+                                    <SelectItem value="bolsa100">Bolsa 100%</SelectItem>
+                                    <SelectItem value="bolsa50">Bolsa 50%</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
                     <DialogFooter>

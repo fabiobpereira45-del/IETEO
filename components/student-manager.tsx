@@ -290,7 +290,7 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
         doc.setFontSize(10)
         doc.setTextColor(100)
         const classLabel = filterClass === "all" ? "Todas" : (classes.find(c => c.id === filterClass)?.name || "N/D")
-        const payLabel = filterPayment === "all" ? "Todos" : (filterPayment === "paid" ? "Pago" : "Pendente")
+        const payLabel = filterPayment === "all" ? "Todos" : (filterPayment === "paid" ? "Pago" : filterPayment === "bolsa100" ? "Bolsa 100%" : filterPayment === "bolsa50" ? "Bolsa 50%" : "Pendente")
         doc.text(`Filtros - Turma: ${classLabel} | Financeiro: ${payLabel}`, 14, 28)
         doc.text(`Total de registros: ${filtered.length} | Data: ${new Date().toLocaleDateString('pt-BR')}`, 14, 33)
 
@@ -301,7 +301,7 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                 s.name,
                 s.enrollment_number || "—",
                 cls?.name || "Sem Turma",
-                s.payment_status === "paid" ? "Pago" : "Pendente",
+                s.payment_status === "paid" ? "Pago" : s.payment_status === "bolsa100" ? "Bolsa 100%" : s.payment_status === "bolsa50" ? "Bolsa 50%" : "Pendente",
                 s.phone || "—"
             ]
         })
@@ -443,6 +443,8 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                         <option value="all">Status Fin. (Todos)</option>
                         <option value="paid">Pago</option>
                         <option value="pending">Pendente</option>
+                        <option value="bolsa100">Bolsa 100%</option>
+                        <option value="bolsa50">Bolsa 50%</option>
                     </select>
                 </div>
             </div>
@@ -486,6 +488,14 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                                             {stu.payment_status === "paid" ? (
                                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase bg-green-100 text-green-700 px-2 py-0.5 rounded">
                                                     <CheckCircle2 className="h-3 w-3" /> Pago
+                                                </span>
+                                            ) : stu.payment_status === "bolsa100" ? (
+                                                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                                                    Bolsa 100%
+                                                </span>
+                                            ) : stu.payment_status === "bolsa50" ? (
+                                                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                                                    Bolsa 50%
                                                 </span>
                                             ) : (
                                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase bg-amber-100 text-amber-700 px-2 py-0.5 rounded">
@@ -650,6 +660,8 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                                 <select value={paymentStatus} onChange={e => setPaymentStatus(e.target.value)} className="w-full text-sm h-9 border border-input rounded-md px-3 bg-background">
                                     <option value="paid">Pago</option>
                                     <option value="pending">Pendente</option>
+                                    <option value="bolsa100">Bolsa 100%</option>
+                                    <option value="bolsa50">Bolsa 50%</option>
                                 </select>
                             </div>
                         </div>
@@ -726,6 +738,8 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                                 <select value={editPaymentStatus} onChange={e => setEditPaymentStatus(e.target.value)} className="w-full text-sm h-9 border border-input rounded-md px-3 bg-background">
                                     <option value="paid">Pago</option>
                                     <option value="pending">Pendente</option>
+                                    <option value="bolsa100">Bolsa 100%</option>
+                                    <option value="bolsa50">Bolsa 50%</option>
                                 </select>
                             </div>
                         </div>

@@ -134,6 +134,17 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
     }
 
     if (success) {
+        const selectedClass = classes.find(c => c.id === form.classId)
+        let whatsappGroupLink = ""
+        const classNameStr = (selectedClass?.name || "").toLowerCase()
+        if (classNameStr.includes("alpha")) {
+            whatsappGroupLink = "https://chat.whatsapp.com/IuAPUAYZpurBIPisnxgVug"
+        } else if (classNameStr.includes("beta")) {
+            whatsappGroupLink = "https://chat.whatsapp.com/IHOwW3beRo4CDdxegzJsQs"
+        } else if (classNameStr.includes("omega") || classNameStr.includes("ômega")) {
+            whatsappGroupLink = "https://chat.whatsapp.com/JJU7yF8vmqH9l42LVHl3GA"
+        }
+
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                 <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md p-8 text-center flex flex-col items-center">
@@ -172,6 +183,18 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                             </div>
                         </div>
                     </div>
+
+                    {whatsappGroupLink && (
+                        <a 
+                            href={whatsappGroupLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full flex items-center justify-center gap-2 bg-[#25D366] text-white font-bold py-3.5 rounded-xl hover:bg-[#20bd5a] transition-colors shadow-md mb-3"
+                        >
+                            <MessageCircle className="h-5 w-5" />
+                            Entrar no grupo de WhatsApp {selectedClass?.name}
+                        </a>
+                    )}
 
                     <button onClick={() => { onSuccess?.(); onClose() }} className="w-full bg-accent text-accent-foreground font-bold py-3.5 rounded-xl hover:bg-accent/90 transition-colors shadow-md">
                         Fechar
