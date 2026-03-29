@@ -571,9 +571,13 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
   }
 
   async function handleDeleteDisc(id: string) {
-    await deleteDiscipline(id)
-    await reload()
-    setDeleteDiscId(null)
+    try {
+      await deleteDiscipline(id)
+      await reload()
+      setDeleteDiscId(null)
+    } catch (err: any) {
+      alert(`Erro ao excluir disciplina: ${err.message}. Verifique se existem dependências vinculadas.`)
+    }
   }
 
   async function handleDeleteQ(id: string) {

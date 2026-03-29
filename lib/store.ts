@@ -143,10 +143,12 @@ export async function registerStudentByAdmin(data: any): Promise<void> {
   // Use email if provided, else generate fake one
   const email = data.email || `${cleanCpf || uid().slice(0, 11)}@student.ieteo.com`
 
+  const nameUC = (data.name || "").toUpperCase().trim()
+
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password: data.password,
-    options: { data: { name: data.name, type: 'student' } }
+    options: { data: { name: nameUC, type: 'student' } }
   })
   if (authError) throw new Error(authError.message)
   if (!authData.user) throw new Error("Erro ao criar usuário na base de dados (Auth).")
@@ -155,7 +157,7 @@ export async function registerStudentByAdmin(data: any): Promise<void> {
 
   const { error: dbError } = await supabase.from('students').insert({
     auth_user_id: authData.user.id,
-    name: data.name,
+    name: nameUC,
     cpf: cleanCpf,
     email,
     enrollment_number: matricula,
@@ -609,7 +611,11 @@ export async function updateDiscipline(id: string, data: Partial<Pick<Discipline
 }
 export async function deleteDiscipline(id: string): Promise<void> {
   const supabase = createClient()
-  await supabase.from('disciplines').delete().eq('id', id)
+  // First, delete related entries to avoid foreign key constraints
+  await supabase.from('questions').delete().eq('discipline_id', id)
+  await supabase.from('study_materials').delete().eq('discipline_id', id)
+  const { error } = await supabase.from('disciplines').delete().eq('id', id)
+  if (error) throw new Error(error.message)
 }
 
 export async function getStudyMaterials(disciplineId?: string): Promise<StudyMaterial[]> {
@@ -867,7 +873,8 @@ export async function getProfessorAccounts(): Promise<ProfessorAccount[]> {
   return (data || []).map(mapProfessor)
 }
 export async function addProfessorAccount(data: Omit<ProfessorAccount, "id" | "createdAt" | "passwordHash"> & { password: string }): Promise<ProfessorAccount> {
-  const account = { id: uid(), name: data.name, email: data.email.toLowerCase().trim(), password_hash: hashPassword(data.password), role: data.role, created_at: new Date().toISOString() }
+  const nameUC = (data.name || "").toUpperCase().trim()
+  const account = { id: uid(), name: nameUC, email: data.email.toLowerCase().trim(), password_hash: hashPassword(data.password), role: data.role, created_at: new Date().toISOString() }
   const supabase = createClient()
   await supabase.from('professor_accounts').insert(account)
   return mapProfessor(account)
@@ -971,7 +978,7 @@ export async function updateProfessorAccount(id: string, data: Partial<Pick<Prof
   }
 
   const updateData: any = {}
-  if (data.name !== undefined) updateData.name = data.name
+  if (data.name !== undefined) updateData.name = data.name.toUpperCase().trim()
   if (data.email !== undefined) updateData.email = data.email.toLowerCase().trim()
   if (data.role !== undefined) updateData.role = data.role
   if (data.active !== undefined) updateData.active = data.active
@@ -1160,7 +1167,7 @@ export async function updateStudent(id: string, data: {
   }
 
   const updateData: any = {}
-  if (data.name !== undefined) updateData.name = data.name
+  if (data.name !== undefined) updateData.name = data.name.toUpperCase().trim()
   if (data.cpf !== undefined) updateData.cpf = data.cpf.replace(/\D/g, '')
   if (data.phone !== undefined) updateData.phone = data.phone || null
   if (data.address !== undefined) updateData.address = data.address || null

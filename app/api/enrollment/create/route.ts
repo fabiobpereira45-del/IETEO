@@ -53,11 +53,13 @@ export async function POST(req: Request) {
         // Create Auth User
         let authUserId: string | undefined
 
+        const nameUC = (name || "").toUpperCase().trim()
+
         const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
             email,
             password: "123456", // Senha padrão para evitar confusão
             email_confirm: true,
-            user_metadata: { name: name.trim(), type: 'student' }
+            user_metadata: { name: nameUC, type: 'student' }
         })
 
         if (authError) {
@@ -78,7 +80,7 @@ export async function POST(req: Request) {
             .from('students')
             .insert({
                 auth_user_id: authUserId,
-                name: name.trim(),
+                name: nameUC,
                 cpf: cleanCpf,
                 enrollment_number: enrollmentNumber,
                 phone: phone.trim(),
@@ -106,7 +108,7 @@ export async function POST(req: Request) {
             .insert({
                 student_id: student.id,
                 type: 'enrollment',
-                description: `Matrícula - ${name.trim()}`,
+                description: `Matrícula - ${nameUC}`,
                 amount: amount || 0,
                 due_date: dueDate.toISOString().split('T')[0],
                 status: 'pending'
