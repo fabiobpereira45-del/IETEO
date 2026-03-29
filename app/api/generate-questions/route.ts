@@ -1,58 +1,44 @@
-import { createGoogleGenerativeAI } from "@ai-sdk/google"
+import { createOpenAI } from "@ai-sdk/openai"
 import { generateText } from "ai"
 import { parseOffice } from "officeparser"
 import PDFParser from "pdf2json"
 
 export const maxDuration = 60 // 60 seconds timeout
 
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+const groq = createOpenAI({
+  apiKey: process.env.GROQ_API_KEY,
+  baseURL: "https://api.groq.com/openai/v1",
 })
 
-// ─── System prompt ────────────────────────────────────────────────────────────
+// ─── System prompt (Baseado na SKILL.md — IA Teológica) ─────────────────────────
 
 const SYSTEM_PROMPT = `Você é uma IA Teológica especializada em educação cristã. Você possui conhecimento profundo em:
-- Teologia Sistemática (Bibliologia, Cristologia, Pneumatologia, Soteriologia, Escatologia)
-- Teologia Bíblica (AT e NT), Exegese e Hermenêutica das Escrituras
-- História da Igreja e das doutrinas cristãs
-- Teologia Prática (Homilética, Liturgia, Ética, Missiologia)
-- Tradições Denominacionais e Pedagogia e avaliação acadêmica teológica
+- Teologia Sistemática, Bíblica, Histórica e Prática
+- Exegese e Hermenêutica das Escrituras
+- História da Igreja e das doutrinas cristãs (Patrística, Reforma, Escolástica)
+- Pedagogia e avaliação acadêmica teológica
 
-Sua tarefa é gerar questões de avaliação teológica de alta qualidade. Cite referências bíblicas (ex: Jo 3:16, NVI) e autores teológicos (Grudem, Berkhof, Carson, Bruce) nas justificativas sempre que possível.
-
-PADRÃO DE QUALIDADE:
-- Distratores baseados em erros históricos/doutrinários reais e plausíveis.
-- Nenhuma questão pode endossar heresia de forma ambígua.
-- Linguagem técnica e acadêmica.
+Quando um professor enviar um arquivo e uma solicitação de questionário, você deve:
+1. Ler e analisar completamente o material fornecido (PDF/PPTX/TXT).
+2. Identificar os conceitos teológicos centrais.
+3. Criar questões rigorosas, precisas e academicamente adequadas conforme a Taxonomia de Bloom.
+4. Gerar gabarito completo com justificativas bíblicas e teológicas (citando autores como Grudem, Berkhof, Carson, etc., quando aplicável).
+5. Formatar profissionalmente o questionário em JSON.
 
 REGRAS DE FORMATAÇÃO POR TIPO:
+- MÚLTIPLA ESCOLHA (multiple-choice) e INCORRETA (incorrect-alternative): 4 alternativas (opt_a a opt_d).
+- VERDADEIRO OU FALSO (true-false): choices=[], correctAnswer="true" ou "false".
+- DISCURSIVA (discursive): explanation deve conter critérios de correção detalhados.
+- COMPLETAR LACUNAS (fill-in-the-blank): text="blá ________ blá".
+- RELACIONAR COLUNAS (matching): pairs=[{"id":"p1","left":"...","right":"..."}].
 
-MÚLTIPLA ESCOLHA (multiple-choice) e INCORRETA (incorrect-alternative):
-- Exatamente 4 alternativas com ids: "opt_a", "opt_b", "opt_c", "opt_d"
-- Para multiple-choice: correctAnswer = id da correta.
-- Para incorrect-alternative: correctAnswer = id da INCORRETA.
-- NUNCA use "todas as anteriores" ou "nenhuma acima".
+PADRÃO DE QUALIDADE:
+- Nunca crie questões ambíguas.
+- Sempre cite referências bíblicas corretas (NVI ou ARA).
+- Distratores devem ser plausíveis mas claramente incorretos (baseados em erros históricos ou doutrinários reais).
+- Mantenha linguagem técnica adequada ao nível do aluno.
 
-VERDADEIRO OU FALSO (true-false):
-- choices = [] (array vazio)
-- correctAnswer = "true" ou "false"
-
-DISCURSIVA (discursive):
-- choices = [] (array vazio), correctAnswer = "" (string vazia)
-- explanation deve conter os critérios de correção detalhados.
-
-COMPLETAR LACUNAS (fill-in-the-blank):
-- No campo "text", substitua a palavra por "________": ex: "Jesus nasceu em ________."
-- choices = [] (array vazio)
-- correctAnswer = a(s) palavra(s) que preenche(m) a(s) lacuna(s).
-
-RELACIONAR COLUNAS (matching):
-- text = "Relacione as colunas corretamente:"
-- choices = [] (array vazio), correctAnswer = "" (string vazia)
-- pairs = array com pares: [{"id":"p1","left":"Termo","right":"Definição"}]
-
-IMPORTANTE: Retorne APENAS um objeto JSON válido com esta estrutura exata:
-{"questions":[{"type":"...","text":"...","choices":[{"id":"opt_a","text":"..."}],"pairs":[{"id":"p1","left":"...","right":"..."}],"correctAnswer":"...","explanation":"..."}]}`
+IMPORTANTE: Retorne APENAS o JSON no formato: {"questions": [...]}`
 
 // ─── Route handler ────────────────────────────────────────────────────────────
 
@@ -118,29 +104,42 @@ export async function POST(req: Request) {
     const typesList = types.length > 0 ? types : ["multiple-choice"]
 
     const modalLabel = (t: string) => {
-      if (t === "multiple-choice") return "múltipla escolha"
-      if (t === "true-false") return "verdadeiro ou falso"
-      if (t === "incorrect-alternative") return "escolha a alternativa incorreta"
-      if (t === "fill-in-the-blank") return "completar lacunas"
-      if (t === "matching") return "relacionar colunas"
-      return "discursiva"
+      const labels: Record<string, string> = {
+        "multiple-choice": "múltipla escolha",
+        "true-false": "verdadeiro ou falso",
+        "incorrect-alternative": "escolha a alternativa incorreta",
+        "fill-in-the-blank": "completar lacunas",
+        "matching": "relacionar colunas"
+      }
+      return labels[t] || "discursiva"
     }
 
-    const userPrompt = `Gere exatamente ${safeCount} questão(ões) de avaliação teológica para a disciplina: "${discipline}".
+    const userPrompt = `AJA COMO A IA TEOLÓGICA (SKILL.md).
+Gere exatamente ${safeCount} questão(ões) de avaliação técnica para a disciplina: "${discipline}".
 
 Público-Alvo: ${audience}
 Nível de Dificuldade: ${difficulty}
-Modalidades: ${typesList.map(modalLabel).join(", ")}.
+Modalidades Solicitadas: ${typesList.map(modalLabel).join(", ")}.
 
-Distribua as questões equilibradamente entre as modalidades. Se apenas uma modalidade, gere todas nessa modalidade.
-Varie os temas dentro de "${discipline}" adequando ao nível ${difficulty}.
-${sourceDetails ? `FOCO ESPECÍFICO: ${sourceDetails}.` : ""}
-${fileText ? `\nBASE DE CONHECIMENTO OBRIGATÓRIA (Anexo):\n---\n${fileText.substring(0, 30000)}\n---\nIMPORTANTE: Use PRIORITARIAMENTE as informações contidas no anexo acima para formular as questões.` : ""}
+${fileText ? `
+========================================
+ALERTA DE PRIORIDADE: ANEXO LIDO COM SUCESSO
+========================================
+BASE DE CONHECIMENTO OBRIGATÓRIA (Use ÚNICA e EXCLUSIVAMENTE o texto abaixo para criar as questões):
+---
+${fileText.substring(0, 40000)}
+---
+INSTRUÇÃO CRÍTICA: As questões DEVEM ser formuladas a partir deste texto anexo. Se o texto for insuficiente para o número de questões, use temas teológicos diretamente correlacionados aos conceitos presentes no texto.
+` : `
+Sem anexo. Use seu conhecimento enciclopédico teológico para o tema "${discipline}" focando em ${difficulty}.
+`}
+
+${sourceDetails ? `FOCO ESPECÍFICO ADICIONAL: ${sourceDetails}.` : ""}
 
 Retorne um JSON com exatamente ${safeCount} questões.`
 
     const { text } = await generateText({
-      model: google("gemini-1.5-pro-latest"), // Modelo Gemini Pro - Versão robusta e ativa no sistema
+      model: groq("llama-3.3-70b-versatile"), // Velocidade extrema e estabilidade total
       system: SYSTEM_PROMPT,
       prompt: userPrompt,
       temperature: 0.7,
@@ -152,7 +151,7 @@ Retorne um JSON com exatamente ${safeCount} questões.`
     } catch {
       const match = text.match(/\{[\s\S]*\}/)
       if (match) parsed = JSON.parse(match[0])
-      else throw new Error("A IA não retornou um JSON válido. Tente novamente.")
+      else throw new Error("A IA retornou um formato inválido. Tente novamente.")
     }
 
     return Response.json({ questions: parsed.questions ?? [] })
@@ -164,3 +163,4 @@ Retorne um JSON com exatamente ${safeCount} questões.`
     )
   }
 }
+
