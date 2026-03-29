@@ -10,6 +10,48 @@ const groq = createOpenAI({
   baseURL: "https://api.groq.com/openai/v1",
 })
 
+// ─── Helper: Extração Blindada de JSON ──────────────────────────────────────────
+
+function extractFirstJsonObject(text: string): string {
+  const firstBrace = text.indexOf("{")
+  if (firstBrace === -1) return text
+
+  let depth = 0
+  let inString = false
+  let escaped = false
+
+  for (let i = firstBrace; i < text.length; i++) {
+    const char = text[i]
+
+    if (escaped) {
+      escaped = false
+      continue
+    }
+
+    if (char === "\\") {
+      escaped = true
+      continue
+    }
+
+    if (char === '"') {
+      inString = !inString
+      continue
+    }
+
+    if (!inString) {
+      if (char === "{") depth++
+      if (char === "}") {
+        depth--
+        if (depth === 0) {
+          return text.substring(firstBrace, i + 1)
+        }
+      }
+    }
+  }
+
+  return text.substring(firstBrace)
+}
+
 // ─── System prompt (Baseado na SKILL.md — IA Teológica) ─────────────────────────
 
 const SYSTEM_PROMPT = `Você é uma IA Teológica especializada em educação cristã. Você possui conhecimento profundo em:
@@ -18,14 +60,18 @@ const SYSTEM_PROMPT = `Você é uma IA Teológica especializada em educação cr
 - História da Igreja e das doutrinas cristãs (Patrística, Reforma, Escolástica)
 - Pedagogia e avaliação acadêmica teológica
 
-Quando um professor enviar um arquivo e uma solicitação de questionário, você deve:
-1. Ler e analisar completamente o material fornecido (PDF/PPTX/TXT).
+INSTRUÇÃO CRÍTICA DE FORMATO:
+- Retorne EXCLUSIVAMENTE o conteúdo no formato JSON.
+- É PROIBIDO escrever preâmbulos, explicações, resumos ou qualquer texto fora das chaves do JSON.
+- NÃO use blocos de código Markdown (\`\`\`json). Escreva apenas o JSON bruto.
+
+Sua tarefa quando um professor enviar um arquivo:
+1. Ler e analisar completamente o material fornecido.
 2. Identificar os conceitos teológicos centrais.
 3. Criar questões rigorosas, precisas e academicamente adequadas conforme a Taxonomia de Bloom.
-4. Gerar gabarito completo com justificativas bíblicas e teológicas (citando autores como Grudem, Berkhof, Carson, etc., quando aplicável).
-5. Formatar profissionalmente o questionário em JSON.
+4. Gerar gabarito completo com justificativas bíblicas e teológicas (citando autores clássicos: Grudem, Berkhof, Carson, etc.).
 
-REGRAS DE FORMATAÇÃO POR TIPO:
+REGRAS DE FORMATAÇÃO:
 - MÚLTIPLA ESCOLHA (multiple-choice) e INCORRETA (incorrect-alternative): 4 alternativas (opt_a a opt_d).
 - VERDADEIRO OU FALSO (true-false): choices=[], correctAnswer="true" ou "false".
 - DISCURSIVA (discursive): explanation deve conter critérios de correção detalhados.
@@ -33,12 +79,10 @@ REGRAS DE FORMATAÇÃO POR TIPO:
 - RELACIONAR COLUNAS (matching): pairs=[{"id":"p1","left":"...","right":"..."}].
 
 PADRÃO DE QUALIDADE:
-- Nunca crie questões ambíguas.
-- Sempre cite referências bíblicas corretas (NVI ou ARA).
-- Distratores devem ser plausíveis mas claramente incorretos (baseados em erros históricos ou doutrinários reais).
-- Mantenha linguagem técnica adequada ao nível do aluno.
+- Nunca crie questões ambíguas. Cite referências bíblicas corretas (NVI ou ARA).
+- Distratores devem ser plausíveis mas claramente incorretos.
 
-IMPORTANTE: Retorne APENAS o JSON no formato: {"questions": [...]}`
+ESTRUTURA FINAL: {"questions": [...]}`
 
 // ─── Route handler ────────────────────────────────────────────────────────────
 
@@ -114,32 +158,27 @@ export async function POST(req: Request) {
       return labels[t] || "discursiva"
     }
 
-    const userPrompt = `AJA COMO A IA TEOLÓGICA (SKILL.md).
-Gere exatamente ${safeCount} questão(ões) de avaliação técnica para a disciplina: "${discipline}".
+    const userPrompt = `Gere exatamente ${safeCount} questão(ões) para a disciplina: "${discipline}".
 
 Público-Alvo: ${audience}
 Nível de Dificuldade: ${difficulty}
-Modalidades Solicitadas: ${typesList.map(modalLabel).join(", ")}.
+Modalidades: ${typesList.map(modalLabel).join(", ")}.
 
 ${fileText ? `
 ========================================
-ALERTA DE PRIORIDADE: ANEXO LIDO COM SUCESSO
-========================================
-BASE DE CONHECIMENTO OBRIGATÓRIA (Use ÚNICA e EXCLUSIVAMENTE o texto abaixo para criar as questões):
+BASE DE CONHECIMENTO OBRIGATÓRIA (Use ÚNICA e EXCLUSIVAMENTE o texto abaixo):
 ---
-${fileText.substring(0, 40000)}
+${fileText.substring(0, 40000).replace(/\s+/g, " ")}
 ---
-INSTRUÇÃO CRÍTICA: As questões DEVEM ser formuladas a partir deste texto anexo. Se o texto for insuficiente para o número de questões, use temas teológicos diretamente correlacionados aos conceitos presentes no texto.
-` : `
-Sem anexo. Use seu conhecimento enciclopédico teológico para o tema "${discipline}" focando em ${difficulty}.
-`}
+INSTRUÇÃO: Formule as questões com base neste texto. Se necessário, use temas correlacionados.
+` : `Sem anexo. Use seu conhecimento enciclopédico para o tema "${discipline}".`}
 
-${sourceDetails ? `FOCO ESPECÍFICO ADICIONAL: ${sourceDetails}.` : ""}
+${sourceDetails ? `FOCO ESPECÍFICO: ${sourceDetails}.` : ""}
 
-Retorne um JSON com exatamente ${safeCount} questões.`
+LEMBRE-SE: Retorne APENAS o JSON bruto. Sem explicações.`
 
     const { text } = await generateText({
-      model: groq("llama-3.3-70b-versatile"), // Velocidade extrema e estabilidade total
+      model: groq("llama-3.3-70b-versatile"),
       system: SYSTEM_PROMPT,
       prompt: userPrompt,
       temperature: 0.7,
@@ -147,35 +186,11 @@ Retorne um JSON com exatamente ${safeCount} questões.`
 
     let parsed: any
     try {
-      // Tenta limpar markdown se existir
-      let cleanText = text.trim()
-      if (cleanText.includes("```")) {
-        const match = cleanText.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
-        if (match) cleanText = match[1]
-      }
-      
-      // Procura pelo primeiro { e o último }
-      const firstBrace = cleanText.indexOf("{")
-      const lastBrace = cleanText.lastIndexOf("}")
-      
-      if (firstBrace !== -1 && lastBrace !== -1) {
-        cleanText = cleanText.substring(firstBrace, lastBrace + 1)
-      }
-
+      const cleanText = extractFirstJsonObject(text.trim())
       parsed = JSON.parse(cleanText)
     } catch (e) {
-      console.error("[generate-questions] JSON Parse Error. Raw text snippet:", text.substring(0, 500))
-      // Fallback para o regex anterior se tudo falhar
-      const match = text.match(/\{[\s\S]*\}/)
-      if (match) {
-        try {
-          parsed = JSON.parse(match[0])
-        } catch {
-          throw new Error("A IA retornou um JSON incompleto ou inválido. Tente novamente.")
-        }
-      } else {
-        throw new Error("Não foi possível localizar as questões no formato correto. Tente novamente.")
-      }
+      console.error("[generate-questions] JSON Final Error. Full response text length:", text.length)
+      throw new Error("A IA retornou um formato inesperado. Por favor, tente novamente.")
     }
 
     return Response.json({ questions: parsed.questions ?? [] })
