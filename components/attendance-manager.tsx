@@ -9,8 +9,8 @@ import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import {
-    type Discipline, type StudentProfile, type Attendance,
-    getDisciplines, getStudents, getAttendances, saveAttendance, getProfessorSession, getDisciplinesByProfessor
+    type Discipline, type StudentProfile, type Attendance, type ClassRoom,
+    getDisciplines, getStudents, getAttendances, saveAttendance, getProfessorSession, getDisciplinesByProfessor, getClasses
 } from "@/lib/store"
 import { printAttendanceReportPDF } from "@/lib/pdf"
 
@@ -19,8 +19,11 @@ export function AttendanceManager() {
     const [students, setStudents] = useState<StudentProfile[]>([])
 
     const [selectedDisciplineId, setSelectedDisciplineId] = useState<string>("none")
+    const [selectedClassId, setSelectedClassId] = useState<string>("all")
     const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0])
     const [searchTerm, setSearchTerm] = useState("")
+
+    const [classes, setClasses] = useState<ClassRoom[]>([])
 
     const [attendances, setAttendances] = useState<Record<string, boolean>>({})
     const [loading, setLoading] = useState(false)
@@ -39,8 +42,10 @@ export function AttendanceManager() {
                 d = await getDisciplinesByProfessor(session.professorId)
             }
             
+            const c = await getClasses()
             const s = await getStudents()
             setDisciplines(d)
+            setClasses(c)
             setStudents(s)
             setLoading(false)
         }
@@ -93,11 +98,12 @@ export function AttendanceManager() {
         }))
     }
 
-    // Filter students based on search
-    const filteredStudents = students.filter(s =>
-        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.enrollment_number.includes(searchTerm)
-    )
+    // Filter students based on search and class
+    const filteredStudents = students.filter(s => {
+        const matchSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || s.enrollment_number.includes(searchTerm)
+        const matchClass = selectedClassId === "all" || s.class_id === selectedClassId
+        return matchSearch && matchClass
+    })
 
     return (
         <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto">
@@ -127,8 +133,8 @@ export function AttendanceManager() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-muted/30 border border-border rounded-xl p-4">
-                <div className="flex flex-col gap-1.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-muted/30 border border-border rounded-xl p-4">
+                <div className="flex flex-col gap-1.5 align-bottom">
                     <Label>Disciplina *</Label>
                     <Select value={selectedDisciplineId} onValueChange={setSelectedDisciplineId}>
                         <SelectTrigger>
@@ -142,8 +148,23 @@ export function AttendanceManager() {
                         </SelectContent>
                     </Select>
                 </div>
+                
+                <div className="flex flex-col gap-1.5 align-bottom">
+                    <Label>Turma (Opcional)</Label>
+                    <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Todas as Turmas" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todas as Turmas</SelectItem>
+                            {classes.map(c => (
+                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
 
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-1.5 align-bottom">
                     <Label>Data da Aula *</Label>
                     <div className="relative">
                         <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -156,7 +177,7 @@ export function AttendanceManager() {
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-1.5 lg:col-span-1 md:col-span-2">
+                <div className="flex flex-col gap-1.5 align-bottom">
                     <Label>Buscar Aluno</Label>
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
