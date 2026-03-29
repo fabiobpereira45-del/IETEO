@@ -52,6 +52,101 @@ function extractFirstJsonObject(text: string): string {
   return text.substring(firstBrace)
 }
 
+// ─── Normalizer: mapeia variações de campo que o LLM pode retornar ──────────────
+
+function normalizeQuestion(q: any): any {
+  if (!q || typeof q !== "object") return q
+
+  // Normaliza o campo de texto da questão
+  const text =
+    q.text ??
+    q.question ??
+    q.statement ??
+    q.enunciado ??
+    q.pergunta ??
+    q.stem ??
+    ""
+
+  // Normaliza choices (alternativas)
+  let choices: { id: string; text: string }[] = []
+  const rawChoices =
+    q.choices ??
+    q.options ??
+    q.alternatives ??
+    q.alternativas ??
+    q.opcoes ??
+    []
+
+  if (Array.isArray(rawChoices)) {
+    choices = rawChoices.map((c: any, idx: number) => {
+      if (typeof c === "string") {
+        // Formato simples: ["Texto A", "Texto B", ...]
+        return { id: `opt_${String.fromCharCode(97 + idx)}`, text: c }
+      }
+      // Formato objeto mas com campos variados
+      const cId =
+        c.id ??
+        c.key ??
+        c.letter ??
+        `opt_${String.fromCharCode(97 + idx)}`
+      const cText =
+        c.text ??
+        c.label ??
+        c.value ??
+        c.content ??
+        c.opcao ??
+        c.alternativa ??
+        ""
+      return { id: cId, text: cText }
+    })
+  } else if (rawChoices && typeof rawChoices === "object") {
+    // Formato dict: { a: "Texto A", b: "Texto B" }
+    choices = Object.entries(rawChoices).map(([k, v]) => ({
+      id: k.startsWith("opt_") ? k : `opt_${k}`,
+      text: String(v),
+    }))
+  }
+
+  // Normaliza correctAnswer
+  let correctAnswer =
+    q.correctAnswer ??
+    q.correct_answer ??
+    q.answer ??
+    q.resposta ??
+    q.gabarito ??
+    ""
+  // Se o llm retornar "a", "b", "c", "d" em vez de "opt_a", "opt_b"...
+  if (
+    typeof correctAnswer === "string" &&
+    correctAnswer.length === 1 &&
+    /^[a-d]$/i.test(correctAnswer)
+  ) {
+    correctAnswer = `opt_${correctAnswer.toLowerCase()}`
+  }
+
+  // Normaliza o type
+  const type =
+    q.type ??
+    q.tipo ??
+    q.questionType ??
+    q.question_type ??
+    "multiple-choice"
+
+  // Normaliza explanation
+  const explanation =
+    q.explanation ??
+    q.justification ??
+    q.justificativa ??
+    q.fundamentacao ??
+    q.comentario ??
+    null
+
+  // Normaliza pairs (matching)
+  const pairs = q.pairs ?? q.colunas ?? null
+
+  return { type, text, choices, pairs, correctAnswer, explanation }
+}
+
 // ─── System prompt (Baseado na SKILL.md — IA Teológica) ─────────────────────────
 
 const SYSTEM_PROMPT = `Você é uma IA Teológica especializada em educação cristã. Você possui conhecimento profundo em:
@@ -82,7 +177,26 @@ PADRÃO DE QUALIDADE:
 - Nunca crie questões ambíguas. Cite referências bíblicas corretas (NVI ou ARA).
 - Distratores devem ser plausíveis mas claramente incorretos.
 
-ESTRUTURA FINAL: {"questions": [...]}`
+ESTRUTURA OBRIGATÓRIA — use EXATAMENTE estes nomes de campo:
+{
+  "questions": [
+    {
+      "type": "multiple-choice",
+      "text": "Enunciado completo da questão aqui",
+      "choices": [
+        {"id": "opt_a", "text": "Primeira alternativa"},
+        {"id": "opt_b", "text": "Segunda alternativa"},
+        {"id": "opt_c", "text": "Terceira alternativa"},
+        {"id": "opt_d", "text": "Quarta alternativa"}
+      ],
+      "correctAnswer": "opt_a",
+      "explanation": "Fundamentação teológica detalhada aqui"
+    }
+  ]
+}
+CAMPOS OBRIGATÓRIOS: "type", "text", "choices", "correctAnswer", "explanation".
+NÃO use: "question", "statement", "enunciado", "options", "alternatives", "answer". Use APENAS "text" e "choices".`
+
 
 // ─── Route handler ────────────────────────────────────────────────────────────
 
@@ -189,11 +303,21 @@ LEMBRE-SE: Retorne APENAS o JSON bruto. Sem explicações.`
       const cleanText = extractFirstJsonObject(text.trim())
       parsed = JSON.parse(cleanText)
     } catch (e) {
-      console.error("[generate-questions] JSON Final Error. Full response text length:", text.length)
+      console.error("[generate-questions] JSON Final Error. Raw text (first 500 chars):", text.substring(0, 500))
       throw new Error("A IA retornou um formato inesperado. Por favor, tente novamente.")
     }
 
-    return Response.json({ questions: parsed.questions ?? [] })
+    const rawQuestions: any[] = parsed.questions ?? parsed.questoes ?? parsed.items ?? []
+
+    // Debug: log the keys of the first raw question to diagnose field names
+    if (rawQuestions.length > 0) {
+      console.log("[generate-questions] First raw question keys:", Object.keys(rawQuestions[0]))
+      console.log("[generate-questions] First raw question:", JSON.stringify(rawQuestions[0]).substring(0, 300))
+    }
+
+    const normalizedQuestions = rawQuestions.map(normalizeQuestion)
+
+    return Response.json({ questions: normalizedQuestions })
   } catch (error: any) {
     console.error("[generate-questions] Error:", error)
     return Response.json(
