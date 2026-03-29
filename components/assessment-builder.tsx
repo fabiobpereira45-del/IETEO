@@ -24,17 +24,14 @@ import {
 } from "@/lib/store"
 
 type SelectionMode = "auto" | "manual"
-type AssessmentFormat = QuestionType | "mixed" | "objective-only"
 
-const FORMAT_LABELS: Record<AssessmentFormat, string> = {
+const FORMAT_LABELS: Record<QuestionType, string> = {
   "multiple-choice": "Múltipla Escolha",
   "true-false": "Verdadeiro ou Falso",
-  "objective-only": "Múltipla Escolha + V/F",
   discursive: "Discursiva",
   "fill-in-the-blank": "Preencher as Lacunas",
   "incorrect-alternative": "Alternativa Incorreta",
   matching: "Associação",
-  mixed: "Mista (todos os tipos)",
 }
 
 interface Props {
@@ -56,7 +53,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
   const [modality, setModality] = useState<"public" | "private">("public")
 
   // Step 2
-  const [format, setFormat] = useState<AssessmentFormat>("multiple-choice")
+  const [formats, setFormats] = useState<QuestionType[]>(["multiple-choice"])
   const [questionCount, setQuestionCount] = useState(10)
   const [pointsPerQuestion, setPointsPerQuestion] = useState(1)
   const [timeLimitMinutes, setTimeLimitMinutes] = useState<number>(0)
@@ -92,7 +89,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
         setLogoBase64("")
         setRules("")
         setModality("public")
-        setFormat("multiple-choice")
+        setFormats(["multiple-choice"])
         setQuestionCount(10)
         setPointsPerQuestion(1)
         setTimeLimitMinutes(0)
@@ -112,17 +109,15 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
     async function loadQs() {
       let qs = await getQuestionsByDiscipline(disciplineId)
       if (!mounted) return
-      if (format === "objective-only") {
-        qs = qs.filter((q) => q.type === "multiple-choice" || q.type === "true-false")
-      } else if (format !== "mixed") {
-        qs = qs.filter((q) => q.type === format)
+      if (formats.length > 0) {
+        qs = qs.filter((q) => formats.includes(q.type))
       }
       setAvailableQuestions(qs)
     }
     loadQs()
 
     return () => { mounted = false }
-  }, [disciplineId, format])
+  }, [disciplineId, formats])
 
   function handleAutoSelect() {
     const shuffled = [...availableQuestions].sort(() => Math.random() - 0.5)
@@ -154,7 +149,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
   }
 
   function canProceedStep2() {
-    return questionCount >= 1 && pointsPerQuestion > 0
+    return formats.length > 0 && questionCount >= 1 && pointsPerQuestion > 0
   }
 
   function canProceedStep3() {
@@ -376,19 +371,24 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
               <div className="flex flex-col gap-1.5">
                 <Label>Formato das Questões *</Label>
                 <div className="grid grid-cols-2 gap-2">
-                  {(Object.keys(FORMAT_LABELS) as AssessmentFormat[]).map((f) => (
-                    <button
-                      key={f}
-                      type="button"
-                      onClick={() => setFormat(f)}
-                      className={`text-left p-3 rounded-lg border-2 text-sm font-medium transition-colors ${format === f
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border hover:border-primary/40"
-                        }`}
-                    >
-                      {FORMAT_LABELS[f]}
-                    </button>
-                  ))}
+                  {(Object.keys(FORMAT_LABELS) as QuestionType[]).map((f) => {
+                    const isSelected = formats.includes(f)
+                    return (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => {
+                          setFormats((prev) => prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f])
+                        }}
+                        className={`text-left p-3 rounded-lg border-2 text-sm font-medium transition-colors ${isSelected
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border hover:border-primary/40"
+                          }`}
+                      >
+                        {FORMAT_LABELS[f]}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
               <div className="flex gap-4">
@@ -516,7 +516,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
                               <div className="flex items-center mb-1">
                                 <span className="text-xs font-semibold text-muted-foreground mr-2">Q{i + 1}</span>
                                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                                  {FORMAT_LABELS[q.type as AssessmentFormat] || q.type}
+                                  {FORMAT_LABELS[q.type] || q.type}
                                 </span>
                               </div>
                               <span className="text-sm">{q.text}</span>

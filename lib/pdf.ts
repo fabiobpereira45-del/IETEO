@@ -826,39 +826,67 @@ export function printFinancialReportPDF(charges: FinancialCharge[], students: St
   const paid = charges.filter(c => c.status === 'paid').reduce((acc, c) => acc + c.amount, 0)
   const pending = total - paid
 
-  const rows = charges.map(c => {
-    const student = students.find(s => s.id === c.studentId)
+  interface StudentStat { name: string; paid: number; pending: number; status: string; statusColor: string }
+  
+  const statsMap: Record<string, StudentStat> = {}
+  
+  charges.forEach(c => {
+    if (!statsMap[c.studentId]) {
+      const student = students.find(s => s.id === c.studentId)
+      statsMap[c.studentId] = {
+        name: student?.name || 'N/A',
+        paid: 0,
+        pending: 0,
+        status: '',
+        statusColor: ''
+      }
+    }
+    
+    if (c.status === 'paid') statsMap[c.studentId].paid += c.amount
+    else statsMap[c.studentId].pending += c.amount
+  })
+
+  const sortedStats = Object.values(statsMap).sort((a, b) => a.name.localeCompare(b.name))
+
+  const rows = sortedStats.map(s => {
+    const statusText = s.pending === 0 ? 'PAGO' : 'PENDENTE'
+    const statusColor = s.pending === 0 ? 'green' : '#d97706'
+    
     return `
       <tr style="border-bottom: 1px solid #eee;">
-        <td style="padding: 8px; font-size: 12px;">${student?.name || 'N/A'}</td>
-        <td style="padding: 8px; font-size: 11px;">${c.description}</td>
-        <td style="padding: 8px; font-size: 11px;">${new Date(c.dueDate).toLocaleDateString('pt-BR')}</td>
-        <td style="padding: 8px; font-size: 11px; font-weight: 700;">R$ ${c.amount.toFixed(2)}</td>
-        <td style="padding: 8px; font-size: 10px; text-transform: uppercase; font-weight: bold; color: ${c.status === 'paid' ? 'green' : (c.status === 'late' ? 'red' : '#d97706')}">${c.status}</td>
+        <td style="padding: 10px; font-size: 13px; font-weight: 600;">${s.name}</td>
+        <td style="padding: 10px; font-size: 13px; color: green; font-weight: 700;">R$ ${s.paid.toFixed(2)}</td>
+        <td style="padding: 10px; font-size: 13px; color: #dc2626; font-weight: 700;">R$ ${s.pending.toFixed(2)}</td>
+        <td style="padding: 10px; font-size: 11px; text-transform: uppercase; font-weight: bold; color: ${statusColor}">${statusText}</td>
       </tr>
     `
   }).join('')
 
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório Financeiro</title><style>body{font-family: Arial, sans-serif; padding: 30px;} @media print { body { padding: 0; } }</style></head>
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório Financeiro Consolidado</title><style>body{font-family: Arial, sans-serif; padding: 30px;} @media print { body { padding: 0; } }</style></head>
   <body>
-    <div style="border-bottom: 4px solid #1e3a5f; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end;">
-      <div><h1 style="margin: 0; color: #1e3a5f;">Relatório Financeiro</h1></div>
-      <div style="text-align: right; font-size: 12px;">
-        <div>Total: <strong>R$ ${total.toFixed(2)}</strong></div>
-        <div style="color: green;">Recebido: <strong>R$ ${paid.toFixed(2)}</strong></div>
-        <div style="color: red;">Pendente: <strong>R$ ${pending.toFixed(2)}</strong></div>
+    <div style="border-bottom: 5px solid #1e3a5f; padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: flex-end;">
+      <div>
+        <div style="font-size: 12px; font-weight: bold; color: #f97316; text-transform: uppercase; margin-bottom: 4px;">Instituto de Ensino Teológico — IETEO</div>
+        <h1 style="margin: 0; color: #1e3a5f; font-size: 28px;">Relatório Financeiro por Aluno</h1>
+      </div>
+      <div style="text-align: right; font-size: 14px;">
+        <div style="margin-bottom: 2px;">Total Geral: <strong>R$ ${total.toFixed(2)}</strong></div>
+        <div style="color: green; margin-bottom: 2px;">Total Recebido: <strong>R$ ${paid.toFixed(2)}</strong></div>
+        <div style="color: red;">Total Pendente: <strong>R$ ${pending.toFixed(2)}</strong></div>
       </div>
     </div>
     <table style="width: 100%; border-collapse: collapse;">
-      <thead><tr style="text-align: left; background: #f8fafc; border-bottom: 2px solid #cbd5e1;">
-        <th style="padding: 10px; font-size: 10px;">ALUNO</th>
-        <th style="padding: 10px; font-size: 10px;">DESCRIÇÃO</th>
-        <th style="padding: 10px; font-size: 10px;">VENCIMENTO</th>
-        <th style="padding: 10px; font-size: 10px;">VALOR</th>
-        <th style="padding: 10px; font-size: 10px;">STATUS</th>
+      <thead><tr style="text-align: left; background: #f1f5f9; border-bottom: 3px solid #1e3a5f;">
+        <th style="padding: 12px; font-size: 11px; text-transform: uppercase;">ALUNO</th>
+        <th style="padding: 12px; font-size: 11px; text-transform: uppercase;">VALOR PAGO (RECEBIDO)</th>
+        <th style="padding: 12px; font-size: 11px; text-transform: uppercase;">VALOR DEVEDOR (PENDENTE)</th>
+        <th style="padding: 12px; font-size: 11px; text-transform: uppercase;">SITUAÇÃO</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
+    <div style="margin-top: 40px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #eee; padding-top: 20px;">
+      Relatório gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
+    </div>
   </body></html>`
 
   const win = window.open("", "_blank"); if (!win) return; win.document.write(html); win.document.close(); win.onload = () => win.print()
