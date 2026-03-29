@@ -1,13 +1,12 @@
-import { createOpenAI } from "@ai-sdk/openai"
+import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { generateText } from "ai"
 import { parseOffice } from "officeparser"
 import PDFParser from "pdf2json"
 
 export const maxDuration = 60 // 60 seconds timeout
 
-const groq = createOpenAI({
-  apiKey: process.env.GROQ_API_KEY,
-  baseURL: "https://api.groq.com/openai/v1",
+const google = createGoogleGenerativeAI({
+  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
 })
 
 // ─── System prompt ────────────────────────────────────────────────────────────
@@ -136,12 +135,12 @@ Modalidades: ${typesList.map(modalLabel).join(", ")}.
 Distribua as questões equilibradamente entre as modalidades. Se apenas uma modalidade, gere todas nessa modalidade.
 Varie os temas dentro de "${discipline}" adequando ao nível ${difficulty}.
 ${sourceDetails ? `FOCO ESPECÍFICO: ${sourceDetails}.` : ""}
-${fileText ? `\nBaseie-se ESTRITAMENTE no texto abaixo:\n---\n${fileText.substring(0, 12000)}\n---` : ""}
+${fileText ? `\nBASE DE CONHECIMENTO OBRIGATÓRIA (Anexo):\n---\n${fileText.substring(0, 30000)}\n---\nIMPORTANTE: Use PRIORITARIAMENTE as informações contidas no anexo acima para formular as questões.` : ""}
 
 Retorne um JSON com exatamente ${safeCount} questões.`
 
     const { text } = await generateText({
-      model: groq("llama-3.3-70b-versatile"), // Modelo ultrarrápido do Groq
+      model: google("gemini-1.5-flash"), // Modelo Gemini Flash - Especialista em processamento de longos contextos
       system: SYSTEM_PROMPT,
       prompt: userPrompt,
       temperature: 0.7,
