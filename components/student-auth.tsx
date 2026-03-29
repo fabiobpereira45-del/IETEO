@@ -180,6 +180,11 @@ export function StudentAuth({ onSuccess }: Props) {
                                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                             </button>
                         </div>
+                        {mode === "login" && (
+                            <p className="text-[10px] text-muted-foreground bg-muted/30 p-2 rounded-lg border border-border/50">
+                                💡 Dica: Sua senha inicial é seu **CPF (apenas números)** ou **123456**.
+                            </p>
+                        )}
                     </div>
 
                     {error && (

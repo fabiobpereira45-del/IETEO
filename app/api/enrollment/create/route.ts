@@ -51,19 +51,27 @@ export async function POST(req: Request) {
         const email = `${cleanCpf}@student.ieteo.com`
 
         // Create Auth User
+        let authUserId: string | undefined
+
         const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
             email,
-            password: cleanCpf, // CPF as default password
+            password: "123456", // Senha padrão para evitar confusão
             email_confirm: true,
             user_metadata: { name: name.trim(), type: 'student' }
         })
 
-        if (authError && authError.message !== 'User already registered') {
-            console.error("Erro ao criar usuário Auth:", authError)
-            // Continue if user exists, maybe they abandoned previous attempt
+        if (authError) {
+            if (authError.message === 'User already registered' || authError.code === 'email_exists') {
+                // If user exists, fetch their ID
+                const { data: users } = await supabase.auth.admin.listUsers()
+                const existingUser = users?.users.find(u => u.email === email)
+                authUserId = existingUser?.id
+            } else {
+                console.error("Erro ao criar usuário Auth:", authError)
+            }
+        } else {
+            authUserId = authUser?.user?.id
         }
-
-        const authUserId = authUser?.user?.id
 
         // Create student record with status 'pending' (awaiting payment)
         const { data: student, error: studentErr } = await supabase
