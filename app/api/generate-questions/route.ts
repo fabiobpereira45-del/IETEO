@@ -147,11 +147,35 @@ Retorne um JSON com exatamente ${safeCount} questões.`
 
     let parsed: any
     try {
-      parsed = JSON.parse(text)
-    } catch {
+      // Tenta limpar markdown se existir
+      let cleanText = text.trim()
+      if (cleanText.includes("```")) {
+        const match = cleanText.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+        if (match) cleanText = match[1]
+      }
+      
+      // Procura pelo primeiro { e o último }
+      const firstBrace = cleanText.indexOf("{")
+      const lastBrace = cleanText.lastIndexOf("}")
+      
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        cleanText = cleanText.substring(firstBrace, lastBrace + 1)
+      }
+
+      parsed = JSON.parse(cleanText)
+    } catch (e) {
+      console.error("[generate-questions] JSON Parse Error. Raw text snippet:", text.substring(0, 500))
+      // Fallback para o regex anterior se tudo falhar
       const match = text.match(/\{[\s\S]*\}/)
-      if (match) parsed = JSON.parse(match[0])
-      else throw new Error("A IA retornou um formato inválido. Tente novamente.")
+      if (match) {
+        try {
+          parsed = JSON.parse(match[0])
+        } catch {
+          throw new Error("A IA retornou um JSON incompleto ou inválido. Tente novamente.")
+        }
+      } else {
+        throw new Error("Não foi possível localizar as questões no formato correto. Tente novamente.")
+      }
     }
 
     return Response.json({ questions: parsed.questions ?? [] })
