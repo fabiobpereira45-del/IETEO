@@ -464,7 +464,7 @@ export function FinancialManager() {
                                             <td className="px-4 py-3 text-muted-foreground">{s.enrollment_number}</td>
                                             <td className="px-4 py-3">
                                                 {overdue.some(c => c.status === 'late' || c.dueDate < todayStr) ? (
-                                                    <span className="text-destructive font-bold flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Inadimplente</span>
+                                                    <span className="text-destructive font-bold flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Pendente</span>
                                                 ) : overdue.length > 0 ? (
                                                      <span className="text-amber-600 font-bold flex items-center gap-1"><Clock className="h-3 w-3" /> Pendente</span>
                                                 ) : (
@@ -486,7 +486,7 @@ export function FinancialManager() {
             </div>
 
             <Dialog open={!!selectedStudent} onOpenChange={(o) => !o && setSelectedStudent(null)}>
-                <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+                <DialogContent className="max-w-none w-[98vw] h-[98vh] max-h-[98vh] overflow-hidden flex flex-col p-0">
                     <DialogHeader className="p-6 border-b border-border bg-muted/30">
                         <div className="flex items-center justify-between">
                             <div>
