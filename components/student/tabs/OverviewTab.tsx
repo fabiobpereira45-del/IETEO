@@ -1,8 +1,8 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { AlertCircle, Clock, CheckCircle2, Library, FileText, BookOpenCheck, MessageSquare } from "lucide-react"
-import type { StudentProfile, FinancialCharge } from "@/lib/store"
+import { AlertCircle, Clock, CheckCircle2, Library, FileText, BookOpenCheck, MessageSquare, Star } from "lucide-react"
+import type { StudentProfile, FinancialCharge, Discipline } from "@/lib/store"
 import { cn } from "@/lib/utils"
 
 type Tab = "overview" | "class-info" | "curriculum" | "materials" | "grades" | "exams" | "financial" | "chat" | "perfil"
@@ -10,10 +10,16 @@ type Tab = "overview" | "class-info" | "curriculum" | "materials" | "grades" | "
 interface OverviewTabProps {
   profile: StudentProfile
   charges: FinancialCharge[]
+  disciplines: Discipline[]
   onTabChange: (tab: Tab) => void
 }
 
-export function OverviewTab({ profile, charges, onTabChange }: OverviewTabProps) {
+export function OverviewTab({ profile, charges, disciplines, onTabChange }: OverviewTabProps) {
+  const now = new Date()
+  const currentMonth = (now.getMonth() + 1).toString().padStart(2, '0')
+  const currentYear = now.getFullYear().toString()
+
+  const focusDisc = disciplines.find(d => d.applicationMonth === currentMonth && d.applicationYear === currentYear)
   return (
     <div className="flex flex-col gap-8 animate-in fade-in duration-500">
       {charges.some(c => c.status === 'late') && (
@@ -66,19 +72,41 @@ export function OverviewTab({ profile, charges, onTabChange }: OverviewTabProps)
             </div>
           </div>
         </div>
-        <div className="bg-white border border-border/50 shadow-sm rounded-3xl p-8 flex flex-col items-center justify-center text-center space-y-4">
-          <div className="h-16 w-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-2 ring-4 ring-primary/5">
-            <CheckCircle2 className="h-8 w-8" />
-          </div>
-          <h3 className="text-xl font-bold">Status Acadêmico</h3>
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            No momento você está em dia com todas as obrigações e materiais.
-          </p>
-          <div className="pt-2">
-            <span className="inline-flex items-center px-4 py-1.5 rounded-full bg-green-50 text-green-700 text-xs font-bold border border-green-100 uppercase tracking-tighter">
-              Matrícula Regular
-            </span>
-          </div>
+        <div className="bg-white border border-border/50 shadow-sm rounded-3xl p-8 flex flex-col items-center justify-center text-center space-y-4 relative overflow-hidden group">
+          {focusDisc ? (
+             <>
+                <div className="absolute top-0 right-0 bg-primary text-white text-[10px] font-black uppercase tracking-tighter px-3 py-1 rounded-bl-xl flex items-center gap-1 shadow-md">
+                   <Star className="h-3 w-3 fill-white" /> Em Foco
+                </div>
+                <div className="h-16 w-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-2 ring-4 ring-primary/5 transition-transform group-hover:scale-110">
+                  <Star className="h-8 w-8 fill-primary" />
+                </div>
+                <h3 className="text-xl font-bold leading-tight line-clamp-2">{focusDisc.name}</h3>
+                <p className="text-muted-foreground text-xs leading-relaxed uppercase tracking-widest font-bold">
+                  Disciplina deste Mês
+                </p>
+                <div className="pt-2">
+                  <Button size="sm" variant="outline" className="rounded-full px-6 h-8 text-[10px] font-bold uppercase tracking-widest border-primary/20 text-primary hover:bg-primary/5" onClick={() => onTabChange("curriculum")}>
+                    Ver Detalhes
+                  </Button>
+                </div>
+             </>
+          ) : (
+            <>
+              <div className="h-16 w-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-2 ring-4 ring-primary/5">
+                <CheckCircle2 className="h-8 w-8" />
+              </div>
+              <h3 className="text-xl font-bold">Status Acadêmico</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                No momento você está em dia com todas as obrigações e materiais.
+              </p>
+              <div className="pt-2">
+                <span className="inline-flex items-center px-4 py-1.5 rounded-full bg-green-50 text-green-700 text-xs font-bold border border-green-100 uppercase tracking-tighter">
+                  Matrícula Regular
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

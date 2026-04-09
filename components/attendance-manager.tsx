@@ -85,13 +85,15 @@ export function AttendanceManager() {
         if (selectedDisciplineId === "none" || !selectedDate) return
         setSaving(true)
         try {
-            // For each student currently visible or in state, save their attendance
-            const promises = filteredStudents.map(student => {
+            // Save all students in the class (ignore search filter for saving)
+            const studentsToSave = students.filter(s => selectedClassId === "all" || s.class_id === selectedClassId)
+            
+            const promises = studentsToSave.map(student => {
                 const isPresent = attendances[student.id] === true
                 return saveAttendance(student.id, selectedDisciplineId, selectedDate, isPresent)
             })
             await Promise.all(promises)
-            alert("Frequência salva com sucesso!")
+            alert(`Frequência de ${studentsToSave.length} alunos salva com sucesso para o dia ${new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR')}!`)
         } catch (e: any) {
             alert("Erro ao salvar: " + e.message)
         }

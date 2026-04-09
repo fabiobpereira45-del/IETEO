@@ -317,7 +317,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                         </div>
                     ) : (
                         <div className="w-full max-w-[1600px] mx-auto">
-                            {tab === "overview" && <OverviewTab profile={profile} charges={charges} onTabChange={setTab} />}
+                            {tab === "overview" && <OverviewTab profile={profile} charges={charges} disciplines={disciplines} onTabChange={setTab} />}
                             {tab === "class-info" && <ClassInfoTab myClass={myClass} classmates={classmates} mySchedules={mySchedules} disciplines={disciplines} officialGrades={officialGrades} />}
                             {tab === "curriculum" && <CurriculumTab semesters={semesters} disciplines={disciplines} />}
                             {tab === "materials" && <MaterialsTab filteredMaterials={filteredMaterials} disciplines={disciplines} />}

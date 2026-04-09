@@ -7,8 +7,8 @@ export { triggerN8nWebhook }
 export type QuestionType = "multiple-choice" | "true-false" | "discursive" | "incorrect-alternative" | "fill-in-the-blank" | "matching"
 export interface Choice { id: string; text: string }
 export interface MatchingPair { id: string; left: string; right: string }
-export interface Semester { id: string; name: string; order: number; shift?: string; createdAt: string }
-export interface Discipline { id: string; name: string; description?: string | null; semesterId?: string | null; professorName?: string | null; dayOfWeek?: string | null; shift?: string | null; order: number; createdAt: string }
+export interface Semester { id: string; name: string; order: number; shift?: string; isConcluded?: boolean; createdAt: string }
+export interface Discipline { id: string; name: string; description?: string | null; semesterId?: string | null; professorName?: string | null; dayOfWeek?: string | null; shift?: string | null; order: number; applicationMonth?: string | null; applicationYear?: string | null; isConcluded?: boolean; createdAt: string }
 export interface StudyMaterial { id: string; disciplineId: string; title: string; description?: string; fileUrl: string; createdAt: string }
 export interface FinancialSettings { id: string; enrollmentFee: number; monthlyFee: number; secondCallFee: number; finalExamFee: number; totalMonths: number; creditCardUrl?: string; pixKey?: string; updatedAt: string; }
 export interface FinancialCharge { id: string; studentId: string; type: "enrollment" | "monthly" | "second_call" | "final_exam" | "other"; description: string; amount: number; dueDate: string; status: "pending" | "paid" | "cancelled" | "late" | "bolsa100" | "bolsa50"; paymentDate?: string; pixQrcode?: string; pixCopyPaste?: string; createdAt: string; }
@@ -255,9 +255,9 @@ export function saveDraftAnswers(answers: StudentAnswer[]): void { writeLocal(KE
 
 // DB Mappers
 // DB Mappers
-function mapSemester(row: any): Semester { return { id: row.id, name: row.name, order: row.order, shift: row.shift || undefined, createdAt: row.created_at } }
+function mapSemester(row: any): Semester { return { id: row.id, name: row.name, order: row.order, shift: row.shift || undefined, isConcluded: !!row.is_concluded, createdAt: row.created_at } }
 function mapStudyMaterial(row: any): StudyMaterial { return { id: row.id, disciplineId: row.discipline_id, title: row.title, description: row.description || undefined, fileUrl: row.file_url, createdAt: row.created_at } }
-function mapDiscipline(row: any): Discipline { return { id: row.id, name: row.name, description: row.description || undefined, semesterId: row.semester_id || undefined, professorName: row.professor_name || undefined, dayOfWeek: row.day_of_week || undefined, shift: row.shift || undefined, order: Number(row.order || 0), createdAt: row.created_at } }
+function mapDiscipline(row: any): Discipline { return { id: row.id, name: row.name, description: row.description || undefined, semesterId: row.semester_id || undefined, professorName: row.professor_name || undefined, dayOfWeek: row.day_of_week || undefined, shift: row.shift || undefined, order: Number(row.order || 0), applicationMonth: row.application_month, applicationYear: row.application_year, isConcluded: !!row.is_concluded, createdAt: row.created_at } }
 function mapQuestion(row: any): Question {
   const choices = Array.isArray(row.choices) ? row.choices : (row.choices?.options || [])
   const pairs = row.pairs || row.choices?.matchingPairs || undefined
@@ -506,19 +506,21 @@ export async function getSemesters(): Promise<Semester[]> {
   const { data } = await supabase.from('semesters').select('*').order('order', { ascending: true })
   return (data || []).map(mapSemester)
 }
+
 export async function addSemester(name: string, order: number, shift?: string): Promise<Semester> {
-  const s = { name, order, shift: shift || null, created_at: new Date().toISOString() }
+  const s = { name, order, shift: shift || null, is_concluded: false, created_at: new Date().toISOString() }
   const supabase = createClient()
   const { data, error } = await supabase.from('semesters').insert(s).select().single()
   if (error) throw new Error(error.message)
   return mapSemester(data)
 }
-export async function updateSemester(id: string, data: Partial<Pick<Semester, "name" | "order" | "shift">>): Promise<void> {
+export async function updateSemester(id: string, data: Partial<Pick<Semester, "name" | "order" | "shift" | "isConcluded">>): Promise<void> {
   const supabase = createClient()
   const updatePayload: any = {}
   if (data.name !== undefined) updatePayload.name = data.name
   if (data.order !== undefined) updatePayload.order = data.order
   if (data.shift !== undefined) updatePayload.shift = data.shift || null
+  if (data.isConcluded !== undefined) updatePayload.is_concluded = data.isConcluded
   await supabase.from('semesters').update(updatePayload).eq('id', id)
 }
 export async function deleteSemester(id: string): Promise<void> {
@@ -600,12 +602,25 @@ export async function getBoardMembers(): Promise<BoardMember[]> {
   return (data || []).map(mapBoardMember)
 }
 export async function addDiscipline(name: string, description?: string | null, semesterId?: string | null, professorName?: string | null, dayOfWeek?: string | null, shift?: string | null, order?: number): Promise<Discipline> {
-  const d = { id: uid(), name, description: description || null, semester_id: semesterId || null, professor_name: professorName || null, day_of_week: dayOfWeek || null, shift: shift || null, "order": order || 0, created_at: new Date().toISOString() }
+  const d = { 
+    id: uid(), 
+    name, 
+    description: description || null, 
+    semester_id: semesterId || null, 
+    professor_name: professorName || null, 
+    day_of_week: dayOfWeek || null, 
+    shift: shift || null, 
+    "order": order || 0,
+    application_month: null, 
+    application_year: null, 
+    is_concluded: false,
+    created_at: new Date().toISOString() 
+  }
   const supabase = createClient()
   await supabase.from('disciplines').insert(d)
   return mapDiscipline(d)
 }
-export async function updateDiscipline(id: string, data: Partial<Pick<Discipline, "name" | "description" | "semesterId" | "professorName" | "dayOfWeek" | "shift" | "order">>): Promise<void> {
+export async function updateDiscipline(id: string, data: Partial<Pick<Discipline, "name" | "description" | "semesterId" | "professorName" | "dayOfWeek" | "shift" | "order" | "applicationMonth" | "applicationYear" | "isConcluded">>): Promise<void> {
   const updateData: any = {}
   if (data.name !== undefined) updateData.name = data.name
   if (data.description !== undefined) updateData.description = data.description || null
@@ -614,6 +629,10 @@ export async function updateDiscipline(id: string, data: Partial<Pick<Discipline
   if (data.dayOfWeek !== undefined) updateData.day_of_week = data.dayOfWeek || null
   if (data.shift !== undefined) updateData.shift = data.shift || null
   if (data.order !== undefined) updateData.order = data.order
+  if (data.applicationMonth !== undefined) updateData.application_month = data.applicationMonth || null
+  if (data.applicationYear !== undefined) updateData.application_year = data.applicationYear || null
+  if (data.isConcluded !== undefined) updateData.is_concluded = data.isConcluded
+
   const supabase = createClient()
   await supabase.from('disciplines').update(updateData).eq('id', id)
 }

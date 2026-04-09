@@ -3,9 +3,11 @@
 import { useEffect, useState, useMemo } from "react"
 import {
     Plus, Pencil, Trash2, CalendarDays, BookOpen, AlertCircle, X,
-    Search, LogOut, ArrowRightCircle, ChevronUp, ChevronDown, Download
+    MessageSquare, CheckCircle2,
+    Search, LogOut, ArrowRightCircle, ChevronUp, ChevronDown, Download, Check
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -57,6 +59,10 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
     const [unlinkDiscId, setUnlinkDiscId] = useState<string | null>(null)   // unlink from semester (back to pool)
     const [deleteDiscId, setDeleteDiscId] = useState<string | null>(null)   // permanent delete (from pool only)
     const [deleteSemIdConfirm, setDeleteSemIdConfirm] = useState<string | null>(null)
+
+    // New Fields
+    const [discMonth, setDiscMonth] = useState<string>("none")
+    const [discYear, setDiscYear] = useState<string>("2026")
 
     async function load() {
         const [s, d, p] = await Promise.all([getSemesters(), getDisciplines(), getProfessorAccounts()])
@@ -116,7 +122,7 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
     function openNewDisc(semId?: string) {
         setEditingDisc(null); setSelectedPoolDisc(null); setDiscSearch("")
         setDiscName(""); setDiscDesc(""); setDiscSemId(semId || semesters[0]?.id || "")
-        setDiscProfName("none")
+        setDiscProfName("none"); setDiscMonth("none"); setDiscYear(new Date().getFullYear().toString())
         setDiscModal(true)
     }
 
@@ -125,6 +131,8 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
         setDiscName(disc.name); setDiscDesc(disc.description || "")
         setDiscSemId(disc.semesterId || "")
         setDiscProfName(disc.professorName || "none")
+        setDiscMonth(disc.applicationMonth || "none")
+        setDiscYear(disc.applicationYear || new Date().getFullYear().toString())
         setDiscModal(true)
     }
 
@@ -145,18 +153,21 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
         if (!discName.trim() && !selectedPoolDisc) return
         const semId = discSemId === "none" ? null : (discSemId || null)
         const prof = discProfName === "none" ? null : discProfName
+        const month = discMonth === "none" ? null : discMonth
+        const year = discYear
 
         if (selectedPoolDisc) {
             await updateDiscipline(selectedPoolDisc.id, {
-                semesterId: semId, professorName: prof
+                semesterId: semId, professorName: prof, applicationMonth: month, applicationYear: year
             })
         } else if (editingDisc) {
             await updateDiscipline(editingDisc.id, {
                 name: discName.trim(), description: discDesc.trim() || null,
-                semesterId: semId, professorName: prof
+                semesterId: semId, professorName: prof, applicationMonth: month, applicationYear: year
             })
         } else {
-            await addDiscipline(discName.trim(), discDesc.trim() || undefined, semId, prof, "", "ead")
+            const newDisc = await addDiscipline(discName.trim(), discDesc.trim() || undefined, semId, prof, "", "ead")
+            await updateDiscipline(newDisc.id, { applicationMonth: month, applicationYear: year })
         }
         setDiscModal(false); load()
     }
@@ -198,6 +209,16 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
             await updateDiscipline(otherDisc.id, { order: currentOrder })
         }
 
+        load()
+    }
+
+    async function toggleConcludeDisc(disc: Discipline) {
+        await updateDiscipline(disc.id, { isConcluded: !disc.isConcluded })
+        load()
+    }
+
+    async function toggleConcludeSem(sem: Semester) {
+        await updateSemester(sem.id, { isConcluded: !sem.isConcluded })
         load()
     }
 
@@ -260,6 +281,18 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
                                     </div>
                                 </div>
                                 <div className="flex gap-1 shrink-0">
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className={cn(
+                                            "h-8 px-2 text-xs gap-1",
+                                            sem.isConcluded ? "text-green-600 bg-green-50" : "text-primary hover:bg-primary/5"
+                                        )}
+                                        onClick={() => toggleConcludeSem(sem)}
+                                    >
+                                        <CheckCircle2 className={cn("h-3.5 w-3.5", sem.isConcluded ? "fill-green-600 text-white" : "")} />
+                                        {sem.isConcluded ? "Concluído" : "Concluir"}
+                                    </Button>
                                     <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-primary gap-1" onClick={() => openNewDisc(sem.id)}>
                                         <Plus className="h-3.5 w-3.5" /> Disciplina
                                     </Button>
@@ -290,6 +323,18 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
                                             <div key={disc.id} className="group relative border border-border rounded-xl px-4 py-3 bg-background hover:border-primary/40 hover:shadow-sm transition-all flex flex-col justify-between">
                                                 <div>
                                                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                                        <button
+                                                            className={cn(
+                                                                "h-6 w-6 rounded flex items-center justify-center border transition-colors",
+                                                                disc.isConcluded
+                                                                    ? "bg-green-100 border-green-200 text-green-700"
+                                                                    : "bg-card border-border hover:bg-muted text-muted-foreground"
+                                                            )}
+                                                            onClick={(e) => { e.stopPropagation(); toggleConcludeDisc(disc) }}
+                                                            title={disc.isConcluded ? "Marcar como não concluída" : "Marcar como concluída"}
+                                                        >
+                                                            <CheckCircle2 className={cn("h-3 w-3", disc.isConcluded ? "fill-green-700 text-white" : "")} />
+                                                        </button>
                                                         <button className="h-6 w-6 rounded flex items-center justify-center bg-card border border-border hover:bg-muted text-muted-foreground" onClick={() => openEditDisc(disc)} title="Editar">
                                                             <Pencil className="h-3 w-3" />
                                                         </button>
@@ -319,8 +364,18 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
                                                             </>
                                                         )}
                                                     </div>
-                                                    <h4 className="font-semibold text-sm pr-14 leading-snug">{disc.name}</h4>
-                                                    {disc.professorName && <p className="text-xs text-primary font-medium mt-1 truncate">Prof. {disc.professorName}</p>}
+                                                    <h4 className="font-semibold text-sm pr-14 leading-snug flex items-center gap-2">
+                                                        {disc.name}
+                                                        {disc.isConcluded && <CheckCircle2 className="h-3.5 w-3.5 text-green-600 fill-green-600/10" />}
+                                                    </h4>
+                                                    <div className="flex flex-wrap gap-2 mt-1">
+                                                        {disc.professorName && <p className="text-[10px] text-primary font-bold uppercase tracking-wider">Prof. {disc.professorName}</p>}
+                                                        {disc.applicationMonth && (
+                                                            <p className="text-[10px] text-muted-foreground font-medium bg-muted px-1.5 rounded">
+                                                                {["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][parseInt(disc.applicationMonth) - 1]}/{disc.applicationYear}
+                                                            </p>
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 {disc.description && <div className="mt-3 pt-3 border-t border-border/50">
                                                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">Carga Horária / Info</span>
@@ -522,6 +577,46 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
                                     {professors.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
+                        </div>
+
+                        {/* Month / Year selection */}
+                        <div className="grid grid-cols-2 gap-3 mt-1">
+                            <div className="flex flex-col gap-1.5">
+                                <Label>Mês de Aplicação</Label>
+                                <Select value={discMonth} onValueChange={setDiscMonth}>
+                                    <SelectTrigger><SelectValue placeholder="Selecione o mês" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">Não definido</SelectItem>
+                                        <SelectItem value="01">Janeiro</SelectItem>
+                                        <SelectItem value="02">Fevereiro</SelectItem>
+                                        <SelectItem value="03">Março</SelectItem>
+                                        <SelectItem value="04">Abril</SelectItem>
+                                        <SelectItem value="05">Maio</SelectItem>
+                                        <SelectItem value="06">Junho</SelectItem>
+                                        <SelectItem value="07">Julho</SelectItem>
+                                        <SelectItem value="08">Agosto</SelectItem>
+                                        <SelectItem value="09">Setembro</SelectItem>
+                                        <SelectItem value="10">Outubro</SelectItem>
+                                        <SelectItem value="11">Novembro</SelectItem>
+                                        <SelectItem value="12">Dezembro</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <Label>Ano de Aplicação</Label>
+                                <Select value={discYear} onValueChange={setDiscYear}>
+                                    <SelectTrigger><SelectValue placeholder="Selecione o ano" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="2024">2024</SelectItem>
+                                        <SelectItem value="2025">2025</SelectItem>
+                                        <SelectItem value="2026">2026</SelectItem>
+                                        <SelectItem value="2027">2027</SelectItem>
+                                        <SelectItem value="2028">2028</SelectItem>
+                                        <SelectItem value="2029">2029</SelectItem>
+                                        <SelectItem value="2030">2030</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                     </div>
                     <DialogFooter>
