@@ -486,7 +486,7 @@ export function FinancialManager() {
             </div>
 
             <Dialog open={!!selectedStudent} onOpenChange={(o) => !o && setSelectedStudent(null)}>
-                <DialogContent className="max-w-none w-[98vw] h-[98vh] max-h-[98vh] overflow-hidden flex flex-col p-0">
+                <DialogContent className="!max-w-none !w-screen !h-screen !max-h-screen !rounded-none border-none overflow-hidden flex flex-col p-0">
                     <DialogHeader className="p-6 border-b border-border bg-muted/30">
                         <div className="flex items-center justify-between">
                             <div>
