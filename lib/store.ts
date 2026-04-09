@@ -827,6 +827,38 @@ export async function saveSubmission(sub: StudentSubmission): Promise<StudentSub
   if (error) throw new Error(error.message)
   const result = mapSubmission(data)
 
+  // --- AUTOMATIC GRADE MIGRATION ---
+  try {
+    // Attempt to find student by email
+    const { data: student } = await supabase.from('students').select('name').eq('email', sub.studentEmail).maybeSingle();
+    
+    if (student) {
+      const { data: existingGrade } = await supabase.from('student_grades')
+        .select('id')
+        .match({ student_identifier: sub.studentEmail, discipline_id: sub.assessmentId ? (await getAssessmentById(sub.assessmentId))?.disciplineId : null })
+        .maybeSingle();
+
+      const assessment = await getAssessmentById(sub.assessmentId);
+      const disciplineId = assessment?.disciplineId || null;
+
+      const gradeData = {
+        student_identifier: sub.studentEmail,
+        student_name: sub.studentName,
+        discipline_id: disciplineId,
+        exam_grade: sub.score,
+        is_public: false // Hidden until professor releases
+      };
+
+      if (existingGrade) {
+        await supabase.from('student_grades').update(gradeData).eq('id', existingGrade.id);
+      } else {
+        await supabase.from('student_grades').insert({ ...gradeData, created_at: new Date().toISOString() });
+      }
+    }
+  } catch (err) {
+    console.error("Erro ao migrar nota da prova para o boletim:", err);
+  }
+
   // Trigger n8n WhatsApp (Exam Completed)
   try {
     const assessment = await getAssessmentById(sub.assessmentId);
@@ -1242,8 +1274,44 @@ export async function saveAttendance(studentId: string, disciplineId: string, da
   if (existing) {
     await supabase.from('attendances').update({ is_present: isPresent }).eq('id', existing.id)
   } else {
-    const dbData = { student_id: studentId, discipline_id: disciplineId, date, is_present: isPresent, created_at: new Date().toISOString() }
-    await supabase.from('attendances').insert(dbData)
+    await supabase.from('attendances').insert({ student_id: studentId, discipline_id: disciplineId, date, is_present: isPresent, created_at: new Date().toISOString() })
+  }
+
+  // --- AUTOMATIC ATTENDANCE SCORE UPDATE ---
+  try {
+    // 1. Count all presences for this student in this discipline
+    const { data: allAtt } = await supabase.from('attendances')
+      .select('is_present')
+      .match({ student_id: studentId, discipline_id: disciplineId });
+    
+    const presenceCount = (allAtt || []).filter(a => a.is_present).length;
+    const attendanceScore = presenceCount * 2.5; // Each presence is 2.5
+
+    // 2. Get student info for the grade record
+    const { data: student } = await supabase.from('students').select('name, email').eq('id', studentId).single();
+    
+    if (student) {
+      // 3. Find/Update student_grade
+      const { data: existingGrade } = await supabase.from('student_grades')
+        .select('id')
+        .match({ student_identifier: student.email, discipline_id: disciplineId })
+        .maybeSingle();
+
+      const gradeData = {
+        student_identifier: student.email,
+        student_name: student.name,
+        discipline_id: disciplineId,
+        attendance_score: attendanceScore,
+      };
+
+      if (existingGrade) {
+        await supabase.from('student_grades').update(gradeData).eq('id', existingGrade.id);
+      } else {
+        await supabase.from('student_grades').insert({ ...gradeData, is_public: false, created_at: new Date().toISOString() });
+      }
+    }
+  } catch (err) {
+    console.error("Erro ao atualizar nota de presença no boletim:", err);
   }
 
   // Trigger n8n if absent

@@ -439,9 +439,22 @@ export function FinancialManager() {
                                 })
                                 .map(s => {
                                     const studentCharges = charges.filter(c => c.studentId === s.id)
-                                    const pending = studentCharges.filter(c => c.status === 'pending' || c.status === 'late')
+                                    const todayStr = new Date().toISOString().split('T')[0]
+                                    
+                                    const overdue = studentCharges.filter(c => 
+                                        c.status !== 'paid' && 
+                                        c.status !== 'cancelled' && 
+                                        c.dueDate < todayStr
+                                    )
+                                    
+                                    const pending = studentCharges.filter(c => 
+                                        c.status !== 'paid' && 
+                                        c.status !== 'cancelled'
+                                    )
+
                                     const totalPending = pending.reduce((acc, curr) => acc + curr.amount, 0)
                                     const turmaName = allClasses.find(c => c.id === s.class_id)?.name || "-"
+                                    
                                     return (
                                         <tr key={s.id} className="hover:bg-muted/30 transition-colors">
                                             <td className="px-4 py-3">
@@ -450,10 +463,10 @@ export function FinancialManager() {
                                             </td>
                                             <td className="px-4 py-3 text-muted-foreground">{s.enrollment_number}</td>
                                             <td className="px-4 py-3">
-                                                {pending.some(c => c.status === 'late') ? (
+                                                {overdue.some(c => c.status === 'late' || c.dueDate < todayStr) ? (
                                                     <span className="text-destructive font-bold flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Inadimplente</span>
-                                                ) : pending.length > 0 ? (
-                                                    <span className="text-amber-600 font-bold flex items-center gap-1"><Clock className="h-3 w-3" /> Pendente</span>
+                                                ) : overdue.length > 0 ? (
+                                                     <span className="text-amber-600 font-bold flex items-center gap-1"><Clock className="h-3 w-3" /> Pendente</span>
                                                 ) : (
                                                     <span className="text-green-600 font-bold flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Em dia</span>
                                                 )}
@@ -473,7 +486,7 @@ export function FinancialManager() {
             </div>
 
             <Dialog open={!!selectedStudent} onOpenChange={(o) => !o && setSelectedStudent(null)}>
-                <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden flex flex-col p-0">
+                <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
                     <DialogHeader className="p-6 border-b border-border bg-muted/30">
                         <div className="flex items-center justify-between">
                             <div>

@@ -32,10 +32,10 @@ export function StudentGradesView({ studentId, studentEmail }: Props) {
                 setDisciplines(d)
                 setSemesters(sem)
 
-                // Filter official grades by student identifier (email or session id)
+                // Filter official grades by student identifier and ONLY released grades
                 const myGrades = allGrades.filter(g =>
-                    g.studentIdentifier === studentEmail ||
-                    g.studentIdentifier === studentId
+                    (g.studentIdentifier === studentEmail || g.studentIdentifier === studentId) &&
+                    g.isPublic === true
                 )
                 setOfficialGrades(myGrades)
 
@@ -64,12 +64,21 @@ export function StudentGradesView({ studentId, studentEmail }: Props) {
     }
 
     const calculateAverage = (grade: StudentGrade) => {
+        // As requested: (Exam + Attendance) / 2
+        // We still allow the old way if other grades are present
+        const exam = (grade.examGrade || 0)
+        const attendance = (grade.attendanceScore || 0)
+
+        if (grade.worksGrade === 0 && grade.seminarGrade === 0 && grade.participationBonus === 0) {
+            return ((exam + attendance) / 2).toFixed(2)
+        }
+
         const total =
-            (grade.examGrade || 0) +
+            exam +
             (grade.worksGrade || 0) +
             (grade.seminarGrade || 0) +
             (grade.participationBonus || 0) +
-            (grade.attendanceScore || 0)
+            attendance
 
         const divisor = grade.customDivisor > 0 ? grade.customDivisor : 1;
         return (total / divisor).toFixed(2)

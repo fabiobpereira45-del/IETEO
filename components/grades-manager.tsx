@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import {
-    Plus, Pencil, Trash2, GraduationCap, Calculator, Loader2, Save, X, Download
+        Plus, Pencil, Trash2, GraduationCap, Calculator, Loader2, Save, X, Download, Eye, EyeOff
+
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -109,16 +110,37 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
     }
 
     const calculateAverage = (grade: StudentGrade) => {
+        // As requested: (Exam + Attendance) / 2
+        // We still allow the old way if other grades are present, 
+        // but the default for automatic migration will be divisor 2.
+        const exam = (parseFloat(grade.examGrade as any) || 0)
+        const attendance = (parseFloat(grade.attendanceScore as any) || 0)
+        
+        // If works/seminar/participation are 0, use the specific formula
+        if (grade.worksGrade === 0 && grade.seminarGrade === 0 && grade.participationBonus === 0) {
+            return ((exam + attendance) / 2).toFixed(2)
+        }
+
         const total =
-            (parseFloat(grade.examGrade as any) || 0) +
+            exam +
             (parseFloat(grade.worksGrade as any) || 0) +
             (parseFloat(grade.seminarGrade as any) || 0) +
             (parseFloat(grade.participationBonus as any) || 0) +
-            (parseFloat(grade.attendanceScore as any) || 0)
+            attendance
 
         const divisor = grade.customDivisor > 0 ? grade.customDivisor : 1;
         return (total / divisor).toFixed(2)
     }
+
+    const toggleRelease = async (grade: StudentGrade) => {
+        try {
+            await saveStudentGrade({ ...grade, isPublic: !grade.isPublic }, grade.id);
+            loadData();
+        } catch (err: any) {
+            alert("Erro ao alterar visibilidade: " + err.message);
+        }
+    }
+
 
     if (loading) {
         return (
@@ -324,21 +346,29 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                                                     <div className={`text-2xl font-black ${parseFloat(calculateAverage(grade)) >= 7 ? 'text-green-600' : 'text-amber-600'}`}>
                                                         {calculateAverage(grade)}
                                                     </div>
-                                                </div>
-
-                                                <div className="flex flex-col gap-2">
-                                                    <Button variant="outline" size="sm" onClick={() => {
-                                                        setFormData(grade)
-                                                        setIsEditing(grade.id)
-                                                        window.scrollTo({ top: 0, behavior: 'smooth' })
-                                                    }}>
-                                                        <Pencil className="h-4 w-4 mr-2" /> Editar
-                                                    </Button>
-                                                    {isMaster && (
-                                                        <Button variant="destructive" size="sm" onClick={() => setDeleteConfirm(grade.id)}>
-                                                            <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                                                     <div className="flex flex-col gap-2 mt-4">
+                                                         <Button 
+                                                            variant={grade.isPublic ? "default" : "outline"} 
+                                                            size="sm" 
+                                                            onClick={() => toggleRelease(grade)}
+                                                            className={grade.isPublic ? "bg-green-600 hover:bg-green-700" : ""}
+                                                         >
+                                                             {grade.isPublic ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
+                                                             {grade.isPublic ? "Publicado" : "Privado"}
+                                                         </Button>
+                                                        <Button variant="outline" size="sm" onClick={() => {
+                                                            setFormData(grade)
+                                                            setIsEditing(grade.id)
+                                                            window.scrollTo({ top: 0, behavior: 'smooth' })
+                                                        }}>
+                                                            <Pencil className="h-4 w-4 mr-2" /> Editar
                                                         </Button>
-                                                    )}
+                                                        {isMaster && (
+                                                            <Button variant="destructive" size="sm" onClick={() => setDeleteConfirm(grade.id)}>
+                                                                <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                                                            </Button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
