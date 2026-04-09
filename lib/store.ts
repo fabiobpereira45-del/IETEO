@@ -22,6 +22,13 @@ export interface StudentSession { name: string; email: string; assessmentId: str
 export interface StudentProfile { id: string; auth_user_id: string; name: string; cpf: string; enrollment_number: string; phone?: string; address?: string; church?: string; pastor_name?: string; class_id?: string; payment_status?: string; avatar_url?: string | null; bio?: string | null; status: "pending" | "active" | "inactive"; created_at: string; }
 export interface ChatMessage { id: string; studentId: string; disciplineId: string; message: string; isFromStudent: boolean; read: boolean; createdAt: string; }
 export interface Attendance { id: string; studentId: string; disciplineId: string; date: string; isPresent: boolean; createdAt: string; }
+export interface AttendanceLock {
+    id: string
+    disciplineId: string
+    date: string
+    lockedBy: string
+    lockedAt: string
+}
 export interface BoardMember { id: string; name: string; role: string; category: string; avatar_url?: string | null; createdAt: string; }
 export interface ProfessorDiscipline { id: string; professorId: string; disciplineId: string; createdAt: string; }
 export interface ClassRoom { id: string; name: string; shift: "morning" | "afternoon" | "evening" | "ead"; dayOfWeek?: string; maxStudents: number; studentCount?: number; createdAt: string; }
@@ -247,6 +254,7 @@ export function getDraftAnswers(): StudentAnswer[] { return readLocal<StudentAns
 export function saveDraftAnswers(answers: StudentAnswer[]): void { writeLocal(KEYS.DRAFT_ANSWERS, answers) }
 
 // DB Mappers
+// DB Mappers
 function mapSemester(row: any): Semester { return { id: row.id, name: row.name, order: row.order, shift: row.shift || undefined, createdAt: row.created_at } }
 function mapStudyMaterial(row: any): StudyMaterial { return { id: row.id, disciplineId: row.discipline_id, title: row.title, description: row.description || undefined, fileUrl: row.file_url, createdAt: row.created_at } }
 function mapDiscipline(row: any): Discipline { return { id: row.id, name: row.name, description: row.description || undefined, semesterId: row.semester_id || undefined, professorName: row.professor_name || undefined, dayOfWeek: row.day_of_week || undefined, shift: row.shift || undefined, order: Number(row.order || 0), createdAt: row.created_at } }
@@ -311,7 +319,7 @@ function mapProfessor(p: any): ProfessorAccount {
 }
 function mapFinancialSettings(row: any): FinancialSettings { return { id: row.id, enrollmentFee: Number(row.enrollment_fee), monthlyFee: Number(row.monthly_fee), secondCallFee: Number(row.second_call_fee), finalExamFee: Number(row.final_exam_fee), totalMonths: Number(row.total_months), creditCardUrl: row.credit_card_url || undefined, pixKey: row.pix_key || undefined, updatedAt: row.updated_at } }
 function mapFinancialCharge(row: any): FinancialCharge { return { id: row.id, studentId: row.student_id, type: row.type, description: row.description, amount: Number(row.amount), dueDate: row.due_date, status: row.status, paymentDate: row.payment_date || undefined, pixQrcode: row.pix_qrcode || undefined, pixCopyPaste: row.pix_copy_paste || undefined, createdAt: row.created_at } }
-function mapStudentProfile(row: any): StudentProfile { return { id: row.id, auth_user_id: row.auth_user_id, name: row.name, cpf: row.cpf, enrollment_number: row.enrollment_number, phone: row.phone || undefined, address: row.address || undefined, church: row.church || undefined, pastor_name: row.pastor_name || undefined, class_id: row.class_id || undefined, payment_status: row.payment_status || undefined, avatar_url: row.avatar_url || null, bio: row.bio || null, status: row.status || 'pending', created_at: row.created_at } }
+function mapStudentProfile(row: any): StudentProfile { return { id: row.id, auth_user_id: row.auth_user_id, name: row.name, cpf: row.cpf, enrollment_number: row.enrollment_number, phone: row.phone || undefined, address: row.address || undefined, church: row.church || undefined, pastor_name: row.pastor_name || undefined, class_id: row.class_id || undefined, payment_status: row.payment_status || undefined, avatar_url: row.avatar_url || null, bio: row.bio || null, status: (row.status || 'pending') as StudentProfile['status'], created_at: row.created_at } }
 function mapChatMessage(row: any): ChatMessage { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, message: row.message, isFromStudent: row.is_from_student, read: row.read, createdAt: row.created_at } }
 function mapAttendance(row: any): Attendance { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, date: row.date, isPresent: row.is_present, createdAt: row.created_at } }
 function mapClassRoom(row: any): ClassRoom { return { id: row.id, name: row.name, shift: row.shift as ClassRoom['shift'], dayOfWeek: row.day_of_week || undefined, maxStudents: Number(row.max_students), studentCount: row.student_count !== undefined ? Number(row.student_count) : undefined, createdAt: row.created_at } }
@@ -1279,19 +1287,28 @@ export async function saveAttendance(studentId: string, disciplineId: string, da
 
   // --- AUTOMATIC ATTENDANCE SCORE UPDATE ---
   try {
-    // 1. Count all presences for this student in this discipline
+    // 1. Get total lessons count for this discipline to calculate dynamic weight
+    const { data: schedule } = await supabase.from('class_schedules')
+      .select('lessons_count')
+      .eq('discipline_id', disciplineId)
+      .maybeSingle();
+    
+    const lessonsCount = schedule?.lessons_count || 4; // Default to 4 if not specified
+    const weightPerPresence = 10 / lessonsCount;
+
+    // 2. Count all presences for this student in this discipline
     const { data: allAtt } = await supabase.from('attendances')
       .select('is_present')
       .match({ student_id: studentId, discipline_id: disciplineId });
     
     const presenceCount = (allAtt || []).filter(a => a.is_present).length;
-    const attendanceScore = presenceCount * 2.5; // Each presence is 2.5
+    const attendanceScore = parseFloat((presenceCount * weightPerPresence).toFixed(2));
 
-    // 2. Get student info for the grade record
+    // 3. Get student info for the grade record
     const { data: student } = await supabase.from('students').select('name, email').eq('id', studentId).single();
     
     if (student) {
-      // 3. Find/Update student_grade
+      // 4. Find/Update student_grade
       const { data: existingGrade } = await supabase.from('student_grades')
         .select('id')
         .match({ student_identifier: student.email, discipline_id: disciplineId })
@@ -1328,6 +1345,37 @@ export async function saveAttendance(studentId: string, disciplineId: string, da
       });
     }
   }
+}
+
+export async function getAttendanceLock(disciplineId: string, date: string): Promise<AttendanceLock | null> {
+  const supabase = createClient()
+  const { data } = await supabase.from('attendance_locks').select('*').match({ discipline_id: disciplineId, date }).maybeSingle()
+  if (!data) return null
+  return {
+    id: data.id,
+    disciplineId: data.discipline_id,
+    date: data.date,
+    lockedBy: data.locked_by,
+    lockedAt: data.locked_at
+  }
+}
+
+export async function lockAttendance(disciplineId: string, date: string, lockedBy: string): Promise<void> {
+  const supabase = createClient()
+  // Ensure we don't hit UUID error with 'master'
+  const userId = lockedBy === 'master' ? '00000000-0000-0000-0000-000000000000' : lockedBy
+  
+  await supabase.from('attendance_locks').insert({
+    discipline_id: disciplineId,
+    date,
+    locked_by: userId,
+    locked_at: new Date().toISOString()
+  })
+}
+
+export async function unlockAttendance(id: string): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('attendance_locks').delete().eq('id', id)
 }
 
 // ─── n8n WhatsApp Integration ──────────────────────────────────────────────

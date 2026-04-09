@@ -9,8 +9,9 @@ import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import {
-    type Discipline, type StudentProfile, type Attendance, type ClassRoom,
-    getDisciplines, getStudents, getAttendances, saveAttendance, getProfessorSession, getDisciplinesByProfessor, getClasses
+    type Discipline, type StudentProfile, type Attendance, type ClassRoom, type AttendanceLock,
+    getDisciplines, getStudents, getAttendances, saveAttendance, getProfessorSession, getDisciplinesByProfessor, getClasses,
+    getAttendanceLock, lockAttendance, unlockAttendance
 } from "@/lib/store"
 import { printAttendanceReportPDF, printDailyAttendancePDF } from "@/lib/pdf"
 
@@ -28,41 +29,47 @@ export function AttendanceManager() {
     const [attendances, setAttendances] = useState<Record<string, boolean>>({})
     const [loading, setLoading] = useState(false)
     const [saving, setSaving] = useState(false)
+    const [lockInfo, setLockInfo] = useState<AttendanceLock | null>(null)
+    const [session, setSession] = useState<any>(null)
 
     // Initialize
     useEffect(() => {
         async function loadData() {
             setLoading(true)
-            const session = getProfessorSession()
+            const s = getProfessorSession()
+            setSession(s)
             let d: Discipline[] = []
             
-            if (session?.role === 'master') {
+            if (s?.role === 'master') {
                 d = await getDisciplines()
-            } else if (session?.professorId) {
-                d = await getDisciplinesByProfessor(session.professorId)
+            } else if (s?.professorId) {
+                d = await getDisciplinesByProfessor(s.professorId)
             }
             
             const c = await getClasses()
-            const s = await getStudents()
+            const st = await getStudents()
             setDisciplines(d)
             setClasses(c)
-            setStudents(s)
+            setStudents(st)
             setLoading(false)
         }
         loadData()
     }, [])
 
-    // Load attendances when discipline or date changes
+    // Load attendances and lock status when discipline or date changes
     useEffect(() => {
         async function fetchAttendances() {
             if (selectedDisciplineId === "none" || !selectedDate) return
             setLoading(true)
-            const data = await getAttendances(selectedDisciplineId)
+            
+            const [data, lock] = await Promise.all([
+                getAttendances(selectedDisciplineId),
+                getAttendanceLock(selectedDisciplineId, selectedDate)
+            ])
+
+            setLockInfo(lock)
 
             const attMap: Record<string, boolean> = {}
-            // We assume students not present in DB are absent
-            // Default is false (absent) as requested by the user
-
             data.forEach(a => {
                 if (a.date === selectedDate) {
                     attMap[a.studentId] = a.isPresent
@@ -133,10 +140,49 @@ export function AttendanceManager() {
                         <Download className="h-4 w-4 mr-2" />
                         Relatório Consolidado
                     </Button>
-                    <Button onClick={handleSave} disabled={saving || selectedDisciplineId === "none" || !selectedDate} className="bg-green-600 hover:bg-green-700">
-                        {saving ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                        Salvar Frequência
+                    <Button 
+                        onClick={handleSave} 
+                        disabled={saving || !!lockInfo || selectedDisciplineId === "none" || !selectedDate} 
+                        className={lockInfo ? "bg-muted text-muted-foreground" : "bg-green-600 hover:bg-green-700"}
+                    >
+                        {saving ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : (lockInfo ? <CheckCircle2 className="h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />)}
+                        {lockInfo ? "Diário Finalizado" : "Salvar Frequência"}
                     </Button>
+                    
+                    {!lockInfo && selectedDisciplineId !== "none" && (
+                        <Button 
+                            onClick={async () => {
+                                if (!confirm("Deseja finalizar este diário? Após a finalização, correções só poderão ser feitas pelo administrador.")) return
+                                setSaving(true)
+                                try {
+                                    await handleSave()
+                                    await lockAttendance(selectedDisciplineId, selectedDate, session?.professorId || 'master')
+                                    const lock = await getAttendanceLock(selectedDisciplineId, selectedDate)
+                                    setLockInfo(lock)
+                                    alert("Diário finalizado com sucesso!")
+                                } catch (e: any) { alert("Erro ao finalizar: " + e.message) }
+                                setSaving(false)
+                            }}
+                            className="bg-amber-600 hover:bg-amber-700 text-white"
+                        >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            Finalizar Diário
+                        </Button>
+                    )}
+
+                    {lockInfo && session?.role === 'master' && (
+                        <Button 
+                            variant="destructive"
+                            onClick={async () => {
+                                if (!confirm("Deseja reabrir este diário para edições?")) return
+                                await unlockAttendance(lockInfo.id)
+                                setLockInfo(null)
+                            }}
+                        >
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Reabrir Diário
+                        </Button>
+                    )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-muted/30 border border-border rounded-xl p-4">
@@ -255,9 +301,10 @@ export function AttendanceManager() {
                                                     </td>
                                                     <td className="px-4 py-3 text-center flex justify-center">
                                                         <button
-                                                            onClick={() => toggleAttendance(student.id)}
+                                                            disabled={!!lockInfo}
+                                                            onClick={() => !lockInfo && toggleAttendance(student.id)}
                                                             className={`w-12 h-6 rounded-full transition-colors flex items-center px-1 ${isPresent ? "bg-green-500 justify-end" : "bg-red-400 justify-start"
-                                                                }`}
+                                                                } ${lockInfo ? "opacity-50 cursor-not-allowed" : ""}`}
                                                         >
                                                             <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
                                                         </button>
