@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { FileText, Award, CalendarCheck, Loader2, Calculator, CheckCircle2 } from "lucide-react"
+import { FileText, Award, CalendarCheck, Loader2, Calculator, CheckCircle2, Clock } from "lucide-react"
 import {
     type Discipline, type Semester, type StudentSubmission, type Attendance, type Assessment, type StudentGrade,
     getDisciplines, getSemesters, getSubmissions, getAttendances, getAssessments, getStudentGrades
@@ -32,15 +32,27 @@ export function StudentGradesView({ studentId, studentEmail }: Props) {
                 setDisciplines(d)
                 setSemesters(sem)
 
-                // Filter official grades by student identifier and ONLY released grades
+                // Filter official grades by student identifier (Show all, we will mask exam score if not public)
                 const myGrades = allGrades.filter(g =>
-                    (g.studentIdentifier === studentEmail || g.studentIdentifier === studentId) &&
-                    g.isPublic === true
+                    g.studentIdentifier === studentEmail || g.studentIdentifier === studentId
                 )
                 setOfficialGrades(myGrades)
 
-                // Submissions still useful for historical view
-                const mySubs = sub.filter(s => s.studentEmail === studentEmail)
+                // Fetch assessments to link submissions to disciplines
+                const assessments = await getAssessments()
+
+                // Filter submissions and check release status
+                const mySubs = sub.filter(s => {
+                    if (s.studentEmail !== studentEmail) return false
+                    
+                    // Find the discipline for this submission
+                    const assessment = assessments.find(a => a.id === s.assessmentId)
+                    if (!assessment) return false
+                    
+                    // Check if there is a released official grade for this discipline
+                    const grade = myGrades.find(g => g.disciplineId === assessment.disciplineId)
+                    return grade?.isPublic === true
+                })
                 setSubmissions(mySubs)
 
                 // Attendances
@@ -132,30 +144,38 @@ export function StudentGradesView({ studentId, studentEmail }: Props) {
                                         <div className="flex items-center gap-4 bg-muted/50 p-3 rounded-xl border border-border">
                                             <div className="text-right">
                                                 <div className="text-[10px] uppercase font-bold text-muted-foreground">Média Final</div>
-                                                <div className={`text-2xl font-black ${avg >= 7 ? 'text-green-600' : 'text-amber-600'}`}>
-                                                    {avg.toFixed(2)}
+                                                <div className={`text-2xl font-black ${grade.isPublic ? (avg >= 7 ? 'text-green-600' : 'text-amber-600') : 'text-muted-foreground opacity-50'}`}>
+                                                    {grade.isPublic ? avg.toFixed(2) : "--"}
                                                 </div>
                                             </div>
-                                            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${avg >= 7 ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
-                                                {avg >= 7 ? <CheckCircle2 className="h-6 w-6" /> : <Award className="h-6 w-6" />}
+                                            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${grade.isPublic ? (avg >= 7 ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-700') : 'bg-muted text-muted-foreground'}`}>
+                                                {grade.isPublic ? (avg >= 7 ? <CheckCircle2 className="h-6 w-6" /> : <Award className="h-6 w-6" />) : <Clock className="h-6 w-6" />}
                                             </div>
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-6">
                                         {[
-                                            { label: "Prova", val: grade.examGrade },
-                                            { label: "Trabalhos", val: grade.worksGrade },
-                                            { label: "Seminários", val: grade.seminarGrade },
-                                            { label: "Participação", val: grade.participationBonus },
-                                            { label: "Presença", val: grade.attendanceScore },
+                                            { label: "Prova", val: grade.examGrade, isSecret: !grade.isPublic },
+                                            { label: "Trabalhos", val: grade.worksGrade, isSecret: false },
+                                            { label: "Seminários", val: grade.seminarGrade, isSecret: false },
+                                            { label: "Participação", val: grade.participationBonus, isSecret: false },
+                                            { label: "Presença", val: grade.attendanceScore, isSecret: false },
                                         ].map(item => (
-                                            <div key={item.label} className="bg-background border border-border rounded-lg p-3 text-center">
+                                            <div key={item.label} className={`bg-background border border-border rounded-lg p-3 text-center ${item.isSecret ? 'opacity-60 bg-muted/20' : ''}`}>
                                                 <div className="text-[10px] text-muted-foreground font-bold uppercase mb-1">{item.label}</div>
-                                                <div className="font-bold text-foreground">{item.val.toFixed(1)}</div>
+                                                <div className="font-bold text-foreground">
+                                                    {item.isSecret ? "🔒" : item.val.toFixed(1)}
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
+                                    {!grade.isPublic && (
+                                        <div className="mt-4 text-[10px] bg-amber-50 text-amber-700 p-2 rounded-md border border-amber-100 flex items-center gap-2">
+                                            <Clock className="h-3 w-3" />
+                                            A nota da prova online e a média final serão liberadas após a correção do professor.
+                                        </div>
+                                    )}
                                     <div className="mt-4 text-[10px] text-muted-foreground text-right italic">
                                         Cálculo: (Soma das notas) / {grade.customDivisor}
                                     </div>
