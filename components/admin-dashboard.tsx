@@ -161,7 +161,7 @@ export function AdminDashboard({ onLogout }: Props) {
     {
       title: "Avaliações",
       items: [
-        { id: "questions", label: "Banco de Questões", icon: <BookOpen className="h-4 w-4" /> },
+        { id: "questions", label: "Banco de Questões", icon: <BookOpen className="h-4 w-4" />, masterOnly: true },
         { id: "assessments", label: "Provas", icon: <FileText className="h-4 w-4" /> },
         { id: "submissions", label: "Respostas de Provas", icon: <CheckCircle2 className="h-4 w-4" /> },
       ]

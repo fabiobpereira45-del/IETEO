@@ -1403,6 +1403,12 @@ export async function deleteStudentGrade(id: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
+export async function releaseAllGrades(): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase.from('student_grades').update({ is_public: true }).eq('is_public', false)
+  if (error) throw new Error(error.message)
+}
+
 // ─── Profile / Avatar Management ──────────────────────────────────────────
 
 export async function uploadAvatar(file: File, userId: string, folder: 'students' | 'professors' | 'board'): Promise<string> {

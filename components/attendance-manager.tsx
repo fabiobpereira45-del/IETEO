@@ -12,7 +12,7 @@ import {
     type Discipline, type StudentProfile, type Attendance, type ClassRoom,
     getDisciplines, getStudents, getAttendances, saveAttendance, getProfessorSession, getDisciplinesByProfessor, getClasses
 } from "@/lib/store"
-import { printAttendanceReportPDF } from "@/lib/pdf"
+import { printAttendanceReportPDF, printDailyAttendancePDF } from "@/lib/pdf"
 
 export function AttendanceManager() {
     const [disciplines, setDisciplines] = useState<Discipline[]>([])
@@ -112,7 +112,14 @@ export function AttendanceManager() {
                     <h2 className="text-lg font-semibold text-foreground">Diário de Classe (Frequência)</h2>
                     <p className="text-sm text-muted-foreground">Registre a presença dos alunos nas suas disciplinas</p>
                 </div>
-                <div className="flex gap-2">
+                    <Button variant="outline" onClick={async () => {
+                        if (selectedDisciplineId === "none") return alert("Selecione uma disciplina.")
+                        const discName = disciplines.find(d => d.id === selectedDisciplineId)?.name || ""
+                        printDailyAttendancePDF(selectedDate, discName, filteredStudents, attendances)
+                    }} className="border-amber-600 text-amber-600 hover:bg-amber-50">
+                        <Download className="h-4 w-4 mr-2" />
+                        Imprimir Chamada do Dia
+                    </Button>
                     <Button variant="outline" onClick={async () => {
                         if (selectedDisciplineId === "none") return alert("Selecione uma disciplina.")
                         setLoading(true)
@@ -124,13 +131,12 @@ export function AttendanceManager() {
                         setLoading(false)
                     }} className="border-primary text-primary hover:bg-primary/10">
                         <Download className="h-4 w-4 mr-2" />
-                        Exportar PDF
+                        Relatório Consolidado
                     </Button>
-                    <Button onClick={handleSave} disabled={saving || selectedDisciplineId === "none" || !selectedDate}>
+                    <Button onClick={handleSave} disabled={saving || selectedDisciplineId === "none" || !selectedDate} className="bg-green-600 hover:bg-green-700">
                         {saving ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                         Salvar Frequência
                     </Button>
-                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-muted/30 border border-border rounded-xl p-4">

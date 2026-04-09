@@ -631,24 +631,26 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
                     <p className={`text-[10px] uppercase font-bold tracking-wider ${active ? "text-white/70" : "text-muted-foreground"}`}>{count === undefined ? "Carregando" : count} questão{count !== 1 ? "ões" : ""}</p>
                   </div>
                   {active && <ChevronRight className="h-4 w-4 flex-shrink-0 text-white" />}
-                  <div className={`flex-shrink-0 flex gap-0.5 ${active ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setEditingDisc(d); setDiscModal(true) }}
-                      className={`p-1 rounded-lg transition-colors ${active ? "hover:bg-white/20 text-white" : "hover:bg-primary/10 text-muted-foreground hover:text-primary"}`}
-                      aria-label="Editar disciplina"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    {isMaster && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setDeleteDiscId(d.id) }}
-                        className={`p-1 rounded-lg transition-colors ${active ? "hover:bg-white/20 text-white" : "hover:bg-destructive/10 text-muted-foreground hover:text-destructive"}`}
-                        aria-label="Excluir disciplina"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
+                   <div className={`flex-shrink-0 flex gap-0.5 transition-opacity ${active || isMaster ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+                     <button
+                       onClick={(e) => { e.stopPropagation(); setEditingDisc(d); setDiscModal(true) }}
+                       className={`p-1 rounded-lg transition-colors ${active ? "hover:bg-white/20 text-white" : "hover:bg-primary/10 text-muted-foreground hover:text-primary"}`}
+                       aria-label="Editar disciplina"
+                       title="Editar disciplina"
+                     >
+                       <Pencil className="h-3.5 w-3.5" />
+                     </button>
+                     {isMaster && (
+                       <button
+                         onClick={(e) => { e.stopPropagation(); setDeleteDiscId(d.id) }}
+                         className={`p-1 rounded-lg transition-colors ${active ? "hover:bg-red-500/20 text-red-400 hover:bg-red-500/30" : "hover:bg-destructive/10 text-destructive hover:text-destructive"}`}
+                         aria-label="Excluir disciplina"
+                         title="Excluir disciplina (acesso de master)"
+                       >
+                         <Trash2 className="h-3.5 w-3.5" />
+                       </button>
+                     )}
+                   </div>
                 </div>
               )
             })

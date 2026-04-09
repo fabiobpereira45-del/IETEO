@@ -13,7 +13,7 @@ import {
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
-    StudentGrade, getStudentGrades, saveStudentGrade, deleteStudentGrade,
+    StudentGrade, getStudentGrades, saveStudentGrade, deleteStudentGrade, releaseAllGrades,
     StudentProfile, getStudents, Discipline, getDisciplines
 } from "@/lib/store"
 import { printGradesReportPDF } from "@/lib/pdf"
@@ -141,6 +141,20 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
         }
     }
 
+    const handleReleaseAll = async () => {
+        if (!confirm("Deseja liberar as notas e médias de TODOS os alunos listados para visualização?")) return
+        try {
+            setLoading(true)
+            await releaseAllGrades()
+            await loadData()
+            alert("Todas as notas foram liberadas com sucesso!")
+        } catch (err: any) {
+            alert("Erro ao liberar todas as notas: " + err.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
 
     if (loading) {
         return (
@@ -175,10 +189,16 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                     </div>
                     <div className="flex gap-2">
                         {isMaster && (
-                            <Button variant="outline" onClick={() => printGradesReportPDF(grades, "Relatório Geral de Notas")} className="border-primary text-primary hover:bg-primary/10">
-                                <Download className="h-4 w-4 mr-2" />
-                                Exportar PDF
-                            </Button>
+                            <>
+                                <Button variant="outline" onClick={handleReleaseAll} className="border-green-600 text-green-600 hover:bg-green-50">
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Liberar Todas
+                                </Button>
+                                <Button variant="outline" onClick={() => printGradesReportPDF(grades, "Relatório Geral de Notas")} className="border-primary text-primary hover:bg-primary/10">
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Exportar PDF
+                                </Button>
+                            </>
                         )}
                         <Button onClick={() => {
                             setFormData({

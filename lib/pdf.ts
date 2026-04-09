@@ -964,3 +964,62 @@ export function printAttendanceReportPDF(attendances: Attendance[], students: St
 
   const win = window.open("", "_blank"); if (!win) return; win.document.write(html); win.document.close(); win.onload = () => win.print()
 }
+
+export function printDailyAttendancePDF(date: string, disciplineName: string, students: StudentProfile[], attendanceMap: Record<string, boolean>): void {
+  const formattedDate = new Date(date + 'T12:00:00').toLocaleDateString('pt-BR');
+  
+  const rows = students.sort((a, b) => a.name.localeCompare(b.name)).map((s, i) => {
+    const isPresent = attendanceMap[s.id] === true;
+    return `
+      <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 10px; font-size: 11px; text-align: center; color: #64748b;">${(i+1).toString().padStart(2, '0')}</td>
+        <td style="padding: 10px; font-size: 13px; font-weight: 600;">${s.name}</td>
+        <td style="padding: 10px; font-size: 11px; color: #64748b;">${s.enrollment_number}</td>
+        <td style="padding: 10px; font-size: 12px; text-align: center;">
+          <span style="font-weight: bold; color: ${isPresent ? '#16a34a' : '#dc2626'}">
+            ${isPresent ? 'PRESENTE' : 'FALTOU'}
+          </span>
+        </td>
+      </tr>
+    `
+  }).join('')
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Chamada do Dia - ${formattedDate}</title><style>
+    body{font-family: Arial, sans-serif; padding: 40px; color: #1e293b;}
+    @media print { body { padding: 0; } }
+    .header { border-bottom: 4px solid #1e3a5f; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; background: #f8fafc; border-bottom: 2px solid #cbd5e1; padding: 12px 10px; font-size: 11px; text-transform: uppercase; color: #64748b; }
+  </style></head>
+  <body>
+    <div class="header">
+      <div>
+        <div style="font-size: 12px; font-weight: bold; color: #f97316; text-transform: uppercase; margin-bottom: 4px;">Instituto de Ensino Teológico — IETEO</div>
+        <h1 style="margin: 0; color: #1e3a5f; font-size: 24px;">Diário de Classe: Chamada do Dia</h1>
+        <div style="margin-top: 5px; font-size: 15px; color: #475569;">Disciplina: <strong>${disciplineName}</strong></div>
+      </div>
+      <div style="text-align: right;">
+        <div style="font-size: 18px; font-weight: 800; color: #1e3a5f;">${formattedDate}</div>
+        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">Alunos na Lista: ${students.length}</div>
+      </div>
+    </div>
+    <table>
+      <thead><tr>
+        <th style="width: 40px; text-align: center;">Nº</th>
+        <th>NOME DO ALUNO</th>
+        <th>MATRÍCULA</th>
+        <th style="text-align: center;">STATUS</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top: 50px; display: flex; justify-content: space-between;">
+      <div style="width: 250px; border-top: 1px solid #000; padding-top: 8px; text-align: center; font-size: 11px;">Assinatura do Professor</div>
+      <div style="width: 200px; border-top: 1px solid #000; padding-top: 8px; text-align: center; font-size: 11px;">Secretaria Acadêmica</div>
+    </div>
+    <div style="margin-top: 40px; text-align: center; font-size: 10px; color: #94a3b8;">
+      Gerado eletronicamente em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
+    </div>
+  </body></html>`
+
+  const win = window.open("", "_blank"); if (!win) return; win.document.write(html); win.document.close(); win.onload = () => win.print()
+}
