@@ -1371,11 +1371,41 @@ export async function getAttendanceAnalysis(disciplineId: string, students: Stud
 
 export async function saveAttendance(studentId: string, disciplineId: string, date: string, isPresent: boolean): Promise<void> {
   const supabase = createClient()
-  const { data: existing } = await supabase.from('attendances').select('id').match({ student_id: studentId, discipline_id: disciplineId, date }).maybeSingle()
+  
+  // Strict check for existing record
+  const { data: existing, error: fetchError } = await supabase.from('attendances')
+    .select('id')
+    .match({ student_id: studentId, discipline_id: disciplineId, date })
+    .maybeSingle()
+  
+  if (fetchError) {
+    console.error("Supabase Fetch Error (Attendance):", fetchError)
+    throw new Error(`Erro de consulta: ${fetchError.message}`)
+  }
+
   if (existing) {
-    await supabase.from('attendances').update({ is_present: isPresent }).eq('id', existing.id)
+    const { error: updateError } = await supabase.from('attendances')
+      .update({ is_present: isPresent })
+      .eq('id', existing.id)
+    
+    if (updateError) {
+      console.error("Supabase Update Error (Attendance):", updateError)
+      throw new Error(`Erro ao atualizar banco: ${updateError.message}`)
+    }
   } else {
-    await supabase.from('attendances').insert({ student_id: studentId, discipline_id: disciplineId, date, is_present: isPresent, created_at: new Date().toISOString() })
+    const { error: insertError } = await supabase.from('attendances')
+      .insert({ 
+        student_id: studentId, 
+        discipline_id: disciplineId, 
+        date, 
+        is_present: isPresent, 
+        created_at: new Date().toISOString() 
+      })
+    
+    if (insertError) {
+      console.error("Supabase Insert Error (Attendance):", insertError)
+      throw new Error(`Erro ao gravar no banco: ${insertError.message}`)
+    }
   }
 
   // --- AUTOMATIC ATTENDANCE SCORE UPDATE ---

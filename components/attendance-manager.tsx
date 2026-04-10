@@ -94,18 +94,39 @@ export function AttendanceManager() {
     async function handleSave() {
         if (selectedDisciplineId === "none" || !selectedDate) return
         setSaving(true)
+        console.log(`[Database Architect] Tentando salvar frequência para ${selectedDate}...`);
+        
         try {
             // Save all students in the class (ignore search filter for saving)
             const studentsToSave = students.filter(s => selectedClassId === "all" || s.class_id === selectedClassId)
             
+            if (studentsToSave.length === 0) {
+                alert("Nenhum aluno encontrado para salvar nesta turma.");
+                setSaving(false);
+                return;
+            }
+
             const promises = studentsToSave.map(student => {
                 const isPresent = attendances[student.id] === true
                 return saveAttendance(student.id, selectedDisciplineId, selectedDate, isPresent)
             })
+
             await Promise.all(promises)
+            
+            // Re-fetch to confirm persistence
+            const updatedData = await getAttendances(selectedDisciplineId)
+            const attMap: Record<string, boolean> = {}
+            updatedData.forEach(a => {
+                if (a.date === selectedDate) {
+                    attMap[a.studentId] = a.isPresent
+                }
+            })
+            setAttendances(attMap)
+
             alert(`Frequência de ${studentsToSave.length} alunos salva com sucesso para o dia ${new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR')}!`)
         } catch (e: any) {
-            alert("Erro ao salvar: " + e.message)
+            console.error("[Debugger] Erro crítico no salvamento:", e);
+            alert("ERRO CRÍTICO DE BANCO DE DADOS:\n\n" + e.message + "\n\nO sistema não conseguiu gravar as informações. Por favor, verifique as permissões de acesso (RLS) no Supabase.")
         }
         setSaving(false)
     }
