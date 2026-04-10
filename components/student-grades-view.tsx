@@ -142,18 +142,17 @@ export function StudentGradesView({ studentId, studentEmail }: Props) {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-6">
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
                                         {[
-                                            { label: "Prova", val: grade.examGrade, isSecret: !grade.isPublic },
-                                            { label: "Trabalhos", val: grade.worksGrade, isSecret: false },
-                                            { label: "Seminários", val: grade.seminarGrade, isSecret: false },
-                                            { label: "Participação", val: grade.participationBonus, isSecret: false },
-                                            { label: "Presença", val: grade.attendanceScore, isSecret: false },
+                                            { label: "Presença", val: grade.attendanceScore, isSecret: false, color: "text-blue-600" },
+                                            { label: "Prova", val: grade.examGrade, isSecret: !grade.isPublic, color: "text-primary" },
+                                            { label: "Trabalhos", val: grade.worksGrade, isSecret: false, color: "text-foreground" },
+                                            { label: "Testes/Outros", val: (grade.seminarGrade || 0) + (grade.participationBonus || 0), isSecret: false, color: "text-foreground" },
                                         ].map(item => (
                                             <div key={item.label} className={`bg-background border border-border rounded-lg p-3 text-center ${item.isSecret ? 'opacity-60 bg-muted/20' : ''}`}>
                                                 <div className="text-[10px] text-muted-foreground font-bold uppercase mb-1">{item.label}</div>
-                                                <div className="font-bold text-foreground">
-                                                    {item.isSecret ? "🔒" : item.val.toFixed(1)}
+                                                <div className={`font-bold ${item.color}`}>
+                                                    {item.isSecret ? "🔒" : (item.val || 0).toFixed(1)}
                                                 </div>
                                             </div>
                                         ))}
@@ -161,11 +160,11 @@ export function StudentGradesView({ studentId, studentEmail }: Props) {
                                     {!grade.isPublic && (
                                         <div className="mt-4 text-[10px] bg-amber-50 text-amber-700 p-2 rounded-md border border-amber-100 flex items-center gap-2">
                                             <Clock className="h-3 w-3" />
-                                            A nota da prova online e a média final serão liberadas após a correção do professor.
+                                            A nota de presença e trabalhos estão liberadas. A nota da prova e média final serão liberadas pelo professor.
                                         </div>
                                     )}
                                     <div className="mt-4 text-[10px] text-muted-foreground text-right italic font-medium">
-                                        Cálculo: (Nota da Prova + Nota de Presença) / 2
+                                        Fórmula: (Nota da Prova + Nota de Presença) / 2
                                     </div>
                                 </div>
                             )

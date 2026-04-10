@@ -290,17 +290,17 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Nota de Seminários / Apresentações</Label>
+                                <Label>Nota de Testes</Label>
                                 <Input type="number" step="0.1" value={formData.seminarGrade} onChange={(e) => setFormData({ ...formData, seminarGrade: e.target.value })} />
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Bônus de Participação</Label>
+                                <Label>Outras Notas / Bônus</Label>
                                 <Input type="number" step="0.1" value={formData.participationBonus} onChange={(e) => setFormData({ ...formData, participationBonus: e.target.value })} />
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Nota de Presença / Assiduidade</Label>
+                                <Label>Nota de Presença (Auto ou Manual)</Label>
                                 <Input type="number" step="0.1" value={formData.attendanceScore} onChange={(e) => setFormData({ ...formData, attendanceScore: e.target.value })} />
                             </div>
 
@@ -342,20 +342,20 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                                                 <h4 className="font-bold text-foreground text-lg">{grade.studentName}</h4>
                                                 <p className="text-sm text-muted-foreground font-mono mb-2">ID: {grade.studentIdentifier}</p>
                                                 <div className="flex flex-wrap gap-2 mt-2">
-                                                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-secondary text-secondary-foreground border border-border">
+                                                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-primary/10 text-primary border border-primary/20">
                                                         Prova: {grade.examGrade}
+                                                    </span>
+                                                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                                                        Presença: {grade.attendanceScore}
                                                     </span>
                                                     <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-secondary text-secondary-foreground border border-border">
                                                         Trabalhos: {grade.worksGrade}
                                                     </span>
                                                     <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-secondary text-secondary-foreground border border-border">
-                                                        Seminário: {grade.seminarGrade}
+                                                        Testes: {grade.seminarGrade}
                                                     </span>
                                                     <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-secondary text-secondary-foreground border border-border">
-                                                        Partic.: {grade.participationBonus}
-                                                    </span>
-                                                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-secondary text-secondary-foreground border border-border">
-                                                        Presença: {grade.attendanceScore}
+                                                        Outros: {grade.participationBonus}
                                                     </span>
                                                 </div>
                                             </div>
