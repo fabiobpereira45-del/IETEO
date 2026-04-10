@@ -564,7 +564,12 @@ export async function updateSemester(id: string, data: Partial<Pick<Semester, "n
   if (data.order !== undefined) updatePayload.order = data.order
   if (data.shift !== undefined) updatePayload.shift = data.shift || null
   if (data.isConcluded !== undefined) updatePayload.is_concluded = data.isConcluded
-  await supabase.from('semesters').update(updatePayload).eq('id', id)
+  
+  const { error } = await supabase.from('semesters').update(updatePayload).eq('id', id)
+  if (error) {
+    console.error("Error updating semester:", error)
+    throw new Error(`Falha ao atualizar semestre: ${error.message}`)
+  }
 }
 export async function deleteSemester(id: string): Promise<void> {
   const supabase = createClient()
@@ -644,7 +649,18 @@ export async function getBoardMembers(): Promise<BoardMember[]> {
   const { data } = await supabase.from('board_members').select('*').order('category', { ascending: false })
   return (data || []).map(mapBoardMember)
 }
-export async function addDiscipline(name: string, description?: string | null, semesterId?: string | null, professorName?: string | null, dayOfWeek?: string | null, shift?: string | null, order?: number): Promise<Discipline> {
+export async function addDiscipline(
+  name: string, 
+  description?: string | null, 
+  semesterId?: string | null, 
+  professorName?: string | null, 
+  dayOfWeek?: string | null, 
+  shift?: string | null, 
+  order?: number,
+  applicationMonth?: string | null,
+  applicationYear?: string | null,
+  isConcluded?: boolean
+): Promise<Discipline> {
   const d = { 
     id: uid(), 
     name, 
@@ -654,15 +670,20 @@ export async function addDiscipline(name: string, description?: string | null, s
     day_of_week: dayOfWeek || null, 
     shift: shift || null, 
     "order": order || 0,
-    application_month: null, 
-    application_year: null, 
-    is_concluded: false,
+    application_month: applicationMonth || null, 
+    application_year: applicationYear || null, 
+    is_concluded: isConcluded || false,
     created_at: new Date().toISOString() 
   }
   const supabase = createClient()
-  await supabase.from('disciplines').insert(d)
-  return mapDiscipline(d)
+  const { data, error } = await supabase.from('disciplines').insert(d).select().single()
+  if (error) {
+    console.error("Error adding discipline:", error)
+    throw new Error(`Falha ao adicionar disciplina: ${error.message}`)
+  }
+  return mapDiscipline(data)
 }
+
 export async function updateDiscipline(id: string, data: Partial<Pick<Discipline, "name" | "description" | "semesterId" | "professorName" | "dayOfWeek" | "shift" | "order" | "applicationMonth" | "applicationYear" | "isConcluded">>): Promise<void> {
   const updateData: any = {}
   if (data.name !== undefined) updateData.name = data.name
@@ -677,7 +698,11 @@ export async function updateDiscipline(id: string, data: Partial<Pick<Discipline
   if (data.isConcluded !== undefined) updateData.is_concluded = data.isConcluded
 
   const supabase = createClient()
-  await supabase.from('disciplines').update(updateData).eq('id', id)
+  const { error } = await supabase.from('disciplines').update(updateData).eq('id', id)
+  if (error) {
+    console.error("Error updating discipline:", error)
+    throw new Error(`Falha ao atualizar disciplina: ${error.message}`)
+  }
 }
 export async function deleteDiscipline(id: string): Promise<void> {
   const supabase = createClient()

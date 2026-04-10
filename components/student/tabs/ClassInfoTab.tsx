@@ -73,45 +73,65 @@ export function ClassInfoTab({ myClass, classmates, mySchedules, disciplines, of
                             <div className="h-px bg-amber-200 flex-1" />
                         </h4>
                         
-                        {mySchedules.filter(s => {
-                            const disc = disciplines.find(d => d.id === s.disciplineId)
-                            return disc?.description?.toLowerCase().includes(new Date().toLocaleString('pt-br', { month: 'long' }).toLowerCase())
-                        }).length === 0 ? (
-                            <div className="p-8 bg-slate-50 border border-border border-dashed rounded-3xl text-center text-muted-foreground italic text-sm">
-                                Nenhuma disciplina específica destacada para este mês.
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {mySchedules.filter(s => {
-                                    const disc = disciplines.find(d => d.id === s.disciplineId)
-                                    return disc?.description?.toLowerCase().includes(new Date().toLocaleString('pt-br', { month: 'long' }).toLowerCase())
-                                }).map(sched => {
-                                    const disc = disciplines.find(d => d.id === sched.disciplineId)
-                                    return (
-                                        <div key={sched.id} className="bg-gradient-to-br from-amber-50 to-white border-2 border-amber-200 p-8 rounded-3xl shadow-sm relative overflow-hidden group">
-                                            <div className="absolute top-0 right-0 bg-amber-500 text-white text-[10px] font-black px-4 py-1.5 uppercase rounded-bl-2xl tracking-widest animate-pulse">
-                                                Em Curso
-                                            </div>
-                                            <div className="flex items-start gap-4 mb-4">
-                                                <div className="h-12 w-12 bg-amber-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-amber-200">
-                                                    <BookOpen className="h-6 w-6" />
+                        {(() => {
+                            const now = new Date()
+                            const currentMonth = (now.getMonth() + 1).toString().padStart(2, '0')
+                            const currentYear = now.getFullYear().toString()
+                            
+                            const featuredSchedules = mySchedules.filter(s => {
+                                const disc = disciplines.find(d => d.id === s.disciplineId)
+                                return disc?.applicationMonth === currentMonth && disc?.applicationYear === currentYear
+                            })
+
+                            if (featuredSchedules.length === 0) {
+                                return (
+                                    <div className="p-8 bg-slate-50 border border-border border-dashed rounded-3xl text-center text-muted-foreground italic text-sm">
+                                        Nenhuma disciplina específica destacada para este mês ({new Date().toLocaleString('pt-br', { month: 'long' })}).
+                                    </div>
+                                )
+                            }
+
+                            return (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {featuredSchedules.map(sched => {
+                                        const disc = disciplines.find(d => d.id === sched.disciplineId)
+                                        return (
+                                            <div key={sched.id} className="bg-gradient-to-br from-amber-50 to-white border-2 border-amber-200 p-8 rounded-3xl shadow-sm relative overflow-hidden group">
+                                                <div className="absolute top-0 right-0 bg-amber-500 text-white text-[10px] font-black px-4 py-1.5 uppercase rounded-bl-2xl tracking-widest animate-pulse">
+                                                    Em Curso
                                                 </div>
-                                                <div>
-                                                    <p className="text-2xl font-black text-foreground leading-tight">{disc?.name || "Disciplina"}</p>
-                                                    <p className="text-sm text-amber-700 font-bold uppercase tracking-tighter mt-1">
-                                                        {DAY_LABEL[sched.dayOfWeek] || sched.dayOfWeek} — {sched.timeStart} às {sched.timeEnd}
-                                                    </p>
+                                                <div className="flex items-start gap-4 mb-4">
+                                                    <div className="h-12 w-12 bg-amber-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-amber-200">
+                                                        <BookOpen className="h-6 w-6" />
+                                                    </div>
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <p className="text-2xl font-black text-foreground leading-tight">{disc?.name || "Disciplina"}</p>
+                                                            <span className="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                                                                {disc?.applicationMonth}/{disc?.applicationYear}
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-sm text-amber-700 font-bold uppercase tracking-tighter">
+                                                            {DAY_LABEL[sched.dayOfWeek] || sched.dayOfWeek} — {sched.timeStart} às {sched.timeEnd}
+                                                        </p>
+                                                    </div>
                                                 </div>
+                                                <div className="flex items-center gap-3 text-muted-foreground font-medium bg-white/50 p-3 rounded-xl border border-amber-100 mb-4">
+                                                    <GraduationCap className="h-5 w-5 text-amber-500" />
+                                                    <span>Prof. {sched.professorName && sched.professorName !== "Sem Professor" ? sched.professorName : (disc?.professorName || "Docente Central")}</span>
+                                                </div>
+                                                {disc?.description && (
+                                                    <div className="text-xs text-muted-foreground bg-amber-50/50 p-3 rounded-xl border border-dotted border-amber-200/50 italic leading-relaxed">
+                                                        <span className="font-bold text-amber-800 not-italic block mb-1 uppercase text-[9px]">Carga Horária / Informações:</span>
+                                                        {disc.description}
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="flex items-center gap-3 text-muted-foreground font-medium bg-white/50 p-3 rounded-xl border border-amber-100">
-                                                <GraduationCap className="h-5 w-5 text-amber-500" />
-                                                <span>Prof. {sched.professorName && sched.professorName !== "Sem Professor" ? sched.professorName : (disc?.professorName || "Docente Central")}</span>
-                                            </div>
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                        )}
+                                        )
+                                    })}
+                                </div>
+                            )
+                        })()}
                     </div>
 
                     {/* Seção 2: Mural da Turma / Horários Completos */}

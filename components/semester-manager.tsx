@@ -156,70 +156,115 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
         const month = discMonth === "none" ? null : discMonth
         const year = discYear
 
-        if (selectedPoolDisc) {
-            await updateDiscipline(selectedPoolDisc.id, {
-                semesterId: semId, professorName: prof, applicationMonth: month, applicationYear: year
-            })
-        } else if (editingDisc) {
-            await updateDiscipline(editingDisc.id, {
-                name: discName.trim(), description: discDesc.trim() || null,
-                semesterId: semId, professorName: prof, applicationMonth: month, applicationYear: year
-            })
-        } else {
-            const newDisc = await addDiscipline(discName.trim(), discDesc.trim() || undefined, semId, prof, "", "ead")
-            await updateDiscipline(newDisc.id, { applicationMonth: month, applicationYear: year })
+        try {
+            if (selectedPoolDisc) {
+                await updateDiscipline(selectedPoolDisc.id, {
+                    semesterId: semId, professorName: prof, applicationMonth: month, applicationYear: year
+                })
+            } else if (editingDisc) {
+                await updateDiscipline(editingDisc.id, {
+                    name: discName.trim(), description: discDesc.trim() || null,
+                    semesterId: semId, professorName: prof, applicationMonth: month, applicationYear: year
+                })
+            } else {
+                await addDiscipline(
+                    discName.trim(), 
+                    discDesc.trim() || undefined, 
+                    semId, 
+                    prof, 
+                    "", 
+                    "ead", 
+                    0, 
+                    month, 
+                    year
+                )
+            }
+            setDiscModal(false); load()
+        } catch (err: any) {
+            alert(`Erro ao salvar disciplina: ${err.message}`)
         }
-        setDiscModal(false); load()
     }
 
     // ── Unlink = remove from semester, send back to pool ──────────────────────
     async function handleUnlinkDisc(id: string) {
-        await updateDiscipline(id, { semesterId: null })
-        setUnlinkDiscId(null); load()
+        try {
+            await updateDiscipline(id, { semesterId: null })
+            setUnlinkDiscId(null); load()
+        } catch (err: any) {
+            alert(`Erro ao desvincular: ${err.message}`)
+        }
     }
 
     // ── Permanent delete (from pool only) ─────────────────────────────────────
     async function handleDeleteDisc(id: string) {
-        await deleteDiscipline(id); setDeleteDiscId(null); load()
+        try {
+            await deleteDiscipline(id); setDeleteDiscId(null); load()
+        } catch (err: any) {
+            alert(`Erro ao excluir: ${err.message}`)
+        }
     }
 
     async function handleMoveDisc(disc: Discipline, direction: 'up' | 'down', semDiscs: Discipline[]) {
-        const idx = semDiscs.findIndex(d => d.id === disc.id)
-        if (direction === 'up' && idx === 0) return
-        if (direction === 'down' && idx === semDiscs.length - 1) return
+        try {
+            const idx = semDiscs.findIndex(d => d.id === disc.id)
+            if (direction === 'up' && idx === 0) return
+            if (direction === 'down' && idx === semDiscs.length - 1) return
 
-        const targetIdx = direction === 'up' ? idx - 1 : idx + 1
-        const otherDisc = semDiscs[targetIdx]
+            const targetIdx = direction === 'up' ? idx - 1 : idx + 1
+            const otherDisc = semDiscs[targetIdx]
 
-        // Swap order
-        const currentOrder = disc.order
-        const targetOrder = otherDisc.order
+            // Swap order
+            const currentOrder = disc.order
+            const targetOrder = otherDisc.order
 
-        // Se ambos forem 0, precisamos inicializar ordens baseadas no index atual
-        if (currentOrder === targetOrder) {
-            // Inicializar ordens para todos neste semestre para garantir consistência
-            await Promise.all(semDiscs.map((d, i) => {
-                let newOrder = i * 10
-                if (i === idx) newOrder = targetIdx * 10
-                if (i === targetIdx) newOrder = idx * 10
-                return updateDiscipline(d.id, { order: newOrder })
+            // Optimistic update
+            setDisciplines(prev => prev.map(d => {
+                if (d.id === disc.id) return { ...d, order: targetOrder }
+                if (d.id === otherDisc.id) return { ...d, order: currentOrder }
+                return d
             }))
-        } else {
-            await updateDiscipline(disc.id, { order: targetOrder })
-            await updateDiscipline(otherDisc.id, { order: currentOrder })
-        }
 
-        load()
+            if (currentOrder === targetOrder) {
+                await Promise.all(semDiscs.map((d, i) => {
+                    let newOrder = i * 10
+                    if (i === idx) newOrder = targetIdx * 10
+                    if (i === targetIdx) newOrder = idx * 10
+                    return updateDiscipline(d.id, { order: newOrder })
+                }))
+            } else {
+                await updateDiscipline(disc.id, { order: targetOrder })
+                await updateDiscipline(otherDisc.id, { order: currentOrder })
+            }
+
+            load()
+        } catch (err: any) {
+            alert(`Erro ao mover: ${err.message}`)
+            load()
+        }
     }
 
     async function toggleConcludeDisc(disc: Discipline) {
-        await updateDiscipline(disc.id, { isConcluded: !disc.isConcluded })
-        load()
+        try {
+            // Optimistic update
+            setDisciplines(prev => prev.map(d => d.id === disc.id ? { ...d, isConcluded: !d.isConcluded } : d))
+            await updateDiscipline(disc.id, { isConcluded: !disc.isConcluded })
+            load()
+        } catch (err: any) {
+            alert(`Erro ao atualizar disciplina: ${err.message}`)
+            load()
+        }
     }
 
     async function toggleConcludeSem(sem: Semester) {
-        await updateSemester(sem.id, { isConcluded: !sem.isConcluded })
-        load()
+        try {
+            // Optimistic update
+            setSemesters(prev => prev.map(s => s.id === sem.id ? { ...s, isConcluded: !s.isConcluded } : s))
+            await updateSemester(sem.id, { isConcluded: !sem.isConcluded })
+            load()
+        } catch (err: any) {
+            alert(`Erro ao atualizar semestre: ${err.message}`)
+            load()
+        }
     }
 
     // ─── Render ───────────────────────────────────────────────────────────────

@@ -210,7 +210,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                 </div>
             </ScrollArea>
 
-            <div className="p-4 mt-auto border-t border-white/10 bg-black/10 pb-[calc(1rem+env(safe-area-inset-bottom,20px))]">
+            <div className="p-4 mt-auto border-t border-white/10 bg-black/10">
                 <button
                     onClick={handlePortalLogout}
                     className="flex items-center gap-3 w-full px-4 py-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl text-sm font-medium transition-colors"

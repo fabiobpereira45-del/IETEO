@@ -82,9 +82,19 @@ export function OverviewTab({ profile, charges, disciplines, onTabChange }: Over
                   <Star className="h-8 w-8 fill-primary" />
                 </div>
                 <h3 className="text-xl font-bold leading-tight line-clamp-2">{focusDisc.name}</h3>
-                <p className="text-muted-foreground text-xs leading-relaxed uppercase tracking-widest font-bold">
-                  Disciplina deste Mês
-                </p>
+                <div className="flex flex-col items-center gap-1 mt-1">
+                    <p className="text-muted-foreground text-[10px] leading-relaxed uppercase tracking-widest font-bold">
+                        Disciplina deste Mês
+                    </p>
+                    <span className="text-[10px] bg-primary/10 text-primary font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                        {focusDisc.applicationMonth}/{focusDisc.applicationYear}
+                    </span>
+                </div>
+                {focusDisc.description && (
+                   <p className="text-[11px] text-muted-foreground line-clamp-2 italic px-4">
+                      {focusDisc.description}
+                   </p>
+                )}
                 <div className="pt-2">
                   <Button size="sm" variant="outline" className="rounded-full px-6 h-8 text-[10px] font-bold uppercase tracking-widest border-primary/20 text-primary hover:bg-primary/5" onClick={() => onTabChange("curriculum")}>
                     Ver Detalhes

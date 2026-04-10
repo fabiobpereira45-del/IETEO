@@ -76,7 +76,19 @@ export function CurriculumTab({ semesters, disciplines }: CurriculumTabProps) {
                                                         </h4>
                                                         {disc.isConcluded && <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />}
                                                     </div>
-                                                    {disc.description && <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{disc.description}</p>}
+                                                    <div className="flex flex-wrap gap-2 mb-3">
+                                                        {disc.applicationMonth && (
+                                                            <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                                                                {["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][parseInt(disc.applicationMonth) - 1]}/{disc.applicationYear}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {disc.description && (
+                                                        <div className="mt-2 text-xs text-muted-foreground leading-relaxed italic border-l-2 border-primary/20 pl-3 py-1 bg-slate-50/50 rounded-r-lg">
+                                                            <span className="font-bold text-primary not-italic block mb-1 uppercase text-[9px]">Carga Horária / Info:</span>
+                                                            {disc.description}
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 <div className="mt-auto pt-4 border-t border-border/50">
