@@ -1330,25 +1330,55 @@ export async function getAttendanceAnalysis(disciplineId: string, students: Stud
     }
   })
 
-  // Issue 2: High absence rate (> 50%)
-  const studentStats: Record<string, { total: number, absent: number }> = {}
-  records.forEach(r => {
-    if (!studentStats[r.studentId]) studentStats[r.studentId] = { total: 0, absent: 0 }
-    studentStats[r.studentId].total++
-    if (!r.isPresent) studentStats[r.studentId].absent++
-  })
-
-  Object.entries(studentStats).forEach(([sid, data]) => {
-    const rate = (data.absent / data.total) * 100
-    if (rate > 50) {
-      const student = students.find(s => s.id === sid)
-      issues.push({
-        type: "Taxa de falta elevada",
-        severity: rate > 75 ? "Alta" : "Média",
-        description: `O aluno ${student?.name || sid} possui uma taxa de falta de ${rate.toFixed(1)}% (${data.absent}/${data.total} aulas).`
-      })
+  // Issue 2: High absence rate (> 25%)
+  students.forEach(s => {
+    const sAtt = records.filter(r => String(r.studentId) === String(s.id))
+    const total = sAtt.length
+    if (total > 0) {
+      const absent = sAtt.filter(r => !r.isPresent).length
+      const rate = (absent / total) * 100
+      if (rate > 25) {
+        issues.push({
+          type: "Taxa de falta elevada",
+          severity: rate > 75 ? "Alta" : "Média",
+          description: `O aluno ${s.name} possui uma taxa de falta de ${rate.toFixed(1)}% (${absent}/${total} aulas).`
+        })
+      }
     }
   })
+
+  return { stats, issues }
+}
+
+export async function triggerAttendanceAlerts(disciplineId: string, disciplineName: string, students: StudentProfile[]): Promise<{ count: number }> {
+  const records = await getAttendances(disciplineId)
+  let count = 0
+
+  for (const s of students) {
+    const sAtt = records.filter(r => String(r.studentId) === String(s.id))
+    const total = sAtt.length
+    if (total === 0) continue
+
+    const absent = sAtt.filter(r => !r.isPresent).length
+    const rate = (absent / total) * 100
+
+    if (rate > 25) { // Threshold for alert
+      await triggerN8nWebhook('alerta_frequencia', {
+        type: 'absenteeism_alert',
+        studentId: s.id,
+        studentName: s.name,
+        phone: s.phone,
+        disciplineName,
+        absenceRate: rate.toFixed(1),
+        currentAbsences: absent,
+        totalClasses: total
+      })
+      count++
+    }
+  }
+
+  return { count }
+}
 
   // Issue 3: Incomplete dates (< 80% students)
   const dateCounts: Record<string, number> = {}

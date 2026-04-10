@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CalendarDays, Save, CheckCircle2, User, Search, RefreshCw, AlertCircle, Download } from "lucide-react"
+import { CalendarDays, Save, CheckCircle2, User, Search, RefreshCw, AlertCircle, Download, Bell, MessageSquareWarning } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -18,7 +18,7 @@ import {
 import {
     type Discipline, type StudentProfile, type Attendance, type ClassRoom, type AttendanceLock,
     getDisciplines, getStudents, getAttendances, saveAttendance, getProfessorSession, getDisciplinesByProfessor, getClasses,
-    getAttendanceLock, lockAttendance, unlockAttendance, getAttendanceAnalysis
+    getAttendanceLock, lockAttendance, unlockAttendance, getAttendanceAnalysis, triggerAttendanceAlerts
 } from "@/lib/store"
 import { printAttendanceReportPDF, printDailyAttendancePDF, printAttendanceAnalysisPDF } from "@/lib/pdf"
 
@@ -27,6 +27,8 @@ export function AttendanceManager() {
     const [students, setStudents] = useState<StudentProfile[]>([])
 
     const [selectedDisciplineId, setSelectedDisciplineId] = useState<string>("none")
+    const [allAttendances, setAllAttendances] = useState<Attendance[]>([])
+    const [sendingAlerts, setSendingAlerts] = useState(false)
     const [selectedClassId, setSelectedClassId] = useState<string>("all")
     const [selectedDate, setSelectedDate] = useState<string>(() => {
         const d = new Date()
@@ -78,6 +80,7 @@ export function AttendanceManager() {
             ])
 
             setLockInfo(lock)
+            setAllAttendances(data)
 
             const attMap: Record<string, boolean> = {}
             data.forEach(a => {
@@ -136,6 +139,21 @@ export function AttendanceManager() {
             ...prev,
             [studentId]: prev[studentId] === false ? true : false
         }))
+    }
+
+    async function handleSendAlerts() {
+        if (selectedDisciplineId === "none") return
+        if (!confirm("Deseja disparar alertas de WhatsApp para TODOS os alunos com mais de 25% de faltas nesta disciplina?")) return
+        
+        setSendingAlerts(true)
+        try {
+            const discName = disciplines.find(d => d.id === selectedDisciplineId)?.name || ""
+            const { count } = await triggerAttendanceAlerts(selectedDisciplineId, discName, students)
+            alert(`${count} alertas de abandono foram enviados para a fila do n8n com sucesso!`)
+        } catch (e: any) {
+            alert("Erro ao disparar alertas: " + e.message)
+        }
+        setSendingAlerts(false)
     }
 
     // Filter students based on search and class
@@ -226,6 +244,20 @@ export function AttendanceManager() {
                                 <div className="flex flex-col">
                                     <span className="font-bold text-xs uppercase tracking-tight">Análise Estrutural (Especialista)</span>
                                     <span className="text-[10px] text-muted-foreground">Diagnóstico de falhas e padrões</span>
+                                </div>
+                            </DropdownMenuItem>
+
+                            <DropdownMenuItem 
+                                className="flex items-center gap-3 py-3 px-4 cursor-pointer focus:bg-orange-50 focus:text-orange-600 rounded-lg transition-colors border-t border-border/50 mt-1"
+                                onClick={handleSendAlerts}
+                                disabled={sendingAlerts}
+                            >
+                                <div className="p-2 rounded-lg bg-orange-100 text-orange-600">
+                                    {sendingAlerts ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="font-bold text-xs uppercase tracking-tight">Disparar Alertas de Abandono</span>
+                                    <span className="text-[10px] text-muted-foreground">Enviar mensagens via n8n</span>
                                 </div>
                             </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -378,7 +410,23 @@ export function AttendanceManager() {
                                                         {(idx + 1).toString().padStart(2, '0')}
                                                     </td>
                                                     <td className="px-4 py-3 font-medium text-foreground">
-                                                        {student.name}
+                                                        <div className="flex flex-col">
+                                                            <span>{student.name}</span>
+                                                            {(() => {
+                                                                const sAtt = allAttendances.filter(a => String(a.studentId) === String(student.id))
+                                                                if (sAtt.length === 0) return null
+                                                                const absent = sAtt.filter(a => !a.isPresent).length
+                                                                const rate = (absent / sAtt.length) * 100
+                                                                if (rate > 25) {
+                                                                    return (
+                                                                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-100 max-w-fit mt-1">
+                                                                            <MessageSquareWarning className="h-3 w-3" /> RISCO DE ABANDONO ({rate.toFixed(0)}%)
+                                                                        </span>
+                                                                    )
+                                                                }
+                                                                return null
+                                                            })()}
+                                                        </div>
                                                     </td>
                                                     <td className="px-4 py-3 text-muted-foreground font-mono">
                                                         {student.enrollment_number}
