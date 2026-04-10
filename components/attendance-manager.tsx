@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { CalendarDays, Save, CheckCircle2, User, Search, RefreshCw, AlertCircle, Download, Bell, MessageSquareWarning } from "lucide-react"
+import { CalendarDays, Save, CheckCircle2, User, Search, RefreshCw, AlertCircle, Download, Bell, MessageSquareWarning, MessageCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -141,21 +141,6 @@ export function AttendanceManager() {
         }))
     }
 
-    async function handleSendAlerts() {
-        if (selectedDisciplineId === "none") return
-        if (!confirm("Deseja disparar alertas de WhatsApp para TODOS os alunos com mais de 25% de faltas nesta disciplina?")) return
-        
-        setSendingAlerts(true)
-        try {
-            const discName = disciplines.find(d => d.id === selectedDisciplineId)?.name || ""
-            const { count } = await triggerAttendanceAlerts(selectedDisciplineId, discName, students)
-            alert(`${count} alertas de abandono foram enviados para a fila do n8n com sucesso!`)
-        } catch (e: any) {
-            alert("Erro ao disparar alertas: " + e.message)
-        }
-        setSendingAlerts(false)
-    }
-
     // Filter students based on search and class
     const filteredStudents = students.filter(s => {
         const matchSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || s.enrollment_number.includes(searchTerm)
@@ -247,19 +232,6 @@ export function AttendanceManager() {
                                 </div>
                             </DropdownMenuItem>
 
-                            <DropdownMenuItem 
-                                className="flex items-center gap-3 py-3 px-4 cursor-pointer focus:bg-orange-50 focus:text-orange-600 rounded-lg transition-colors border-t border-border/50 mt-1"
-                                onClick={handleSendAlerts}
-                                disabled={sendingAlerts}
-                            >
-                                <div className="p-2 rounded-lg bg-orange-100 text-orange-600">
-                                    {sendingAlerts ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="font-bold text-xs uppercase tracking-tight">Disparar Alertas de Abandono</span>
-                                    <span className="text-[10px] text-muted-foreground">Enviar mensagens via n8n</span>
-                                </div>
-                            </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
 
@@ -419,9 +391,24 @@ export function AttendanceManager() {
                                                                 const rate = (absent / sAtt.length) * 100
                                                                 if (rate > 25) {
                                                                     return (
-                                                                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-100 max-w-fit mt-1">
-                                                                            <MessageSquareWarning className="h-3 w-3" /> RISCO DE ABANDONO ({rate.toFixed(0)}%)
-                                                                        </span>
+                                                                        <div className="flex items-center gap-2 mt-1">
+                                                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-100 max-w-fit">
+                                                                                <MessageSquareWarning className="h-3 w-3" /> RISCO ({rate.toFixed(0)}%)
+                                                                            </span>
+                                                                            <button 
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    const phone = (student.phone || "").replace(/\D/g, '');
+                                                                                    const discName = disciplines.find(d => d.id === selectedDisciplineId)?.name || "sua disciplina";
+                                                                                    const msg = `Olá ${student.name}, aqui é da secretaria do IETEO. Notamos que sua frequência na disciplina ${discName} está em ${rate.toFixed(1)}%. Sua formação é nossa prioridade, vamos conversar?`;
+                                                                                    window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+                                                                                }}
+                                                                                className="p-1 rounded-full bg-green-100 text-green-600 hover:bg-green-200 transition-colors shadow-sm"
+                                                                                title="Enviar Alerta via WhatsApp"
+                                                                            >
+                                                                                <MessageCircle className="h-3.5 w-3.5" />
+                                                                            </button>
+                                                                        </div>
                                                                     )
                                                                 }
                                                                 return null
