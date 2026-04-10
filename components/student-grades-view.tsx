@@ -32,9 +32,14 @@ export function StudentGradesView({ studentId, studentEmail }: Props) {
                 setDisciplines(d)
                 setSemesters(sem)
 
-                // Filter official grades by student ID (Strict Isolation)
+                // Filter official grades by student ID OR Email/CPF for backward compatibility
                 const myGrades = allGrades.filter(g =>
-                    g.studentId === studentId || g.student_id === studentId
+                    g.studentId === studentId || 
+                    g.student_id === studentId ||
+                    (g.studentIdentifier && (
+                        g.studentIdentifier === studentEmail || 
+                        g.studentIdentifier.replace(/\D/g, '') === studentEmail.split('@')[0]
+                    ))
                 )
                 setOfficialGrades(myGrades)
 

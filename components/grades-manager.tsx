@@ -75,6 +75,7 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
 
             const gradeToSave = {
                 studentIdentifier: formData.studentIdentifier,
+                studentId: formData.studentId, // Ensure UUID is passed
                 studentName: formData.studentName,
                 disciplineId: formData.disciplineId,
                 isPublic: formData.isPublic || false,
@@ -87,7 +88,7 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
             }
 
             await saveStudentGrade(
-                gradeToSave as Omit<StudentGrade, 'id' | 'createdAt'>,
+                gradeToSave as any,
                 isEditing || undefined
             )
 
@@ -236,7 +237,12 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                                             onChange={(e) => {
                                                 const std = students.find(s => s.id === e.target.value)
                                                 if (std) {
-                                                    setFormData({ ...formData, studentName: std.name, studentIdentifier: std.cpf || std.enrollment_number || "" })
+                                                    setFormData({ 
+                                                        ...formData, 
+                                                        studentName: std.name, 
+                                                        studentId: std.id, // Store UUID
+                                                        studentIdentifier: std.cpf || std.enrollment_number || "" 
+                                                    })
                                                 }
                                             }}
                                         >

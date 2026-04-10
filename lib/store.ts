@@ -1607,9 +1607,21 @@ export async function getStudentGrades(): Promise<StudentGrade[]> {
 
 export async function saveStudentGrade(grade: Omit<StudentGrade, 'id' | 'createdAt'>, id?: string): Promise<void> {
   const supabase = createClient()
+  let student_id = grade.studentId || grade.student_id || null
+
+  // Auto-link ID if missing but identifier exists
+  if (!student_id && grade.studentIdentifier) {
+    const cleanId = grade.studentIdentifier.replace(/\D/g, '')
+    const { data: std } = await supabase.from('students')
+        .select('id')
+        .or(`cpf.eq.${cleanId},email.eq.${grade.studentIdentifier}`)
+        .maybeSingle()
+    if (std) student_id = std.id
+  }
+
   const dbData: any = {
     student_identifier: grade.studentIdentifier,
-    student_id: grade.studentId || grade.student_id || null,
+    student_id: student_id,
     student_name: grade.studentName,
     discipline_id: grade.disciplineId || null,
     is_public: grade.isPublic,
