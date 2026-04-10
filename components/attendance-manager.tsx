@@ -5,9 +5,16 @@ import { CalendarDays, Save, CheckCircle2, User, Search, RefreshCw, AlertCircle,
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { cn } from "@/lib/utils"
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
     type Discipline, type StudentProfile, type Attendance, type ClassRoom, type AttendanceLock,
     getDisciplines, getStudents, getAttendances, saveAttendance, getProfessorSession, getDisciplinesByProfessor, getClasses,
@@ -116,36 +123,75 @@ export function AttendanceManager() {
 
     return (
         <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto">
-            <div className="flex items-center justify-between">
-                <div>
+            <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
                     <h2 className="text-lg font-semibold text-foreground">Diário de Classe (Frequência)</h2>
-                    <p className="text-sm text-muted-foreground">Registre a presença dos alunos nas suas disciplinas</p>
+                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                        Registre a presença dos alunos nas suas disciplinas 
+                        {Object.keys(attendances).length > 0 && !saving && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100 animate-in fade-in zoom-in duration-300">
+                                <CheckCircle2 className="h-3 w-3" /> {Object.keys(attendances).length} REGISTROS CARREGADOS
+                            </span>
+                        )}
+                    </p>
                 </div>
-                    <Button variant="outline" onClick={async () => {
-                        if (selectedDisciplineId === "none") return alert("Selecione uma disciplina.")
-                        const discName = disciplines.find(d => d.id === selectedDisciplineId)?.name || ""
-                        printDailyAttendancePDF(selectedDate, discName, filteredStudents, attendances)
-                    }} className="border-amber-600 text-amber-600 hover:bg-amber-50">
-                        <Download className="h-4 w-4 mr-2" />
-                        Imprimir Chamada do Dia
-                    </Button>
-                    <Button variant="outline" onClick={async () => {
-                        if (selectedDisciplineId === "none") return alert("Selecione uma disciplina.")
-                        setLoading(true)
-                        try {
-                            const att = await getAttendances(selectedDisciplineId)
-                            const discName = disciplines.find(d => d.id === selectedDisciplineId)?.name || ""
-                            printAttendanceReportPDF(att, students, discName)
-                        } catch (e: any) { alert("Erro ao gerar PDF: " + e.message) }
-                        setLoading(false)
-                    }} className="border-primary text-primary hover:bg-primary/10">
-                        <Download className="h-4 w-4 mr-2" />
-                        Relatório Consolidado
-                    </Button>
+                
+                <div className="flex items-center gap-3">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="border-primary text-primary hover:bg-primary/5 font-bold shadow-sm h-10 px-6">
+                                <Download className="h-4 w-4 mr-2" />
+                                Relatórios de Frequência
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-64 p-2 rounded-xl shadow-xl border-border">
+                            <DropdownMenuItem 
+                                className="flex items-center gap-3 py-3 px-4 cursor-pointer focus:bg-primary/5 focus:text-primary rounded-lg transition-colors"
+                                onClick={async () => {
+                                    if (selectedDisciplineId === "none") return alert("Selecione uma disciplina.")
+                                    const discName = disciplines.find(d => d.id === selectedDisciplineId)?.name || ""
+                                    printDailyAttendancePDF(selectedDate, discName, filteredStudents, attendances)
+                                }}
+                            >
+                                <div className="p-2 rounded-lg bg-amber-50 text-amber-600">
+                                    <Download className="h-4 w-4" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="font-bold text-xs uppercase tracking-tight">Imprimir Chamada do Dia</span>
+                                    <span className="text-[10px] text-muted-foreground">PDF da data selecionada</span>
+                                </div>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                                className="flex items-center gap-3 py-3 px-4 cursor-pointer focus:bg-primary/5 focus:text-primary rounded-lg transition-colors border-t border-border/50 mt-1"
+                                onClick={async () => {
+                                    if (selectedDisciplineId === "none") return alert("Selecione uma disciplina.")
+                                    setLoading(true)
+                                    try {
+                                        const att = await getAttendances(selectedDisciplineId)
+                                        const discName = disciplines.find(d => d.id === selectedDisciplineId)?.name || ""
+                                        printAttendanceReportPDF(att, students, discName)
+                                    } catch (e: any) { alert("Erro ao gerar PDF: " + e.message) }
+                                    setLoading(false)
+                                }}
+                            >
+                                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                                    <Download className="h-4 w-4" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="font-bold text-xs uppercase tracking-tight">Relatório Consolidado</span>
+                                    <span className="text-[10px] text-muted-foreground">Resumo geral da disciplina</span>
+                                </div>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
                     <Button 
                         onClick={handleSave} 
                         disabled={saving || !!lockInfo || selectedDisciplineId === "none" || !selectedDate} 
-                        className={lockInfo ? "bg-muted text-muted-foreground" : "bg-green-600 hover:bg-green-700"}
+                        className={cn(
+                            "font-bold shadow-lg transition-all h-10 px-8 rounded-xl",
+                            lockInfo ? "bg-slate-100 text-slate-400 border border-slate-200" : "bg-green-600 hover:bg-green-700 text-white shadow-green-200"
+                        )}
                     >
                         {saving ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : (lockInfo ? <CheckCircle2 className="h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />)}
                         {lockInfo ? "Diário Finalizado" : "Salvar Frequência"}
@@ -165,7 +211,7 @@ export function AttendanceManager() {
                                 } catch (e: any) { alert("Erro ao finalizar: " + e.message) }
                                 setSaving(false)
                             }}
-                            className="bg-amber-600 hover:bg-amber-700 text-white"
+                            className="bg-amber-600 hover:bg-amber-700 text-white font-bold h-10 px-6 rounded-xl shadow-lg shadow-amber-200"
                         >
                             <CheckCircle2 className="h-4 w-4 mr-2" />
                             Finalizar Diário
@@ -175,6 +221,7 @@ export function AttendanceManager() {
                     {lockInfo && session?.role === 'master' && (
                         <Button 
                             variant="destructive"
+                            className="font-bold h-10 px-6 rounded-xl shadow-lg shadow-red-200"
                             onClick={async () => {
                                 if (!confirm("Deseja reabrir este diário para edições?")) return
                                 await unlockAttendance(lockInfo.id)
@@ -185,6 +232,7 @@ export function AttendanceManager() {
                             Reabrir Diário
                         </Button>
                     )}
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-muted/30 border border-border rounded-xl p-4">
@@ -276,7 +324,6 @@ export function AttendanceManager() {
                                         </tr>
                                     ) : (
                                         filteredStudents.map((student, idx) => {
-                                            // Defaulting to absent if it wasn't explicitly saved as present in the DB
                                             const isPresent = attendances[student.id] === true
 
                                             return (
