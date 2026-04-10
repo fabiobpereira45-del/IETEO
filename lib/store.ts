@@ -565,11 +565,12 @@ export async function updateSemester(id: string, data: Partial<Pick<Semester, "n
   if (data.shift !== undefined) updatePayload.shift = data.shift || null
   if (data.isConcluded !== undefined) updatePayload.is_concluded = data.isConcluded
   
-  const { error } = await supabase.from('semesters').update(updatePayload).eq('id', id)
+  const { error, count } = await supabase.from('semesters').update(updatePayload).eq('id', id).select('id', { count: 'exact' })
   if (error) {
     console.error("Error updating semester:", error)
     throw new Error(`Falha ao atualizar semestre: ${error.message}`)
   }
+  console.log(`Semester ${id} updated status. Rows affected: ${count}`)
 }
 export async function deleteSemester(id: string): Promise<void> {
   const supabase = createClient()
@@ -681,6 +682,7 @@ export async function addDiscipline(
     console.error("Error adding discipline:", error)
     throw new Error(`Falha ao adicionar disciplina: ${error.message}`)
   }
+  console.log("Discipline added successfully:", data.id)
   return mapDiscipline(data)
 }
 
@@ -698,11 +700,14 @@ export async function updateDiscipline(id: string, data: Partial<Pick<Discipline
   if (data.isConcluded !== undefined) updateData.is_concluded = data.isConcluded
 
   const supabase = createClient()
-  const { error } = await supabase.from('disciplines').update(updateData).eq('id', id)
+  const { error, count } = await supabase.from('disciplines').update(updateData).eq('id', id).select('id', { count: 'exact' })
+  
   if (error) {
     console.error("Error updating discipline:", error)
     throw new Error(`Falha ao atualizar disciplina: ${error.message}`)
   }
+  
+  console.log(`Discipline ${id} updated status. Rows affected: ${count}`)
 }
 export async function deleteDiscipline(id: string): Promise<void> {
   const supabase = createClient()
