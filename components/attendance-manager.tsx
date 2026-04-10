@@ -28,7 +28,10 @@ export function AttendanceManager() {
 
     const [selectedDisciplineId, setSelectedDisciplineId] = useState<string>("none")
     const [selectedClassId, setSelectedClassId] = useState<string>("all")
-    const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0])
+    const [selectedDate, setSelectedDate] = useState<string>(() => {
+        const d = new Date()
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    })
     const [searchTerm, setSearchTerm] = useState("")
 
     const [classes, setClasses] = useState<ClassRoom[]>([])
