@@ -18,9 +18,9 @@ import {
 import {
     type Discipline, type StudentProfile, type Attendance, type ClassRoom, type AttendanceLock,
     getDisciplines, getStudents, getAttendances, saveAttendance, getProfessorSession, getDisciplinesByProfessor, getClasses,
-    getAttendanceLock, lockAttendance, unlockAttendance
+    getAttendanceLock, lockAttendance, unlockAttendance, getAttendanceAnalysis
 } from "@/lib/store"
-import { printAttendanceReportPDF, printDailyAttendancePDF } from "@/lib/pdf"
+import { printAttendanceReportPDF, printDailyAttendancePDF, printAttendanceAnalysisPDF } from "@/lib/pdf"
 
 export function AttendanceManager() {
     const [disciplines, setDisciplines] = useState<Discipline[]>([])
@@ -181,8 +181,30 @@ export function AttendanceManager() {
                                     <Download className="h-4 w-4" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="font-bold text-xs uppercase tracking-tight">Relatório Consolidado</span>
-                                    <span className="text-[10px] text-muted-foreground">Resumo geral da disciplina</span>
+                                    <span className="font-bold text-xs uppercase tracking-tight">Relatório Consolidado (Especialista)</span>
+                                    <span className="text-[10px] text-muted-foreground">Dash completo com estatísticas</span>
+                                </div>
+                            </DropdownMenuItem>
+
+                            <DropdownMenuItem 
+                                className="flex items-center gap-3 py-3 px-4 cursor-pointer focus:bg-red-50 focus:text-red-600 rounded-lg transition-colors border-t border-border/50 mt-1"
+                                onClick={async () => {
+                                    if (selectedDisciplineId === "none") return alert("Selecione uma disciplina.")
+                                    setLoading(true)
+                                    try {
+                                        const discName = disciplines.find(d => d.id === selectedDisciplineId)?.name || ""
+                                        const analysis = await getAttendanceAnalysis(selectedDisciplineId, students)
+                                        printAttendanceAnalysisPDF(analysis, discName)
+                                    } catch (e: any) { alert("Erro ao gerar análise: " + e.message) }
+                                    setLoading(false)
+                                }}
+                            >
+                                <div className="p-2 rounded-lg bg-red-100 text-red-600">
+                                    <AlertCircle className="h-4 w-4" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="font-bold text-xs uppercase tracking-tight">Análise Estrutural (Especialista)</span>
+                                    <span className="text-[10px] text-muted-foreground">Diagnóstico de falhas e padrões</span>
                                 </div>
                             </DropdownMenuItem>
                         </DropdownMenuContent>

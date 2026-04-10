@@ -1295,6 +1295,71 @@ export async function getAttendances(disciplineId: string): Promise<Attendance[]
   return (data || []).map(mapAttendance)
 }
 
+export async function getAttendanceAnalysis(disciplineId: string, students: StudentProfile[]) {
+  const supabase = createClient()
+  const records = await getAttendances(disciplineId)
+  
+  const stats = {
+    totalStudents: students.length,
+    totalRecords: records.length,
+    present: records.filter(r => r.isPresent).length,
+    absent: records.filter(r => !r.isPresent).length,
+    absenceRate: records.length > 0 ? (records.filter(r => !r.isPresent).length / records.length * 100).toFixed(1) : "0"
+  }
+
+  const issues: { type: string, severity: 'Alta' | 'Média' | 'Baixa', description: string }[] = []
+  
+  // Issue 1: Students with 0 records
+  students.forEach(s => {
+    const hasRecords = records.some(r => r.studentId === s.id)
+    if (!hasRecords) {
+      issues.push({
+        type: "Aluno sem registros",
+        severity: "Alta",
+        description: `O aluno ${s.name} não possui nenhum registro de frequência nesta disciplina.`
+      })
+    }
+  })
+
+  // Issue 2: High absence rate (> 50%)
+  const studentStats: Record<string, { total: number, absent: number }> = {}
+  records.forEach(r => {
+    if (!studentStats[r.studentId]) studentStats[r.studentId] = { total: 0, absent: 0 }
+    studentStats[r.studentId].total++
+    if (!r.isPresent) studentStats[r.studentId].absent++
+  })
+
+  Object.entries(studentStats).forEach(([sid, data]) => {
+    const rate = (data.absent / data.total) * 100
+    if (rate > 50) {
+      const student = students.find(s => s.id === sid)
+      issues.push({
+        type: "Taxa de falta elevada",
+        severity: rate > 75 ? "Alta" : "Média",
+        description: `O aluno ${student?.name || sid} possui uma taxa de falta de ${rate.toFixed(1)}% (${data.absent}/${data.total} aulas).`
+      })
+    }
+  })
+
+  // Issue 3: Incomplete dates (< 80% students)
+  const dateCounts: Record<string, number> = {}
+  records.forEach(r => {
+    dateCounts[r.date] = (dateCounts[r.date] || 0) + 1
+  })
+
+  Object.entries(dateCounts).forEach(([date, count]) => {
+    if (count < students.length * 0.8) {
+      issues.push({
+        type: "Registro incompleto",
+        severity: "Média",
+        description: `No dia ${date.split('-').reverse().join('/')}, apenas ${count}/${students.length} alunos foram registrados na chamada.`
+      })
+    }
+  })
+
+  return { stats, issues }
+}
+
 export async function saveAttendance(studentId: string, disciplineId: string, date: string, isPresent: boolean): Promise<void> {
   const supabase = createClient()
   const { data: existing } = await supabase.from('attendances').select('id').match({ student_id: studentId, discipline_id: disciplineId, date }).maybeSingle()

@@ -930,36 +930,150 @@ export function printGradesReportPDF(grades: StudentGrade[], disciplineName: str
 }
 
 export function printAttendanceReportPDF(attendances: Attendance[], students: StudentProfile[], disciplineName: string): void {
+  const totalPresences = attendances.filter(a => a.isPresent).length
+  const totalAbsences = attendances.length - totalPresences
+  const globalRate = attendances.length > 0 ? (totalPresences / attendances.length * 100).toFixed(1) : "0"
+
   const logs = students.map(s => {
     const sAtt = attendances.filter(a => a.studentId === s.id)
     const presents = sAtt.filter(a => a.isPresent).length
     const total = sAtt.length
     const pct = total > 0 ? (presents/total)*100 : 0
-    return { name: s.name, presents, total, pct }
+    return { name: s.name, presents, total, pct, enrollment: s.enrollment_number }
   })
 
-  const rows = logs.map(l => `
+  const rows = logs.sort((a,b) => a.name.localeCompare(b.name)).map(l => `
     <tr style="border-bottom: 1px solid #eee;">
-      <td style="padding: 8px; font-size: 12px;">${l.name}</td>
-      <td style="padding: 8px; font-size: 12px; text-align: center;">${l.presents} / ${l.total}</td>
-      <td style="padding: 8px; font-size: 12px; text-align: center; font-weight: bold; color: ${l.pct < 75 ? 'red' : 'inherit'}">${l.pct.toFixed(0)}%</td>
+      <td style="padding: 10px; font-size: 13px; font-weight: 600;">${l.name}</td>
+      <td style="padding: 10px; font-size: 11px; color: #64748b;">${l.enrollment}</td>
+      <td style="padding: 10px; font-size: 13px; text-align: center;">${l.presents} / ${l.total}</td>
+      <td style="padding: 10px; font-size: 13px; text-align: center; font-weight: bold; color: ${l.pct < 75 ? '#dc2626' : '#16a34a'}">${l.pct.toFixed(1)}%</td>
     </tr>
   `).join('')
 
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório de Frequência</title><style>body{font-family: Arial, sans-serif; padding: 30px;} @media print { body { padding: 0; } }</style></head>
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório Consolidado de Frequência</title><style>
+    body{font-family: Arial, sans-serif; padding: 40px; color: #1e293b;}
+    @media print { body { padding: 0; } }
+    .header { border-bottom: 5px solid #1e3a5f; padding-bottom: 20px; margin-bottom: 30px; }
+    .stats-dash { display: flex; gap: 20px; margin-bottom: 30px; }
+    .stat-box { flex: 1; padding: 15px; border-radius: 8px; text-align: center; color: white; }
+  </style></head>
   <body>
-    <div style="border-bottom: 4px solid #1e3a5f; padding-bottom: 15px; margin-bottom: 20px;">
-      <h1 style="margin: 0; color: #1e3a5f; font-size: 22px;">Folha de Frequência: ${disciplineName}</h1>
+    <div class="header">
+      <div style="font-size: 12px; font-weight: bold; color: #f97316; text-transform: uppercase; margin-bottom: 4px;">Instituto de Ensino Teológico — IETEO</div>
+      <h1 style="margin: 0; color: #1e3a5f; font-size: 26px;">Relatório Consolidado de Frequência</h1>
+      <div style="margin-top: 5px; font-size: 15px; color: #475569;">Disciplina: <strong>${disciplineName}</strong></div>
     </div>
+
+    <div class="stats-dash">
+      <div style="background: #1e3a5f;" class="stat-box">
+        <div style="font-size: 24px; font-weight: 800;">${attendances.length}</div>
+        <div style="font-size: 10px; opacity: 0.8; text-transform: uppercase;">Total de Registros</div>
+      </div>
+      <div style="background: #16a34a;" class="stat-box">
+        <div style="font-size: 24px; font-weight: 800;">${totalPresences}</div>
+        <div style="font-size: 10px; opacity: 0.8; text-transform: uppercase;">Presenças Totais</div>
+      </div>
+      <div style="background: #dc2626;" class="stat-box">
+        <div style="font-size: 24px; font-weight: 800;">${totalAbsences}</div>
+        <div style="font-size: 10px; opacity: 0.8; text-transform: uppercase;">Ausências Totais</div>
+      </div>
+      <div style="background: #f59e0b;" class="stat-box">
+        <div style="font-size: 24px; font-weight: 800;">${globalRate}%</div>
+        <div style="font-size: 10px; opacity: 0.8; text-transform: uppercase;">Média de Presença</div>
+      </div>
+    </div>
+
     <table style="width: 100%; border-collapse: collapse;">
-      <thead><tr style="text-align: left; background: #f8fafc; border-bottom: 2px solid #cbd5e1;">
-        <th style="padding: 10px; font-size: 11px;">ALUNO</th>
-        <th style="padding: 10px; font-size: 11px; text-align: center;">PRESENÇAS</th>
-        <th style="padding: 10px; font-size: 11px; text-align: center;">% FREQUÊNCIA</th>
+      <thead><tr style="text-align: left; background: #f1f5f9; border-bottom: 3px solid #1e3a5f;">
+        <th style="padding: 12px; font-size: 11px; text-transform: uppercase;">Aluno</th>
+        <th style="padding: 12px; font-size: 11px; text-transform: uppercase;">Matrícula</th>
+        <th style="padding: 12px; font-size: 11px; text-transform: uppercase; text-align: center;">Presenças / Aulas</th>
+        <th style="padding: 12px; font-size: 11px; text-transform: uppercase; text-align: center;">Taxa (%)</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <div style="margin-top: 30px; font-size: 11px; color: #666;">* Frequência mínima recomendada: 75%</div>
+    <div style="margin-top: 30px; font-size: 11px; color: #64748b; font-style: italic;">* Documento gerado para fins de acompanhamento acadêmico. Frequência mínima recomendada: 75%.</div>
+    <div style="margin-top: 40px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #eee; padding-top: 20px;">
+      Gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
+    </div>
+  </body></html>`
+
+  const win = window.open("", "_blank"); if (!win) return; win.document.write(html); win.document.close(); win.onload = () => win.print()
+}
+
+export function printAttendanceAnalysisPDF(analysis: any, disciplineName: string): void {
+  const { stats, issues } = analysis;
+  
+  const issueRows = issues.map((issue: any) => {
+    const color = issue.severity === 'Alta' ? '#dc2626' : issue.severity === 'Média' ? '#d97706' : '#16a34a';
+    const bg = issue.severity === 'Alta' ? '#fef2f2' : issue.severity === 'Média' ? '#fffbeb' : '#f0fdf4';
+
+    return `
+      <div style="margin-bottom: 15px; padding: 15px; border-radius: 8px; background: ${bg}; border-left: 5px solid ${color};">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px;">
+           <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: ${color}; letter-spacing: 0.5px;">${issue.type}</span>
+           <span style="font-size: 10px; font-weight: 900; background: ${color}; color: white; padding: 2px 8px; border-radius: 4px;">${issue.severity.toUpperCase()}</span>
+        </div>
+        <p style="margin: 0; font-size: 13px; color: #1e293b; line-height: 1.5;">${issue.description}</p>
+      </div>
+    `
+  }).join('')
+
+  const recommendations = [];
+  if (issues.length > 3) recommendations.push("Implementar sistema de alertas automáticos via WhatsApp para alunos com alta taxa de falta.");
+  if (stats.totalRecords === 0) recommendations.push("Nenhum registro de frequência foi encontrado. Inicie o processo de chamada imediatamente.");
+  if (parseFloat(stats.absenceRate) > 25) recommendations.push("Investigar causas de absenteísmo elevado na disciplina através de conversa com os alunos.");
+  if (issues.length === 0) recommendations.push("Nenhuma falha estrutural detectada. O gerenciamento de frequência está excelente.");
+  
+  const recHtml = recommendations.map((r) => `<li style="margin-bottom: 10px; font-size: 13px; font-weight: 500;">${r}</li>`).join('')
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Análise Estrutural do Agente Especialista</title><style>
+    body{font-family: Arial, sans-serif; padding: 40px; color: #1e293b; line-height: 1.4;}
+    @media print { body { padding: 0; } }
+    .header { border-bottom: 6px solid #dc2626; padding-bottom: 20px; margin-bottom: 30px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }
+    .stat-card { padding: 15px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; text-align: center; }
+    .stat-val { font-size: 26px; font-weight: 900; color: #1e3a5f; }
+    .stat-lbl { font-size: 10px; color: #64748b; text-transform: uppercase; margin-top: 5px; font-weight: 800; letter-spacing: 0.5px; }
+  </style></head>
+  <body>
+    <div class="header">
+      <div style="font-size: 12px; font-weight: 900; color: #dc2626; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 1px;">SISTEMA INTELIGENTE — AGENTE ESPECIALISTA</div>
+      <h1 style="margin: 0; color: #1e3a5f; font-size: 32px; font-weight: 900;">Análise Estrutural de Frequência</h1>
+      <div style="margin-top: 8px; font-size: 16px; color: #475569;">Disciplina: <strong style="color: #1e3a5f;">${disciplineName}</strong></div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-val">${stats.totalStudents}</div>
+        <div class="stat-lbl">Alunos na Turma</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val">${stats.totalRecords}</div>
+        <div class="stat-lbl">Registros Coletados</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" style="color: #16a34a">${stats.present}</div>
+        <div class="stat-lbl">Presenças Registradas</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" style="color: #dc2626">${stats.absenceRate}%</div>
+        <div class="stat-lbl">Taxa de Absenteísmo</div>
+      </div>
+    </div>
+
+    <h2 style="font-size: 18px; color: #1e3a5f; margin: 30px 0 20px 0; border-bottom: 3px solid #f1f5f9; padding-bottom: 10px; font-weight: 900;">DETECÇÃO DE FALHAS E ALERTAS</h2>
+    ${issueRows || '<div style="padding: 30px; background: #f0fdf4; color: #166534; border-radius: 12px; text-align: center; font-weight: 800; border: 2px dashed #16a34a;">✓ O AGENTE NÃO DETECTOU NENHUMA FALHA ESTRUTURAL NESTA DISCIPLINA.</div>'}
+
+    <div style="margin-top: 40px; padding: 25px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;">
+      <h3 style="margin-top: 0; font-size: 15px; color: #1e3a5f; text-transform: uppercase; font-weight: 900; letter-spacing: 0.5px;">🏥 Mapeamento de Recomendações Profissionais</h3>
+      <ul style="margin: 15px 0 0 20px; color: #334155;">${recHtml}</ul>
+    </div>
+
+    <div style="margin-top: 50px; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #eee; padding-top: 20px; font-style: italic;">
+      Este documento foi gerado pelo Agente Especialista IETEO em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
+    </div>
   </body></html>`
 
   const win = window.open("", "_blank"); if (!win) return; win.document.write(html); win.document.close(); win.onload = () => win.print()
