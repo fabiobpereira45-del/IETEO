@@ -1382,6 +1382,22 @@ export async function getAttendanceAnalysis(disciplineId: string, students: Stud
     }
   })
 
+  // Issue 3: Incomplete dates (< 80% students)
+  const dateCounts: Record<string, number> = {}
+  records.forEach(r => {
+    dateCounts[r.date] = (dateCounts[r.date] || 0) + 1
+  })
+
+  Object.entries(dateCounts).forEach(([date, count]) => {
+    if (count < students.length * 0.8) {
+      issues.push({
+        type: "Registro incompleto",
+        severity: "Média",
+        description: `No dia ${date.split('-').reverse().join('/')}, apenas ${count}/${students.length} alunos foram registrados na chamada.`
+      })
+    }
+  })
+
   return { stats, issues }
 }
 
@@ -1413,25 +1429,6 @@ export async function triggerAttendanceAlerts(disciplineId: string, disciplineNa
   }
 
   return { count }
-}
-
-  // Issue 3: Incomplete dates (< 80% students)
-  const dateCounts: Record<string, number> = {}
-  records.forEach(r => {
-    dateCounts[r.date] = (dateCounts[r.date] || 0) + 1
-  })
-
-  Object.entries(dateCounts).forEach(([date, count]) => {
-    if (count < students.length * 0.8) {
-      issues.push({
-        type: "Registro incompleto",
-        severity: "Média",
-        description: `No dia ${date.split('-').reverse().join('/')}, apenas ${count}/${students.length} alunos foram registrados na chamada.`
-      })
-    }
-  })
-
-  return { stats, issues }
 }
 
 export async function saveAttendance(studentId: string, disciplineId: string, date: string, isPresent: boolean): Promise<void> {
