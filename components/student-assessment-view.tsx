@@ -24,7 +24,7 @@ interface Props {
 
 type ViewState = "list" | "taking" | "result"
 
-export function StudentAssessmentView({ studentName, studentEmail, studentDoc }: Props) {
+export function StudentAssessmentView({ studentId, studentName, studentEmail, studentDoc }: Props) {
     const [assessments, setAssessments] = useState<Assessment[]>([])
     const [disciplines, setDisciplines] = useState<Discipline[]>([])
     const [submissions, setSubmissions] = useState<StudentSubmission[]>([])
@@ -42,15 +42,16 @@ export function StudentAssessmentView({ studentName, studentEmail, studentDoc }:
             try {
                 const [a, d] = await Promise.all([getAssessments(), getDisciplines()])
 
-                // Fetch submissions for this student's email
+                // Fetch submissions for this student's ID (Strict Isolation)
                 const { data: subsData } = await supabase
                     .from('student_submissions')
                     .select('*')
-                    .eq('student_email', studentEmail)
+                    .eq('student_id', studentId)
 
-                const subs: StudentSubmission[] = (subsData || []).map(row => ({
+                const subs: StudentSubmission[] = (subsData || []).map((row: any) => ({
                     id: row.id,
                     assessmentId: row.assessment_id,
+                    studentId: row.student_id,
                     studentName: row.student_name,
                     studentEmail: row.student_email,
                     answers: typeof row.answers === 'string' ? JSON.parse(row.answers) : row.answers,
@@ -72,7 +73,7 @@ export function StudentAssessmentView({ studentName, studentEmail, studentDoc }:
             }
         }
         loadData()
-    }, [studentEmail, supabase])
+    }, [studentId, studentEmail, supabase])
 
     const handleStart = (ass: Assessment) => {
         setSelectedAssessment(ass)
@@ -108,6 +109,7 @@ export function StudentAssessmentView({ studentName, studentEmail, studentDoc }:
 
     if (viewState === "taking" && selectedAssessment) {
         const session: StudentSession = {
+            studentId,
             name: studentName,
             email: studentEmail,
             assessmentId: selectedAssessment.id,

@@ -32,25 +32,25 @@ export function StudentGradesView({ studentId, studentEmail }: Props) {
                 setDisciplines(d)
                 setSemesters(sem)
 
-                // Filter official grades by student identifier (Show all, we will mask exam score if not public)
+                // Filter official grades by student ID (Strict Isolation)
                 const myGrades = allGrades.filter(g =>
-                    g.studentIdentifier === studentEmail || g.studentIdentifier === studentId
+                    g.studentId === studentId || g.student_id === studentId
                 )
                 setOfficialGrades(myGrades)
 
                 // Fetch assessments to link submissions to disciplines
                 const assessments = await getAssessments()
 
-                // Filter submissions and check release status
+                // Filter submissions by student ID
                 const mySubs = sub.filter(s => {
-                    if (s.studentEmail !== studentEmail) return false
+                    if (s.studentId !== studentId) return false
                     
                     // Find the discipline for this submission
                     const assessment = assessments.find(a => a.id === s.assessmentId)
                     if (!assessment) return false
                     
                     // Check if there is a released official grade for this discipline
-                    const grade = myGrades.find(g => g.disciplineId === assessment.disciplineId)
+                    const grade = myGrades.find(g => (g.disciplineId === assessment.disciplineId))
                     return grade?.isPublic === true
                 })
                 setSubmissions(mySubs)
@@ -76,24 +76,12 @@ export function StudentGradesView({ studentId, studentEmail }: Props) {
     }
 
     const calculateAverage = (grade: StudentGrade) => {
-        // As requested: (Exam + Attendance) / 2
-        // We still allow the old way if other grades are present
+        // Formula Requested: (Exam + Presence) / 2
         const exam = (grade.examGrade || 0)
         const attendance = (grade.attendanceScore || 0)
-
-        if (grade.worksGrade === 0 && grade.seminarGrade === 0 && grade.participationBonus === 0) {
-            return ((exam + attendance) / 2).toFixed(2)
-        }
-
-        const total =
-            exam +
-            (grade.worksGrade || 0) +
-            (grade.seminarGrade || 0) +
-            (grade.participationBonus || 0) +
-            attendance
-
-        const divisor = grade.customDivisor > 0 ? grade.customDivisor : 1;
-        return (total / divisor).toFixed(2)
+        
+        // Use the simplified formula (sum / 2)
+        return ((exam + attendance) / 2).toFixed(2)
     }
 
     return (
@@ -176,8 +164,8 @@ export function StudentGradesView({ studentId, studentEmail }: Props) {
                                             A nota da prova online e a média final serão liberadas após a correção do professor.
                                         </div>
                                     )}
-                                    <div className="mt-4 text-[10px] text-muted-foreground text-right italic">
-                                        Cálculo: (Soma das notas) / {grade.customDivisor}
+                                    <div className="mt-4 text-[10px] text-muted-foreground text-right italic font-medium">
+                                        Cálculo: (Nota da Prova + Nota de Presença) / 2
                                     </div>
                                 </div>
                             )

@@ -100,6 +100,7 @@ export function AssessmentForm({ session, onSubmit }: Props) {
     const sub: StudentSubmission = {
       id: uid(),
       assessmentId: assessment.id,
+      studentId: session.studentId,
       studentName: session.name,
       studentEmail: session.email,
       answers,

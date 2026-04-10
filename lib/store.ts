@@ -15,10 +15,10 @@ export interface FinancialCharge { id: string; studentId: string; type: "enrollm
 export interface Question { id: string; disciplineId: string; type: QuestionType; text: string; choices: Choice[]; pairs?: MatchingPair[]; correctAnswer: string; points: number; createdAt: string }
 export interface Assessment { id: string; title: string; disciplineId: string; professor: string; institution: string; questionIds: string[]; pointsPerQuestion: number; totalPoints: number; openAt: string | null; closeAt: string | null; isPublished: boolean; archived: boolean; shuffleVariants?: boolean; timeLimitMinutes?: number | null; logoBase64?: string; rules?: string; releaseResults?: boolean; modality?: "public" | "private"; createdAt: string }
 export interface StudentAnswer { questionId: string; answer: string }
-export interface StudentSubmission { id: string; assessmentId: string; studentName: string; studentEmail: string; answers: StudentAnswer[]; score: number; totalPoints: number; percentage: number; submittedAt: string; timeElapsedSeconds: number; focusLostCount?: number }
+export interface StudentSubmission { id: string; assessmentId: string; studentId: string; studentName: string; studentEmail: string; answers: StudentAnswer[]; score: number; totalPoints: number; percentage: number; submittedAt: string; timeElapsedSeconds: number; focusLostCount?: number }
 export interface ProfessorAccount { id: string; name: string; email: string; passwordHash: string; role: "master" | "professor"; avatar_url?: string | null; bio?: string | null; createdAt: string; active?: boolean }
 export interface ProfessorSession { loggedIn: boolean; professorId: string; role: "master" | "professor"; avatar_url?: string | null; expiresAt: string }
-export interface StudentSession { name: string; email: string; assessmentId: string; startedAt: string }
+export interface StudentSession { studentId: string; name: string; email: string; assessmentId: string; startedAt: string }
 export interface StudentProfile { id: string; auth_user_id: string; name: string; cpf: string; enrollment_number: string; phone?: string; address?: string; church?: string; pastor_name?: string; class_id?: string; payment_status?: string; avatar_url?: string | null; bio?: string | null; status: "pending" | "active" | "inactive"; created_at: string; }
 export interface ChatMessage { id: string; studentId: string; disciplineId: string; message: string; isFromStudent: boolean; read: boolean; createdAt: string; }
 export interface Attendance { id: string; studentId: string; disciplineId: string; date: string; isPresent: boolean; createdAt: string; }
@@ -35,7 +35,9 @@ export interface ClassRoom { id: string; name: string; shift: "morning" | "after
 export interface ClassSchedule { id: string; classId: string; disciplineId: string; professorName: string; dayOfWeek: string; timeStart: string; timeEnd: string; lessonsCount: number; workload: number; startDate?: string; endDate?: string; createdAt: string; }
 export interface StudentGrade {
   id: string;
-  studentIdentifier: string; // CPF or Email
+  studentId?: string;       // Unique ID for security isolation
+  student_id?: string;      // Compatibility with DB field name
+  studentIdentifier: string; // Legacy CPF or Email
   studentName: string;
   disciplineId?: string;
   isPublic: boolean;
@@ -290,7 +292,22 @@ function mapAssessment(row: any): Assessment {
     createdAt: row.created_at
   }
 }
-function mapSubmission(row: any): StudentSubmission { return { id: row.id, assessmentId: row.assessment_id, studentName: row.student_name, studentEmail: row.student_email, answers: row.answers, score: row.score, totalPoints: row.total_points, percentage: row.percentage, submittedAt: row.submitted_at, timeElapsedSeconds: row.time_elapsed_seconds, focusLostCount: row.focus_lost_count || 0 } }
+function mapSubmission(row: any): StudentSubmission {
+  return {
+    id: row.id,
+    assessmentId: row.assessment_id,
+    studentId: row.student_id,
+    studentName: row.student_name,
+    studentEmail: row.student_email,
+    answers: row.answers,
+    score: row.score,
+    totalPoints: row.total_points,
+    percentage: row.percentage,
+    submittedAt: row.submitted_at,
+    timeElapsedSeconds: row.time_elapsed_seconds,
+    focusLostCount: row.focus_lost_count || 0
+  }
+}
 function mapProfessor(p: any): ProfessorAccount {
   if (!p) {
     return {
@@ -333,7 +350,24 @@ function mapAttendance(row: any): Attendance {
 }
 function mapClassRoom(row: any): ClassRoom { return { id: row.id, name: row.name, shift: row.shift as ClassRoom['shift'], dayOfWeek: row.day_of_week || undefined, maxStudents: Number(row.max_students), studentCount: row.student_count !== undefined ? Number(row.student_count) : undefined, createdAt: row.created_at } }
 function mapClassSchedule(row: any): ClassSchedule { return { id: row.id, classId: row.class_id, disciplineId: row.discipline_id, professorName: row.professor_name, dayOfWeek: row.day_of_week, timeStart: row.time_start, timeEnd: row.time_end, lessonsCount: Number(row.lessons_count || 1), workload: Number(row.workload || 0), startDate: row.start_date || undefined, endDate: row.end_date || undefined, createdAt: row.created_at } }
-function mapStudentGrade(row: any): StudentGrade { return { id: row.id, studentIdentifier: row.student_identifier, studentName: row.student_name, disciplineId: row.discipline_id || undefined, isPublic: row.is_public, examGrade: Number(row.exam_grade), worksGrade: Number(row.works_grade), seminarGrade: Number(row.seminar_grade), participationBonus: Number(row.participation_bonus), attendanceScore: Number(row.attendance_score), customDivisor: Number(row.custom_divisor), createdAt: row.created_at } }
+function mapStudentGrade(row: any): StudentGrade {
+  return {
+    id: row.id,
+    studentId: row.student_id,
+    student_id: row.student_id,
+    studentIdentifier: row.student_identifier,
+    studentName: row.student_name,
+    disciplineId: row.discipline_id || undefined,
+    isPublic: row.is_public,
+    examGrade: Number(row.exam_grade),
+    worksGrade: Number(row.works_grade),
+    seminarGrade: Number(row.seminar_grade),
+    participationBonus: Number(row.participation_bonus),
+    attendanceScore: Number(row.attendance_score),
+    customDivisor: Number(row.custom_divisor),
+    createdAt: row.created_at
+  }
+}
 function mapBoardMember(row: any): BoardMember { return { id: row.id, name: row.name, role: row.role, category: row.category, avatar_url: row.avatar_url, createdAt: row.created_at } }
 function mapProfessorDiscipline(row: any): ProfessorDiscipline { return { id: row.id, professorId: row.professor_id, disciplineId: row.discipline_id, createdAt: row.created_at } }
 
@@ -848,6 +882,7 @@ export async function saveSubmission(sub: StudentSubmission): Promise<StudentSub
   const record = {
     id: sub.id,
     assessment_id: sub.assessmentId,
+    student_id: sub.studentId,
     student_name: sub.studentName,
     student_email: sub.studentEmail,
     answers: sub.answers,
@@ -1446,8 +1481,8 @@ export async function saveAttendance(studentId: string, disciplineId: string, da
       .eq('discipline_id', disciplineId)
       .maybeSingle();
     
-    const lessonsCount = schedule?.lessons_count || 4; // Default to 4 if not specified
-    const weightPerPresence = 10 / lessonsCount;
+    const weightPerPresence = 2.5; // Each presence is worth exactly 2.5 points as per user request
+    const maxAttendanceScore = 10.0;
 
     // 2. Count all presences for this student in this discipline
     const { data: allAtt } = await supabase.from('attendances')
@@ -1455,23 +1490,24 @@ export async function saveAttendance(studentId: string, disciplineId: string, da
       .match({ student_id: studentId, discipline_id: disciplineId });
     
     const presenceCount = (allAtt || []).filter((a: any) => a.is_present).length;
-    const attendanceScore = parseFloat((presenceCount * weightPerPresence).toFixed(2));
+    const attendanceScore = Math.min(presenceCount * weightPerPresence, maxAttendanceScore);
 
     // 3. Get student info for the grade record
-    const { data: student } = await supabase.from('students').select('name, email').eq('id', studentId).single();
+    const { data: student } = await supabase.from('students').select('id, name, email').eq('id', studentId).single();
     
     if (student) {
-      // 4. Find/Update student_grade
+      // 4. Find/Update student_grade using student_id (Migration to ID-based matching)
       const { data: existingGrade } = await supabase.from('student_grades')
         .select('id')
-        .match({ student_identifier: student.email, discipline_id: disciplineId })
+        .match({ student_id: studentId, discipline_id: disciplineId })
         .maybeSingle();
 
-      const gradeData = {
-        student_identifier: student.email,
+      const gradeData: any = {
+        student_id: studentId,
         student_name: student.name,
         discipline_id: disciplineId,
         attendance_score: attendanceScore,
+        student_identifier: student.email // Keep for backwards compatibility if needed, but primary is student_id
       };
 
       if (existingGrade) {
@@ -1544,8 +1580,9 @@ export async function getStudentGrades(): Promise<StudentGrade[]> {
 
 export async function saveStudentGrade(grade: Omit<StudentGrade, 'id' | 'createdAt'>, id?: string): Promise<void> {
   const supabase = createClient()
-  const dbData = {
+  const dbData: any = {
     student_identifier: grade.studentIdentifier,
+    student_id: grade.studentId || grade.student_id || null,
     student_name: grade.studentName,
     discipline_id: grade.disciplineId || null,
     is_public: grade.isPublic,
