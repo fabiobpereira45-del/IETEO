@@ -86,7 +86,14 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                     getStudentGrades()
                 ])
                 setClassmates(members.filter(m => m.id !== p.id))
-                setOfficialGrades(grades.filter(g => g.studentIdentifier === p.cpf || g.studentIdentifier === p.id))
+                
+                // Robust matching: ID or CPF/Email
+                const myGrades = grades.filter(g => 
+                    g.studentId === p.id || 
+                    g.student_id === p.id || 
+                    (g.studentIdentifier && (g.studentIdentifier === p.cpf || g.studentIdentifier === p.email))
+                )
+                setOfficialGrades(myGrades)
             }
             setDataLoading(false)
         }
@@ -322,7 +329,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                             {tab === "curriculum" && <CurriculumTab semesters={semesters} disciplines={disciplines} />}
                             {tab === "materials" && <MaterialsTab filteredMaterials={filteredMaterials} disciplines={disciplines} />}
                             {tab === "exams" && <StudentAssessmentView studentId={profile.id} studentName={profile.name} studentEmail={session?.email || ""} studentDoc={profile.cpf} />}
-                            {tab === "grades" && <StudentGradesView studentId={profile.id} studentEmail={session?.email || ""} />}
+                            {tab === "grades" && <StudentGradesView studentId={profile.id} studentEmail={session?.email || ""} studentDoc={profile.cpf} />}
                             {tab === "financial" && <FinancialStudentView studentId={profile.id} />}
                             {tab === "chat" && <StudentChatView studentId={profile.id} studentName={profile.name} />}
                             {tab === "perfil" && <ProfileTab profile={profile} onUpdateSuccess={checkAuth} />}

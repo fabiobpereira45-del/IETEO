@@ -8,9 +8,10 @@ import {
 interface Props {
     studentId: string
     studentEmail: string
+    studentDoc?: string
 }
 
-export function StudentGradesView({ studentId, studentEmail }: Props) {
+export function StudentGradesView({ studentId, studentEmail, studentDoc }: Props) {
     const [disciplines, setDisciplines] = useState<Discipline[]>([])
     const [semesters, setSemesters] = useState<Semester[]>([])
     const [officialGrades, setOfficialGrades] = useState<StudentGrade[]>([])
@@ -32,15 +33,30 @@ export function StudentGradesView({ studentId, studentEmail }: Props) {
                 setDisciplines(d)
                 setSemesters(sem)
 
+                // Audit Logs for Debugging
+                console.log("--- AUDIT NOTAS ---")
+                console.log("Student Profile:", { studentId, studentEmail, studentDoc })
+
                 // Filter official grades by student ID OR Email/CPF for backward compatibility
-                const myGrades = allGrades.filter(g =>
-                    g.studentId === studentId || 
-                    g.student_id === studentId ||
-                    (g.studentIdentifier && (
-                        g.studentIdentifier === studentEmail || 
-                        g.studentIdentifier.replace(/\D/g, '') === studentEmail.split('@')[0]
-                    ))
-                )
+                const myGrades = allGrades.filter(g => {
+                    const idMatch = (g.studentId === studentId || g.student_id === studentId);
+                    
+                    const cleanDoc = studentDoc?.replace(/\D/g, '') || "";
+                    const cleanIdentifier = g.studentIdentifier?.replace(/\D/g, '') || "";
+                    const docMatch = (cleanDoc && cleanDoc === cleanIdentifier);
+                    
+                    const emailMatch = (g.studentIdentifier?.toLowerCase().trim() === studentEmail.toLowerCase().trim());
+
+                    const matched = idMatch || docMatch || emailMatch;
+                    
+                    if (matched) {
+                         console.log("MATCH FOUND for discipline:", g.disciplineId, { idMatch, docMatch, emailMatch });
+                    }
+                    
+                    return matched;
+                })
+
+                console.log("Total Grades Found:", myGrades.length)
                 setOfficialGrades(myGrades)
 
                 // Fetch assessments to link submissions to disciplines
