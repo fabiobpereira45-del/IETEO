@@ -930,13 +930,16 @@ export function printGradesReportPDF(grades: StudentGrade[], disciplineName: str
 }
 
 export function printAttendanceReportPDF(attendances: Attendance[], students: StudentProfile[], disciplineName: string): void {
-  const totalPresences = attendances.filter(a => a.isPresent).length
+  const totalPresences = attendances.filter(a => a.isPresent === true).length
   const totalAbsences = attendances.length - totalPresences
   const globalRate = attendances.length > 0 ? (totalPresences / attendances.length * 100).toFixed(1) : "0"
 
+  console.log(`[Agente Especialista] Gerando relatório para "${disciplineName}". Registros recebidos: ${attendances.length}`);
+
   const logs = students.map(s => {
-    const sAtt = attendances.filter(a => a.studentId === s.id)
-    const presents = sAtt.filter(a => a.isPresent).length
+    // Robust comparison: ensure both sides are strings
+    const sAtt = attendances.filter(a => String(a.studentId) === String(s.id))
+    const presents = sAtt.filter(a => a.isPresent === true).length
     const total = sAtt.length
     const pct = total > 0 ? (presents/total)*100 : 0
     return { name: s.name, presents, total, pct, enrollment: s.enrollment_number }
@@ -1004,6 +1007,7 @@ export function printAttendanceReportPDF(attendances: Attendance[], students: St
 
 export function printAttendanceAnalysisPDF(analysis: any, disciplineName: string): void {
   const { stats, issues } = analysis;
+  console.log(`[Agente Especialista] Analisando registros de "${disciplineName}". Status:`, stats);
   
   const issueRows = issues.map((issue: any) => {
     const color = issue.severity === 'Alta' ? '#dc2626' : issue.severity === 'Média' ? '#d97706' : '#16a34a';
@@ -1081,9 +1085,11 @@ export function printAttendanceAnalysisPDF(analysis: any, disciplineName: string
 
 export function printDailyAttendancePDF(date: string, disciplineName: string, students: StudentProfile[], attendanceMap: Record<string, boolean>): void {
   const formattedDate = new Date(date + 'T12:00:00').toLocaleDateString('pt-BR');
+  console.log(`[Agente Especialista] Gerando chamada diária para ${date}. Mapa de presença:`, attendanceMap);
   
   const rows = students.sort((a, b) => a.name.localeCompare(b.name)).map((s, i) => {
-    const isPresent = attendanceMap[s.id] === true;
+    // Robust ID check
+    const isPresent = attendanceMap[String(s.id)] === true;
     return `
       <tr style="border-bottom: 1px solid #eee;">
         <td style="padding: 10px; font-size: 11px; text-align: center; color: #64748b;">${(i+1).toString().padStart(2, '0')}</td>
