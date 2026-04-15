@@ -431,6 +431,28 @@ export async function updateFinancialSettings(settings: Omit<FinancialSettings, 
   } else {
     await supabase.from('financial_settings').insert(dbData)
   }
+
+  // --- RE-CALCULATE PENDING CHARGES GLOBALLY ---
+  // 1. Update Pending Enrollment Fees
+  await supabase.from('financial_charges')
+    .update({ amount: settings.enrollmentFee })
+    .match({ type: 'enrollment', status: 'pending' })
+
+  // 2. Update Pending/Late Monthly Fees
+  await supabase.from('financial_charges')
+    .update({ amount: settings.monthlyFee })
+    .eq('type', 'monthly')
+    .in('status', ['pending', 'late'])
+
+  // 3. Update Bolsa 50%
+  await supabase.from('financial_charges')
+    .update({ amount: settings.monthlyFee / 2 })
+    .match({ type: 'monthly', status: 'bolsa50' })
+
+  // 4. Update Bolsa 100%
+  await supabase.from('financial_charges')
+    .update({ amount: 0 })
+    .match({ type: 'monthly', status: 'bolsa100' })
 }
 
 
