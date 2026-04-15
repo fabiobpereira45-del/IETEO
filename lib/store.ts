@@ -2105,15 +2105,15 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
   const { data: student } = await supabase.from('students').select('class_id, created_at').eq('id', studentId).single()
   if (!student?.class_id) return
 
-  // 2. Get All Semesters and Class Schedules
-  const [semestersResult, schedulesResult] = await Promise.all([
+  // 2. Get All Semesters and All Curriculum Disciplines
+  const [semestersResult, disciplinesResult] = await Promise.all([
     supabase.from('semesters').select('*').order('order', { ascending: true }),
-    supabase.from('class_schedules').select('discipline_id, disciplines(*)').eq('class_id', student.class_id)
+    supabase.from('disciplines').select('*').not('semester_id', 'is', null)
   ])
 
   const semesters = semestersResult.data || []
-  const schedules = schedulesResult.data || []
-  if (schedules.length === 0) return
+  const currDisciplines = (disciplinesResult.data || []).map(mapDiscipline)
+  if (currDisciplines.length === 0) return
 
   const monthMap: Record<string, number> = {
     'Jan': 1, 'Fev': 2, 'Mar': 3, 'Abr': 4, 'Mai': 5, 'Jun': 6,
@@ -2121,8 +2121,7 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
   }
 
   // Sort disciplines by Semester Order then Discipline Order
-  const disciplines = schedules
-    .map((s: any) => mapDiscipline(s.disciplines))
+  const disciplines = currDisciplines
     .sort((a, b) => {
       const semA = semesters.find(s => s.id === a.semesterId)
       const semB = semesters.find(s => s.id === b.semesterId)

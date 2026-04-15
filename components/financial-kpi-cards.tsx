@@ -31,23 +31,23 @@ export function KpiCard({ title, value, subtitle, icon, variant, className }: Kp
   }
 
   return (
-    <Card className={cn("border shadow-sm overflow-hidden group hover:shadow-md transition-all duration-300", className)}>
+    <Card className={cn("border shadow-sm overflow-hidden group hover:shadow-md transition-all duration-300", className, variants[variant])}>
       <CardContent className="p-5">
         <div className="flex justify-between items-start">
           <div className="space-y-1">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 mb-1">
+            <p className="text-[10px] font-bold uppercase tracking-wider opacity-70 mb-1">
               {title}
             </p>
-            <h3 className="text-2xl font-bold tracking-tight text-foreground">
+            <h3 className="text-2xl font-bold tracking-tight">
               {value}
             </h3>
             {subtitle && (
-              <p className="text-[10px] text-muted-foreground font-medium">
+              <p className="text-[10px] opacity-60 font-medium pt-0.5">
                 {subtitle}
               </p>
             )}
           </div>
-          <div className={cn("p-2 rounded-xl transition-transform group-hover:scale-110 duration-300", iconColors[variant])}>
+          <div className={cn("p-2 rounded-xl transition-transform group-hover:scale-110 duration-300 shadow-sm", iconColors[variant])}>
             {icon}
           </div>
         </div>
