@@ -153,6 +153,3 @@ export function ProLaboreManager() {
         </div>
     )
 }
-        </div>
-    )
-}
