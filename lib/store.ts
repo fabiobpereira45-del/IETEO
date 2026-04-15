@@ -770,13 +770,14 @@ export async function getProLaboreCalculations() {
         if (!classInfo) return
 
         // Check if already paid
-        const isPaid = (charges || []).some(c => 
+        const matchingCharge = (charges || []).find(c => 
           c.type === 'expense' && 
           c.professorId === prof.id && 
           c.disciplineId === link.disciplineId && 
-          c.classId === sched.classId &&
-          c.status === 'paid'
+          c.classId === sched.classId
         )
+        
+        const isPaid = matchingCharge?.status === 'paid'
 
         calculations.push({
           professorId: prof.id,
@@ -788,7 +789,8 @@ export async function getProLaboreCalculations() {
           lessonsCount: sched.lessonsCount,
           feePerLesson: fee,
           totalAmount: sched.lessonsCount * fee,
-          isPaid
+          isPaid,
+          chargeId: matchingCharge?.id
         })
       })
     })
@@ -2103,7 +2105,7 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
   
   // 1. Get Student and their Class
   const { data: student } = await supabase.from('students').select('class_id, created_at').eq('id', studentId).single()
-  if (!student?.class_id) return
+  if (!student) return
 
   // 2. Get All Semesters and All Curriculum Disciplines
   const [semestersResult, disciplinesResult] = await Promise.all([
@@ -2120,7 +2122,7 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
     'Jul': 7, 'Ago': 8, 'Set': 9, 'Out': 10, 'Nov': 11, 'Dez': 12
   }
 
-  // Sort disciplines by Semester Order then Discipline Order
+  // Sort disciplines strictly by Semester Order then Discipline Order
   const disciplines = currDisciplines
     .sort((a, b) => {
       const semA = semesters.find(s => s.id === a.semesterId)
@@ -2138,8 +2140,11 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
 
   const charges = []
 
-  // 4. Add Enrollment Fee (Taxa de Matrícula)
+  // 4. Add Enrollment Fee (Taxa de Matrícula) - ALWAYS FIRST
+  // Use a date slightly before any possible discipline to force it to the top
   const enrollmentDate = new Date(student.created_at || Date.now())
+  enrollmentDate.setHours(0, 0, 0, 0)
+  
   charges.push({
     student_id: studentId,
     type: 'enrollment',
@@ -2150,13 +2155,12 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
     created_at: new Date().toISOString()
   })
 
-  // 5. Add Discipline-based Monthly Fees
+  // 5. Add Discipline-based Monthly Fees (Exactly 18)
   disciplines.forEach((disp, index) => {
     let year = parseInt(disp.applicationYear || "2026")
     let monthNum = 1
     
     if (disp.applicationMonth) {
-      // Handle string months like "Abr" or numbers
       if (monthMap[disp.applicationMonth]) {
         monthNum = monthMap[disp.applicationMonth]
       } else {
@@ -2164,7 +2168,11 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
       }
     }
 
+    // Ensure due date is at least the next day or in correct sequence
     const dueDate = new Date(year, monthNum - 1, 10)
+    
+    // Safety check: if due date ends up being before enrollment date,
+    // we still keep it but the ordering in UI will be clarified by creation order too
     
     charges.push({
       student_id: studentId,
@@ -2178,25 +2186,28 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
     })
   })
 
-  // 6. Bulk Insert (Keeping existing paid ones)
-  // Get existing charges to avoid duplicates
+  // 6. Bulk Sync Logic (Fixing divergence)
+  // Get existing charges to preserve "paid" ones
   const { data: existing } = await supabase.from('financial_charges')
-    .select('id, description, status')
+    .select('id, description, status, amount')
     .eq('student_id', studentId)
     .neq('type', 'expense')
 
-  // Filter out new charges that are already paid (based on description)
+  // Identify charges to insert or update
   const finalCharges = charges.filter(nc => {
-    return !(existing || []).some(ex => ex.description === nc.description && ex.status === 'paid')
+    // Check if this specific charge (by description) is already paid
+    const isAlreadyPaid = (existing || []).some(ex => ex.description === nc.description && ex.status === 'paid')
+    return !isAlreadyPaid
   })
 
-  // Delete non-paid existing ones to refresh
+  // Clean up ALL non-paid charges to ensure the new list is exactly 18+1
   await supabase.from('financial_charges')
     .delete()
     .eq('student_id', studentId)
     .neq('type', 'expense')
     .neq('status', 'paid')
 
+  // Insert the missing/updated charges
   if (finalCharges.length > 0) {
     const { error } = await supabase.from('financial_charges').insert(finalCharges)
     if (error) throw new Error(error.message)

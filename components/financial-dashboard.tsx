@@ -56,34 +56,70 @@ export function FinancialDashboard() {
 
     useEffect(() => { load() }, [])
 
-    // Calculations based on filters (Simplified for now)
-    const currentMonthCharges = charges.filter(c => {
-        const d = new Date(c.dueDate)
+    // Filter functions
+    const inCurrentMonth = (dateString?: string) => {
+        if (!dateString) return false;
+        // Adjust for timezone issues if dateString is yyyy-mm-dd
+        const parts = dateString.split('T')[0].split('-');
+        if (parts.length === 3) {
+             const y = parts[0], m = parseInt(parts[1], 10) - 1;
+             return m.toString() === month && y === year;
+        }
+        const d = new Date(dateString)
         return d.getMonth().toString() === month && d.getFullYear().toString() === year
-    })
+    }
 
-    const currentMonthExpenses = expenses.filter(e => {
-        const d = new Date(e.dueDate)
-        return d.getMonth().toString() === month && d.getFullYear().toString() === year
-    })
+    // Revenue
+    const revenueCharges = charges.filter(c => c.type !== 'expense')
+    
+    const pendingAmount = revenueCharges
+        .filter(c => (c.status === 'pending' || c.status === 'late') && inCurrentMonth(c.dueDate))
+        .reduce((acc, curr) => acc + curr.amount, 0)
 
-    const pendingAmount = currentMonthCharges.filter(c => c.status === 'pending' || c.status === 'late').reduce((acc, curr) => acc + curr.amount, 0)
-    const realizedRevenue = currentMonthCharges.filter(c => c.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0)
-    const projectedExpenses = currentMonthExpenses.reduce((acc, curr) => acc + curr.amount, 0)
-    const realizedExpenses = currentMonthExpenses.filter(e => e.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0)
+    const realizedRevenue = revenueCharges
+        .filter(c => c.status === 'paid' && inCurrentMonth(c.paymentDate || c.dueDate))
+        .reduce((acc, curr) => acc + (curr.actualPaidAmount ?? curr.amount), 0)
+
+    // Expenses
+    const expenseCharges = charges.filter(c => c.type === 'expense')
+    
+    // Projected expenses (from expenses table only, since pro-labore is inserted on-the-fly when paid)
+    const projectedExpenses = expenses
+        .filter(e => inCurrentMonth(e.dueDate))
+        .reduce((acc, curr) => acc + curr.amount, 0)
+
+    const realizedExpensesFromTable = expenses
+        .filter(e => e.status === 'paid' && inCurrentMonth(e.paidAt || e.dueDate))
+        .reduce((acc, curr) => acc + curr.amount, 0)
+        
+    const realizedExpensesFromCharges = expenseCharges
+        .filter(c => c.status === 'paid' && inCurrentMonth(c.paymentDate || c.dueDate))
+        .reduce((acc, curr) => acc + (curr.actualPaidAmount ?? curr.amount), 0)
+
+    const realizedExpenses = realizedExpensesFromTable + realizedExpensesFromCharges
     const netBalance = realizedRevenue - realizedExpenses
 
     // Chart Data
     const fluxoData = [
         { name: 'Entradas', previsto: pendingAmount + realizedRevenue, realizado: realizedRevenue },
-        { name: 'Saídas', previsto: projectedExpenses, realizado: realizedExpenses },
+        { name: 'Saídas', previsto: projectedExpenses + realizedExpensesFromCharges, realizado: realizedExpenses },
     ]
 
-    const categorias = Array.from(new Set(currentMonthExpenses.filter(e => e.status === 'paid').map(e => e.category)))
-    const gastosData = categorias.map(cat => ({
+    const categoriasMap = expenses
+        .filter(e => e.status === 'paid' && inCurrentMonth(e.paidAt || e.dueDate))
+        .reduce((acc, e) => {
+            acc[e.category] = (acc[e.category] || 0) + e.amount;
+            return acc;
+        }, {} as Record<string, number>);
+
+    if (realizedExpensesFromCharges > 0) {
+        categoriasMap['pro-labore'] = (categoriasMap['pro-labore'] || 0) + realizedExpensesFromCharges;
+    }
+
+    const gastosData = Object.entries(categoriasMap).map(([cat, total]) => ({
         name: cat,
-        value: currentMonthExpenses.filter(e => e.category === cat && e.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0),
-        color: cat === 'fixa' ? '#F97316' : cat === 'infra' ? '#0EA5E9' : '#8B5CF6'
+        value: total,
+        color: cat === 'fixa' ? '#F97316' : cat === 'infra' ? '#0EA5E9' : cat === 'pro-labore' ? '#10B981' : '#8B5CF6'
     }))
 
     if (loading) return (
@@ -174,15 +210,15 @@ export function FinancialDashboard() {
                     </TabsContent>
 
                     <TabsContent value="revenue" className="m-0">
-                        <FinancialManager />
+                        <FinancialManager onRefresh={load} />
                     </TabsContent>
 
                     <TabsContent value="expenses" className="m-0">
-                        <ExpenseManager />
+                        <ExpenseManager onRefresh={load} />
                     </TabsContent>
 
                     <TabsContent value="prolabore" className="m-0">
-                        <ProLaboreManager />
+                        <ProLaboreManager onRefresh={load} />
                     </TabsContent>
 
                     <TabsContent value="config" className="m-0">

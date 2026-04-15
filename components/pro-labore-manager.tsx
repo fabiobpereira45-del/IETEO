@@ -14,7 +14,7 @@ import {
 import { printProLaboreReceipt } from "@/lib/pdf"
 import { toast } from "sonner"
 
-export function ProLaboreManager() {
+export function ProLaboreManager({ onRefresh }: { onRefresh?: () => void } = {}) {
     const [data, setData] = useState<any[]>([])
     const [settings, setSettings] = useState<FinancialSettings | null>(null)
     const [loading, setLoading] = useState(true)
@@ -66,6 +66,7 @@ export function ProLaboreManager() {
             })
             toast.success("Pagamento registrado com sucesso!")
             load()
+            onRefresh?.()
         } catch (e: any) {
             toast.error("Erro ao registrar pagamento: " + e.message)
         } finally {
@@ -82,6 +83,7 @@ export function ProLaboreManager() {
             await deleteFinancialCharge(item.chargeId)
             toast.success("Pagamento estornado com sucesso!")
             load()
+            onRefresh?.()
         } catch (e: any) {
             toast.error("Erro ao estornar: " + e.message)
         } finally {

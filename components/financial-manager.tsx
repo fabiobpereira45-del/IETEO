@@ -25,7 +25,7 @@ import { printFinancialReportPDF } from "@/lib/pdf"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { createClient } from "@/lib/supabase/client"
 
-export function FinancialManager() {
+export function FinancialManager({ onRefresh }: { onRefresh?: () => void } = {}) {
     const [charges, setCharges] = useState<FinancialCharge[]>([])
     const [students, setStudents] = useState<StudentProfile[]>([])
     const [settings, setSettings] = useState<FinancialSettings | null>(null)
@@ -120,6 +120,7 @@ export function FinancialManager() {
             })
             setChargeModal(false)
             load()
+            onRefresh?.()
         } catch (e: any) {
             alert("Erro ao gerar cobrança: " + e.message)
         } finally {
@@ -150,6 +151,7 @@ export function FinancialManager() {
             }
 
             load()
+            onRefresh?.()
         } catch (e: any) {
             alert("Erro ao atualizar status: " + e.message)
         }
@@ -229,6 +231,7 @@ export function FinancialManager() {
             await syncStudentTuitionByDisciplines(studentId)
             alert("Financeiro sincronizado com a grade curricular!")
             load()
+            onRefresh?.()
         } catch (e: any) {
             alert("Erro ao sincronizar: " + e.message)
         } finally {
@@ -247,6 +250,7 @@ export function FinancialManager() {
             })
             setSettleModal(false)
             load()
+            onRefresh?.()
         } catch (e: any) {
             alert("Erro ao dar baixa: " + e.message)
         } finally {
@@ -259,6 +263,7 @@ export function FinancialManager() {
         try {
             await reverseFinancialCharge(id)
             load()
+            onRefresh?.()
         } catch (e: any) {
             alert("Erro ao estornar: " + e.message)
         }
@@ -270,6 +275,7 @@ export function FinancialManager() {
             await deleteFinancialCharge(deleteId)
             setDeleteId(null)
             load()
+            onRefresh?.()
         } catch (e: any) {
             alert("Erro ao excluir: " + e.message)
         }
@@ -293,6 +299,7 @@ export function FinancialManager() {
             }
             setEditingCharge(null)
             load()
+            onRefresh?.()
         } catch (e: any) {
             alert("Erro ao editar cobrança: " + e.message)
         } finally {
@@ -309,6 +316,7 @@ export function FinancialManager() {
             }
             alert("Financeiro sincronizado para todos os alunos!")
             load()
+            onRefresh?.()
         } catch (e: any) {
             alert("Erro no processamento em lote: " + e.message)
         } finally {
@@ -523,6 +531,7 @@ export function FinancialManager() {
                                             const stChargeIds = stCharges.map(c => c.id)
                                             await updateFinancialChargesStatusBatch(stChargeIds, newStatus)
                                             await load()
+                                            onRefresh?.()
                                             alert("Bolsas aplicadas com sucesso!")
                                         } catch (e: any) { alert("Erro ao aplicar bolsas: " + e.message) } 
                                         finally { setIsGenerating(false) }

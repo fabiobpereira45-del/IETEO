@@ -12,12 +12,14 @@ import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import {
-    type Expense,
-    getExpenses, addExpense, updateExpense, deleteExpense
+    type Expense, type FinancialCharge,
+    getExpenses, addExpense, updateExpense, deleteExpense,
+    getFinancialCharges, updateFinancialChargeStatus, deleteFinancialCharge
 } from "@/lib/store"
 
-export function ExpenseManager() {
+export function ExpenseManager({ onRefresh }: { onRefresh?: () => void } = {}) {
     const [expenses, setExpenses] = useState<Expense[]>([])
+    const [expenseCharges, setExpenseCharges] = useState<FinancialCharge[]>([])
     const [loading, setLoading] = useState(true)
     const [modalOpen, setModalOpen] = useState(false)
     const [saving, setSaving] = useState(false)
@@ -31,8 +33,12 @@ export function ExpenseManager() {
     async function load() {
         setLoading(true)
         try {
-            const data = await getExpenses()
+            const [data, charges] = await Promise.all([
+                getExpenses(),
+                getFinancialCharges()
+            ])
             setExpenses(data)
+            setExpenseCharges(charges.filter(c => c.type === 'expense'))
         } catch (e) {
             console.error("Erro ao carregar despesas:", e)
         } finally {
@@ -61,6 +67,7 @@ export function ExpenseManager() {
             setDescription("")
             setAmount("")
             setDueDate("")
+            onRefresh?.()
         } catch (e: any) {
             alert("Erro ao salvar despesa: " + e.message)
         } finally {
@@ -68,24 +75,49 @@ export function ExpenseManager() {
         }
     }
 
-    async function handleStatusChange(id: string, status: Expense["status"]) {
+    async function handleStatusChange(id: string, status: Expense["status"], isCharge: boolean) {
         try {
-            await updateExpense(id, { status })
+            if (isCharge) {
+                await updateFinancialChargeStatus(id, status)
+            } else {
+                await updateExpense(id, { status })
+            }
             load()
+            onRefresh?.()
         } catch (e: any) {
             alert("Erro ao atualizar status: " + e.message)
         }
     }
 
-    async function handleDelete(id: string) {
+    async function handleDelete(id: string, isCharge: boolean) {
         if (!confirm("Excluir esta despesa?")) return
         try {
-            await deleteExpense(id)
+            if (isCharge) {
+                await deleteFinancialCharge(id)
+            } else {
+                await deleteExpense(id)
+            }
             load()
+            onRefresh?.()
         } catch (e: any) {
             alert("Erro ao excluir: " + e.message)
         }
     }
+
+    const combinedExpenses = [
+        ...expenses.map(e => ({ ...e, isCharge: false })),
+        ...expenseCharges.map(c => ({
+            id: c.id,
+            description: c.description,
+            amount: c.amount,
+            category: "pro-labore",
+            dueDate: c.dueDate,
+            status: c.status,
+            paidAt: c.paymentDate,
+            createdAt: c.createdAt,
+            isCharge: true
+        }))
+    ].sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime())
 
     if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>
 
@@ -114,16 +146,18 @@ export function ExpenseManager() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                        {expenses.length === 0 ? (
+                        {combinedExpenses.length === 0 ? (
                             <tr>
                                 <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground italic">Nenhuma despesa lançada</td>
                             </tr>
                         ) : (
-                            expenses.map(e => (
+                            combinedExpenses.map(e => (
                                 <tr key={e.id} className="hover:bg-muted/30 transition-colors">
                                     <td className="px-4 py-4 font-medium text-foreground">{e.description}</td>
                                     <td className="px-4 py-4">
-                                        <span className="capitalize text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">{e.category}</span>
+                                        <span className={`capitalize text-xs font-semibold px-2 py-0.5 rounded-full border ${e.category === 'pro-labore' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                                            {e.category}
+                                        </span>
                                     </td>
                                     <td className="px-4 py-4 text-muted-foreground">{new Date(e.dueDate).toLocaleDateString("pt-BR")}</td>
                                     <td className="px-4 py-4 font-bold text-rose-600">- R$ {e.amount.toFixed(2)}</td>
@@ -141,15 +175,15 @@ export function ExpenseManager() {
                                     <td className="px-4 py-4 text-right">
                                         <div className="flex justify-end gap-1">
                                             {e.status !== 'paid' ? (
-                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600 hover:bg-green-50" onClick={() => handleStatusChange(e.id, 'paid')} title="Marcar como Pago">
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600 hover:bg-green-50" onClick={() => handleStatusChange(e.id, 'paid', e.isCharge as boolean)} title="Marcar como Pago">
                                                     <CheckCircle2 className="h-4 w-4" />
                                                 </Button>
                                             ) : (
-                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-amber-600 hover:bg-amber-50" onClick={() => handleStatusChange(e.id, 'pending')} title="Estornar">
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-amber-600 hover:bg-amber-50" onClick={() => handleStatusChange(e.id, 'pending', e.isCharge as boolean)} title="Estornar">
                                                     <Clock className="h-4 w-4" />
                                                 </Button>
                                             )}
-                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:bg-rose-50" onClick={() => handleDelete(e.id)} title="Excluir">
+                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:bg-rose-50" onClick={() => handleDelete(e.id, e.isCharge as boolean)} title="Excluir">
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>
