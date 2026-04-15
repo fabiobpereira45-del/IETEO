@@ -11,7 +11,22 @@ export interface Semester { id: string; name: string; order: number; shift?: str
 export interface Discipline { id: string; name: string; description?: string | null; semesterId?: string | null; professorName?: string | null; dayOfWeek?: string | null; shift?: string | null; order: number; applicationMonth?: string | null; applicationYear?: string | null; isConcluded?: boolean; createdAt: string }
 export interface StudyMaterial { id: string; disciplineId: string; title: string; description?: string; fileUrl: string; createdAt: string }
 export interface FinancialSettings { id: string; enrollmentFee: number; monthlyFee: number; secondCallFee: number; finalExamFee: number; totalMonths: number; proLaboreFeePerLesson: number; creditCardUrl?: string; pixKey?: string; updatedAt: string; }
-export interface FinancialCharge { id: string; studentId: string; type: "enrollment" | "monthly" | "second_call" | "final_exam" | "other"; description: string; amount: number; dueDate: string; status: "pending" | "paid" | "cancelled" | "late" | "bolsa100" | "bolsa50"; paymentDate?: string; pixQrcode?: string; pixCopyPaste?: string; createdAt: string; }
+export interface FinancialCharge { 
+  id: string; 
+  studentId: string; 
+  type: "enrollment" | "monthly" | "second_call" | "final_exam" | "other"; 
+  description: string; 
+  amount: number; 
+  dueDate: string; 
+  status: "pending" | "paid" | "cancelled" | "late" | "bolsa100" | "bolsa50"; 
+  paymentDate?: string; 
+  paymentMethod?: "cartao" | "pix" | "dinheiro";
+  actualPaidAmount?: number;
+  disciplineId?: string;
+  pixQrcode?: string; 
+  pixCopyPaste?: string; 
+  createdAt: string; 
+}
 export interface Expense { id: string; description: string; amount: number; category: string; dueDate: string; status: "pending" | "paid"; paidAt?: string; createdAt: string; }
 export interface Question { id: string; disciplineId: string; type: QuestionType; text: string; choices: Choice[]; pairs?: MatchingPair[]; correctAnswer: string; points: number; createdAt: string }
 export interface Assessment { id: string; title: string; disciplineId: string; professor: string; institution: string; questionIds: string[]; pointsPerQuestion: number; totalPoints: number; openAt: string | null; closeAt: string | null; isPublished: boolean; archived: boolean; shuffleVariants?: boolean; timeLimitMinutes?: number | null; logoBase64?: string; rules?: string; releaseResults?: boolean; modality?: "public" | "private"; createdAt: string }
@@ -336,7 +351,24 @@ function mapProfessor(p: any): ProfessorAccount {
   }
 }
 function mapFinancialSettings(row: any): FinancialSettings { return { id: row.id, enrollmentFee: Number(row.enrollment_fee), monthlyFee: Number(row.monthly_fee), secondCallFee: Number(row.second_call_fee), finalExamFee: Number(row.final_exam_fee), totalMonths: Number(row.total_months), proLaboreFeePerLesson: Number(row.pro_labore_fee_per_lesson || 0), creditCardUrl: row.credit_card_url || undefined, pixKey: row.pix_key || undefined, updatedAt: row.updated_at } }
-function mapFinancialCharge(row: any): FinancialCharge { return { id: row.id, studentId: row.student_id, type: row.type, description: row.description, amount: Number(row.amount), dueDate: row.due_date, status: row.status, paymentDate: row.payment_date || undefined, pixQrcode: row.pix_qrcode || undefined, pixCopyPaste: row.pix_copy_paste || undefined, createdAt: row.created_at } }
+function mapFinancialCharge(row: any): FinancialCharge { 
+  return { 
+    id: row.id, 
+    studentId: row.student_id, 
+    type: row.type, 
+    description: row.description, 
+    amount: Number(row.amount), 
+    dueDate: row.due_date, 
+    status: row.status, 
+    paymentDate: row.payment_date || undefined, 
+    paymentMethod: row.payment_method || undefined,
+    actualPaidAmount: row.actual_paid_amount !== null ? Number(row.actual_paid_amount) : undefined,
+    disciplineId: row.discipline_id || undefined,
+    pixQrcode: row.pix_qrcode || undefined, 
+    pixCopyPaste: row.pix_copy_paste || undefined, 
+    createdAt: row.created_at 
+  } 
+}
 function mapExpense(row: any): Expense { return { id: row.id, description: row.description, amount: Number(row.amount), category: row.category, dueDate: row.due_date, status: row.status, paidAt: row.paid_at || undefined, createdAt: row.created_at } }
 function mapStudentProfile(row: any): StudentProfile { return { id: row.id, auth_user_id: row.auth_user_id, name: row.name, email: row.email, cpf: row.cpf, enrollment_number: row.enrollment_number, phone: row.phone || undefined, address: row.address || undefined, church: row.church || undefined, pastor_name: row.pastor_name || undefined, class_id: row.class_id || undefined, payment_status: row.payment_status || undefined, avatar_url: row.avatar_url || null, bio: row.bio || null, status: (row.status || 'pending') as StudentProfile['status'], created_at: row.created_at } }
 function mapChatMessage(row: any): ChatMessage { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, message: row.message, isFromStudent: row.is_from_student, read: row.read, createdAt: row.created_at } }
@@ -1986,36 +2018,102 @@ export async function getProfessorAccount(id: string): Promise<ProfessorAccount 
   if (error) return null
   return mapProfessor(data)
 }
-export async function generateMonthlyCharges(studentId: string, monthlyFee: number): Promise<void> {
+export async function syncStudentTuitionByDisciplines(studentId: string): Promise<void> {
   const supabase = createClient()
-  const charges = []
   
-  // Starting April 10th, 2026
-  let currentMonth = 3 // April (0-indexed)
-  let currentYear = 2026
+  // 1. Get Student and their Class
+  const { data: student } = await supabase.from('students').select('class_id, created_at').eq('id', studentId).single()
+  if (!student?.class_id) return
 
-  for (let i = 1; i <= 18; i++) {
-    const dueDate = new Date(currentYear, currentMonth, 10)
-    const dateStr = dueDate.toISOString().split('T')[0]
+  // 2. Get Class Schedules and Disciplines
+  const { data: schedules } = await supabase.from('class_schedules')
+    .select('discipline_id, disciplines(*)')
+    .eq('class_id', student.class_id)
+  
+  if (!schedules || schedules.length === 0) return
+
+  // Sort disciplines by order defined in curricular grid (mapping discipline info)
+  const disciplines = schedules
+    .map((s: any) => mapDiscipline(s.disciplines))
+    .sort((a, b) => {
+      const yearA = parseInt(a.applicationYear || "2026")
+      const monthA = parseInt(a.applicationMonth || "1")
+      const yearB = parseInt(b.applicationYear || "2026")
+      const monthB = parseInt(b.applicationMonth || "1")
+      if (yearA !== yearB) return yearA - yearB
+      if (monthA !== monthB) return monthA - monthB
+      return a.order - b.order
+    })
+
+  // 3. Get Settings
+  const settings = await getFinancialSettings()
+  if (!settings) return
+
+  const charges = []
+
+  // 4. Add Enrollment Fee (Taxa de Matrícula)
+  const enrollmentDate = new Date(student.created_at || Date.now())
+  charges.push({
+    student_id: studentId,
+    type: 'enrollment',
+    description: 'Taxa de Matrícula',
+    amount: settings.enrollmentFee,
+    due_date: enrollmentDate.toISOString().split('T')[0],
+    status: 'pending',
+    created_at: new Date().toISOString()
+  })
+
+  // 5. Add Discipline-based Monthly Fees
+  disciplines.forEach((disp, index) => {
+    const year = parseInt(disp.applicationYear || "2026")
+    const month = parseInt(disp.applicationMonth || "1") - 1 // 0-indexed
+    
+    // Fixed due day: 10
+    const dueDate = new Date(year, month, 10)
     
     charges.push({
       student_id: studentId,
       type: 'monthly',
-      description: `Mensalidade ${i}/18`,
-      amount: monthlyFee,
-      due_date: dateStr,
+      description: `Mensalidade: ${disp.name}`,
+      discipline_id: disp.id,
+      amount: settings.monthlyFee,
+      due_date: dueDate.toISOString().split('T')[0],
       status: 'pending',
       created_at: new Date().toISOString()
     })
+  })
 
-    currentMonth++
-    if (currentMonth > 11) {
-      currentMonth = 0
-      currentYear++
-    }
-  }
-
+  // 6. Delete old student charges and insert new ones
+  await supabase.from('financial_charges').delete().eq('student_id', studentId).neq('type', 'expense')
   const { error } = await supabase.from('financial_charges').insert(charges)
+  if (error) throw new Error(error.message)
+}
+
+export async function settleFinancialCharge(id: string, data: { 
+  paidAmount: number, 
+  method: "cartao" | "pix" | "dinheiro", 
+  date: string 
+}): Promise<void> {
+  const supabase = createClient()
+  const dbData = {
+    status: 'paid',
+    actual_paid_amount: data.paidAmount,
+    payment_method: data.method,
+    payment_date: data.date
+  }
+  const { error } = await supabase.from('financial_charges').update(dbData).eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+export async function reverseFinancialCharge(id: string): Promise<void> {
+  const supabase = createClient()
+  const dbData = {
+    status: 'pending',
+    actual_paid_amount: null,
+    payment_method: null,
+    payment_date: null
+  }
+  const { error } = await supabase.from('financial_charges').update(dbData).eq('id', id)
   if (error) throw new Error(error.message)
 }
 

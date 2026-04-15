@@ -233,7 +233,8 @@ export function FinancialStudentView({ studentId }: Props) {
                                     <th className="px-4 py-3">Descrição / Tipo</th>
                                     <th className="px-4 py-3">Vencimento</th>
                                     <th className="px-4 py-3">Valor</th>
-                                    <th className="px-4 py-3">Status</th>
+                                    <th className="px-4 py-3">Pago</th>
+                                    <th className="px-4 py-3">Status / Método</th>
                                     <th className="px-4 py-3 text-right">Recibo</th>
                                 </tr>
                             </thead>
@@ -262,8 +263,21 @@ export function FinancialStudentView({ studentId }: Props) {
                                         <td className="px-4 py-3 font-bold text-foreground">
                                             R$ {c.amount.toFixed(2)}
                                         </td>
+                                        <td className="px-4 py-3 font-medium text-green-600">
+                                            {c.actualPaidAmount ? `R$ ${c.actualPaidAmount.toFixed(2)}` : "-"}
+                                        </td>
                                         <td className="px-4 py-3">
-                                            {getStatusBadge(c.status)}
+                                            <div className="flex flex-col gap-1">
+                                                {getStatusBadge(c.status)}
+                                                {c.paymentMethod && (
+                                                    <span className="text-[9px] uppercase font-bold text-muted-foreground ml-1 flex items-center gap-1">
+                                                        {c.paymentMethod === 'pix' && <QrCode className="h-2 w-2" />}
+                                                        {c.paymentMethod === 'cartao' && <CreditCard className="h-2 w-2" />}
+                                                        {c.paymentMethod === 'dinheiro' && <DollarSign className="h-2 w-2" />}
+                                                        {c.paymentMethod}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             {c.status === "paid" && (

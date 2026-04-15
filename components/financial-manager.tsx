@@ -19,7 +19,7 @@ import {
     type FinancialCharge, type StudentProfile, type FinancialSettings, type Assessment,
     getFinancialCharges, addFinancialCharge, updateFinancialChargeStatus, deleteFinancialCharge, updateFinancialCharge, updateFinancialChargesStatusBatch,
     getFinancialSettings, updateFinancialSettings, getAssessments, triggerN8nWebhook,
-    generateMonthlyCharges
+    syncStudentTuitionByDisciplines, settleFinancialCharge, reverseFinancialCharge
 } from "@/lib/store"
 import { printFinancialReportPDF } from "@/lib/pdf"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -59,6 +59,13 @@ export function FinancialManager() {
     const [searchClass, setSearchClass] = useState("all")
     const [allClasses, setAllClasses] = useState<any[]>([])
 
+    // Settlement (Dar Baixa) State
+    const [settleModal, setSettleModal] = useState(false)
+    const [settleCharge, setSettleCharge] = useState<FinancialCharge | null>(null)
+    const [settleAmount, setSettleAmount] = useState("")
+    const [settleDate, setSettleDate] = useState(new Date().toISOString().split('T')[0])
+    const [settleMethod, setSettleMethod] = useState<"pix" | "cartao" | "dinheiro">("pix")
+
     const supabase = createClient()
 
     async function fetchAllStudents() {
@@ -80,15 +87,6 @@ export function FinancialManager() {
         setAllClasses(classesData || [])
         setLoading(false)
     }
-
-    const [settingsModal, setSettingsModal] = useState(false)
-    const [tempCard, setTempCard] = useState("")
-    const [tempPix, setTempPix] = useState("")
-    const [tempEnrollment, setTempEnrollment] = useState("")
-    const [tempMonthly, setTempMonthly] = useState("")
-    const [tempSecondCall, setTempSecondCall] = useState("")
-    const [tempFinalExam, setTempFinalExam] = useState("")
-    const [tempMonths, setTempMonths] = useState("")
 
     useEffect(() => { load() }, [])
 
@@ -224,22 +222,45 @@ export function FinancialManager() {
         }
     }
 
-    async function handleGeneratePlan(uid: string) {
-        if (!settings?.monthlyFee) {
-            alert("Configure a mensalidade nas configurações antes de gerar.")
-            return
-        }
-        if (!confirm("Deseja gerar as 18 mensalidades (Abril 2026 a Setembro 2027) para este aluno?")) return
-
+    async function handleSyncGrade(studentId: string) {
+        if (!confirm("Isso irá apagar as cobranças atuais e gerar novas baseadas na grade curricular e taxa de matrícula. Prosseguir?")) return
         setIsGenerating(true)
         try {
-            await generateMonthlyCharges(uid, settings.monthlyFee)
-            alert("Mensalidades geradas com sucesso!")
+            await syncStudentTuitionByDisciplines(studentId)
+            alert("Financeiro sincronizado com a grade curricular!")
             load()
-        } catch (actErr: any) {
-            alert("Erro ao gerar mensalidades: " + actErr.message)
+        } catch (e: any) {
+            alert("Erro ao sincronizar: " + e.message)
         } finally {
             setIsGenerating(false)
+        }
+    }
+
+    async function handleSettleSubmit() {
+        if (!settleCharge || !settleAmount) return
+        setSaving(true)
+        try {
+            await settleFinancialCharge(settleCharge.id, {
+                paidAmount: parseFloat(settleAmount),
+                method: settleMethod,
+                date: settleDate
+            })
+            setSettleModal(false)
+            load()
+        } catch (e: any) {
+            alert("Erro ao dar baixa: " + e.message)
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    async function handleReverse(id: string) {
+        if (!confirm("Deseja estornar este pagamento? O status voltará para Pendente.")) return
+        try {
+            await reverseFinancialCharge(id)
+            load()
+        } catch (e: any) {
+            alert("Erro ao estornar: " + e.message)
         }
     }
 
@@ -279,26 +300,19 @@ export function FinancialManager() {
         }
     }
 
-    async function handleSaveSettings() {
-        if (!settings) return
-        setSaving(true)
+    async function handleBulkSync() {
+        if (!confirm("Isso irá apagar TODAS as cobranças pendentes e gerar novas baseadas na grade curricular para TODOS os alunos ativos. Prosseguir?")) return
+        setIsGenerating(true)
         try {
-            await updateFinancialSettings({
-                enrollmentFee: Number(tempEnrollment),
-                monthlyFee: Number(tempMonthly),
-                secondCallFee: Number(tempSecondCall),
-                finalExamFee: Number(tempFinalExam),
-                totalMonths: Number(tempMonths),
-                creditCardUrl: tempCard,
-                pixKey: tempPix
-            })
-            alert("Configurações salvas com sucesso!")
-            setSettingsModal(false)
+            for (const s of students) {
+                await syncStudentTuitionByDisciplines(s.id)
+            }
+            alert("Financeiro sincronizado para todos os alunos!")
             load()
         } catch (e: any) {
-            alert("Erro ao salvar configurações: " + e.message)
+            alert("Erro no processamento em lote: " + e.message)
         } finally {
-            setSaving(false)
+            setIsGenerating(false)
         }
     }
 
@@ -328,6 +342,9 @@ export function FinancialManager() {
                         setChargeModal(true)
                     }}>
                         <Plus className="h-3 w-3 mr-1" /> Nova Cobrança
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleBulkSync} disabled={isGenerating} className="border-orange-500 text-orange-600 hover:bg-orange-50">
+                        <Zap className="h-3 w-3 mr-1" /> Sincronizar Tudo
                     </Button>
                     <Button variant="outline" size="sm" onClick={handleTriggerReminders} disabled={saving} className="border-accent text-accent">
                         <Zap className="h-3 w-3 mr-1" /> Lembretes
@@ -505,10 +522,10 @@ export function FinancialManager() {
                                     Aplicar Bolsa (Lote)
                                 </Button>
                                 <Button size="sm" variant="outline" className="h-9 text-xs font-bold border-accent text-accent hover:bg-accent/10" 
-                                    onClick={() => handleGeneratePlan(selectedStudent!.id)}
+                                    onClick={() => handleSyncGrade(selectedStudent!.id)}
                                     disabled={isGenerating}>
-                                    {isGenerating ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <DollarSign className="h-3 w-3 mr-2" />}
-                                    Gerar Carnê 18x
+                                    {isGenerating ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Zap className="h-3 w-3 mr-2" />}
+                                    Sincronizar Grade
                                 </Button>
                             </div>
                         </div>
@@ -547,9 +564,13 @@ export function FinancialManager() {
                                             <td className="px-4 py-4 text-right">
                                                 <div className="flex justify-end items-center gap-1">
                                                     {c.status !== 'paid' ? (
-                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600 hover:bg-green-50" onClick={() => handleStatusChange(c.id, 'paid')} title="Marcar como Pago"><CheckCircle2 className="h-4 w-4" /></Button>
+                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600 hover:bg-green-50" onClick={() => {
+                                                            setSettleCharge(c)
+                                                            setSettleAmount(c.amount.toString())
+                                                            setSettleModal(true)
+                                                        }} title="Dar Baixa"><CheckCircle2 className="h-4 w-4" /></Button>
                                                     ) : (
-                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-amber-600 hover:bg-amber-50" onClick={() => handleStatusChange(c.id, 'pending')} title="Estornar"><Clock className="h-4 w-4" /></Button>
+                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-amber-600 hover:bg-amber-50" onClick={() => handleReverse(c.id)} title="Estornar"><Clock className="h-4 w-4" /></Button>
                                                     )}
                                                     <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 hover:bg-blue-50" onClick={() => {
                                                         setEditingCharge(c)
@@ -640,65 +661,6 @@ export function FinancialManager() {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={settingsModal} onOpenChange={setSettingsModal}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Configurações de Pagamento Manual</DialogTitle>
-                    </DialogHeader>
-                    <div className="flex flex-col gap-4 py-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="flex flex-col gap-1.5">
-                                <Label>Taxa de Matrícula (R$)</Label>
-                                <Input type="number" step="0.01" value={tempEnrollment} onChange={e => setTempEnrollment(e.target.value)} />
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                                <Label>Mensalidade (R$)</Label>
-                                <Input type="number" step="0.01" value={tempMonthly} onChange={e => setTempMonthly(e.target.value)} />
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                                <Label>2ª Chamada (R$)</Label>
-                                <Input type="number" step="0.01" value={tempSecondCall} onChange={e => setTempSecondCall(e.target.value)} />
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                                <Label>Prova Final (R$)</Label>
-                                <Input type="number" step="0.01" value={tempFinalExam} onChange={e => setTempFinalExam(e.target.value)} />
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                            <Label>Duração do Curso (Meses)</Label>
-                            <Input type="number" value={tempMonths} onChange={e => setTempMonths(e.target.value)} />
-                        </div>
-
-                        <div className="flex flex-col gap-1.5 pt-2 border-t mt-2">
-                            <Label className="font-bold">Integrações de Pagamento Manual</Label>
-                            <Label className="text-[11px] text-muted-foreground">Links e Chaves mostradas ao aluno na matrícula</Label>
-                        </div>
-
-                        <div className="flex flex-col gap-1.5">
-                            <Label>Link de Pagamento (Cartão de Crédito)</Label>
-                            <Input
-                                value={tempCard}
-                                onChange={e => setTempCard(e.target.value)}
-                                placeholder="Link do Mercado Pago, PicPay, etc."
-                            />
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <Label>Chave PIX para Recebimento</Label>
-                            <Input
-                                value={tempPix}
-                                onChange={e => setTempPix(e.target.value)}
-                                placeholder="E-mail, CPF, CNPJ ou Aleatória"
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setSettingsModal(false)}>Cancelar</Button>
-                        <Button onClick={handleSaveSettings} disabled={saving}>Salvar Configurações</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
             {/* Edit Charge Dialog */}
             <Dialog open={!!editingCharge} onOpenChange={(o) => !o && setEditingCharge(null)}>
                 <DialogContent className="sm:max-w-md">
@@ -750,6 +712,61 @@ export function FinancialManager() {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setEditingCharge(null)}>Cancelar</Button>
                         <Button onClick={handleEditCharge} disabled={saving}>Salvar Alterações</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Settle Modal */}
+            <Dialog open={settleModal} onOpenChange={setSettleModal}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Dar Baixa no Pagamento</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-4 py-4">
+                        <div className="bg-muted/50 p-4 rounded-xl border border-border/50">
+                            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-1">Cobrança</p>
+                            <p className="text-sm font-bold">{settleCharge?.description}</p>
+                            <p className="text-xs text-muted-foreground">Valor Original: R$ {settleCharge?.amount.toFixed(2)}</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="flex flex-col gap-1.5">
+                                <Label>Valor Recebido (R$)</Label>
+                                <Input 
+                                    type="number" 
+                                    step="0.01" 
+                                    value={settleAmount} 
+                                    onChange={e => setSettleAmount(e.target.value)} 
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <Label>Data do Pagamento</Label>
+                                <Input 
+                                    type="date" 
+                                    value={settleDate} 
+                                    onChange={e => setSettleDate(e.target.value)} 
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                            <Label>Modalidade</Label>
+                            <Select value={settleMethod} onValueChange={(v: any) => setSettleMethod(v)}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="pix">PIX</SelectItem>
+                                    <SelectItem value="cartao">Cartão</SelectItem>
+                                    <SelectItem value="dinheiro">Dinheiro / Espécie</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setSettleModal(false)}>Cancelar</Button>
+                        <Button onClick={handleSettleSubmit} disabled={saving} className="premium-gradient text-white border-none shadow-lg">
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                            Confirmar Recebimento
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
