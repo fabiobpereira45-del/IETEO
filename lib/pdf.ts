@@ -1143,3 +1143,152 @@ export function printDailyAttendancePDF(date: string, disciplineName: string, st
 
   const win = window.open("", "_blank"); if (!win) return; win.document.write(html); win.document.close(); win.onload = () => win.print()
 }
+export function printProLaboreReceipt(data: {
+  professorName: string,
+  disciplineName: string,
+  className: string,
+  amount: number,
+  date: string,
+  institutionName?: string,
+  logo?: string
+}): void {
+  const formatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+  const amountStr = formatter.format(data.amount);
+  
+  // Basic numeric to words (extenso) simplified for BRL
+  const extenso = `${amountStr} (${data.amount.toLocaleString('pt-BR')} reais)`;
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Recibo de Pagamento - ${data.professorName}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Playfair+Display:wght@700&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: 'Inter', sans-serif; 
+      color: #1e293b; 
+      background: #fff; 
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+    .receipt {
+      width: 148mm; /* Half of A5, roughly 1/4 of A4 */
+      height: 105mm;
+      padding: 10mm;
+      border: 1px solid #e2e8f0;
+      position: relative;
+      overflow: hidden;
+      background: #fff;
+    }
+    .watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-30deg);
+      font-size: 80px;
+      font-weight: 900;
+      color: rgba(226, 232, 240, 0.3);
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 0;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6mm;
+      border-bottom: 2px solid #1e3a5f;
+      padding-bottom: 4mm;
+      position: relative;
+      z-index: 1;
+    }
+    .logo-container { display: flex; align-items: center; gap: 3mm; }
+    .logo-img { max-width: 40px; max-height: 40px; }
+    .inst-name { font-size: 14px; font-weight: 800; color: #1e3a5f; text-transform: uppercase; letter-spacing: 0.5px; }
+    .receipt-title { font-family: 'Playfair Display', serif; font-size: 24px; color: #1e3a5f; }
+    
+    .content { position: relative; z-index: 1; }
+    .amount-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      padding: 3mm 5mm;
+      border-radius: 4px;
+      display: inline-block;
+      float: right;
+      font-weight: 800;
+      font-size: 18px;
+      color: #1e3a5f;
+    }
+    .text { font-size: 12px; line-height: 1.6; margin-top: 4mm; clear: both; }
+    .field { font-weight: 700; color: #334155; }
+    
+    footer {
+      margin-top: 10mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      position: relative;
+      z-index: 1;
+    }
+    .sig-line {
+      border-top: 1px solid #94a3b8;
+      width: 60mm;
+      margin-top: 8mm;
+      text-align: center;
+      font-size: 10px;
+      color: #64748b;
+      padding-top: 1mm;
+    }
+    .date-loc { font-size: 11px; color: #64748b; }
+    
+    @media print {
+      body { background: none; padding: 0; }
+      .receipt { border: 1px solid #cbd5e1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="receipt">
+    <div class="watermark">IETEO</div>
+    
+    <header>
+      <div class="logo-container">
+        ${data.logo ? `<img src="${data.logo}" class="logo-img" />` : ''}
+        <div class="inst-name">${data.institutionName || 'IETEO'}</div>
+      </div>
+      <div class="receipt-title">Recibo</div>
+    </header>
+
+    <div class="content">
+      <div class="amount-box">${amountStr}</div>
+      <p class="text">
+        Recebemos de <span class="field">${data.institutionName || 'Instituto de Ensino Teológico'}</span> a importância de 
+        <span class="field">${extenso}</span>, referente ao pagamento de <span class="field">Pro-labore</span> 
+        pela disciplina <span class="field">${data.disciplineName}</span> ministrada para a turma 
+        <span class="field">${data.className}</span>.
+      </p>
+    </div>
+
+    <footer>
+      <div class="date-loc">
+        Emitido em ${new Date(data.date).toLocaleDateString('pt-BR')}
+      </div>
+      <div class="sig-section">
+        <div class="sig-line">Assinatura do Docente</div>
+        <div style="font-size: 11px; font-weight: 700; text-align: center; margin-top: 1mm;">${data.professorName}</div>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>`;
+
+  const win = window.open("", "_blank", "width=800,height=600");
+  if (!win) return;
+  win.document.write(html);
+  win.document.close();
+  win.onload = () => win.print();
+}

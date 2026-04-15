@@ -7,8 +7,11 @@ import {
     getProLaboreCalculations, 
     type FinancialSettings, 
     getFinancialSettings,
-    settleProLabore
+    settleProLabore,
+    deleteFinancialCharge,
+    getFinancialCharges
 } from "@/lib/store"
+import { printProLaboreReceipt } from "@/lib/pdf"
 import { toast } from "sonner"
 
 export function ProLaboreManager() {
@@ -20,11 +23,25 @@ export function ProLaboreManager() {
     async function load() {
         setLoading(true)
         try {
-            const [calcs, s] = await Promise.all([
+            const [calcs, s, allCharges] = await Promise.all([
                 getProLaboreCalculations(),
-                getFinancialSettings()
+                getFinancialSettings(),
+                getFinancialCharges()
             ])
-            setData(calcs)
+            
+            // Enrich calculations with the actual charge ID for reversal
+            const enriched = calcs.map(item => {
+                const charge = allCharges.find(c => 
+                    c.type === 'expense' && 
+                    c.professorId === item.professorId && 
+                    c.disciplineId === item.disciplineId && 
+                    c.classId === item.classId &&
+                    c.status === 'paid'
+                )
+                return { ...item, chargeId: charge?.id }
+            })
+
+            setData(enriched)
             setSettings(s)
         } catch (e) {
             console.error(e)
@@ -54,6 +71,34 @@ export function ProLaboreManager() {
         } finally {
             setSaving(null)
         }
+    }
+
+    async function handleReverse(item: any) {
+        if (!item.chargeId) return
+        if (!confirm("Tem certeza que deseja estornar este pagamento? O registro de despesa será excluído do financeiro.")) return
+        
+        setSaving(item.chargeId)
+        try {
+            await deleteFinancialCharge(item.chargeId)
+            toast.success("Pagamento estornado com sucesso!")
+            load()
+        } catch (e: any) {
+            toast.error("Erro ao estornar: " + e.message)
+        } finally {
+            setSaving(null)
+        }
+    }
+
+    function handlePrintReceipt(item: any) {
+        printProLaboreReceipt({
+            professorName: item.professorName,
+            disciplineName: item.disciplineName,
+            className: item.className,
+            amount: item.totalAmount,
+            date: new Date().toISOString(),
+            institutionName: settings?.institutionName || "IETEO",
+            logo: settings?.logoBase64
+        })
     }
 
     useEffect(() => { load() }, [])
@@ -125,16 +170,36 @@ export function ProLaboreManager() {
                                             )}
                                         </td>
                                         <td className="px-4 py-4 text-right">
-                                            {!item.isPaid && (
-                                                <button 
-                                                    onClick={() => handleSettle(item)}
-                                                    disabled={saving === key}
-                                                    className="inline-flex items-center gap-1.5 text-[10px] font-bold bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-                                                >
-                                                    {saving === key ? <Loader2 className="h-3 w-3 animate-spin" /> : <DollarSign className="h-3 w-3" />}
-                                                    DAR BAIXA
-                                                </button>
-                                            )}
+                                            <div className="flex items-center justify-end gap-2">
+                                                {!item.isPaid ? (
+                                                    <button 
+                                                        onClick={() => handleSettle(item)}
+                                                        disabled={saving === key}
+                                                        className="inline-flex items-center gap-1.5 text-[10px] font-bold bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                                                    >
+                                                        {saving === key ? <Loader2 className="h-3 w-3 animate-spin" /> : <DollarSign className="h-3 w-3" />}
+                                                        DAR BAIXA
+                                                    </button>
+                                                ) : (
+                                                    <>
+                                                        <button 
+                                                            onClick={() => handlePrintReceipt(item)}
+                                                            className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                                                            title="Imprimir Recibo"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleReverse(item)}
+                                                            disabled={saving === item.chargeId}
+                                                            className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                            title="Estornar Pagamento"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 )
@@ -152,4 +217,3 @@ export function ProLaboreManager() {
             </div>
         </div>
     )
-}

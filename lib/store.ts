@@ -2105,23 +2105,31 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
   const { data: student } = await supabase.from('students').select('class_id, created_at').eq('id', studentId).single()
   if (!student?.class_id) return
 
-  // 2. Get Class Schedules and Disciplines
-  const { data: schedules } = await supabase.from('class_schedules')
-    .select('discipline_id, disciplines(*)')
-    .eq('class_id', student.class_id)
-  
-  if (!schedules || schedules.length === 0) return
+  // 2. Get All Semesters and Class Schedules
+  const [semestersResult, schedulesResult] = await Promise.all([
+    supabase.from('semesters').select('*').order('order', { ascending: true }),
+    supabase.from('class_schedules').select('discipline_id, disciplines(*)').eq('class_id', student.class_id)
+  ])
 
-  // Sort disciplines by order defined in curricular grid (mapping discipline info)
+  const semesters = semestersResult.data || []
+  const schedules = schedulesResult.data || []
+  if (schedules.length === 0) return
+
+  const monthMap: Record<string, number> = {
+    'Jan': 1, 'Fev': 2, 'Mar': 3, 'Abr': 4, 'Mai': 5, 'Jun': 6,
+    'Jul': 7, 'Ago': 8, 'Set': 9, 'Out': 10, 'Nov': 11, 'Dez': 12
+  }
+
+  // Sort disciplines by Semester Order then Discipline Order
   const disciplines = schedules
     .map((s: any) => mapDiscipline(s.disciplines))
     .sort((a, b) => {
-      const yearA = parseInt(a.applicationYear || "2026")
-      const monthA = parseInt(a.applicationMonth || "1")
-      const yearB = parseInt(b.applicationYear || "2026")
-      const monthB = parseInt(b.applicationMonth || "1")
-      if (yearA !== yearB) return yearA - yearB
-      if (monthA !== monthB) return monthA - monthB
+      const semA = semesters.find(s => s.id === a.semesterId)
+      const semB = semesters.find(s => s.id === b.semesterId)
+      const semOrderA = semA?.order ?? 999
+      const semOrderB = semB?.order ?? 999
+
+      if (semOrderA !== semOrderB) return semOrderA - semOrderB
       return a.order - b.order
     })
 
@@ -2145,11 +2153,19 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
 
   // 5. Add Discipline-based Monthly Fees
   disciplines.forEach((disp, index) => {
-    const year = parseInt(disp.applicationYear || "2026")
-    const month = parseInt(disp.applicationMonth || "1") - 1 // 0-indexed
+    let year = parseInt(disp.applicationYear || "2026")
+    let monthNum = 1
     
-    // Fixed due day: 10
-    const dueDate = new Date(year, month, 10)
+    if (disp.applicationMonth) {
+      // Handle string months like "Abr" or numbers
+      if (monthMap[disp.applicationMonth]) {
+        monthNum = monthMap[disp.applicationMonth]
+      } else {
+        monthNum = parseInt(disp.applicationMonth) || 1
+      }
+    }
+
+    const dueDate = new Date(year, monthNum - 1, 10)
     
     charges.push({
       student_id: studentId,
@@ -2163,10 +2179,29 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
     })
   })
 
-  // 6. Delete old student charges and insert new ones
-  await supabase.from('financial_charges').delete().eq('student_id', studentId).neq('type', 'expense')
-  const { error } = await supabase.from('financial_charges').insert(charges)
-  if (error) throw new Error(error.message)
+  // 6. Bulk Insert (Keeping existing paid ones)
+  // Get existing charges to avoid duplicates
+  const { data: existing } = await supabase.from('financial_charges')
+    .select('id, description, status')
+    .eq('student_id', studentId)
+    .neq('type', 'expense')
+
+  // Filter out new charges that are already paid (based on description)
+  const finalCharges = charges.filter(nc => {
+    return !(existing || []).some(ex => ex.description === nc.description && ex.status === 'paid')
+  })
+
+  // Delete non-paid existing ones to refresh
+  await supabase.from('financial_charges')
+    .delete()
+    .eq('student_id', studentId)
+    .neq('type', 'expense')
+    .neq('status', 'paid')
+
+  if (finalCharges.length > 0) {
+    const { error } = await supabase.from('financial_charges').insert(finalCharges)
+    if (error) throw new Error(error.message)
+  }
 }
 
 export async function settleFinancialCharge(id: string, data: { 
