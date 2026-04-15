@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { FileText, Award, CalendarCheck, Loader2, Calculator, CheckCircle2, Clock } from "lucide-react"
 import {
     type Discipline, type Semester, type StudentSubmission, type Attendance, type Assessment, type StudentGrade,
-    getDisciplines, getSemesters, getSubmissions, getAttendances, getAssessments, getStudentGrades
+    getDisciplines, getSemesters, getSubmissions, getAttendances, getAssessments, getStudentGrades, getStudentAttendances
 } from "@/lib/store"
 
 interface Props {
@@ -76,11 +76,9 @@ export function StudentGradesView({ studentId, studentEmail, studentDoc }: Props
                 })
                 setSubmissions(mySubs)
 
-                // Attendances
-                const attPromises = d.map(disc => getAttendances(disc.id))
-                const allAttsArray = await Promise.all(attPromises)
-                const flatAtts = allAttsArray.flat().filter(a => a.studentId === studentId)
-                setAttendances(flatAtts)
+                // Attendances (Optimized: Single query by student ID)
+                const myAtts = await getStudentAttendances(studentId)
+                setAttendances(myAtts)
 
             } catch (err) {
                 console.error("Erro ao carregar notas:", err)

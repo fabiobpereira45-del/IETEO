@@ -312,34 +312,14 @@ export function FinancialManager() {
     }
 
     return (
-        <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-xl font-bold font-serif text-foreground">Gestão Financeira</h2>
-                    <p className="text-muted-foreground text-sm">Controle de mensalidades e extratos individuais</p>
+        <div className="flex flex-col gap-6 w-full">
+            <div className="flex items-center justify-between bg-muted/30 p-4 rounded-xl border border-border/50">
+                <div className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-primary" />
+                    <h3 className="font-bold text-sm">Controle de Mensalidades (Alunos)</h3>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => {
-                        setTempCard(settings?.creditCardUrl || "")
-                        setTempPix(settings?.pixKey || "")
-                        setTempEnrollment(settings?.enrollmentFee.toString() || "0")
-                        setTempMonthly(settings?.monthlyFee.toString() || "0")
-                        setTempSecondCall(settings?.secondCallFee.toString() || "0")
-                        setTempFinalExam(settings?.finalExamFee.toString() || "0")
-                        setTempMonths(settings?.totalMonths.toString() || "12")
-                        setSettingsModal(true)
-                    }} className="border-primary text-primary hover:bg-primary/10">
-                        Configurar Pagamentos
-                    </Button>
-                    <Button variant="outline" onClick={handleTriggerReminders} disabled={saving} className="border-accent text-accent hover:bg-accent hover:text-accent-foreground transition-all shadow-sm">
-                        {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}
-                        Disparar Lembretes
-                    </Button>
-                    <Button variant="outline" onClick={() => printFinancialReportPDF(charges, students)} className="border-primary text-primary hover:bg-primary/10">
-                        <Download className="h-4 w-4 mr-2" />
-                        Exportar PDF
-                    </Button>
-                    <Button onClick={() => {
+                    <Button variant="outline" size="sm" onClick={() => {
                         setStudentId("")
                         setType("monthly")
                         setAmount("")
@@ -347,8 +327,10 @@ export function FinancialManager() {
                         setDueDate("")
                         setChargeModal(true)
                     }}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Nova Cobrança
+                        <Plus className="h-3 w-3 mr-1" /> Nova Cobrança
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleTriggerReminders} disabled={saving} className="border-accent text-accent">
+                        <Zap className="h-3 w-3 mr-1" /> Lembretes
                     </Button>
                 </div>
             </div>

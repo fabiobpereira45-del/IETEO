@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react"
 import {
-        Plus, Pencil, Trash2, GraduationCap, Calculator, Loader2, Save, X, Download, Eye, EyeOff
-
+        Plus, Pencil, Trash2, GraduationCap, Calculator, Loader2, Save, X, Download, Eye, EyeOff, RefreshCw
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,7 +13,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import {
     StudentGrade, getStudentGrades, saveStudentGrade, deleteStudentGrade, releaseAllGrades,
-    StudentProfile, getStudents, Discipline, getDisciplines
+    StudentProfile, getStudents, Discipline, getDisciplines, bulkSyncGrades
 } from "@/lib/store"
 import { printGradesReportPDF } from "@/lib/pdf"
 import { ErrorBoundary } from "@/components/error-boundary"
@@ -25,6 +24,7 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
     const [students, setStudents] = useState<StudentProfile[]>([])
     const [disciplines, setDisciplines] = useState<Discipline[]>([])
     const [loading, setLoading] = useState(true)
+    const [syncLoading, setSyncLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [isEditing, setIsEditing] = useState<string | null>(null)
     const [isCreating, setIsCreating] = useState(false)
@@ -142,6 +142,19 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
         }
     }
 
+    const handleSync = async () => {
+        try {
+            setSyncLoading(true)
+            const { totalAffected } = await bulkSyncGrades()
+            alert(`Sincronização concluída! ${totalAffected} registros foram vinculados com sucesso.`)
+            loadData()
+        } catch (err: any) {
+            alert("Erro na sincronização: " + err.message)
+        } finally {
+            setSyncLoading(false)
+        }
+    }
+
     const handleReleaseAll = async () => {
         if (!confirm("Deseja liberar as notas e médias de TODOS os alunos listados para visualização?")) return
         try {
@@ -191,6 +204,15 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                     <div className="flex gap-2">
                         {isMaster && (
                             <>
+                                <Button 
+                                    variant="outline" 
+                                    onClick={handleSync} 
+                                    disabled={syncLoading}
+                                    className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                                >
+                                    {syncLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                                    Sincronizar Vínculos
+                                </Button>
                                 <Button variant="outline" onClick={handleReleaseAll} className="border-green-600 text-green-600 hover:bg-green-50">
                                     <Eye className="h-4 w-4 mr-2" />
                                     Liberar Todas

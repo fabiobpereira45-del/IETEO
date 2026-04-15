@@ -34,7 +34,7 @@ import { ProfessorManager } from "@/components/professor-manager"
 import { SemesterManager } from "@/components/semester-manager"
 import { StudyMaterialManager } from "@/components/study-material-manager"
 import { FinancialConfig } from "@/components/financial-config"
-import { FinancialManager } from "@/components/financial-manager"
+import { FinancialDashboard } from "@/components/financial-dashboard"
 import { ProfessorChatView } from "@/components/professor-chat-view"
 import { AttendanceManager } from "@/components/attendance-manager"
 import { ClassManager } from "@/components/class-manager"
@@ -367,7 +367,7 @@ export function AdminDashboard({ onLogout }: Props) {
               {tab === "attendance" && <AttendanceManager />}
               {tab === "classes" && isMaster && <ClassManager />}
               {tab === "chat" && <ProfessorChatView />}
-              {tab === "financial" && <FinancialManager />}
+              {tab === "financial" && <FinancialDashboard />}
               {tab === "professors" && isMaster && <ProfessorManager />}
               {tab === "institutional" && <InstitutionalManager />}
               {tab === "settings" && <SettingsTab assessments={assessments} onRefresh={refresh} onLogout={onLogout} />}

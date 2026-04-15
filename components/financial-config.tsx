@@ -22,6 +22,7 @@ export function FinancialConfig() {
     const [secondCallFee, setSecondCallFee] = useState("0")
     const [finalExamFee, setFinalExamFee] = useState("0")
     const [totalMonths, setTotalMonths] = useState("24")
+    const [proLaboreFee, setProLaboreFee] = useState("0")
     const [creditCardUrl, setCreditCardUrl] = useState("")
 
 
@@ -39,6 +40,7 @@ export function FinancialConfig() {
             setSecondCallFee(data.secondCallFee.toString())
             setFinalExamFee(data.finalExamFee.toString())
             setTotalMonths(data.totalMonths.toString())
+            setProLaboreFee(data.proLaboreFeePerLesson?.toString() || "0")
             setCreditCardUrl(data.creditCardUrl || "")
         }
 
@@ -58,6 +60,7 @@ export function FinancialConfig() {
                     secondCallFee: parseFloat(secondCallFee) || 0,
                     finalExamFee: parseFloat(finalExamFee) || 0,
                     totalMonths: parseInt(totalMonths) || 12,
+                    proLaboreFeePerLesson: parseFloat(proLaboreFee) || 0,
                     creditCardUrl: creditCardUrl
                 })
             ])
@@ -122,16 +125,26 @@ export function FinancialConfig() {
                         onChange={(e) => setFinalExamFee(e.target.value)}
                     />
                 </div>
-                <div className="flex flex-col gap-1.5 md:col-span-2">
+                <div className="flex flex-col gap-1.5 md:col-span-1">
                     <Label>Duração do Curso (Meses)</Label>
                     <Input
                         type="number"
                         min="1"
                         value={totalMonths}
                         onChange={(e) => setTotalMonths(e.target.value)}
-                        placeholder="Ex: 24 (equivale a 2 anos)"
+                        placeholder="Ex: 24"
                     />
-                    <span className="text-xs text-muted-foreground">O sistema usará isso para prever o total de mensalidades.</span>
+                </div>
+                <div className="flex flex-col gap-1.5 md:col-span-1">
+                    <Label>Pro-labore por Aula (R$)</Label>
+                    <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={proLaboreFee}
+                        onChange={(e) => setProLaboreFee(e.target.value)}
+                        placeholder="Ex: 50.00"
+                    />
                 </div>
 
                 <div className="flex flex-col gap-1.5 md:col-span-2 bg-blue-50/50 p-4 rounded-xl border border-blue-100">

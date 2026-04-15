@@ -10,7 +10,7 @@ import {
     type StudentSession, type StudentProfile, getStudentProfileAuth, logoutStudentAuth,
     type Semester, type Discipline, type StudyMaterial, type FinancialCharge, type ClassRoom, type ClassSchedule,
     getSemesters, getDisciplines, getStudyMaterials, getFinancialCharges, getClasses, getClassSchedules,
-    getClassmates, getStudentGrades, type StudentGrade
+    getClassmates, getStudentGrades, type StudentGrade, syncStudentGrades
 } from "@/lib/store"
 import { StudentAuth } from "@/components/student-auth"
 import { FinancialStudentView } from "@/components/financial-student-view"
@@ -67,6 +67,9 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
         const p = await getStudentProfileAuth()
         setProfile(p)
         if (p) {
+            // Auto-Healing: Sync orphaned grades to UUID
+            syncStudentGrades(p.id, p.cpf, p.email).catch(e => console.error("Sync Error:", e))
+
             setDataLoading(true)
             const [s, d, m, c, cls, sch] = await Promise.all([
                 getSemesters(), getDisciplines(), getStudyMaterials(), getFinancialCharges(p.id),
