@@ -563,7 +563,11 @@ export function FinancialManager({ onRefresh }: { onRefresh?: () => void } = {})
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border">
-                                    {charges.filter(c => c.studentId === selectedStudent?.id).sort((a,b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()).map(c => (
+                                    {charges.filter(c => c.studentId === selectedStudent?.id).sort((a,b) => {
+                                        if (a.type === 'enrollment' && b.type !== 'enrollment') return -1;
+                                        if (b.type === 'enrollment' && a.type !== 'enrollment') return 1;
+                                        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+                                    }).map(c => (
                                         <tr key={c.id} className="hover:bg-muted/30 transition-colors">
                                             <td className="px-4 py-4">
                                                 <div className="font-medium text-foreground leading-tight">{c.description}</div>

@@ -2110,7 +2110,7 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
   // 2. Get All Semesters and All Curriculum Disciplines
   const [semestersResult, disciplinesResult] = await Promise.all([
     supabase.from('semesters').select('*').order('order', { ascending: true }),
-    supabase.from('disciplines').select('*').not('semester_id', 'is', null)
+    supabase.from('disciplines').select('*')
   ])
 
   const semesters = semestersResult.data || []
@@ -2189,15 +2189,17 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
   // 6. Bulk Sync Logic (Fixing divergence)
   // Get existing charges to preserve "paid" ones
   const { data: existing } = await supabase.from('financial_charges')
-    .select('id, description, status, amount')
+    .select('id, description, status, amount, type')
     .eq('student_id', studentId)
     .neq('type', 'expense')
 
   // Identify charges to insert or update
   const finalCharges = charges.filter(nc => {
-    // Check if this specific charge (by description) is already paid
-    const isAlreadyPaid = (existing || []).some(ex => ex.description === nc.description && ex.status === 'paid')
-    return !isAlreadyPaid
+    // Check if this specific charge is already paid
+    if (nc.type === 'enrollment') {
+      return !(existing || []).some(ex => ex.type === 'enrollment' && ex.status === 'paid')
+    }
+    return !(existing || []).some(ex => ex.description === nc.description && ex.status === 'paid')
   })
 
   // Clean up ALL non-paid charges to ensure the new list is exactly 18+1
