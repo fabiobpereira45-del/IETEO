@@ -414,8 +414,18 @@ export function FinancialManager() {
             </div>
 
             <div className="bg-card border border-border shadow-sm rounded-xl overflow-hidden">
-                <div className="p-4 border-b border-border bg-muted/20">
+                <div className="p-4 border-b border-border bg-muted/20 flex items-center justify-between">
                     <h3 className="font-bold text-sm text-foreground">Lista de Alunos e Situação Financeira</h3>
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20">
+                            {students.filter(s => {
+                                const matchName = s.name.toLowerCase().includes(searchName.toLowerCase())
+                                const matchEnroll = s.enrollment_number.toLowerCase().includes(searchEnrollment.toLowerCase())
+                                const matchClass = searchClass === "all" || s.class_id === searchClass
+                                return matchName && matchEnroll && matchClass
+                            }).length} Alunos Matriculados
+                        </span>
+                    </div>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">

@@ -23,6 +23,8 @@ export interface FinancialCharge {
   paymentMethod?: "cartao" | "pix" | "dinheiro";
   actualPaidAmount?: number;
   disciplineId?: string;
+  professorId?: string;
+  classId?: string;
   pixQrcode?: string; 
   pixCopyPaste?: string; 
   createdAt: string; 
@@ -364,6 +366,8 @@ function mapFinancialCharge(row: any): FinancialCharge {
     paymentMethod: row.payment_method || undefined,
     actualPaidAmount: row.actual_paid_amount !== null ? Number(row.actual_paid_amount) : undefined,
     disciplineId: row.discipline_id || undefined,
+    professorId: row.professor_id || undefined,
+    classId: row.class_id || undefined,
     pixQrcode: row.pix_qrcode || undefined, 
     pixCopyPaste: row.pix_copy_paste || undefined, 
     createdAt: row.created_at 
@@ -738,30 +742,84 @@ export async function getAllProfessorDisciplines(): Promise<ProfessorDiscipline[
 
 export async function getProLaboreCalculations() {
   const supabase = createClient()
-  const [professors, links, schedules, settings] = await Promise.all([
+  const [professors, links, schedules, settings, charges, allClasses, allDisciplines] = await Promise.all([
     getProfessorAccounts(),
     getAllProfessorDisciplines(),
     getClassSchedules(),
-    getFinancialSettings()
+    getFinancialSettings(),
+    getFinancialCharges(), // This includes expenses
+    supabase.from('classes').select('id, name').then(r => r.data || []),
+    supabase.from('disciplines').select('id, name').then(r => r.data || [])
   ])
 
   const fee = settings?.proLaboreFeePerLesson || 0
-  
-  return professors.map(prof => {
-    const profLinks = links.filter(l => l.professorId === prof.id)
-    const profSchedules = schedules.filter(s => profLinks.some(l => l.disciplineId === s.disciplineId))
-    
-    const lessonsCount = profSchedules.reduce((acc, curr) => acc + curr.lessonsCount, 0)
-    const totalAmount = lessonsCount * fee
+  const calculations: any[] = []
 
-    return {
-      professorId: prof.id,
-      professorName: prof.name,
-      lessonsCount,
-      feePerLesson: fee,
-      totalAmount
-    }
+  professors.forEach(prof => {
+    const profLinks = links.filter(l => l.professorId === prof.id)
+    
+    profLinks.forEach(link => {
+      const discipline = allDisciplines.find(d => d.id === link.disciplineId)
+      if (!discipline) return
+
+      // Find all classes that have this discipline scheduled
+      const relevantSchedules = schedules.filter(s => s.disciplineId === link.disciplineId)
+      
+      relevantSchedules.forEach(sched => {
+        const classInfo = allClasses.find(c => c.id === sched.classId)
+        if (!classInfo) return
+
+        // Check if already paid
+        const isPaid = (charges || []).some(c => 
+          c.type === 'expense' && 
+          c.professorId === prof.id && 
+          c.disciplineId === link.disciplineId && 
+          c.classId === sched.classId &&
+          c.status === 'paid'
+        )
+
+        calculations.push({
+          professorId: prof.id,
+          professorName: prof.name,
+          disciplineId: link.disciplineId,
+          disciplineName: discipline.name,
+          classId: sched.classId,
+          className: classInfo.name,
+          lessonsCount: sched.lessonsCount,
+          feePerLesson: fee,
+          totalAmount: sched.lessonsCount * fee,
+          isPaid
+        })
+      })
+    })
   })
+
+  return calculations
+}
+
+export async function settleProLabore(data: {
+  professorId: string,
+  disciplineId: string,
+  classId: string,
+  amount: number,
+  description: string
+}): Promise<void> {
+  const supabase = createClient()
+  const dbData = {
+    type: 'expense',
+    description: data.description,
+    amount: data.amount,
+    professor_id: data.professorId,
+    discipline_id: data.disciplineId,
+    class_id: data.classId,
+    status: 'paid',
+    due_date: new Date().toISOString().split('T')[0],
+    payment_date: new Date().toISOString().split('T')[0],
+    payment_method: 'other',
+    created_at: new Date().toISOString()
+  }
+  const { error } = await supabase.from('financial_charges').insert(dbData)
+  if (error) throw new Error(error.message)
 }
 
 export async function linkProfessorToDiscipline(professorId: string, disciplineId: string): Promise<void> {
