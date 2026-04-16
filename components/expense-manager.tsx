@@ -39,6 +39,8 @@ export function ExpenseManager({
     const [amount, setAmount] = useState("")
     const [category, setCategory] = useState("Alimento")
     const [dueDate, setDueDate] = useState("")
+    const [editingExpense, setEditingExpense] = useState<any | null>(null)
+    const [status, setStatus] = useState<any>("pending")
 
     // Installment Form State
     const [installmentModalOpen, setInstallmentModalOpen] = useState(false)
@@ -73,24 +75,58 @@ export function ExpenseManager({
         }
         setSaving(true)
         try {
-            await addExpense({
-                description,
-                amount: parseFloat(amount),
-                category,
-                dueDate
-            })
+            if (editingExpense) {
+                if (editingExpense.isCharge) {
+                    await updateFinancialCharge(editingExpense.id, {
+                        description,
+                        amount: parseFloat(amount),
+                        dueDate
+                    })
+                    if (status !== editingExpense.status) {
+                        await updateFinancialChargeStatus(editingExpense.id, status)
+                    }
+                } else {
+                    await updateExpense(editingExpense.id, {
+                        description,
+                        amount: parseFloat(amount),
+                        category,
+                        dueDate,
+                        status
+                    })
+                }
+            } else {
+                await addExpense({
+                    description,
+                    amount: parseFloat(amount),
+                    category,
+                    dueDate
+                })
+            }
             setModalOpen(false)
+            setEditingExpense(null)
             load()
             // Reset form
             setDescription("")
             setAmount("")
             setDueDate("")
+            setCategory("Alimento")
+            setStatus("pending")
             onRefresh?.()
         } catch (e: any) {
             alert("Erro ao salvar despesa: " + e.message)
         } finally {
             setSaving(false)
         }
+    }
+
+    function handleEdit(e: any) {
+        setEditingExpense(e)
+        setDescription(e.description)
+        setAmount(e.amount.toString())
+        setCategory(e.category)
+        setDueDate(e.dueDate)
+        setStatus(e.status)
+        setModalOpen(true)
     }
 
     const previewInstallments = () => {
@@ -208,7 +244,15 @@ export function ExpenseManager({
                     <Button variant="outline" className="border-primary/20 text-primary hover:bg-primary/5" onClick={() => setInstallmentModalOpen(true)}>
                         <CalendarDays className="h-4 w-4 mr-2" /> Despesas Parceladas
                     </Button>
-                    <Button onClick={() => setModalOpen(true)}>
+                    <Button onClick={() => {
+                        setEditingExpense(null)
+                        setDescription("")
+                        setAmount("")
+                        setDueDate("")
+                        setCategory("Alimento")
+                        setStatus("pending")
+                        setModalOpen(true)
+                    }}>
                         <Plus className="h-4 w-4 mr-2" /> Nova Despesa
                     </Button>
                 </div>
@@ -279,6 +323,9 @@ export function ExpenseManager({
                                                     <Plus className="h-4 w-4" />
                                                 </Button>
                                             )}
+                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 hover:bg-blue-50" onClick={() => handleEdit(e)} title="Editar">
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
                                             <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:bg-rose-50" onClick={() => handleDelete(e.id, e.isCharge as boolean)} title="Excluir">
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
@@ -294,7 +341,7 @@ export function ExpenseManager({
             <Dialog open={modalOpen} onOpenChange={setModalOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Novo Lançamento de Despesa</DialogTitle>
+                        <DialogTitle>{editingExpense ? "Editar Despesa" : "Novo Lançamento de Despesa"}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-1.5">
@@ -311,26 +358,40 @@ export function ExpenseManager({
                                 <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
                             </div>
                         </div>
-                        <div className="space-y-1.5">
-                            <Label>Categoria</Label>
-                            <Select value={category} onValueChange={setCategory}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Alimento">Alimento</SelectItem>
-                                    <SelectItem value="Transporte">Transporte</SelectItem>
-                                    <SelectItem value="Professor">Professor</SelectItem>
-                                    <SelectItem value="Material de escritório">Material de escritório</SelectItem>
-                                    <SelectItem value="Equipamentos Eletrônicos">Equipamentos Eletrônicos</SelectItem>
-                                    <SelectItem value="Móveis">Móveis</SelectItem>
-                                    <SelectItem value="Ar Condicionado">Ar Condicionado</SelectItem>
-                                    <SelectItem value="Material Didático">Material Didático</SelectItem>
-                                    <SelectItem value="Energia">Energia</SelectItem>
-                                    <SelectItem value="Internet">Internet</SelectItem>
-                                    <SelectItem value="Aluguel">Aluguel</SelectItem>
-                                    <SelectItem value="Hospedagem">Hospedagem</SelectItem>
-                                    <SelectItem value="outros">Outros</SelectItem>
-                                </SelectContent>
-                            </Select>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <Label>Categoria</Label>
+                                <Select value={category} onValueChange={setCategory} disabled={editingExpense?.isCharge}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Alimento">Alimento</SelectItem>
+                                        <SelectItem value="Transporte">Transporte</SelectItem>
+                                        <SelectItem value="Professor">Professor</SelectItem>
+                                        <SelectItem value="Material de escritório">Material de escritório</SelectItem>
+                                        <SelectItem value="Equipamentos Eletrônicos">Equipamentos Eletrônicos</SelectItem>
+                                        <SelectItem value="Móveis">Móveis</SelectItem>
+                                        <SelectItem value="Ar Condicionado">Ar Condicionado</SelectItem>
+                                        <SelectItem value="Material Didático">Material Didático</SelectItem>
+                                        <SelectItem value="Energia">Energia</SelectItem>
+                                        <SelectItem value="Internet">Internet</SelectItem>
+                                        <SelectItem value="Aluguel">Aluguel</SelectItem>
+                                        <SelectItem value="Hospedagem">Hospedagem</SelectItem>
+                                        <SelectItem value="pro-labore">Pro-labore</SelectItem>
+                                        <SelectItem value="outros">Outros</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label>Status</Label>
+                                <Select value={status} onValueChange={(v: any) => setStatus(v)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="pending">Pendente</SelectItem>
+                                        <SelectItem value="paid">Pago</SelectItem>
+                                        <SelectItem value="cancelled">Cancelado / Estornado</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                     </div>
                     <DialogFooter>
