@@ -27,14 +27,14 @@ export function ExpenseManager({ onRefresh }: { onRefresh?: () => void } = {}) {
     // Form state
     const [description, setDescription] = useState("")
     const [amount, setAmount] = useState("")
-    const [category, setCategory] = useState("fixa")
+    const [category, setCategory] = useState("Alimento")
     const [dueDate, setDueDate] = useState("")
 
     // Installment Form State
     const [installmentModalOpen, setInstallmentModalOpen] = useState(false)
     const [instDescription, setInstDescription] = useState("")
     const [instAmount, setInstAmount] = useState("")
-    const [instCategory, setInstCategory] = useState("fixa")
+    const [instCategory, setInstCategory] = useState("Alimento")
     const [instCount, setInstCount] = useState("12")
     const [instDate, setInstDate] = useState("")
 
@@ -301,12 +301,19 @@ export function ExpenseManager({ onRefresh }: { onRefresh?: () => void } = {}) {
                             <Select value={category} onValueChange={setCategory}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="fixa">Despesa Fixa</SelectItem>
-                                    <SelectItem value="variavel">Despesa Variável</SelectItem>
-                                    <SelectItem value="imposto">Imposto / Taxa</SelectItem>
-                                    <SelectItem value="infra">Infraestrutura</SelectItem>
-                                    <SelectItem value="marketing">Marketing / Social</SelectItem>
-                                    <SelectItem value="outro">Outro</SelectItem>
+                                    <SelectItem value="Alimento">Alimento</SelectItem>
+                                    <SelectItem value="Transporte">Transporte</SelectItem>
+                                    <SelectItem value="Professor">Professor</SelectItem>
+                                    <SelectItem value="Material de escritório">Material de escritório</SelectItem>
+                                    <SelectItem value="Equipamentos Eletrônicos">Equipamentos Eletrônicos</SelectItem>
+                                    <SelectItem value="Móveis">Móveis</SelectItem>
+                                    <SelectItem value="Ar Condicionado">Ar Condicionado</SelectItem>
+                                    <SelectItem value="Material Didático">Material Didático</SelectItem>
+                                    <SelectItem value="Energia">Energia</SelectItem>
+                                    <SelectItem value="Internet">Internet</SelectItem>
+                                    <SelectItem value="Aluguel">Aluguel</SelectItem>
+                                    <SelectItem value="Hospedagem">Hospedagem</SelectItem>
+                                    <SelectItem value="outros">Outros</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -342,12 +349,19 @@ export function ExpenseManager({ onRefresh }: { onRefresh?: () => void } = {}) {
                                 <Select value={instCategory} onValueChange={setInstCategory}>
                                     <SelectTrigger className="font-medium"><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="fixa">Despesa Fixa</SelectItem>
-                                        <SelectItem value="variavel">Despesa Variável</SelectItem>
-                                        <SelectItem value="imposto">Imposto / Taxa</SelectItem>
-                                        <SelectItem value="infra">Infraestrutura</SelectItem>
-                                        <SelectItem value="marketing">Marketing / Social</SelectItem>
-                                        <SelectItem value="outro">Outro</SelectItem>
+                                        <SelectItem value="Alimento">Alimento</SelectItem>
+                                        <SelectItem value="Transporte">Transporte</SelectItem>
+                                        <SelectItem value="Professor">Professor</SelectItem>
+                                        <SelectItem value="Material de escritório">Material de escritório</SelectItem>
+                                        <SelectItem value="Equipamentos Eletrônicos">Equipamentos Eletrônicos</SelectItem>
+                                        <SelectItem value="Móveis">Móveis</SelectItem>
+                                        <SelectItem value="Ar Condicionado">Ar Condicionado</SelectItem>
+                                        <SelectItem value="Material Didático">Material Didático</SelectItem>
+                                        <SelectItem value="Energia">Energia</SelectItem>
+                                        <SelectItem value="Internet">Internet</SelectItem>
+                                        <SelectItem value="Aluguel">Aluguel</SelectItem>
+                                        <SelectItem value="Hospedagem">Hospedagem</SelectItem>
+                                        <SelectItem value="outros">Outros</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
