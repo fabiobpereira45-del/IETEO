@@ -57,6 +57,7 @@ export function FinancialManager({ onRefresh }: { onRefresh?: () => void } = {})
     const [searchName, setSearchName] = useState("")
     const [searchEnrollment, setSearchEnrollment] = useState("")
     const [searchClass, setSearchClass] = useState("all")
+    const [searchBolsa, setSearchBolsa] = useState("all")
     const [allClasses, setAllClasses] = useState<any[]>([])
 
     // Settlement (Dar Baixa) State
@@ -395,11 +396,26 @@ export function FinancialManager({ onRefresh }: { onRefresh?: () => void } = {})
                         </SelectContent>
                     </Select>
                 </div>
+                <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Tipo de Aluno</Label>
+                    <Select value={searchBolsa} onValueChange={setSearchBolsa}>
+                        <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Todos" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todos os Alunos</SelectItem>
+                            <SelectItem value="paying">Pagantes (Sem Bolsa)</SelectItem>
+                            <SelectItem value="bolsa100">Bolsa 100% (Integral)</SelectItem>
+                            <SelectItem value="bolsa50">Bolsa 50% (Parcial)</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
                 <div className="flex gap-2">
                     <Button variant="outline" className="h-9 flex-1" onClick={() => {
                         setSearchName("")
                         setSearchEnrollment("")
                         setSearchClass("all")
+                        setSearchBolsa("all")
                     }}>
                         Limpar
                     </Button>
@@ -411,7 +427,13 @@ export function FinancialManager({ onRefresh }: { onRefresh?: () => void } = {})
                                 const matchName = s.name.toLowerCase().includes(searchName.toLowerCase())
                                 const matchEnroll = s.enrollment_number.toLowerCase().includes(searchEnrollment.toLowerCase())
                                 const matchClass = searchClass === "all" || s.class_id === searchClass
-                                return matchName && matchEnroll && matchClass
+                                const studentCharges = charges.filter(c => c.studentId === s.id && c.type === 'monthly')
+                                const matchBolsa = searchBolsa === "all" || (
+                                    searchBolsa === "paying" ? !studentCharges.some(c => c.status === 'bolsa100' || c.status === 'bolsa50') :
+                                    searchBolsa === "bolsa100" ? studentCharges.some(c => c.status === 'bolsa100') :
+                                    searchBolsa === "bolsa50" ? studentCharges.some(c => c.status === 'bolsa50') : true
+                                )
+                                return matchName && matchEnroll && matchClass && matchBolsa
                             })
                             const filteredCharges = charges.filter(c => filteredStudents.some(s => s.id === c.studentId))
                             printFinancialReportPDF(filteredCharges, filteredStudents)
@@ -431,8 +453,14 @@ export function FinancialManager({ onRefresh }: { onRefresh?: () => void } = {})
                                 const matchName = s.name.toLowerCase().includes(searchName.toLowerCase())
                                 const matchEnroll = s.enrollment_number.toLowerCase().includes(searchEnrollment.toLowerCase())
                                 const matchClass = searchClass === "all" || s.class_id === searchClass
-                                return matchName && matchEnroll && matchClass
-                            }).length} Alunos Matriculados
+                                const studentCharges = charges.filter(c => c.studentId === s.id && c.type === 'monthly')
+                                const matchBolsa = searchBolsa === "all" || (
+                                    searchBolsa === "paying" ? !studentCharges.some(c => c.status === 'bolsa100' || c.status === 'bolsa50') :
+                                    searchBolsa === "bolsa100" ? studentCharges.some(c => c.status === 'bolsa100') :
+                                    searchBolsa === "bolsa50" ? studentCharges.some(c => c.status === 'bolsa50') : true
+                                )
+                                return matchName && matchEnroll && matchClass && matchBolsa
+                            }).length} Alunos Filtrados
                         </span>
                     </div>
                 </div>
@@ -453,7 +481,13 @@ export function FinancialManager({ onRefresh }: { onRefresh?: () => void } = {})
                                     const matchName = s.name.toLowerCase().includes(searchName.toLowerCase())
                                     const matchEnroll = s.enrollment_number.toLowerCase().includes(searchEnrollment.toLowerCase())
                                     const matchClass = searchClass === "all" || s.class_id === searchClass
-                                    return matchName && matchEnroll && matchClass
+                                    const studentCharges = charges.filter(c => c.studentId === s.id && c.type === 'monthly')
+                                    const matchBolsa = searchBolsa === "all" || (
+                                        searchBolsa === "paying" ? !studentCharges.some(c => c.status === 'bolsa100' || c.status === 'bolsa50') :
+                                        searchBolsa === "bolsa100" ? studentCharges.some(c => c.status === 'bolsa100') :
+                                        searchBolsa === "bolsa50" ? studentCharges.some(c => c.status === 'bolsa50') : true
+                                    )
+                                    return matchName && matchEnroll && matchClass && matchBolsa
                                 })
                                 .map(s => {
                                     const studentCharges = charges.filter(c => c.studentId === s.id)
@@ -487,9 +521,13 @@ export function FinancialManager({ onRefresh }: { onRefresh?: () => void } = {})
                                             </td>
                                             <td className="px-4 py-3 text-muted-foreground">{s.enrollment_number}</td>
                                             <td className="px-4 py-3">
-                                                {overdue.some(c => c.status === 'late' || c.dueDate < todayStr) ? (
+                                                {overdue.length > 0 ? (
                                                     <span className="text-destructive font-bold flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Pendente</span>
-                                                ) : overdue.length > 0 ? (
+                                                ) : studentCharges.some(c => c.type === 'monthly' && c.status === 'bolsa100') ? (
+                                                    <span className="text-blue-600 font-bold flex items-center gap-1"><Zap className="h-3 w-3" /> Bolsa 100%</span>
+                                                ) : studentCharges.some(c => c.type === 'monthly' && c.status === 'bolsa50') ? (
+                                                    <span className="text-blue-500 font-bold flex items-center gap-1"><Zap className="h-3 w-3" /> Bolsa 50%</span>
+                                                ) : pending.length > 0 ? (
                                                      <span className="text-amber-600 font-bold flex items-center gap-1"><Clock className="h-3 w-3" /> Pendente</span>
                                                 ) : (
                                                     <span className="text-green-600 font-bold flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Em dia</span>
