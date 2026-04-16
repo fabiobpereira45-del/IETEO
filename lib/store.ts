@@ -515,11 +515,31 @@ export async function deleteClass(id: string): Promise<void> {
 
 export async function getFinancialCharges(studentId?: string): Promise<FinancialCharge[]> {
   const supabase = createClient()
-  let query = supabase.from('financial_charges').select('*').order('due_date', { ascending: false })
-  if (studentId) query = query.eq('student_id', studentId)
+  let allData: any[] = []
+  let hasMore = true
+  let page = 0
+  const limitSize = 1000
 
-  const { data } = await query
-  return (data || []).map(mapFinancialCharge)
+  while (hasMore) {
+    let query = supabase.from('financial_charges').select('*').order('due_date', { ascending: false }).range(page * limitSize, (page + 1) * limitSize - 1)
+    if (studentId) query = query.eq('student_id', studentId)
+
+    const { data, error } = await query
+    if (error) break
+
+    if (data && data.length > 0) {
+      allData = [...allData, ...data]
+      if (data.length < limitSize) {
+        hasMore = false
+      } else {
+        page++
+      }
+    } else {
+      hasMore = false
+    }
+  }
+
+  return allData.map(mapFinancialCharge)
 }
 export async function addFinancialCharge(charge: Omit<FinancialCharge, "id" | "createdAt" | "status" | "paymentDate">): Promise<FinancialCharge> {
   const supabase = createClient()
