@@ -141,7 +141,8 @@ export function FinancialDashboard() {
         color: cat === 'fixa' ? '#F97316' : cat === 'infra' ? '#0EA5E9' : cat === 'pro-labore' ? '#10B981' : '#8B5CF6'
     }))
 
-    if (loading) return (
+    // Only show full loading if it's the VERY FIRST load
+    if (loading && charges.length === 0) return (
         <div className="flex flex-col items-center justify-center p-20 min-h-[60vh]">
             <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
             <p className="text-sm font-medium text-muted-foreground italic">Sincronizando fluxo de caixa...</p>
@@ -214,7 +215,8 @@ export function FinancialDashboard() {
                             ))}
                         </SelectContent>
                     </Select>
-                    <Button variant="ghost" size="sm" className="h-9 px-4 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-muted" onClick={load}>
+                    <Button variant="ghost" size="sm" className="h-9 px-4 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-muted" onClick={load} disabled={loading}>
+                        {loading ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : null}
                         Atualizar
                     </Button>
                 </div>
@@ -260,7 +262,12 @@ export function FinancialDashboard() {
                     </TabsContent>
 
                     <TabsContent value="expenses" className="m-0">
-                        <ExpenseManager onRefresh={load} />
+                        <ExpenseManager 
+                            onRefresh={load} 
+                            scope={filterScope}
+                            month={month}
+                            year={year}
+                        />
                     </TabsContent>
 
                     <TabsContent value="prolabore" className="m-0">

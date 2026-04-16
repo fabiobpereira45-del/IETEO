@@ -17,7 +17,17 @@ import {
     getFinancialCharges, updateFinancialChargeStatus, deleteFinancialCharge
 } from "@/lib/store"
 
-export function ExpenseManager({ onRefresh }: { onRefresh?: () => void } = {}) {
+export function ExpenseManager({ 
+    onRefresh,
+    scope = 'month',
+    month = new Date().getMonth().toString(),
+    year = new Date().getFullYear().toString()
+}: { 
+    onRefresh?: () => void,
+    scope?: 'month' | 'year' | 'all',
+    month?: string,
+    year?: string
+} = {}) {
     const [expenses, setExpenses] = useState<Expense[]>([])
     const [expenseCharges, setExpenseCharges] = useState<FinancialCharge[]>([])
     const [loading, setLoading] = useState(true)
@@ -178,7 +188,12 @@ export function ExpenseManager({ onRefresh }: { onRefresh?: () => void } = {}) {
             createdAt: c.createdAt,
             isCharge: true
         }))
-    ].sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime())
+    ].filter(e => {
+        if (scope === 'all') return true
+        const d = new Date(e.dueDate)
+        if (scope === 'year') return d.getFullYear().toString() === year
+        return d.getFullYear().toString() === year && d.getMonth().toString() === month
+    }).sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
 
     if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>
 

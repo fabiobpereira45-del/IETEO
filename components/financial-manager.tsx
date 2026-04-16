@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { toast } from "sonner"
 import { DollarSign, Plus, Eye, CheckCircle2, AlertCircle, Clock, Trash2, Zap, Loader2, Download, FileText, Pencil, Gift } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -153,8 +154,9 @@ export function FinancialManager({ onRefresh }: { onRefresh?: () => void } = {})
 
             load()
             onRefresh?.()
+            toast.success("Status atualizado com sucesso!")
         } catch (e: any) {
-            alert("Erro ao atualizar status: " + e.message)
+            toast.error("Erro ao atualizar status: " + e.message)
         }
     }
 
@@ -230,11 +232,11 @@ export function FinancialManager({ onRefresh }: { onRefresh?: () => void } = {})
         setIsGenerating(true)
         try {
             await syncStudentTuitionByDisciplines(studentId)
-            alert("Financeiro sincronizado com a grade curricular!")
+            toast.success("Financeiro sincronizado com a grade curricular!")
             load()
             onRefresh?.()
         } catch (e: any) {
-            alert("Erro ao sincronizar: " + e.message)
+            toast.error("Erro ao sincronizar: " + e.message)
         } finally {
             setIsGenerating(false)
         }
@@ -252,8 +254,9 @@ export function FinancialManager({ onRefresh }: { onRefresh?: () => void } = {})
             setSettleModal(false)
             load()
             onRefresh?.()
+            toast.success("Pagamento confirmado!")
         } catch (e: any) {
-            alert("Erro ao dar baixa: " + e.message)
+            toast.error("Erro ao dar baixa: " + e.message)
         } finally {
             setSaving(false)
         }
@@ -265,8 +268,9 @@ export function FinancialManager({ onRefresh }: { onRefresh?: () => void } = {})
             await reverseFinancialCharge(id)
             load()
             onRefresh?.()
+            toast.success("Pagamento estornado.")
         } catch (e: any) {
-            alert("Erro ao estornar: " + e.message)
+            toast.error("Erro ao estornar: " + e.message)
         }
     }
 
@@ -591,8 +595,8 @@ export function FinancialManager({ onRefresh }: { onRefresh?: () => void } = {})
                                             await updateFinancialChargesStatusBatch(stChargeIds, newStatus)
                                             await load()
                                             onRefresh?.()
-                                            alert("Bolsas aplicadas com sucesso!")
-                                        } catch (e: any) { alert("Erro ao aplicar bolsas: " + e.message) } 
+                                            toast.success(`Bolsas de ${type}% aplicadas com sucesso!`)
+                                        } catch (e: any) { toast.error("Erro ao aplicar bolsas: " + e.message) } 
                                         finally { setIsGenerating(false) }
                                     }}
                                     disabled={isGenerating}>
