@@ -37,6 +37,7 @@ export function FinancialDashboard() {
     // Filters
     const [month, setMonth] = useState(new Date().getMonth().toString())
     const [year, setYear] = useState(new Date().getFullYear().toString())
+    const [filterScope, setFilterScope] = useState<"month" | "year" | "all">("month")
 
     async function load() {
         setLoading(true)
@@ -57,43 +58,51 @@ export function FinancialDashboard() {
     useEffect(() => { load() }, [])
 
     // Filter functions
-    const inCurrentMonth = (dateString?: string) => {
+    const isInScope = (dateString?: string) => {
         if (!dateString) return false;
-        // Adjust for timezone issues if dateString is yyyy-mm-dd
+        if (filterScope === "all") return true;
+
         const parts = dateString.split('T')[0].split('-');
+        let y, m;
         if (parts.length === 3) {
-             const y = parts[0], m = parseInt(parts[1], 10) - 1;
-             return m.toString() === month && y === year;
+             y = parts[0];
+             m = (parseInt(parts[1], 10) - 1).toString();
+        } else {
+            const d = new Date(dateString);
+            y = d.getFullYear().toString();
+            m = d.getMonth().toString();
         }
-        const d = new Date(dateString)
-        return d.getMonth().toString() === month && d.getFullYear().toString() === year
+
+        if (filterScope === "year") return y === year;
+        if (filterScope === "month") return y === year && m === month;
+        return false;
     }
 
     // Revenue
     const revenueCharges = charges.filter(c => c.type !== 'expense')
     
     const pendingAmount = revenueCharges
-        .filter(c => (c.status === 'pending' || c.status === 'late') && inCurrentMonth(c.dueDate))
+        .filter(c => (c.status === 'pending' || c.status === 'late') && isInScope(c.dueDate))
         .reduce((acc, curr) => acc + curr.amount, 0)
 
     const realizedRevenue = revenueCharges
-        .filter(c => c.status === 'paid' && inCurrentMonth(c.paymentDate || c.dueDate))
+        .filter(c => c.status === 'paid' && isInScope(c.paymentDate || c.dueDate))
         .reduce((acc, curr) => acc + (curr.actualPaidAmount ?? curr.amount), 0)
 
     // Expenses
     const expenseCharges = charges.filter(c => c.type === 'expense')
     
-    // Projected expenses (from expenses table only, since pro-labore is inserted on-the-fly when paid)
+    // Projected expenses
     const projectedExpenses = expenses
-        .filter(e => inCurrentMonth(e.dueDate))
+        .filter(e => isInScope(e.dueDate))
         .reduce((acc, curr) => acc + curr.amount, 0)
 
     const realizedExpensesFromTable = expenses
-        .filter(e => e.status === 'paid' && inCurrentMonth(e.paidAt || e.dueDate))
+        .filter(e => e.status === 'paid' && isInScope(e.paidAt || e.dueDate))
         .reduce((acc, curr) => acc + curr.amount, 0)
         
     const realizedExpensesFromCharges = expenseCharges
-        .filter(c => c.status === 'paid' && inCurrentMonth(c.paymentDate || c.dueDate))
+        .filter(c => c.status === 'paid' && isInScope(c.paymentDate || c.dueDate))
         .reduce((acc, curr) => acc + (curr.actualPaidAmount ?? curr.amount), 0)
 
     const realizedExpenses = realizedExpensesFromTable + realizedExpensesFromCharges
@@ -106,7 +115,7 @@ export function FinancialDashboard() {
     ]
 
     const categoriasMap = expenses
-        .filter(e => e.status === 'paid' && inCurrentMonth(e.paidAt || e.dueDate))
+        .filter(e => e.status === 'paid' && isInScope(e.paidAt || e.dueDate))
         .reduce((acc, e) => {
             acc[e.category] = (acc[e.category] || 0) + e.amount;
             return acc;
@@ -145,11 +154,38 @@ export function FinancialDashboard() {
 
                 {/* Filters */}
                 <div className="flex flex-wrap items-center gap-3 bg-card border border-border p-2 rounded-2xl shadow-sm">
-                    <div className="flex items-center gap-2 px-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                        <Filter className="h-3 w-3" /> Filtrar Resultados
+                    {/* Scope Toggle */}
+                    <div className="flex p-1 bg-muted rounded-xl gap-1 mr-2">
+                        <Button 
+                            variant={filterScope === 'month' ? 'secondary' : 'ghost'} 
+                            size="sm" 
+                            className={`h-8 px-4 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all ${filterScope === 'month' ? 'bg-card shadow-sm' : ''}`}
+                            onClick={() => setFilterScope('month')}
+                        >
+                            Mês
+                        </Button>
+                        <Button 
+                            variant={filterScope === 'year' ? 'secondary' : 'ghost'} 
+                            size="sm" 
+                            className={`h-8 px-4 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all ${filterScope === 'year' ? 'bg-card shadow-sm' : ''}`}
+                            onClick={() => setFilterScope('year')}
+                        >
+                            Ano
+                        </Button>
+                        <Button 
+                            variant={filterScope === 'all' ? 'secondary' : 'ghost'} 
+                            size="sm" 
+                            className={`h-8 px-4 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all ${filterScope === 'all' ? 'bg-card shadow-sm' : ''}`}
+                            onClick={() => setFilterScope('all')}
+                        >
+                            Geral
+                        </Button>
                     </div>
-                    <Select value={month} onValueChange={setMonth}>
-                        <SelectTrigger className="w-[130px] h-9 text-xs font-bold rounded-xl border-none bg-muted/50 focus:ring-0">
+
+                    <div className="h-4 w-[1px] bg-border mx-1" />
+
+                    <Select value={month} onValueChange={setMonth} disabled={filterScope !== 'month'}>
+                        <SelectTrigger className={`w-[130px] h-9 text-xs font-bold rounded-xl border-none transition-opacity ${filterScope !== 'month' ? 'opacity-30 bg-muted/20 cursor-not-allowed' : 'bg-muted/50 focus:ring-0'}`}>
                             <SelectValue placeholder="Mês" />
                         </SelectTrigger>
                         <SelectContent>
@@ -158,8 +194,8 @@ export function FinancialDashboard() {
                             ))}
                         </SelectContent>
                     </Select>
-                    <Select value={year} onValueChange={setYear}>
-                        <SelectTrigger className="w-[100px] h-9 text-xs font-bold rounded-xl border-none bg-muted/50 focus:ring-0">
+                    <Select value={year} onValueChange={setYear} disabled={filterScope === 'all'}>
+                        <SelectTrigger className={`w-[100px] h-9 text-xs font-bold rounded-xl border-none transition-opacity ${filterScope === 'all' ? 'opacity-30 bg-muted/20 cursor-not-allowed' : 'bg-muted/50 focus:ring-0'}`}>
                             <SelectValue placeholder="Ano" />
                         </SelectTrigger>
                         <SelectContent>
@@ -169,7 +205,7 @@ export function FinancialDashboard() {
                         </SelectContent>
                     </Select>
                     <Button variant="ghost" size="sm" className="h-9 px-4 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-muted" onClick={load}>
-                        Geral
+                        Atualizar
                     </Button>
                 </div>
             </div>
