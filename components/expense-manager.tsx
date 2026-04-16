@@ -41,6 +41,7 @@ export function ExpenseManager({
     const [dueDate, setDueDate] = useState("")
     const [editingExpense, setEditingExpense] = useState<any | null>(null)
     const [status, setStatus] = useState<any>("pending")
+    const [filterStatus, setFilterStatus] = useState<string>("all")
 
     // Installment Form State
     const [installmentModalOpen, setInstallmentModalOpen] = useState(false)
@@ -225,10 +226,24 @@ export function ExpenseManager({
             isCharge: true
         }))
     ].filter(e => {
-        if (scope === 'all') return true
-        const d = new Date(e.dueDate)
-        if (scope === 'year') return d.getFullYear().toString() === year
-        return d.getFullYear().toString() === year && d.getMonth().toString() === month
+        // Scope Filter
+        let matchesScope = true
+        if (scope !== 'all') {
+            const d = new Date(e.dueDate)
+            if (scope === 'year') {
+                matchesScope = d.getFullYear().toString() === year
+            } else {
+                matchesScope = d.getFullYear().toString() === year && d.getMonth().toString() === month
+            }
+        }
+
+        // Status Filter
+        let matchesStatus = true
+        if (filterStatus !== 'all') {
+            matchesStatus = e.status === filterStatus
+        }
+
+        return matchesScope && matchesStatus
     }).sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
 
     if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>
@@ -241,6 +256,17 @@ export function ExpenseManager({
                     <p className="text-xs text-muted-foreground font-medium">Controle de contas a pagar da instituição</p>
                 </div>
                 <div className="flex gap-2">
+                    <Select value={filterStatus} onValueChange={setFilterStatus}>
+                        <SelectTrigger className="w-[140px] bg-white">
+                            <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todos os Status</SelectItem>
+                            <SelectItem value="paid">Pagos</SelectItem>
+                            <SelectItem value="pending">Pendentes</SelectItem>
+                        </SelectContent>
+                    </Select>
+
                     <Button variant="outline" className="border-primary/20 text-primary hover:bg-primary/5" onClick={() => setInstallmentModalOpen(true)}>
                         <CalendarDays className="h-4 w-4 mr-2" /> Despesas Parceladas
                     </Button>
