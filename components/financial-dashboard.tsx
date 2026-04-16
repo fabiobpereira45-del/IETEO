@@ -258,7 +258,12 @@ export function FinancialDashboard() {
                     </TabsContent>
 
                     <TabsContent value="revenue" className="m-0">
-                        <FinancialManager onRefresh={load} />
+                        <FinancialManager 
+                            onRefresh={load} 
+                            scope={filterScope}
+                            month={month}
+                            year={year}
+                        />
                     </TabsContent>
 
                     <TabsContent value="expenses" className="m-0">

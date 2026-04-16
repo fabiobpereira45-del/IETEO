@@ -785,32 +785,46 @@ export async function getProLaboreCalculations() {
     getFinancialSettings(),
     getFinancialCharges(), // This includes expenses
     supabase.from('classes').select('id, name').then(r => r.data || []),
-    supabase.from('disciplines').select('id, name, application_month, application_year').then(r => r.data || [])
+    getDisciplines() // Fetch full discipline objects
   ])
 
   const fee = settings?.proLaboreFeePerLesson || 0
   const calculations: any[] = []
 
-  professors.forEach(prof => {
-    const profLinks = links.filter(l => l.professorId === prof.id)
-    
-    profLinks.forEach(link => {
-      const discipline = allDisciplines.find(d => d.id === link.disciplineId)
-      if (!discipline) return
+  // Default to 4 lessons if not specified in schedule
+  const DEFAULT_LESSONS = 4
 
-      // Find all classes that have this discipline scheduled
-      const relevantSchedules = schedules.filter(s => s.disciplineId === link.disciplineId)
-      
-      relevantSchedules.forEach(sched => {
-        const classInfo = allClasses.find(c => c.id === sched.classId)
-        if (!classInfo) return
+  allDisciplines.forEach(discipline => {
+    // 1. Find professor(s) for this discipline
+    // Priority: professor_disciplines link table
+    let linkedProfessorIds = links
+      .filter(l => l.disciplineId === discipline.id)
+      .map(l => l.professorId)
+
+    // Fallback: If no links in table, try to find by name in the disciplines table
+    if (linkedProfessorIds.length === 0 && discipline.professorName) {
+      const profByName = professors.find(p => p.name === discipline.professorName)
+      if (profByName) linkedProfessorIds = [profByName.id]
+    }
+
+    linkedProfessorIds.forEach(profId => {
+      const prof = professors.find(p => p.id === profId)
+      if (!prof) return
+
+      // 2. Iterate over ALL classes
+      allClasses.forEach(classInfo => {
+        // Find if there's a specific schedule for this discipline + class
+        const sched = schedules.find(s => s.disciplineId === discipline.id && s.classId === classInfo.id)
+        
+        // Use scheduled lessons count or fallback to default
+        const lessonsCount = sched ? sched.lessonsCount : DEFAULT_LESSONS
 
         // Check if already paid
         const matchingCharge = (charges || []).find(c => 
           c.type === 'expense' && 
           c.professorId === prof.id && 
-          c.disciplineId === link.disciplineId && 
-          c.classId === sched.classId
+          c.disciplineId === discipline.id && 
+          c.classId === classInfo.id
         )
         
         const isPaid = matchingCharge?.status === 'paid'
@@ -818,15 +832,15 @@ export async function getProLaboreCalculations() {
         calculations.push({
           professorId: prof.id,
           professorName: prof.name,
-          disciplineId: link.disciplineId,
+          disciplineId: discipline.id,
           disciplineName: discipline.name,
-          applicationMonth: discipline.application_month,
-          applicationYear: discipline.application_year,
-          classId: sched.classId,
+          applicationMonth: discipline.applicationMonth, // Fixed mapping
+          applicationYear: discipline.applicationYear,   // Fixed mapping
+          classId: classInfo.id,
           className: classInfo.name,
-          lessonsCount: sched.lessonsCount,
+          lessonsCount: lessonsCount,
           feePerLesson: fee,
-          totalAmount: sched.lessonsCount * fee,
+          totalAmount: lessonsCount * fee,
           isPaid,
           chargeId: matchingCharge?.id
         })

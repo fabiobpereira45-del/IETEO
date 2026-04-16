@@ -26,11 +26,37 @@ import { printFinancialReportPDF } from "@/lib/pdf"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { createClient } from "@/lib/supabase/client"
 
-export function FinancialManager({ onRefresh }: { onRefresh?: () => void } = {}) {
+export function FinancialManager({ onRefresh, month, year, scope }: { 
+    onRefresh?: () => void,
+    month?: string,
+    year?: string,
+    scope?: "month" | "year" | "all"
+} = {}) {
     const [charges, setCharges] = useState<FinancialCharge[]>([])
     const [students, setStudents] = useState<StudentProfile[]>([])
     const [settings, setSettings] = useState<FinancialSettings | null>(null)
     const [loading, setLoading] = useState(true)
+
+    // Helper for scope filtering
+    const isInScope = (dateString?: string) => {
+        if (!dateString) return false;
+        if (scope === "all") return true;
+
+        const parts = dateString.split('T')[0].split('-');
+        let y, m;
+        if (parts.length === 3) {
+             y = parts[0];
+             m = (parseInt(parts[1], 10) - 1).toString();
+        } else {
+            const d = new Date(dateString);
+            y = d.getFullYear().toString();
+            m = d.getMonth().toString();
+        }
+
+        if (scope === "year") return y === year;
+        if (scope === "month") return y === year && m === month;
+        return false;
+    }
 
     // Charge Modal
     const [chargeModal, setChargeModal] = useState(false)
@@ -60,6 +86,26 @@ export function FinancialManager({ onRefresh }: { onRefresh?: () => void } = {})
     const [searchClass, setSearchClass] = useState("all")
     const [searchBolsa, setSearchBolsa] = useState("all")
     const [allClasses, setAllClasses] = useState<any[]>([])
+
+    // Calculate totals for selected class for the current period
+    const { classProjected, classRealized } = (function() {
+        if (searchClass === "all") return { classProjected: 0, classRealized: 0 };
+        
+        const classStudentsList = students.filter(s => s.class_id === searchClass);
+        const classStudentIds = new Set(classStudentsList.map(s => s.id));
+        
+        const relevantCharges = charges.filter(c => c.type !== 'expense' && classStudentIds.has(c.studentId));
+        
+        const projected = relevantCharges
+            .filter(c => isInScope(c.dueDate))
+            .reduce((acc, curr) => acc + curr.amount, 0);
+            
+        const realized = relevantCharges
+            .filter(c => c.status === 'paid' && isInScope(c.paymentDate || c.dueDate))
+            .reduce((acc, curr) => acc + (curr.actualPaidAmount ?? curr.amount), 0);
+            
+        return { classProjected: projected, classRealized: realized };
+    })();
 
     // Settlement (Dar Baixa) State
     const [settleModal, setSettleModal] = useState(false)
@@ -399,6 +445,18 @@ export function FinancialManager({ onRefresh }: { onRefresh?: () => void } = {})
                             ))}
                         </SelectContent>
                     </Select>
+                    {searchClass !== "all" && (
+                        <div className="flex items-center gap-3 mt-1 px-0.5 animate-in fade-in slide-in-from-top-1 duration-300">
+                            <div className="flex items-center gap-1">
+                                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter">P:</span>
+                                <span className="text-[10px] font-bold text-orange-600 tabular-nums">R$ {classProjected.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <span className="text-[9px] font-black text-muted-foreground uppercase tracking-tighter">R:</span>
+                                <span className="text-[10px] font-bold text-green-600 tabular-nums">R$ {classRealized.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                        </div>
+                    )}
                 </div>
                 <div className="space-y-1.5">
                     <Label className="text-xs font-bold uppercase text-muted-foreground">Tipo de Aluno</Label>
