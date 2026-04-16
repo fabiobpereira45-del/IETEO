@@ -232,6 +232,10 @@ export function ExpenseManager({ onRefresh }: { onRefresh?: () => void } = {}) {
                                             <span className="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1 w-fit border border-green-200">
                                                 <CheckCircle2 className="h-3 w-3" /> PAGO
                                             </span>
+                                        ) : e.status === 'cancelled' ? (
+                                            <span className="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1 w-fit border border-slate-200">
+                                                <Trash2 className="h-3 w-3" /> ESTORNADO/CANCELADO
+                                            </span>
                                         ) : (
                                             <span className="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1 w-fit border border-amber-200">
                                                 <Clock className="h-3 w-3" /> PENDENTE
@@ -240,13 +244,24 @@ export function ExpenseManager({ onRefresh }: { onRefresh?: () => void } = {}) {
                                     </td>
                                     <td className="px-4 py-4 text-right">
                                         <div className="flex justify-end gap-1">
-                                            {e.status !== 'paid' ? (
-                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600 hover:bg-green-50" onClick={() => handleStatusChange(e.id, 'paid', e.isCharge as boolean)} title="Marcar como Pago">
-                                                    <CheckCircle2 className="h-4 w-4" />
-                                                </Button>
-                                            ) : (
-                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-amber-600 hover:bg-amber-50" onClick={() => handleStatusChange(e.id, 'pending', e.isCharge as boolean)} title="Estornar">
+                                            {e.status === 'pending' && (
+                                                <>
+                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600 hover:bg-green-50" onClick={() => handleStatusChange(e.id, 'paid', e.isCharge as boolean)} title="Marcar como Pago">
+                                                        <CheckCircle2 className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button size="icon" variant="ghost" className="h-8 w-8 text-amber-600 hover:bg-amber-50" onClick={() => handleStatusChange(e.id, 'cancelled' as any, e.isCharge as boolean)} title="Estornar/Cancelar Parcela">
+                                                        <Clock className="h-4 w-4" />
+                                                    </Button>
+                                                </>
+                                            )}
+                                            {e.status === 'paid' && (
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-amber-600 hover:bg-amber-50" onClick={() => handleStatusChange(e.id, 'pending', e.isCharge as boolean)} title="Estornar Pagamento">
                                                     <Clock className="h-4 w-4" />
+                                                </Button>
+                                            )}
+                                            {e.status === 'cancelled' && (
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 hover:bg-blue-50" onClick={() => handleStatusChange(e.id, 'pending', e.isCharge as boolean)} title="Reativar Despesa">
+                                                    <Plus className="h-4 w-4" />
                                                 </Button>
                                             )}
                                             <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:bg-rose-50" onClick={() => handleDelete(e.id, e.isCharge as boolean)} title="Excluir">

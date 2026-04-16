@@ -29,7 +29,7 @@ export interface FinancialCharge {
   pixCopyPaste?: string; 
   createdAt: string; 
 }
-export interface Expense { id: string; description: string; amount: number; category: string; dueDate: string; status: "pending" | "paid"; paidAt?: string; createdAt: string; }
+export interface Expense { id: string; description: string; amount: number; category: string; dueDate: string; status: "pending" | "paid" | "cancelled"; paidAt?: string; createdAt: string; }
 export interface Question { id: string; disciplineId: string; type: QuestionType; text: string; choices: Choice[]; pairs?: MatchingPair[]; correctAnswer: string; points: number; createdAt: string }
 export interface Assessment { id: string; title: string; disciplineId: string; professor: string; institution: string; questionIds: string[]; pointsPerQuestion: number; totalPoints: number; openAt: string | null; closeAt: string | null; isPublished: boolean; archived: boolean; shuffleVariants?: boolean; timeLimitMinutes?: number | null; logoBase64?: string; rules?: string; releaseResults?: boolean; modality?: "public" | "private"; createdAt: string }
 export interface StudentAnswer { questionId: string; answer: string }
