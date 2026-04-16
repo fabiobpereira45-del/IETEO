@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { DollarSign, Plus, Eye, CheckCircle2, AlertCircle, Clock, Trash2, Zap, Loader2, Download, FileText, Pencil } from "lucide-react"
+import { DollarSign, Plus, Eye, CheckCircle2, AlertCircle, Clock, Trash2, Zap, Loader2, Download, FileText, Pencil, Gift } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -330,6 +330,7 @@ export function FinancialManager({ onRefresh }: { onRefresh?: () => void } = {})
         if (status === 'cancelled') return <span className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded font-medium flex items-center gap-1">Cancelado</span>
         if (status === 'bolsa100') return <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded font-medium flex items-center gap-1">Bolsa 100%</span>
         if (status === 'bolsa50') return <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded font-medium flex items-center gap-1">Bolsa 50%</span>
+        if (status === 'isento') return <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded font-medium flex items-center gap-1">Isento</span>
         return <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded font-medium flex items-center gap-1"><Clock className="h-3 w-3" /> Pendente</span>
     }
 
@@ -461,12 +462,18 @@ export function FinancialManager({ onRefresh }: { onRefresh?: () => void } = {})
                                     const overdue = studentCharges.filter(c => 
                                         c.status !== 'paid' && 
                                         c.status !== 'cancelled' && 
+                                        c.status !== 'bolsa100' && 
+                                        c.status !== 'bolsa50' && 
+                                        c.status !== 'isento' &&
                                         c.dueDate < todayStr
                                     )
                                     
                                     const pending = studentCharges.filter(c => 
                                         c.status !== 'paid' && 
-                                        c.status !== 'cancelled'
+                                        c.status !== 'cancelled' &&
+                                        c.status !== 'bolsa100' && 
+                                        c.status !== 'bolsa50' && 
+                                        c.status !== 'isento'
                                     )
 
                                     const totalPending = pending.reduce((acc, curr) => acc + curr.amount, 0)
@@ -586,14 +593,21 @@ export function FinancialManager({ onRefresh }: { onRefresh?: () => void } = {})
                                             </td>
                                             <td className="px-4 py-4 text-right">
                                                 <div className="flex justify-end items-center gap-1">
-                                                    {c.status !== 'paid' ? (
-                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600 hover:bg-green-50" onClick={() => {
-                                                            setSettleCharge(c)
-                                                            setSettleAmount(c.amount.toString())
-                                                            setSettleModal(true)
-                                                        }} title="Dar Baixa"><CheckCircle2 className="h-4 w-4" /></Button>
+                                                    {c.status !== 'paid' && c.status !== 'bolsa100' && c.status !== 'isento' ? (
+                                                        <>
+                                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-purple-600 hover:bg-purple-50" onClick={async () => {
+                                                                if(confirm("Deseja conceder isenção 100% para esta cobrança? O aluno não ficará com pendências.")) {
+                                                                    await handleStatusChange(c.id, 'isento')
+                                                                }
+                                                            }} title="Isentar Integral"><Gift className="h-4 w-4" /></Button>
+                                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600 hover:bg-green-50" onClick={() => {
+                                                                setSettleCharge(c)
+                                                                setSettleAmount(c.amount.toString())
+                                                                setSettleModal(true)
+                                                            }} title="Dar Baixa"><CheckCircle2 className="h-4 w-4" /></Button>
+                                                        </>
                                                     ) : (
-                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-amber-600 hover:bg-amber-50" onClick={() => handleReverse(c.id)} title="Estornar"><Clock className="h-4 w-4" /></Button>
+                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-amber-600 hover:bg-amber-50" onClick={() => handleReverse(c.id)} title="Estornar/Remover Baixa"><Clock className="h-4 w-4" /></Button>
                                                     )}
                                                     <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 hover:bg-blue-50" onClick={() => {
                                                         setEditingCharge(c)

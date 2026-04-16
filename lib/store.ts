@@ -18,7 +18,7 @@ export interface FinancialCharge {
   description: string; 
   amount: number; 
   dueDate: string; 
-  status: "pending" | "paid" | "cancelled" | "late" | "bolsa100" | "bolsa50"; 
+  status: "pending" | "paid" | "cancelled" | "late" | "bolsa100" | "bolsa50" | "isento"; 
   paymentDate?: string; 
   paymentMethod?: "cartao" | "pix" | "dinheiro";
   actualPaidAmount?: number;
