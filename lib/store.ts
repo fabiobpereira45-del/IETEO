@@ -857,10 +857,11 @@ export async function settleProLabore(data: {
   classId: string,
   amount: number,
   description: string
-}): Promise<void> {
+}): Promise<{ id: string }> {
   const supabase = createClient()
   const dbData = {
     type: 'expense',
+    category: 'pro-labore',
     description: data.description,
     amount: data.amount,
     professor_id: data.professorId,
@@ -872,8 +873,13 @@ export async function settleProLabore(data: {
     payment_method: 'other',
     created_at: new Date().toISOString()
   }
-  const { error } = await supabase.from('financial_charges').insert(dbData)
-  if (error) throw new Error(error.message)
+  const { data: insertedData, error } = await supabase
+    .from('financial_charges')
+    .insert(dbData)
+    .select('id')
+    .single()
+    if (error) throw new Error(error.message)
+    return insertedData
 }
 
 export async function linkProfessorToDiscipline(professorId: string, disciplineId: string): Promise<void> {
