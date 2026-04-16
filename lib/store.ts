@@ -785,7 +785,7 @@ export async function getProLaboreCalculations() {
     getFinancialSettings(),
     getFinancialCharges(), // This includes expenses
     supabase.from('classes').select('id, name').then(r => r.data || []),
-    supabase.from('disciplines').select('id, name').then(r => r.data || [])
+    supabase.from('disciplines').select('id, name, application_month, application_year').then(r => r.data || [])
   ])
 
   const fee = settings?.proLaboreFeePerLesson || 0
@@ -820,6 +820,8 @@ export async function getProLaboreCalculations() {
           professorName: prof.name,
           disciplineId: link.disciplineId,
           disciplineName: discipline.name,
+          applicationMonth: discipline.application_month,
+          applicationYear: discipline.application_year,
           classId: sched.classId,
           className: classInfo.name,
           lessonsCount: sched.lessonsCount,

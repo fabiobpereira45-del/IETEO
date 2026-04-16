@@ -24,6 +24,7 @@ import { FinancialConfig } from "./financial-config"
 import { 
     getFinancialCharges, 
     getExpenses, 
+    getProLaboreCalculations,
     type FinancialCharge, 
     type Expense 
 } from "@/lib/store"
@@ -33,6 +34,7 @@ export function FinancialDashboard() {
     const [loading, setLoading] = useState(true)
     const [charges, setCharges] = useState<FinancialCharge[]>([])
     const [expenses, setExpenses] = useState<Expense[]>([])
+    const [proLaboreCalcs, setProLaboreCalcs] = useState<any[]>([])
     
     // Filters
     const [month, setMonth] = useState(new Date().getMonth().toString())
@@ -42,12 +44,14 @@ export function FinancialDashboard() {
     async function load() {
         setLoading(true)
         try {
-            const [c, e] = await Promise.all([
+            const [c, e, pl] = await Promise.all([
                 getFinancialCharges(),
-                getExpenses()
+                getExpenses(),
+                getProLaboreCalculations()
             ])
             setCharges(c)
             setExpenses(e)
+            setProLaboreCalcs(pl)
         } catch (err) {
             console.error(err)
         } finally {
@@ -93,9 +97,15 @@ export function FinancialDashboard() {
     const expenseCharges = charges.filter(c => c.type === 'expense')
     
     // Projected expenses
-    const projectedExpenses = expenses
-        .filter(e => isInScope(e.dueDate))
+    const projectedExpensesFromTable = expenses
+        .filter(e => e.status !== 'cancelled' && isInScope(e.dueDate))
         .reduce((acc, curr) => acc + curr.amount, 0)
+
+    const projectedProLabore = proLaboreCalcs
+        .filter(item => !item.isPaid && isInScope(`${item.applicationYear}-${item.applicationMonth}-01`))
+        .reduce((acc, curr) => acc + curr.totalAmount, 0)
+
+    const projectedExpenses = projectedExpensesFromTable + projectedProLabore
 
     const realizedExpensesFromTable = expenses
         .filter(e => e.status === 'paid' && isInScope(e.paidAt || e.dueDate))
