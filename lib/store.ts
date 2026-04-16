@@ -648,6 +648,22 @@ export async function addExpense(expense: Omit<Expense, "id" | "createdAt" | "st
   return mapExpense(data)
 }
 
+export async function addExpenseBatch(expenses: Omit<Expense, "id" | "createdAt" | "status" | "paidAt">[]): Promise<void> {
+  const supabase = createClient()
+  const dbData = expenses.map(exp => ({
+    description: exp.description,
+    amount: exp.amount,
+    category: exp.category,
+    due_date: exp.dueDate,
+    status: 'pending',
+    created_at: new Date().toISOString()
+  }))
+  if (dbData.length > 0) {
+    const { error } = await supabase.from('expenses').insert(dbData)
+    if (error) throw new Error(error.message)
+  }
+}
+
 export async function updateExpense(id: string, data: Partial<Omit<Expense, "id" | "createdAt">>): Promise<void> {
   const supabase = createClient()
   const dbData: any = {}
