@@ -511,13 +511,27 @@ export function FinancialManager({ onRefresh }: { onRefresh?: () => void } = {})
                                     )
 
                                     const totalPending = pending.reduce((acc, curr) => acc + curr.amount, 0)
+                                    const totalCount = studentCharges.length
+                                    const paidCount = studentCharges.filter(c => c.status === 'paid').length
                                     const turmaName = allClasses.find(c => c.id === s.class_id)?.name || "-"
                                     
                                     return (
                                         <tr key={s.id} className="hover:bg-muted/30 transition-colors">
                                             <td className="px-4 py-3">
-                                                <div className="font-bold text-foreground">{s.name}</div>
-                                                <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{turmaName}</div>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="font-bold text-foreground">{s.name}</div>
+                                                        <div className="flex items-center gap-1.5 translate-y-[1px]">
+                                                            <span className="text-[9px] font-bold bg-muted text-muted-foreground px-2 py-0.5 rounded border border-border/50 uppercase tracking-tighter shadow-sm flex items-center gap-1">
+                                                                {totalCount} Lançamentos
+                                                            </span>
+                                                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-tighter shadow-sm flex items-center gap-1 ${paidCount > 0 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-muted/50 text-muted-foreground/50 border-border/20'}`}>
+                                                                {paidCount} Pagos
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{turmaName}</div>
+                                                </div>
                                             </td>
                                             <td className="px-4 py-3 text-muted-foreground">{s.enrollment_number}</td>
                                             <td className="px-4 py-3">
