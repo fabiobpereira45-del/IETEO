@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Trash2, CheckCircle2, Clock, Loader2, DollarSign, Calculator, CalendarDays } from "lucide-react"
+import { Plus, Trash2, CheckCircle2, Clock, Loader2, DollarSign, Calculator, CalendarDays, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,7 +14,7 @@ import {
 import {
     type Expense, type FinancialCharge,
     getExpenses, addExpense, addExpenseBatch, updateExpense, deleteExpense,
-    getFinancialCharges, updateFinancialChargeStatus, deleteFinancialCharge
+    getFinancialCharges, updateFinancialCharge, updateFinancialChargeStatus, deleteFinancialCharge
 } from "@/lib/store"
 
 export function ExpenseManager({ 
