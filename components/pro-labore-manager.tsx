@@ -66,12 +66,23 @@ export function ProLaboreManager({ onRefresh }: { onRefresh?: () => void } = {})
                 'Jul': 7, 'Ago': 8, 'Set': 9, 'Out': 10, 'Nov': 11, 'Dez': 12
             }
             const sortedDisciplines = [...allDisciplines].sort((a, b) => {
+                // First try strictly CURRICULUM order if available from store's semester mapping
+                if ((a as any).semesterOrder !== undefined && (b as any).semesterOrder !== undefined) {
+                    const sA = (a as any).semesterOrder;
+                    const sB = (b as any).semesterOrder;
+                    if (sA !== sB) return sA - sB;
+                    return a.order - b.order;
+                }
+
+                // Fallback to chronological month/year for display consistency
                 const yearA = parseInt(a.applicationYear || '9999')
                 const yearB = parseInt(b.applicationYear || '9999')
                 if (yearA !== yearB) return yearA - yearB
+
                 const mA = MONTH_ORDER[a.applicationMonth || ''] ?? parseInt(a.applicationMonth || '0') || 13
                 const mB = MONTH_ORDER[b.applicationMonth || ''] ?? parseInt(b.applicationMonth || '0') || 13
                 if (mA !== mB) return mA - mB
+
                 return a.order - b.order
             })
             setDisciplines(sortedDisciplines)
@@ -268,10 +279,14 @@ export function ProLaboreManager({ onRefresh }: { onRefresh?: () => void } = {})
                                                                 <td className="px-4 py-3 text-right">
                                                                     <div className="flex items-center justify-end gap-1.5">
                                                                         {!item.isPaid ? (
-                                                                            <Button
-                                                                                size="sm"
-                                                                                className="h-7 text-[10px] font-bold px-3 gap-1 bg-primary hover:bg-primary/90 shadow-sm"
-                                                                                onClick={() => openSettle(item)}
+                                                                            <button
+                                                                                type="button"
+                                                                                className="h-7 text-[10px] font-bold px-3 gap-1.5 flex items-center justify-center bg-primary text-white rounded-md hover:bg-primary/90 shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                                                                                onClick={(e) => {
+                                                                                    e.preventDefault();
+                                                                                    e.stopPropagation();
+                                                                                    openSettle(item);
+                                                                                }}
                                                                                 disabled={isThisSaving}
                                                                             >
                                                                                 {isThisSaving
@@ -279,7 +294,7 @@ export function ProLaboreManager({ onRefresh }: { onRefresh?: () => void } = {})
                                                                                     : <DollarSign className="h-3 w-3" />
                                                                                 }
                                                                                 DAR BAIXA
-                                                                            </Button>
+                                                                            </button>
                                                                         ) : (
                                                                             <>
                                                                                 <Button

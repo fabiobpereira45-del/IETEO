@@ -8,7 +8,7 @@ export type QuestionType = "multiple-choice" | "true-false" | "discursive" | "in
 export interface Choice { id: string; text: string }
 export interface MatchingPair { id: string; left: string; right: string }
 export interface Semester { id: string; name: string; order: number; shift?: string; isConcluded?: boolean; createdAt: string }
-export interface Discipline { id: string; name: string; description?: string | null; semesterId?: string | null; professorName?: string | null; dayOfWeek?: string | null; shift?: string | null; order: number; applicationMonth?: string | null; applicationYear?: string | null; isConcluded?: boolean; createdAt: string }
+export interface Discipline { id: string; name: string; description?: string | null; semesterId?: string | null; semesterOrder?: number; semesterName?: string; professorName?: string | null; dayOfWeek?: string | null; shift?: string | null; order: number; applicationMonth?: string | null; applicationYear?: string | null; isConcluded?: boolean; createdAt: string }
 export interface StudyMaterial { id: string; disciplineId: string; title: string; description?: string; fileUrl: string; createdAt: string }
 export interface FinancialSettings { id: string; enrollmentFee: number; monthlyFee: number; secondCallFee: number; finalExamFee: number; totalMonths: number; proLaboreFeePerLesson: number; creditCardUrl?: string; pixKey?: string; updatedAt: string; }
 export interface FinancialCharge {
@@ -720,10 +720,25 @@ export async function deleteSemester(id: string): Promise<void> {
 
 export async function getDisciplines(): Promise<Discipline[]> {
   const supabase = createClient()
-  const { data } = await supabase.from('disciplines').select('*')
-  return (data || [])
-    .map(mapDiscipline)
-    .sort((a: Discipline, b: Discipline) => {
+  const [dRes, sRes] = await Promise.all([
+    supabase.from('disciplines').select('*'),
+    supabase.from('semesters').select('id, name, order')
+  ])
+  
+  const semesters = sRes.data || []
+
+  return (dRes.data || [])
+    .map(d => {
+      const disc = mapDiscipline(d)
+      const sem = semesters.find(s => s.id === disc.semesterId)
+      return {
+        ...disc,
+        semesterOrder: sem?.order ?? 999,
+        semesterName: sem?.name || ''
+      }
+    })
+    .sort((a, b) => {
+      if (a.semesterOrder !== b.semesterOrder) return (a.semesterOrder ?? 999) - (b.semesterOrder ?? 999)
       if (a.order !== b.order) return a.order - b.order
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     })
@@ -812,7 +827,7 @@ export async function getProLaboreCalculations() {
       if (!prof) return
 
       // 2. Iterate over ALL classes
-      allClasses.forEach(classInfo => {
+      allClasses.forEach((classInfo: any) => {
         // Find if there's a specific schedule for this discipline + class
         const sched = schedules.find(s => s.disciplineId === discipline.id && s.classId === classInfo.id)
 
@@ -821,7 +836,7 @@ export async function getProLaboreCalculations() {
 
         // Check if already paid
         const matchingCharge = (charges || []).find(c =>
-          c.type === 'expense' &&
+          (c.type as any) === 'expense' &&
           c.professorId === prof.id &&
           c.disciplineId === discipline.id &&
           c.classId === classInfo.id
@@ -2182,9 +2197,9 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
 
   // Sort disciplines strictly by Semester Order then Discipline Order
   const disciplines = currDisciplines
-    .sort((a, b) => {
-      const semA = semesters.find(s => s.id === a.semesterId)
-      const semB = semesters.find(s => s.id === b.semesterId)
+    .sort((a: any, b: any) => {
+      const semA = semesters.find((s: any) => s.id === a.semesterId)
+      const semB = semesters.find((s: any) => s.id === b.semesterId)
       const semOrderA = semA?.order ?? 999
       const semOrderB = semB?.order ?? 999
 
@@ -2214,7 +2229,7 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
   })
 
   // 5. Add Discipline-based Monthly Fees (Exactly 18)
-  disciplines.forEach((disp, index) => {
+  disciplines.forEach((disp: any, index: number) => {
     let year = parseInt(disp.applicationYear || "2026")
     let monthNum = 1
 
@@ -2255,9 +2270,9 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
   const finalCharges = charges.filter(nc => {
     // Check if this specific charge is already paid
     if (nc.type === 'enrollment') {
-      return !(existing || []).some(ex => ex.type === 'enrollment' && ex.status === 'paid')
+      return !(existing || []).some((ex: any) => ex.type === 'enrollment' && ex.status === 'paid')
     }
-    return !(existing || []).some(ex => ex.description === nc.description && ex.status === 'paid')
+    return !(existing || []).some((ex: any) => ex.description === nc.description && ex.status === 'paid')
   })
 
   // Clean up ALL non-paid charges to ensure the new list is exactly 18+1
