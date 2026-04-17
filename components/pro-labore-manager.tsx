@@ -127,7 +127,8 @@ export function ProLaboreManager({ onRefresh }: { onRefresh?: () => void } = {})
                 disciplineId: settleItem.disciplineId,
                 classId: settleItem.classId,
                 amount: settleItem.totalAmount,
-                description: `Pro-labore: ${settleItem.disciplineName} (${settleItem.className})`
+                description: `Pro-labore: ${settleItem.disciplineName} (${settleItem.className})`,
+                date: settleDate
             })
             
             console.log("Baixa realizada com sucesso no banco.")

@@ -871,35 +871,40 @@ export async function settleProLabore(data: {
   disciplineId: string,
   classId: string,
   amount: number,
-  description: string
+  description: string,
+  date?: string
 }): Promise<{ id: string }> {
   console.log("Settling Pro-labore:", data)
   const supabase = createClient()
+  const useDate = data.date || new Date().toISOString().split('T')[0]
+  
   const dbData = {
     type: 'expense' as any,
-    category: 'pro-labore',
     description: data.description,
     amount: data.amount,
     professor_id: data.professorId,
     discipline_id: data.disciplineId,
     class_id: data.classId,
     status: 'paid',
-    due_date: new Date().toISOString().split('T')[0],
-    payment_date: new Date().toISOString().split('T')[0],
+    due_date: useDate,
+    payment_date: useDate,
     payment_method: 'other',
     created_at: new Date().toISOString()
   }
+  
   const { data: insertedData, error } = await supabase
     .from('financial_charges')
     .insert(dbData)
     .select('id')
     .single()
+    
   if (error) {
     console.error("Error settling pro-labore:", error)
     throw new Error(error.message)
   }
   return insertedData
 }
+
 
 export async function linkProfessorToDiscipline(professorId: string, disciplineId: string): Promise<void> {
   const supabase = createClient()
