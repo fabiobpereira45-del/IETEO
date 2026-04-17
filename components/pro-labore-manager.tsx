@@ -60,7 +60,21 @@ export function ProLaboreManager({ onRefresh }: { onRefresh?: () => void } = {})
                 getDisciplines()
             ])
 
-            setDisciplines(allDisciplines)
+            // ── Sort disciplines chronologically by year then month ──────
+            const MONTH_ORDER: Record<string, number> = {
+                'Jan': 1, 'Fev': 2, 'Mar': 3, 'Abr': 4, 'Mai': 5, 'Jun': 6,
+                'Jul': 7, 'Ago': 8, 'Set': 9, 'Out': 10, 'Nov': 11, 'Dez': 12
+            }
+            const sortedDisciplines = [...allDisciplines].sort((a, b) => {
+                const yearA = parseInt(a.applicationYear || '9999')
+                const yearB = parseInt(b.applicationYear || '9999')
+                if (yearA !== yearB) return yearA - yearB
+                const mA = MONTH_ORDER[a.applicationMonth || ''] ?? parseInt(a.applicationMonth || '0') || 13
+                const mB = MONTH_ORDER[b.applicationMonth || ''] ?? parseInt(b.applicationMonth || '0') || 13
+                if (mA !== mB) return mA - mB
+                return a.order - b.order
+            })
+            setDisciplines(sortedDisciplines)
 
             const enriched = calcs.map(item => {
                 const charge = allCharges.find(c =>
