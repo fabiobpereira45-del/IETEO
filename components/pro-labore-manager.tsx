@@ -79,8 +79,8 @@ export function ProLaboreManager({ onRefresh }: { onRefresh?: () => void } = {})
                 const yearB = parseInt(b.applicationYear || '9999')
                 if (yearA !== yearB) return yearA - yearB
 
-                const mA = MONTH_ORDER[a.applicationMonth || ''] ?? parseInt(a.applicationMonth || '0') || 13
-                const mB = MONTH_ORDER[b.applicationMonth || ''] ?? parseInt(b.applicationMonth || '0') || 13
+                const mA = (MONTH_ORDER[a.applicationMonth || ''] ?? parseInt(a.applicationMonth || '0')) || 13
+                const mB = (MONTH_ORDER[b.applicationMonth || ''] ?? parseInt(b.applicationMonth || '0')) || 13
                 if (mA !== mB) return mA - mB
 
                 return a.order - b.order
