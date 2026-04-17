@@ -481,28 +481,6 @@ export function FinancialManager({ onRefresh, month, year, scope }: {
                     }}>
                         Limpar
                     </Button>
-                    <Button 
-                        variant="outline" 
-                        className="h-9 flex-1 border-primary text-primary hover:bg-primary/5"
-                        onClick={() => {
-                            const filteredStudents = students.filter(s => {
-                                const matchName = s.name.toLowerCase().includes(searchName.toLowerCase())
-                                const matchEnroll = s.enrollment_number.toLowerCase().includes(searchEnrollment.toLowerCase())
-                                const matchClass = searchClass === "all" || s.class_id === searchClass
-                                const studentCharges = charges.filter(c => c.studentId === s.id && c.type === 'monthly')
-                                const matchBolsa = searchBolsa === "all" || (
-                                    searchBolsa === "paying" ? !studentCharges.some(c => c.status === 'bolsa100' || c.status === 'bolsa50') :
-                                    searchBolsa === "bolsa100" ? studentCharges.some(c => c.status === 'bolsa100') :
-                                    searchBolsa === "bolsa50" ? studentCharges.some(c => c.status === 'bolsa50') : true
-                                )
-                                return matchName && matchEnroll && matchClass && matchBolsa
-                            })
-                            const filteredCharges = charges.filter(c => filteredStudents.some(s => s.id === c.studentId))
-                            printFinancialReportPDF(filteredCharges, filteredStudents)
-                        }}
-                    >
-                        <Download className="h-4 w-4 mr-2" /> PDF Filtro
-                    </Button>
                 </div>
             </div>
 

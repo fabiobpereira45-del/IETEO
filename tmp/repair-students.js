@@ -1,15 +1,21 @@
+require('dotenv').config(); // Recomendo instalar o pacote 'dotenv' (npm install dotenv)
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = 'https://plwqgvfbkjdnlzgljnef.supabase.co';
-const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsd3FndmZia2pkbmx6Z2xqbmVmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjUwNTIxMiwiZXhwIjoyMDg4MDgxMjEyfQ.MRAysnDpPqxksxK3xIPWcd_PE9fvJMyA23i6Gl4H1VQ';
+const supabaseUrl = process.env.SUPABASE_URL || 'https://plwqgvfbkjdnlzgljnef.supabase.co';
+// Mantenha suas chaves em um arquivo .env e NUNCA commite o .env no seu repositório.
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 async function repair() {
     console.log('--- INICIANDO REPARO GERAL ---');
 
     // 1. Fetch Students & Auth Users
-    const { data: dbStudents } = await supabase.from('students').select('*');
-    const { data: authData } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+    const { data: dbStudents, error: dbError } = await supabase.from('students').select('*');
+    if (dbError) throw new Error(`Falha ao buscar alunos no banco: ${dbError.message}`);
+
+    const { data: authData, error: authError } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+    if (authError) throw new Error(`Falha ao buscar usuários no Auth: ${authError.message}`);
+
     const authUsers = authData.users;
 
     console.log(`Encontrados ${dbStudents.length} alunos no DB e ${authUsers.length} usuários no Auth.`);
@@ -18,11 +24,11 @@ async function repair() {
     let fixedPass = 0;
 
     // 2. Fix Broken Links (auth_user_id null)
-    for (const student of dbStudents) {
-        if (!student.auth_user_id) {
+    for (const student of dbStudents || []) {
+        if (!student.auth_user_id && student.cpf) {
             const cleanCpf = student.cpf.replace(/\D/g, '');
             const expectedEmail = `${cleanCpf}@student.ieteo.com`.toLowerCase();
-            
+
             const match = authUsers.find(u => u.email.toLowerCase() === expectedEmail);
             if (match) {
                 console.log(`Vinculando student ${student.name} ao Auth ID ${match.id}...`);

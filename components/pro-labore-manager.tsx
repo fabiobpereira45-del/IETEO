@@ -1,17 +1,30 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { DollarSign, Loader2, GraduationCap, Calculator, CheckCircle2, AlertCircle, Calendar } from "lucide-react"
-import { Card, CardContent } from "@/components/ui/card"
-import { 
+import { DollarSign, Loader2, GraduationCap, Calculator, CheckCircle2, AlertCircle, Calendar, Printer, RotateCcw, Receipt } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import {
     Accordion,
     AccordionContent,
     AccordionItem,
     AccordionTrigger,
 } from "@/components/ui/accordion"
-import { 
-    getProLaboreCalculations, 
-    type FinancialSettings, 
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
+    getProLaboreCalculations,
+    type FinancialSettings,
     getFinancialSettings,
     settleProLabore,
     deleteFinancialCharge,
@@ -19,7 +32,6 @@ import {
     getDisciplines,
     type Discipline
 } from "@/lib/store"
-import { printProLaboreReceipt } from "@/lib/pdf"
 import { toast } from "sonner"
 
 export function ProLaboreManager({ onRefresh }: { onRefresh?: () => void } = {}) {
@@ -27,7 +39,16 @@ export function ProLaboreManager({ onRefresh }: { onRefresh?: () => void } = {})
     const [disciplines, setDisciplines] = useState<Discipline[]>([])
     const [settings, setSettings] = useState<FinancialSettings | null>(null)
     const [loading, setLoading] = useState(true)
-    const [saving, setSaving] = useState<string | null>(null) // Stores id of the item being saved
+    const [saving, setSaving] = useState<string | null>(null)
+
+    // Settle modal state
+    const [settleItem, setSettleItem] = useState<any | null>(null)
+    const [settleDate, setSettleDate] = useState(new Date().toISOString().split('T')[0])
+    const [settleModalOpen, setSettleModalOpen] = useState(false)
+
+    // Reverse confirmation state
+    const [reverseItem, setReverseItem] = useState<any | null>(null)
+    const [reverseDialogOpen, setReverseDialogOpen] = useState(false)
 
     async function load() {
         setLoading(true)
@@ -38,19 +59,18 @@ export function ProLaboreManager({ onRefresh }: { onRefresh?: () => void } = {})
                 getFinancialCharges(),
                 getDisciplines()
             ])
-            
+
             setDisciplines(allDisciplines)
-            
-            // Enrich calculations with the actual charge ID for reversal
+
             const enriched = calcs.map(item => {
-                const charge = allCharges.find(c => 
-                    c.type === 'expense' && 
-                    c.professorId === item.professorId && 
-                    c.disciplineId === item.disciplineId && 
+                const charge = allCharges.find(c =>
+                    (c.type as any) === 'expense' &&
+                    c.professorId === item.professorId &&
+                    c.disciplineId === item.disciplineId &&
                     c.classId === item.classId &&
                     c.status === 'paid'
                 )
-                return { ...item, chargeId: charge?.id }
+                return { ...item, chargeId: charge?.id, paymentDate: charge?.paymentDate }
             })
 
             setData(enriched)
@@ -63,36 +83,46 @@ export function ProLaboreManager({ onRefresh }: { onRefresh?: () => void } = {})
         }
     }
 
-    async function handleSettle(item: any) {
-        if (!confirm(`Deseja confirmar o pagamento de R$ ${item.totalAmount.toFixed(2)} referente à disciplina ${item.disciplineName} na turma ${item.className}?`)) return
-        
-        const key = `${item.professorId}-${item.disciplineId}-${item.classId}`
+    function openSettle(item: any) {
+        setSettleItem(item)
+        setSettleDate(new Date().toISOString().split('T')[0])
+        setSettleModalOpen(true)
+    }
+
+    async function handleSettle() {
+        if (!settleItem) return
+
+        const key = `${settleItem.professorId}-${settleItem.disciplineId}-${settleItem.classId}`
         setSaving(key)
+        setSettleModalOpen(false)
         try {
             await settleProLabore({
-                professorId: item.professorId,
-                disciplineId: item.disciplineId,
-                classId: item.classId,
-                amount: item.totalAmount,
-                description: `Pro-labore: ${item.disciplineName} (${item.className})`
+                professorId: settleItem.professorId,
+                disciplineId: settleItem.disciplineId,
+                classId: settleItem.classId,
+                amount: settleItem.totalAmount,
+                description: `Pro-labore: ${settleItem.disciplineName} (${settleItem.className})`
             })
             toast.success("Pagamento registrado com sucesso!")
+            // Auto-print receipt immediately after settling
+            printProLaboreReceipt(settleItem, settleDate, settings)
             load()
             onRefresh?.()
         } catch (e: any) {
             toast.error("Erro ao registrar pagamento: " + e.message)
         } finally {
             setSaving(null)
+            setSettleItem(null)
         }
     }
 
-    async function handleReverse(item: any) {
-        if (!item.chargeId) return
-        if (!confirm("Tem certeza que deseja estornar este pagamento? O registro de despesa será excluído do financeiro.")) return
-        
-        setSaving(item.chargeId)
+    async function handleReverse() {
+        if (!reverseItem?.chargeId) return
+
+        setSaving(reverseItem.chargeId)
+        setReverseDialogOpen(false)
         try {
-            await deleteFinancialCharge(item.chargeId)
+            await deleteFinancialCharge(reverseItem.chargeId)
             toast.success("Pagamento estornado com sucesso!")
             load()
             onRefresh?.()
@@ -100,19 +130,12 @@ export function ProLaboreManager({ onRefresh }: { onRefresh?: () => void } = {})
             toast.error("Erro ao estornar: " + e.message)
         } finally {
             setSaving(null)
+            setReverseItem(null)
         }
     }
 
     function handlePrintReceipt(item: any) {
-        printProLaboreReceipt({
-            professorName: item.professorName,
-            disciplineName: item.disciplineName,
-            className: item.className,
-            amount: item.totalAmount,
-            date: new Date().toISOString(),
-            institutionName: settings?.institutionName || "IETEO",
-            logo: settings?.logoBase64
-        })
+        printProLaboreReceipt(item, item.paymentDate || new Date().toISOString().split('T')[0], settings)
     }
 
     useEffect(() => { load() }, [])
@@ -206,6 +229,7 @@ export function ProLaboreManager({ onRefresh }: { onRefresh?: () => void } = {})
                                                 <tbody className="divide-y divide-border/30">
                                                     {disciplineCalcs.map(item => {
                                                         const key = `${item.professorId}-${item.disciplineId}-${item.classId}`
+                                                        const isThisSaving = saving === key || saving === item.chargeId
                                                         return (
                                                             <tr key={key} className="hover:bg-muted/10 transition-colors">
                                                                 <td className="px-4 py-3 text-xs font-bold">{item.professorName}</td>
@@ -218,39 +242,53 @@ export function ProLaboreManager({ onRefresh }: { onRefresh?: () => void } = {})
                                                                 <td className="px-4 py-3 text-sm font-black text-primary">R$ {item.totalAmount.toFixed(2)}</td>
                                                                 <td className="px-4 py-3 text-center">
                                                                     {item.isPaid ? (
-                                                                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-green-600">PAGO</span>
+                                                                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+                                                                            <CheckCircle2 className="h-3 w-3" /> PAGO
+                                                                        </span>
                                                                     ) : (
-                                                                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-600">PENDENTE</span>
+                                                                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                                                                            PENDENTE
+                                                                        </span>
                                                                     )}
                                                                 </td>
                                                                 <td className="px-4 py-3 text-right">
-                                                                    <div className="flex items-center justify-end gap-1">
+                                                                    <div className="flex items-center justify-end gap-1.5">
                                                                         {!item.isPaid ? (
-                                                                            <button 
-                                                                                onClick={() => handleSettle(item)}
-                                                                                disabled={saving === key}
-                                                                                className="inline-flex items-center gap-1 text-[9px] font-bold bg-primary text-white px-2 py-1 rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
+                                                                            <Button
+                                                                                size="sm"
+                                                                                className="h-7 text-[10px] font-bold px-3 gap-1 bg-primary hover:bg-primary/90 shadow-sm"
+                                                                                onClick={() => openSettle(item)}
+                                                                                disabled={isThisSaving}
                                                                             >
-                                                                                {saving === key ? <Loader2 className="h-3 w-3 animate-spin" /> : <DollarSign className="h-3 w-3" />}
+                                                                                {isThisSaving
+                                                                                    ? <Loader2 className="h-3 w-3 animate-spin" />
+                                                                                    : <DollarSign className="h-3 w-3" />
+                                                                                }
                                                                                 DAR BAIXA
-                                                                            </button>
+                                                                            </Button>
                                                                         ) : (
                                                                             <>
-                                                                                <button 
+                                                                                <Button
+                                                                                    size="sm"
+                                                                                    variant="outline"
+                                                                                    className="h-7 text-[10px] font-bold px-2 gap-1 text-primary border-primary/30 hover:bg-primary/5"
                                                                                     onClick={() => handlePrintReceipt(item)}
-                                                                                    className="p-1 text-muted-foreground hover:text-primary transition-colors"
-                                                                                    title="Recibo"
+                                                                                    title="Imprimir Recibo"
                                                                                 >
-                                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
-                                                                                </button>
-                                                                                <button 
-                                                                                    onClick={() => handleReverse(item)}
-                                                                                    disabled={saving === item.chargeId}
-                                                                                    className="p-1 text-muted-foreground hover:text-red-500 transition-colors"
+                                                                                    <Printer className="h-3 w-3" />
+                                                                                    Recibo
+                                                                                </Button>
+                                                                                <Button
+                                                                                    size="sm"
+                                                                                    variant="ghost"
+                                                                                    className="h-7 text-[10px] font-bold px-2 gap-1 text-destructive hover:bg-rose-50"
+                                                                                    onClick={() => { setReverseItem(item); setReverseDialogOpen(true) }}
+                                                                                    disabled={isThisSaving}
                                                                                     title="Estornar"
                                                                                 >
-                                                                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                                                                                </button>
+                                                                                    <RotateCcw className="h-3 w-3" />
+                                                                                    Estornar
+                                                                                </Button>
                                                                             </>
                                                                         )}
                                                                     </div>
@@ -272,9 +310,547 @@ export function ProLaboreManager({ onRefresh }: { onRefresh?: () => void } = {})
             <div className="flex items-center gap-2 p-4 bg-muted/30 rounded-xl border border-dashed border-border">
                 <AlertCircle className="h-4 w-4 text-muted-foreground" />
                 <p className="text-[10px] text-muted-foreground font-medium italic">
-                    Ao dar baixa, um registro de despesa será criado automaticamente no fluxo financeiro geral vinculado a este professor e turma.
+                    Ao dar baixa, um registro de despesa será criado automaticamente no fluxo financeiro geral vinculado a este professor e turma. Um recibo será gerado automaticamente.
                 </p>
             </div>
+
+            {/* ─── Settle Modal ─────────────────────────────────────────── */}
+            <Dialog open={settleModalOpen} onOpenChange={setSettleModalOpen}>
+                <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+                    <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/50 bg-gradient-to-r from-primary/5 to-transparent">
+                        <DialogTitle className="flex items-center gap-2 text-lg font-bold font-serif">
+                            <DollarSign className="h-5 w-5 text-primary" />
+                            Confirmar Pagamento de Pro-labore
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    {settleItem && (
+                        <div className="px-6 py-5 space-y-4">
+                            {/* Summary Card */}
+                            <div className="bg-primary/5 border border-primary/15 rounded-xl p-4 space-y-2">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <p className="text-[10px] font-black text-primary uppercase tracking-widest">Professor</p>
+                                        <p className="text-sm font-bold text-foreground mt-0.5">{settleItem.professorName}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[10px] font-black text-primary uppercase tracking-widest">Valor</p>
+                                        <p className="text-xl font-black text-primary mt-0.5">R$ {settleItem.totalAmount?.toFixed(2)}</p>
+                                    </div>
+                                </div>
+                                <div className="border-t border-primary/10 pt-2 grid grid-cols-2 gap-3 text-xs">
+                                    <div>
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Disciplina</p>
+                                        <p className="font-semibold text-foreground">{settleItem.disciplineName}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Turma</p>
+                                        <p className="font-semibold text-foreground">{settleItem.className}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Aulas</p>
+                                        <p className="font-semibold text-foreground">{settleItem.lessonsCount} aulas × R$ {settleItem.feePerLesson?.toFixed(2)}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Date picker */}
+                            <div className="space-y-1.5">
+                                <Label className="text-xs font-bold">Data do Pagamento</Label>
+                                <Input
+                                    type="date"
+                                    value={settleDate}
+                                    onChange={e => setSettleDate(e.target.value)}
+                                    className="h-9 text-sm"
+                                />
+                            </div>
+
+                            <p className="text-[10px] text-muted-foreground italic flex items-center gap-1">
+                                <Receipt className="h-3 w-3" />
+                                Um recibo será gerado automaticamente após a confirmação.
+                            </p>
+                        </div>
+                    )}
+
+                    <DialogFooter className="px-6 pb-6 gap-2">
+                        <Button variant="outline" className="text-xs" onClick={() => setSettleModalOpen(false)}>
+                            Cancelar
+                        </Button>
+                        <Button className="text-xs font-bold gap-1.5 shadow-sm" onClick={handleSettle} disabled={!!saving}>
+                            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <DollarSign className="h-3.5 w-3.5" />}
+                            Confirmar Pagamento
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* ─── Reverse Confirmation Dialog ─────────────────────────── */}
+            <AlertDialog open={reverseDialogOpen} onOpenChange={setReverseDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Estornar Pagamento?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            O pagamento de pro-labore de <strong>{reverseItem?.professorName}</strong> referente à disciplina <strong>{reverseItem?.disciplineName}</strong> ({reverseItem?.className}) será estornado e o registro de despesa será excluído do financeiro. Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setReverseItem(null)}>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                            onClick={handleReverse}
+                        >
+                            Confirmar Estorno
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
+}
+
+// ─── Receipt PDF Generation ───────────────────────────────────────────────────
+
+function printProLaboreReceipt(item: any, paymentDate: string, settings: any) {
+    const formatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+    const amount = item.totalAmount || 0
+    const amountStr = formatter.format(amount)
+    const dateStr = (() => {
+        try { return new Date(paymentDate + 'T12:00:00').toLocaleDateString('pt-BR') }
+        catch { return new Date().toLocaleDateString('pt-BR') }
+    })()
+    const institution = settings?.institutionName || 'Instituto de Ensino Teológico — IETEO'
+    const now = new Date()
+    const receiptNumber = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${Math.floor(Math.random() * 9000) + 1000}`
+
+    // Number to words (extenso) simplified
+    const reais = Math.floor(amount)
+    const centavos = Math.round((amount - reais) * 100)
+    let extenso = `${reais} reais`
+    if (centavos > 0) extenso += ` e ${centavos} centavos`
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Recibo Pro-labore — ${item.professorName}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Crimson+Pro:wght@600;700&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f0f4f8;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    /* 
+      1/4 of A4 portrait = 105mm × 148.5mm 
+      At 96dpi screen: 105mm ≈ 397px, 148.5mm ≈ 561px
+    */
+    .receipt-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      width: 397px;
+    }
+
+    /* Main Copy */
+    .receipt {
+      width: 397px;
+      min-height: 280px;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      position: relative;
+    }
+
+    /* Decorative left accent */
+    .receipt::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 5px;
+      background: linear-gradient(180deg, #1e3a5f 0%, #2c5282 50%, #f97316 100%);
+    }
+
+    .receipt-header {
+      padding: 14px 18px 12px 22px;
+      background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 100%);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .inst-name {
+      font-size: 9px;
+      font-weight: 800;
+      color: rgba(255,255,255,0.7);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      line-height: 1.3;
+    }
+
+    .receipt-title {
+      font-family: 'Crimson Pro', serif;
+      font-size: 22px;
+      color: #ffffff;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .receipt-no {
+      text-align: right;
+    }
+
+    .receipt-no .label {
+      font-size: 8px;
+      color: rgba(255,255,255,0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .receipt-no .value {
+      font-size: 10px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.9);
+      font-family: monospace;
+    }
+
+    .receipt-body {
+      padding: 16px 18px 16px 22px;
+    }
+
+    /* Amount block */
+    .amount-block {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+    }
+
+    .amount-label {
+      font-size: 8px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #166534;
+      letter-spacing: 0.8px;
+    }
+
+    .amount-value {
+      font-size: 22px;
+      font-weight: 800;
+      color: #15803d;
+      letter-spacing: -0.5px;
+    }
+
+    .amount-extenso {
+      font-size: 8px;
+      color: #166534;
+      font-style: italic;
+      margin-top: 1px;
+    }
+
+    /* Details grid */
+    .details-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 12px;
+      margin-bottom: 14px;
+    }
+
+    .detail-item { }
+
+    .detail-label {
+      font-size: 7.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #94a3b8;
+      margin-bottom: 2px;
+    }
+
+    .detail-value {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: #1e293b;
+      line-height: 1.3;
+    }
+
+    .detail-item.full-width {
+      grid-column: 1 / -1;
+    }
+
+    /* Declaration text */
+    .declaration {
+      font-size: 9px;
+      color: #475569;
+      line-height: 1.55;
+      border-top: 1px dashed #e2e8f0;
+      padding-top: 10px;
+      margin-top: 4px;
+    }
+
+    .declaration strong {
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    /* Receipt footer */
+    .receipt-footer {
+      padding: 10px 18px 14px 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-top: 1px solid #f1f5f9;
+    }
+
+    .sig-block { text-align: center; }
+
+    .sig-line {
+      border-top: 1px solid #94a3b8;
+      width: 130px;
+      padding-top: 4px;
+      font-size: 8px;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .sig-name {
+      font-size: 8.5px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-top: 2px;
+    }
+
+    .date-block {
+      text-align: right;
+      font-size: 8.5px;
+      color: #64748b;
+    }
+
+    .date-block strong {
+      font-weight: 700;
+      color: #1e293b;
+      display: block;
+      font-size: 10px;
+    }
+
+    /* Watermark */
+    .watermark {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%) rotate(-25deg);
+      font-size: 70px;
+      font-weight: 900;
+      color: rgba(30, 58, 95, 0.04);
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 0;
+      letter-spacing: 4px;
+    }
+
+    /* Tear line between copies */
+    .tear-line {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 10px 0;
+      color: #94a3b8;
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .tear-line::before,
+    .tear-line::after {
+      content: '';
+      flex: 1;
+      border-bottom: 1px dashed #cbd5e1;
+    }
+
+    /* Smaller duplicate copy */
+    .receipt-copy {
+      width: 397px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px 18px 10px 22px;
+      position: relative;
+    }
+
+    .receipt-copy::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 4px;
+      background: linear-gradient(180deg, #64748b 0%, #94a3b8 100%);
+      border-radius: 8px 0 0 8px;
+    }
+
+    .copy-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .copy-label {
+      font-size: 8px;
+      font-weight: 800;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      background: #e2e8f0;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .copy-mini-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+    }
+
+    .copy-item .label { font-size: 7px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .copy-item .value { font-size: 9.5px; color: #475569; font-weight: 600; }
+    .copy-item.amount .value { font-size: 12px; font-weight: 800; color: #15803d; }
+
+    @media print {
+      body { background: white; padding: 0; }
+      .receipt { box-shadow: none; border-color: #e2e8f0; }
+      @page { size: A5 portrait; margin: 8mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="receipt-wrap">
+
+    <!-- MAIN RECEIPT -->
+    <div class="receipt">
+      <div class="watermark">IETEO</div>
+
+      <div class="receipt-header">
+        <div>
+          <div class="inst-name">${institution}</div>
+          <div class="receipt-title">Recibo</div>
+        </div>
+        <div class="receipt-no">
+          <div class="label">Nº do Recibo</div>
+          <div class="value">${receiptNumber}</div>
+        </div>
+      </div>
+
+      <div class="receipt-body">
+        <!-- Amount -->
+        <div class="amount-block">
+          <div>
+            <div class="amount-label">Valor Recebido</div>
+            <div class="amount-extenso">${extenso}</div>
+          </div>
+          <div class="amount-value">${amountStr}</div>
+        </div>
+
+        <!-- Details -->
+        <div class="details-grid">
+          <div class="detail-item full-width">
+            <div class="detail-label">Professor / Docente</div>
+            <div class="detail-value" style="font-size:12px;font-weight:700">${item.professorName || '—'}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Referente à Disciplina</div>
+            <div class="detail-value">${item.disciplineName || '—'}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Turma</div>
+            <div class="detail-value">${item.className || '—'}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Aulas Ministradas</div>
+            <div class="detail-value">${item.lessonsCount || '—'} aulas</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Taxa por Aula</div>
+            <div class="detail-value">${formatter.format(item.feePerLesson || 0)}</div>
+          </div>
+        </div>
+
+        <!-- Declaration -->
+        <div class="declaration">
+          Declaro ter recebido de <strong>${institution}</strong> a importância de <strong>${amountStr}</strong> (${extenso}), a título de <strong>Pro-labore docente</strong> pela disciplina <strong>${item.disciplineName}</strong> ministrada para a turma <strong>${item.className}</strong>, conforme acordo institucional vigente.
+        </div>
+      </div>
+
+      <div class="receipt-footer">
+        <div class="date-block">
+          <span>Emitido em</span>
+          <strong>${dateStr}</strong>
+        </div>
+        <div class="sig-block">
+          <div class="sig-line">Assinatura do Docente</div>
+          <div class="sig-name">${item.professorName || '—'}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEAR LINE -->
+    <div class="tear-line">✂ Via da Instituição</div>
+
+    <!-- COPY (smaller, for institution records) -->
+    <div class="receipt-copy">
+      <div class="copy-header">
+        <span style="font-size:9px;font-weight:700;color:#475569">${institution}</span>
+        <span class="copy-label">Via da Instituição</span>
+      </div>
+      <div class="copy-mini-grid">
+        <div class="copy-item">
+          <div class="label">Professor</div>
+          <div class="value">${item.professorName || '—'}</div>
+        </div>
+        <div class="copy-item">
+          <div class="label">Disciplina</div>
+          <div class="value">${(item.disciplineName || '').split(' ').slice(0, 3).join(' ')}…</div>
+        </div>
+        <div class="copy-item amount">
+          <div class="label">Valor</div>
+          <div class="value">${amountStr}</div>
+        </div>
+        <div class="copy-item">
+          <div class="label">Turma</div>
+          <div class="value">${item.className || '—'}</div>
+        </div>
+        <div class="copy-item">
+          <div class="label">Nº Recibo</div>
+          <div class="value" style="font-family:monospace;font-size:8px">${receiptNumber}</div>
+        </div>
+        <div class="copy-item">
+          <div class="label">Data</div>
+          <div class="value">${dateStr}</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    window.onload = function() { window.print(); }
+  </script>
+</body>
+</html>`
+
+    const win = window.open("", "_blank", "width=520,height=750")
+    if (!win) { alert("Permita pop-ups para imprimir o recibo."); return }
+    win.document.write(html)
+    win.document.close()
 }

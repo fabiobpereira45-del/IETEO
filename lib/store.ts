@@ -11,23 +11,23 @@ export interface Semester { id: string; name: string; order: number; shift?: str
 export interface Discipline { id: string; name: string; description?: string | null; semesterId?: string | null; professorName?: string | null; dayOfWeek?: string | null; shift?: string | null; order: number; applicationMonth?: string | null; applicationYear?: string | null; isConcluded?: boolean; createdAt: string }
 export interface StudyMaterial { id: string; disciplineId: string; title: string; description?: string; fileUrl: string; createdAt: string }
 export interface FinancialSettings { id: string; enrollmentFee: number; monthlyFee: number; secondCallFee: number; finalExamFee: number; totalMonths: number; proLaboreFeePerLesson: number; creditCardUrl?: string; pixKey?: string; updatedAt: string; }
-export interface FinancialCharge { 
-  id: string; 
-  studentId: string; 
-  type: "enrollment" | "monthly" | "second_call" | "final_exam" | "other"; 
-  description: string; 
-  amount: number; 
-  dueDate: string; 
-  status: "pending" | "paid" | "cancelled" | "late" | "bolsa100" | "bolsa50" | "isento"; 
-  paymentDate?: string; 
+export interface FinancialCharge {
+  id: string;
+  studentId: string;
+  type: "enrollment" | "monthly" | "second_call" | "final_exam" | "other";
+  description: string;
+  amount: number;
+  dueDate: string;
+  status: "pending" | "paid" | "cancelled" | "late" | "bolsa100" | "bolsa50" | "isento";
+  paymentDate?: string;
   paymentMethod?: "cartao" | "pix" | "dinheiro";
   actualPaidAmount?: number;
   disciplineId?: string;
   professorId?: string;
   classId?: string;
-  pixQrcode?: string; 
-  pixCopyPaste?: string; 
-  createdAt: string; 
+  pixQrcode?: string;
+  pixCopyPaste?: string;
+  createdAt: string;
 }
 export interface Expense { id: string; description: string; amount: number; category: string; dueDate: string; status: "pending" | "paid" | "cancelled"; paidAt?: string; createdAt: string; }
 export interface Question { id: string; disciplineId: string; type: QuestionType; text: string; choices: Choice[]; pairs?: MatchingPair[]; correctAnswer: string; points: number; createdAt: string }
@@ -41,11 +41,11 @@ export interface StudentProfile { id: string; auth_user_id: string; name: string
 export interface ChatMessage { id: string; studentId: string; disciplineId: string; message: string; isFromStudent: boolean; read: boolean; createdAt: string; }
 export interface Attendance { id: string; studentId: string; disciplineId: string; date: string; isPresent: boolean; createdAt: string; }
 export interface AttendanceLock {
-    id: string
-    disciplineId: string
-    date: string
-    lockedBy: string
-    lockedAt: string
+  id: string
+  disciplineId: string
+  date: string
+  lockedBy: string
+  lockedAt: string
 }
 export interface BoardMember { id: string; name: string; role: string; category: string; avatar_url?: string | null; createdAt: string; }
 export interface ProfessorDiscipline { id: string; professorId: string; disciplineId: string; createdAt: string; }
@@ -353,38 +353,38 @@ function mapProfessor(p: any): ProfessorAccount {
   }
 }
 function mapFinancialSettings(row: any): FinancialSettings { return { id: row.id, enrollmentFee: Number(row.enrollment_fee), monthlyFee: Number(row.monthly_fee), secondCallFee: Number(row.second_call_fee), finalExamFee: Number(row.final_exam_fee), totalMonths: Number(row.total_months), proLaboreFeePerLesson: Number(row.pro_labore_fee_per_lesson || 0), creditCardUrl: row.credit_card_url || undefined, pixKey: row.pix_key || undefined, updatedAt: row.updated_at } }
-function mapFinancialCharge(row: any): FinancialCharge { 
-  return { 
-    id: row.id, 
-    studentId: row.student_id, 
-    type: row.type, 
-    description: row.description, 
-    amount: Number(row.amount), 
-    dueDate: row.due_date, 
-    status: row.status, 
-    paymentDate: row.payment_date || undefined, 
+function mapFinancialCharge(row: any): FinancialCharge {
+  return {
+    id: row.id,
+    studentId: row.student_id,
+    type: row.type,
+    description: row.description,
+    amount: Number(row.amount),
+    dueDate: row.due_date,
+    status: row.status,
+    paymentDate: row.payment_date || undefined,
     paymentMethod: row.payment_method || undefined,
     actualPaidAmount: row.actual_paid_amount !== null ? Number(row.actual_paid_amount) : undefined,
     disciplineId: row.discipline_id || undefined,
     professorId: row.professor_id || undefined,
     classId: row.class_id || undefined,
-    pixQrcode: row.pix_qrcode || undefined, 
-    pixCopyPaste: row.pix_copy_paste || undefined, 
-    createdAt: row.created_at 
-  } 
+    pixQrcode: row.pix_qrcode || undefined,
+    pixCopyPaste: row.pix_copy_paste || undefined,
+    createdAt: row.created_at
+  }
 }
 function mapExpense(row: any): Expense { return { id: row.id, description: row.description, amount: Number(row.amount), category: row.category, dueDate: row.due_date, status: row.status, paidAt: row.paid_at || undefined, createdAt: row.created_at } }
 function mapStudentProfile(row: any): StudentProfile { return { id: row.id, auth_user_id: row.auth_user_id, name: row.name, email: row.email, cpf: row.cpf, enrollment_number: row.enrollment_number, phone: row.phone || undefined, address: row.address || undefined, church: row.church || undefined, pastor_name: row.pastor_name || undefined, class_id: row.class_id || undefined, payment_status: row.payment_status || undefined, avatar_url: row.avatar_url || null, bio: row.bio || null, status: (row.status || 'pending') as StudentProfile['status'], created_at: row.created_at } }
 function mapChatMessage(row: any): ChatMessage { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, message: row.message, isFromStudent: row.is_from_student, read: row.read, createdAt: row.created_at } }
-function mapAttendance(row: any): Attendance { 
-  return { 
-    id: row.id, 
-    studentId: String(row.student_id || ''), 
-    disciplineId: String(row.discipline_id || ''), 
-    date: row.date ? (typeof row.date === 'string' ? row.date.split('T')[0] : new Date(row.date).toISOString().split('T')[0]) : '', 
-    isPresent: row.is_present === true || row.is_present === 1 || String(row.is_present) === 'true', 
-    createdAt: row.created_at 
-  } 
+function mapAttendance(row: any): Attendance {
+  return {
+    id: row.id,
+    studentId: String(row.student_id || ''),
+    disciplineId: String(row.discipline_id || ''),
+    date: row.date ? (typeof row.date === 'string' ? row.date.split('T')[0] : new Date(row.date).toISOString().split('T')[0]) : '',
+    isPresent: row.is_present === true || row.is_present === 1 || String(row.is_present) === 'true',
+    createdAt: row.created_at
+  }
 }
 function mapClassRoom(row: any): ClassRoom { return { id: row.id, name: row.name, shift: row.shift as ClassRoom['shift'], dayOfWeek: row.day_of_week || undefined, maxStudents: Number(row.max_students), studentCount: row.student_count !== undefined ? Number(row.student_count) : undefined, createdAt: row.created_at } }
 function mapClassSchedule(row: any): ClassSchedule { return { id: row.id, classId: row.class_id, disciplineId: row.discipline_id, professorName: row.professor_name, dayOfWeek: row.day_of_week, timeStart: row.time_start, timeEnd: row.time_end, lessonsCount: Number(row.lessons_count || 1), workload: Number(row.workload || 0), startDate: row.start_date || undefined, endDate: row.end_date || undefined, createdAt: row.created_at } }
@@ -579,7 +579,7 @@ export async function updateFinancialChargesStatusBatch(ids: string[], status: F
   const dbData: any = { status }
   if (status === 'paid') dbData.payment_date = new Date().toISOString()
   if (status === 'pending') dbData.payment_date = null
-  
+
   const { error } = await supabase.from('financial_charges').update(dbData).in('id', ids)
   if (error) throw new Error(error.message)
 }
@@ -705,7 +705,7 @@ export async function updateSemester(id: string, data: Partial<Pick<Semester, "n
   if (data.order !== undefined) updatePayload.order = data.order
   if (data.shift !== undefined) updatePayload.shift = data.shift || null
   if (data.isConcluded !== undefined) updatePayload.is_concluded = data.isConcluded
-  
+
   const { error, count } = await supabase.from('semesters').update(updatePayload).eq('id', id).select('id', { count: 'exact' })
   if (error) {
     console.error("Error updating semester:", error)
@@ -731,11 +731,11 @@ export async function getDisciplines(): Promise<Discipline[]> {
 
 export async function getDisciplinesByProfessor(professorId: string): Promise<Discipline[]> {
   const supabase = createClient()
-  
+
   // Try to find the professor account by the provided ID (UUID or custom ID)
   // or by email if the ID is a UUID from auth
   let internalId = professorId
-  
+
   const { data: profAcc } = await supabase
     .from('professor_accounts')
     .select('id, email')
@@ -743,16 +743,16 @@ export async function getDisciplinesByProfessor(professorId: string): Promise<Di
     .maybeSingle()
 
   if (!profAcc) {
-     // If not found by ID, maybe it's an auth user UUID, let's try to find by email if we can get the email from auth
-     const { data: { user } } = await supabase.auth.getUser()
-     if (user && user.id === professorId) {
-       const { data: profByEmail } = await supabase
-         .from('professor_accounts')
-         .select('id')
-         .eq('email', user.email)
-         .maybeSingle()
-       if (profByEmail) internalId = profByEmail.id
-     }
+    // If not found by ID, maybe it's an auth user UUID, let's try to find by email if we can get the email from auth
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user && user.id === professorId) {
+      const { data: profByEmail } = await supabase
+        .from('professor_accounts')
+        .select('id')
+        .eq('email', user.email)
+        .maybeSingle()
+      if (profByEmail) internalId = profByEmail.id
+    }
   } else {
     internalId = profAcc.id
   }
@@ -815,18 +815,18 @@ export async function getProLaboreCalculations() {
       allClasses.forEach(classInfo => {
         // Find if there's a specific schedule for this discipline + class
         const sched = schedules.find(s => s.disciplineId === discipline.id && s.classId === classInfo.id)
-        
+
         // Use scheduled lessons count or fallback to default
         const lessonsCount = sched ? sched.lessonsCount : DEFAULT_LESSONS
 
         // Check if already paid
-        const matchingCharge = (charges || []).find(c => 
-          c.type === 'expense' && 
-          c.professorId === prof.id && 
-          c.disciplineId === discipline.id && 
+        const matchingCharge = (charges || []).find(c =>
+          c.type === 'expense' &&
+          c.professorId === prof.id &&
+          c.disciplineId === discipline.id &&
           c.classId === classInfo.id
         )
-        
+
         const isPaid = matchingCharge?.status === 'paid'
 
         calculations.push({
@@ -878,8 +878,8 @@ export async function settleProLabore(data: {
     .insert(dbData)
     .select('id')
     .single()
-    if (error) throw new Error(error.message)
-    return insertedData
+  if (error) throw new Error(error.message)
+  return insertedData
 }
 
 export async function linkProfessorToDiscipline(professorId: string, disciplineId: string): Promise<void> {
@@ -898,30 +898,30 @@ export async function getBoardMembers(): Promise<BoardMember[]> {
   return (data || []).map(mapBoardMember)
 }
 export async function addDiscipline(
-  name: string, 
-  description?: string | null, 
-  semesterId?: string | null, 
-  professorName?: string | null, 
-  dayOfWeek?: string | null, 
-  shift?: string | null, 
+  name: string,
+  description?: string | null,
+  semesterId?: string | null,
+  professorName?: string | null,
+  dayOfWeek?: string | null,
+  shift?: string | null,
   order?: number,
   applicationMonth?: string | null,
   applicationYear?: string | null,
   isConcluded?: boolean
 ): Promise<Discipline> {
-  const d = { 
-    id: uid(), 
-    name, 
-    description: description || null, 
-    semester_id: semesterId || null, 
-    professor_name: professorName || null, 
-    day_of_week: dayOfWeek || null, 
-    shift: shift || null, 
+  const d = {
+    id: uid(),
+    name,
+    description: description || null,
+    semester_id: semesterId || null,
+    professor_name: professorName || null,
+    day_of_week: dayOfWeek || null,
+    shift: shift || null,
     "order": order || 0,
-    application_month: applicationMonth || null, 
-    application_year: applicationYear || null, 
+    application_month: applicationMonth || null,
+    application_year: applicationYear || null,
     is_concluded: isConcluded || false,
-    created_at: new Date().toISOString() 
+    created_at: new Date().toISOString()
   }
   const supabase = createClient()
   const { data, error } = await supabase.from('disciplines').insert(d).select().single()
@@ -948,12 +948,12 @@ export async function updateDiscipline(id: string, data: Partial<Pick<Discipline
 
   const supabase = createClient()
   const { error, count } = await supabase.from('disciplines').update(updateData).eq('id', id).select('id', { count: 'exact' })
-  
+
   if (error) {
     console.error("Error updating discipline:", error)
     throw new Error(`Falha ao atualizar disciplina: ${error.message}`)
   }
-  
+
   console.log(`Discipline ${id} updated status. Rows affected: ${count}`)
 }
 export async function deleteDiscipline(id: string): Promise<void> {
@@ -1179,7 +1179,7 @@ export async function saveSubmission(sub: StudentSubmission): Promise<StudentSub
   try {
     // Attempt to find student by email
     const { data: student } = await supabase.from('students').select('name').eq('email', sub.studentEmail).maybeSingle();
-    
+
     if (student) {
       const { data: existingGrade } = await supabase.from('student_grades')
         .select('id')
@@ -1269,22 +1269,22 @@ export async function getProfessorByEmail(email: string): Promise<ProfessorAccou
     .select('*')
     .eq('email', email.toLowerCase().trim())
     .maybeSingle()
-  
+
   if (error) {
     console.error("Erro ao buscar professor por e-mail:", error)
     return null
   }
-  
+
   if (!data && email === MASTER_CREDENTIALS.email) {
     return {
-        id: 'master',
-        name: 'Administrador Master',
-        email: MASTER_CREDENTIALS.email,
-        role: 'master',
-        active: true,
-        avatar_url: null,
-        passwordHash: '',
-        createdAt: new Date().toISOString()
+      id: 'master',
+      name: 'Administrador Master',
+      email: MASTER_CREDENTIALS.email,
+      role: 'master',
+      active: true,
+      avatar_url: null,
+      passwordHash: '',
+      createdAt: new Date().toISOString()
     }
   }
 
@@ -1293,7 +1293,7 @@ export async function getProfessorByEmail(email: string): Promise<ProfessorAccou
 
 export async function updateProfessorAccount(id: string, data: Partial<Pick<ProfessorAccount, "name" | "email" | "role" | "active" | "bio">> & { password?: string }): Promise<ProfessorAccount> {
   const supabase = createClient()
-  
+
   if (id === "master") {
     // For master account, we use upsert to ensure the record exists
     const { data: dbData, error: dbError } = await supabase
@@ -1307,7 +1307,7 @@ export async function updateProfessorAccount(id: string, data: Partial<Pick<Prof
       }, { onConflict: 'email' })
       .select()
       .single()
-    
+
     if (dbError) throw new Error("Erro no Banco (Master): " + dbError.message)
 
     const res = await fetch("/api/admin/users", {
@@ -1322,10 +1322,10 @@ export async function updateProfessorAccount(id: string, data: Partial<Pick<Prof
     })
 
     if (!res.ok) {
-        const err = await res.json()
-        console.warn("Sincronização Auth Master falhou:", err)
+      const err = await res.json()
+      console.warn("Sincronização Auth Master falhou:", err)
     }
-    
+
     // Fetch newly updated/created master record
     const updatedMaster = await getProfessorByEmail(MASTER_CREDENTIALS.email)
     if (!updatedMaster) throw new Error("Falha ao recuperar conta Master após salvamento")
@@ -1352,8 +1352,8 @@ export async function updateProfessorAccount(id: string, data: Partial<Pick<Prof
       })
     })
     if (!res.ok) {
-        const err = await res.json()
-        throw new Error("Erro de sincronização S-Auth: " + (err.error || res.statusText))
+      const err = await res.json()
+      throw new Error("Erro de sincronização S-Auth: " + (err.error || res.statusText))
     }
   }
 
@@ -1364,10 +1364,10 @@ export async function updateProfessorAccount(id: string, data: Partial<Pick<Prof
   if (data.active !== undefined) updateData.active = data.active
   if (data.bio !== undefined) updateData.bio = data.bio
   if (data.password !== undefined) updateData.password_hash = hashPassword(data.password)
-  
+
   // Try updating by ID first
   let { data: updated, error } = await supabase.from('professor_accounts').update(updateData).eq('id', id).select().maybeSingle()
-  
+
   if (!updated) {
     // If ID update fails, try by email (to handle ID mismatch cases)
     const fallbackEmail = data.email || syncEmail
@@ -1377,7 +1377,7 @@ export async function updateProfessorAccount(id: string, data: Partial<Pick<Prof
       if (!updated2) throw new Error("Nenhum professor encontrado com ID " + id + " ou E-mail " + fallbackEmail)
       updated = updated2
     } else {
-        throw new Error("Erro ao atualizar: Professor não encontrado e e-mail não disponível.")
+      throw new Error("Erro ao atualizar: Professor não encontrado e e-mail não disponível.")
     }
   }
   return mapProfessor(updated)
@@ -1394,7 +1394,7 @@ export async function ensureProfessorSync(email: string, authId: string): Promis
     .update({ id: authId })
     .eq('email', email.toLowerCase().trim())
     .neq('id', authId) // Only update if they differ
-  
+
   if (error) console.error("Falha ao sincronizar ID de professor:", error)
 }
 export async function deleteProfessorAccount(id: string): Promise<void> {
@@ -1619,7 +1619,7 @@ export async function getAttendances(disciplineId: string): Promise<Attendance[]
 export async function getAttendanceAnalysis(disciplineId: string, students: StudentProfile[]) {
   const supabase = createClient()
   const records = await getAttendances(disciplineId)
-  
+
   const stats = {
     totalStudents: students.length,
     totalRecords: records.length,
@@ -1629,7 +1629,7 @@ export async function getAttendanceAnalysis(disciplineId: string, students: Stud
   }
 
   const issues: { type: string, severity: 'Alta' | 'Média' | 'Baixa', description: string }[] = []
-  
+
   // Issue 1: Students with 0 records
   students.forEach(s => {
     const hasRecords = records.some(r => r.studentId === s.id)
@@ -1710,13 +1710,13 @@ export async function triggerAttendanceAlerts(disciplineId: string, disciplineNa
 
 export async function saveAttendance(studentId: string, disciplineId: string, date: string, isPresent: boolean): Promise<void> {
   const supabase = createClient()
-  
+
   // Strict check for existing record
   const { data: existing, error: fetchError } = await supabase.from('attendances')
     .select('id')
     .match({ student_id: studentId, discipline_id: disciplineId, date })
     .maybeSingle()
-  
+
   if (fetchError) {
     console.error("Supabase Fetch Error (Attendance):", fetchError)
     throw new Error(`Erro de consulta: ${fetchError.message}`)
@@ -1726,21 +1726,21 @@ export async function saveAttendance(studentId: string, disciplineId: string, da
     const { error: updateError } = await supabase.from('attendances')
       .update({ is_present: isPresent })
       .eq('id', existing.id)
-    
+
     if (updateError) {
       console.error("Supabase Update Error (Attendance):", updateError)
       throw new Error(`Erro ao atualizar banco: ${updateError.message}`)
     }
   } else {
     const { error: insertError } = await supabase.from('attendances')
-      .insert({ 
-        student_id: studentId, 
-        discipline_id: disciplineId, 
-        date, 
-        is_present: isPresent, 
-        created_at: new Date().toISOString() 
+      .insert({
+        student_id: studentId,
+        discipline_id: disciplineId,
+        date,
+        is_present: isPresent,
+        created_at: new Date().toISOString()
       })
-    
+
     if (insertError) {
       console.error("Supabase Insert Error (Attendance):", insertError)
       throw new Error(`Erro ao gravar no banco: ${insertError.message}`)
@@ -1754,7 +1754,7 @@ export async function saveAttendance(studentId: string, disciplineId: string, da
       .select('lessons_count')
       .eq('discipline_id', disciplineId)
       .maybeSingle();
-    
+
     const weightPerPresence = 2.5; // Each presence is worth exactly 2.5 points as per user request
     const maxAttendanceScore = 10.0;
 
@@ -1762,13 +1762,13 @@ export async function saveAttendance(studentId: string, disciplineId: string, da
     const { data: allAtt } = await supabase.from('attendances')
       .select('is_present')
       .match({ student_id: studentId, discipline_id: disciplineId });
-    
+
     const presenceCount = (allAtt || []).filter((a: any) => a.is_present).length;
     const attendanceScore = Math.min(presenceCount * weightPerPresence, maxAttendanceScore);
 
     // 3. Get student info for the grade record
     const { data: student } = await supabase.from('students').select('id, name, email').eq('id', studentId).single();
-    
+
     if (student) {
       // 4. Find/Update student_grade using student_id (Migration to ID-based matching)
       const { data: existingGrade } = await supabase.from('student_grades')
@@ -1827,7 +1827,7 @@ export async function lockAttendance(disciplineId: string, date: string, lockedB
   const supabase = createClient()
   // Ensure we don't hit UUID error with 'master'
   const userId = lockedBy === 'master' ? '00000000-0000-0000-0000-000000000000' : lockedBy
-  
+
   await supabase.from('attendance_locks').insert({
     discipline_id: disciplineId,
     date,
@@ -1857,66 +1857,66 @@ export async function getStudentGrades(): Promise<StudentGrade[]> {
  * based on the identifier (CPF/Email).
  */
 export async function syncStudentGrades(studentId: string, cpf?: string, email?: string): Promise<{ affected: number }> {
-    const supabase = createClient()
-    const cleanCpf = cpf?.replace(/\D/g, '') || ""
-    
-    // Find records that don't have student_id but match CPF or Email
-    let query = supabase.from('student_grades')
-        .select('id')
-        .is('student_id', null)
-    
-    const conditions = []
-    if (cleanCpf) conditions.push(`student_identifier.eq.${cleanCpf}`)
-    if (email) conditions.push(`student_identifier.eq.${email.toLowerCase().trim()}`)
-    
-    if (conditions.length === 0) return { affected: 0 }
-    
-    const { data: orphans } = await query.or(conditions.join(','))
-    
-    if (!orphans || orphans.length === 0) return { affected: 0 }
-    
-    const ids = orphans.map((o: any) => o.id)
-    const { error } = await supabase.from('student_grades')
-        .update({ student_id: studentId })
-        .in('id', ids)
-    
-    if (error) {
-        console.error("Error during grade sync:", error)
-        return { affected: 0 }
-    }
-    
-    return { affected: ids.length }
+  const supabase = createClient()
+  const cleanCpf = cpf?.replace(/\D/g, '') || ""
+
+  // Find records that don't have student_id but match CPF or Email
+  let query = supabase.from('student_grades')
+    .select('id')
+    .is('student_id', null)
+
+  const conditions = []
+  if (cleanCpf) conditions.push(`student_identifier.eq.${cleanCpf}`)
+  if (email) conditions.push(`student_identifier.eq.${email.toLowerCase().trim()}`)
+
+  if (conditions.length === 0) return { affected: 0 }
+
+  const { data: orphans } = await query.or(conditions.join(','))
+
+  if (!orphans || orphans.length === 0) return { affected: 0 }
+
+  const ids = orphans.map((o: any) => o.id)
+  const { error } = await supabase.from('student_grades')
+    .update({ student_id: studentId })
+    .in('id', ids)
+
+  if (error) {
+    console.error("Error during grade sync:", error)
+    return { affected: 0 }
+  }
+
+  return { affected: ids.length }
 }
 
 /**
  * Bulk repairs grade records for all students.
  */
 export async function bulkSyncGrades(): Promise<{ totalAffected: number }> {
-    const students = await getStudents()
-    let totalAffected = 0
-    for (const student of students) {
-        const { affected } = await syncStudentGrades(student.id, student.cpf, student.email)
-        totalAffected += affected
-    }
-    return { totalAffected }
+  const students = await getStudents()
+  let totalAffected = 0
+  for (const student of students) {
+    const { affected } = await syncStudentGrades(student.id, student.cpf, student.email)
+    totalAffected += affected
+  }
+  return { totalAffected }
 }
 
 /**
  * Fetches all attendances for a specific student in a single call.
  */
 export async function getStudentAttendances(studentId: string): Promise<Attendance[]> {
-    const supabase = createClient()
-    const { data, error } = await supabase.from('attendances')
-        .select('*')
-        .eq('student_id', studentId)
-        .order('date', { ascending: false })
-    
-    if (error) {
-        console.error("Error fetching student attendances:", error)
-        return []
-    }
-    
-    return (data || []).map(mapAttendance)
+  const supabase = createClient()
+  const { data, error } = await supabase.from('attendances')
+    .select('*')
+    .eq('student_id', studentId)
+    .order('date', { ascending: false })
+
+  if (error) {
+    console.error("Error fetching student attendances:", error)
+    return []
+  }
+
+  return (data || []).map(mapAttendance)
 }
 
 export async function saveStudentGrade(grade: Omit<StudentGrade, 'id' | 'createdAt'>, id?: string): Promise<void> {
@@ -1927,9 +1927,9 @@ export async function saveStudentGrade(grade: Omit<StudentGrade, 'id' | 'created
   if (!student_id && grade.studentIdentifier) {
     const cleanId = grade.studentIdentifier.replace(/\D/g, '')
     const { data: std } = await supabase.from('students')
-        .select('id')
-        .or(`cpf.eq.${cleanId},email.eq.${grade.studentIdentifier}`)
-        .maybeSingle()
+      .select('id')
+      .or(`cpf.eq.${cleanId},email.eq.${grade.studentIdentifier}`)
+      .maybeSingle()
     if (std) student_id = std.id
   }
 
@@ -2022,25 +2022,25 @@ export async function uploadAvatar(file: File, userId: string, folder: 'students
 }
 
 export async function updateProfileAvatar(
-  userId: string, 
-  avatarUrl: string, 
+  userId: string,
+  avatarUrl: string,
   type: 'student' | 'professor' | 'board'
 ): Promise<void> {
   const supabase = createClient()
-  
+
   // 1. Special Case: Master Professor Account
   if (type === 'professor' && (userId === 'master' || userId === MASTER_CREDENTIALS.email)) {
     console.log("DEBUG-V1.2.2: Atualizando Avatar do Master...");
     const { error: masterError } = await supabase
       .from('professor_accounts')
-      .upsert({ 
+      .upsert({
         email: MASTER_CREDENTIALS.email,
         avatar_url: avatarUrl,
         name: MASTER_CREDENTIALS.name,
         role: 'master',
         active: true
       }, { onConflict: 'email' })
-    
+
     if (masterError) {
       console.error("DEBUG-V1.2.2: Erro ao dar upsert no Master:", masterError.message);
       throw new Error("Erro ao atualizar foto do Master: " + masterError.message);
@@ -2092,11 +2092,11 @@ export async function updateProfileAvatar(
           .maybeSingle();
 
         if (emailUpdate && !emailError) {
-            success = true;
-            console.log("DEBUG-V1.2.2: Atualização por Email concluída com sucesso.");
+          success = true;
+          console.log("DEBUG-V1.2.2: Atualização por Email concluída com sucesso.");
         } else {
-            lastError = emailError?.message || "Nenhum registro encontrado por Email.";
-            console.warn("DEBUG-V1.2.2: Fallback por email falhou:", lastError);
+          lastError = emailError?.message || "Nenhum registro encontrado por Email.";
+          console.warn("DEBUG-V1.2.2: Fallback por email falhou:", lastError);
         }
       }
     } catch (e: any) {
@@ -2116,7 +2116,7 @@ export async function getStudentProfile(id: string): Promise<StudentProfile | nu
     .select('*')
     .eq('id', id)
     .single()
-  
+
   if (error) return null
   return data as StudentProfile
 }
@@ -2129,21 +2129,21 @@ export async function getClassmates(classId: string): Promise<StudentProfile[]> 
     .eq('class_id', classId)
     .eq('status', 'active')
     .order('name')
-  
+
   if (error) return []
   return data as StudentProfile[]
 }
 
 export async function getProfessorAccount(id: string): Promise<ProfessorAccount | null> {
   const supabase = createClient()
-  
+
   if (id === 'master') {
     const { data, error } = await supabase
       .from('professor_accounts')
       .select('*')
       .eq('email', MASTER_CREDENTIALS.email)
       .maybeSingle()
-    
+
     if (data) return mapProfessor(data)
     // Fallback to hardcoded credentials if DB record doesn't exist yet
     return { ...MASTER_CREDENTIALS, id: 'master', passwordHash: '', createdAt: new Date().toISOString() }
@@ -2154,13 +2154,13 @@ export async function getProfessorAccount(id: string): Promise<ProfessorAccount 
     .select('*')
     .eq('id', id)
     .single()
-  
+
   if (error) return null
   return mapProfessor(data)
 }
 export async function syncStudentTuitionByDisciplines(studentId: string): Promise<void> {
   const supabase = createClient()
-  
+
   // 1. Get Student and their Class
   const { data: student } = await supabase.from('students').select('class_id, created_at').eq('id', studentId).single()
   if (!student) return
@@ -2202,7 +2202,7 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
   // Use a date slightly before any possible discipline to force it to the top
   const enrollmentDate = new Date(student.created_at || Date.now())
   enrollmentDate.setHours(0, 0, 0, 0)
-  
+
   charges.push({
     student_id: studentId,
     type: 'enrollment',
@@ -2217,7 +2217,7 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
   disciplines.forEach((disp, index) => {
     let year = parseInt(disp.applicationYear || "2026")
     let monthNum = 1
-    
+
     if (disp.applicationMonth) {
       if (monthMap[disp.applicationMonth]) {
         monthNum = monthMap[disp.applicationMonth]
@@ -2228,10 +2228,10 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
 
     // Ensure due date is at least the next day or in correct sequence
     const dueDate = new Date(year, monthNum - 1, 10)
-    
+
     // Safety check: if due date ends up being before enrollment date,
     // we still keep it but the ordering in UI will be clarified by creation order too
-    
+
     charges.push({
       student_id: studentId,
       type: 'monthly',
@@ -2274,10 +2274,10 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
   }
 }
 
-export async function settleFinancialCharge(id: string, data: { 
-  paidAmount: number, 
-  method: "cartao" | "pix" | "dinheiro", 
-  date: string 
+export async function settleFinancialCharge(id: string, data: {
+  paidAmount: number,
+  method: "cartao" | "pix" | "dinheiro",
+  date: string
 }): Promise<void> {
   const supabase = createClient()
   const dbData = {

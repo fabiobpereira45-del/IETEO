@@ -21,6 +21,7 @@ import { FinancialManager } from "./financial-manager"
 import { ExpenseManager } from "./expense-manager"
 import { ProLaboreManager } from "./pro-labore-manager"
 import { FinancialConfig } from "./financial-config"
+import { FinancialReports } from "./financial-reports"
 import { 
     getFinancialCharges, 
     getExpenses, 
@@ -233,7 +234,7 @@ export function FinancialDashboard() {
 
             {/* Main Tabs */}
             <Tabs value={tab} onValueChange={setTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto p-1 bg-muted/50 rounded-2xl border border-border/50">
+                <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto p-1 bg-muted/50 rounded-2xl border border-border/50">
                     <TabsTrigger value="dashboard" className="rounded-xl py-2.5 text-xs font-bold flex items-center gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
                         <LayoutDashboard className="h-4 w-4" /> Dashboard
                     </TabsTrigger>
@@ -248,6 +249,9 @@ export function FinancialDashboard() {
                     </TabsTrigger>
                     <TabsTrigger value="config" className="rounded-xl py-2.5 text-xs font-bold flex items-center gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
                         <Settings className="h-4 w-4" /> Ajustes
+                    </TabsTrigger>
+                    <TabsTrigger value="reports" className="rounded-xl py-2.5 text-xs font-bold flex items-center gap-2 data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                        <FileBarChart className="h-4 w-4" /> Relatórios
                     </TabsTrigger>
                 </TabsList>
 
@@ -281,6 +285,10 @@ export function FinancialDashboard() {
 
                     <TabsContent value="config" className="m-0">
                         <FinancialConfig />
+                    </TabsContent>
+
+                    <TabsContent value="reports" className="m-0">
+                        <FinancialReports />
                     </TabsContent>
                 </div>
             </Tabs>
