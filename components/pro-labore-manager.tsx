@@ -118,8 +118,9 @@ export function ProLaboreManager({ onRefresh }: { onRefresh?: () => void } = {})
         if (!settleItem) return
 
         const key = `${settleItem.professorId}-${settleItem.disciplineId}-${settleItem.classId}`
+        console.log("Iniciando baixa de pro-labore para chave:", key)
         setSaving(key)
-        setSettleModalOpen(false)
+        
         try {
             await settleProLabore({
                 professorId: settleItem.professorId,
@@ -128,16 +129,22 @@ export function ProLaboreManager({ onRefresh }: { onRefresh?: () => void } = {})
                 amount: settleItem.totalAmount,
                 description: `Pro-labore: ${settleItem.disciplineName} (${settleItem.className})`
             })
+            
+            console.log("Baixa realizada com sucesso no banco.")
+            setSettleModalOpen(false)
             toast.success("Pagamento registrado com sucesso!")
+            
             // Auto-print receipt immediately after settling
             printProLaboreReceipt(settleItem, settleDate, settings)
-            load()
+            
+            await load()
             onRefresh?.()
+            setSettleItem(null)
         } catch (e: any) {
-            toast.error("Erro ao registrar pagamento: " + e.message)
+            console.error("Erro no handleSettle:", e)
+            toast.error("Erro ao registrar pagamento: " + (e.message || "Erro desconhecido"))
         } finally {
             setSaving(null)
-            setSettleItem(null)
         }
     }
 
@@ -279,9 +286,9 @@ export function ProLaboreManager({ onRefresh }: { onRefresh?: () => void } = {})
                                                                 <td className="px-4 py-3 text-right">
                                                                     <div className="flex items-center justify-end gap-1.5">
                                                                         {!item.isPaid ? (
-                                                                            <button
-                                                                                type="button"
-                                                                                className="h-7 text-[10px] font-bold px-3 gap-1.5 flex items-center justify-center bg-primary text-white rounded-md hover:bg-primary/90 shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                                                                            <Button
+                                                                                size="sm"
+                                                                                className="h-7 text-[10px] font-bold px-3 gap-1.5 shadow-sm active:scale-95"
                                                                                 onClick={(e) => {
                                                                                     e.preventDefault();
                                                                                     e.stopPropagation();
@@ -294,7 +301,7 @@ export function ProLaboreManager({ onRefresh }: { onRefresh?: () => void } = {})
                                                                                     : <DollarSign className="h-3 w-3" />
                                                                                 }
                                                                                 DAR BAIXA
-                                                                            </button>
+                                                                            </Button>
                                                                         ) : (
                                                                             <>
                                                                                 <Button

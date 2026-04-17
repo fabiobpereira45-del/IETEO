@@ -873,9 +873,10 @@ export async function settleProLabore(data: {
   amount: number,
   description: string
 }): Promise<{ id: string }> {
+  console.log("Settling Pro-labore:", data)
   const supabase = createClient()
   const dbData = {
-    type: 'expense',
+    type: 'expense' as any,
     category: 'pro-labore',
     description: data.description,
     amount: data.amount,
@@ -893,7 +894,10 @@ export async function settleProLabore(data: {
     .insert(dbData)
     .select('id')
     .single()
-  if (error) throw new Error(error.message)
+  if (error) {
+    console.error("Error settling pro-labore:", error)
+    throw new Error(error.message)
+  }
   return insertedData
 }
 
