@@ -802,7 +802,7 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
 
       {/* AI Generator Modal */}
       <Dialog open={aiModal} onOpenChange={setAiModal}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-background border-border max-h-[90vh]">
+        <DialogContent className="max-w-6xl w-[95vw] p-0 overflow-hidden bg-background border-border max-h-[90vh]">
           <VisuallyHidden>
             <DialogTitle>Gerador de Questões com IA</DialogTitle>
           </VisuallyHidden>

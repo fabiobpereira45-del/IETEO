@@ -210,8 +210,6 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded, defaultDisc
     if (typeof window !== "undefined") {
       const savedProvider = localStorage.getItem("teologia_aiProvider") || "groq"
       setAiProvider(savedProvider)
-      const savedKey = localStorage.getItem(`teologia_apiKey_${savedProvider}`) || ""
-      setApiKey(savedKey)
     }
   }, [defaultDisciplineId])
 
@@ -220,16 +218,6 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded, defaultDisc
     setAiProvider(val)
     if (typeof window !== "undefined") {
       localStorage.setItem("teologia_aiProvider", val)
-      const savedKey = localStorage.getItem(`teologia_apiKey_${val}`) || ""
-      setApiKey(savedKey)
-    }
-  }
-
-  function handleApiKeyChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const val = e.target.value
-    setApiKey(val)
-    if (typeof window !== "undefined") {
-      localStorage.setItem(`teologia_apiKey_${aiProvider}`, val)
     }
   }
 
@@ -505,38 +493,20 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded, defaultDisc
               <div className="bg-card border border-border shadow-sm rounded-xl p-5 flex flex-col gap-4 transition-all hover:border-primary/20">
                 <div className="flex items-center gap-2 border-b border-border/50 pb-3 mb-1">
                   <Cpu className="h-4 w-4 text-primary" />
-                  <h4 className="font-semibold text-sm text-foreground">Provedor de IA e Credenciais</h4>
+                  <h4 className="font-semibold text-sm text-foreground">Motor de IA</h4>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Motor de Inteligência Artificial</Label>
-                    <select
-                      value={aiProvider}
-                      onChange={handleProviderChange}
-                      className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground font-medium w-full outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-                    >
-                      <option value="groq">Groq (Llama 3)</option>
-                      <option value="openai">OpenAI (GPT-4o)</option>
-                      <option value="google">Google (Gemini)</option>
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Sua Chave de API (API Key)</Label>
-                    <div className="relative">
-                      <Key className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type="password"
-                        placeholder={`Insira sua API Key do ${aiProvider === "openai" ? "OpenAI" : aiProvider === "google" ? "Google Gemini" : "Groq"}`}
-                        value={apiKey}
-                        onChange={handleApiKeyChange}
-                        className="pl-9 h-9 text-sm font-medium"
-                      />
-                    </div>
-                  </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Provedor de Inteligência Artificial</Label>
+                  <select
+                    value={aiProvider}
+                    onChange={handleProviderChange}
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground font-medium w-full outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
+                  >
+                    <option value="groq">Groq (Llama 3)</option>
+                    <option value="openai">OpenAI (GPT-4o)</option>
+                    <option value="google">Google (Gemini)</option>
+                  </select>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Para evitar sobrecarga no sistema, utilize suas próprias credenciais (API Key). A chave fica salva apenas no seu navegador local.
-                </p>
               </div>
 
               {/* 4. Formato das Questões */}
