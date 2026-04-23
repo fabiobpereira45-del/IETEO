@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import {
   Sparkles, BookOpen, Hash, ListChecks, Loader2, Check,
   ChevronDown, ChevronUp, Plus, AlertCircle, X, MessageSquare, Settings2,
-  Key, Cpu
+  Key, Cpu, Copy, Terminal
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -202,6 +202,7 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded, defaultDisc
   const [saved, setSaved] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [sourceDetails, setSourceDetails] = useState("")
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     if (defaultDisciplineId) {
@@ -243,6 +244,34 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded, defaultDisc
 
   function deselectAll() {
     setSelected(new Set())
+  }
+
+  function handleCopyPrompt() {
+    const selectedDisc = disciplines.find((d) => d.id === disciplineId)
+    const discName = selectedDisc?.name || disciplineId
+    
+    const typesList = types.map((t) => TYPE_LABELS[t]).join(", ")
+    
+    const promptText = `Atue como um Especialista em Teologia e Avaliação Acadêmica.
+Preciso que você crie exatamente ${count} questão(ões) para a disciplina de "${discName}".
+
+Público-Alvo: ${audience}
+Nível de Dificuldade: ${difficulty}
+Modalidades das questões solicitadas: ${typesList}.
+
+Diretrizes obrigatórias:
+1. Retorne as questões em formato CSV rigoroso, separando as colunas por ponto e vírgula (;).
+2. O formato de cada linha deve ser: Pergunta; Alternativa A; Alternativa B; Alternativa C; Alternativa D; Letra Correta.
+3. Não inclua numeração antes da pergunta.
+4. Para questões que não sejam de Múltipla Escolha, adapte o formato, mas mantenha as 6 colunas. Ex para V/F: Pergunta; Verdadeiro; Falso; ; ; Letra Correta.
+5. Não adicione nenhum texto introdutório, explicações ou notas no final. Apenas o conteúdo do CSV.
+
+${sourceDetails ? `\nBASE DE CONHECIMENTO / CONTEXTO OBRIGATÓRIO:\n${sourceDetails}\n` : ""}
+Gere as questões agora.`
+
+    navigator.clipboard.writeText(promptText)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 3000)
   }
 
   async function handleGenerate() {
@@ -366,12 +395,15 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded, defaultDisc
       </div>
 
       <Tabs defaultValue="automatic" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-1 rounded-xl mb-4">
-          <TabsTrigger value="automatic" className="rounded-lg data-[state=active]:accent-gradient data-[state=active]:text-white transition-all py-2 gap-2">
-            <Settings2 className="h-4 w-4" /> Gerador Automático
+        <TabsList className="grid w-full grid-cols-3 bg-muted/50 p-1 rounded-xl mb-4">
+          <TabsTrigger value="automatic" className="rounded-lg data-[state=active]:accent-gradient data-[state=active]:text-white transition-all py-2 gap-2 text-xs sm:text-sm">
+            <Settings2 className="h-4 w-4" /> Automático
           </TabsTrigger>
-          <TabsTrigger value="chat" className="rounded-lg data-[state=active]:accent-gradient data-[state=active]:text-white transition-all py-2 gap-2">
-            <MessageSquare className="h-4 w-4" /> Conversar com IA
+          <TabsTrigger value="prompt" className="rounded-lg data-[state=active]:accent-gradient data-[state=active]:text-white transition-all py-2 gap-2 text-xs sm:text-sm">
+            <Terminal className="h-4 w-4" /> Gerar Prompt
+          </TabsTrigger>
+          <TabsTrigger value="chat" className="rounded-lg data-[state=active]:accent-gradient data-[state=active]:text-white transition-all py-2 gap-2 text-xs sm:text-sm">
+            <MessageSquare className="h-4 w-4" /> Chat
           </TabsTrigger>
         </TabsList>
 
@@ -658,6 +690,129 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded, defaultDisc
                 </div>
               </div>
             )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="prompt" className="animate-in fade-in duration-300">
+          <div className="flex flex-col gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* 1. Perfil da Avaliação */}
+              <div className="bg-card border border-border shadow-sm rounded-xl p-5 flex flex-col gap-4">
+                <div className="flex items-center gap-2 border-b border-border/50 pb-3 mb-1">
+                  <BookOpen className="h-4 w-4 text-purple-600" />
+                  <h4 className="font-semibold text-sm text-foreground">Perfil da Avaliação</h4>
+                </div>
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Disciplina</Label>
+                    <select
+                      value={disciplineId}
+                      onChange={(e) => setDisciplineId(e.target.value)}
+                      className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground font-medium w-full outline-none focus:border-primary"
+                    >
+                      {disciplines.map((d) => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Público-Alvo</Label>
+                    <select
+                      value={audience}
+                      onChange={(e) => setAudience(e.target.value)}
+                      className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground font-medium w-full outline-none focus:border-primary"
+                    >
+                      <option value="Escola Bíblica (Membros Gerais)">Escola Bíblica (Básico)</option>
+                      <option value="Seminário Teológico / Graduação">Seminário Teológico (Normal)</option>
+                      <option value="Pós-Graduação / Especialização">Pós / Especialização (Intenso)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Complexidade e Volume */}
+              <div className="bg-card border border-border shadow-sm rounded-xl p-5 flex flex-col gap-4">
+                <div className="flex items-center gap-2 border-b border-border/50 pb-3 mb-1">
+                  <Sparkles className="h-4 w-4 text-purple-600" />
+                  <h4 className="font-semibold text-sm text-foreground">Complexidade e Volume</h4>
+                </div>
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Nível Exigido</Label>
+                    <select
+                      value={difficulty}
+                      onChange={(e) => setDifficulty(e.target.value)}
+                      className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground font-medium w-full outline-none focus:border-primary"
+                    >
+                      <option value="Básico">Básico</option>
+                      <option value="Intermediário">Intermediário</option>
+                      <option value="Avançado">Avançado</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Qtd. de Questões</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={count}
+                      onChange={(e) => setCount(Number(e.target.value))}
+                      className="h-10 font-medium"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Conteúdo e Modalidades */}
+            <div className="bg-card border border-border shadow-sm rounded-xl p-5 flex flex-col gap-4">
+              <div className="flex items-center gap-2 border-b border-border/50 pb-3 mb-1">
+                <ListChecks className="h-4 w-4 text-purple-600" />
+                <h4 className="font-semibold text-sm text-foreground">Conteúdo e Modalidades</h4>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Modalidades das Questões</Label>
+                <div className="flex flex-wrap gap-2">
+                  {(Object.keys(TYPE_LABELS) as QuestionType[]).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => toggleType(t)}
+                      className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all ${types.includes(t)
+                        ? "bg-purple-700 text-white border-purple-700 shadow-sm"
+                        : "bg-background text-muted-foreground border-border hover:border-purple-300 hover:bg-purple-50"
+                        }`}
+                    >
+                      {TYPE_LABELS[t]} {types.includes(t) && <Check className="inline-block w-3.5 h-3.5 ml-1 mb-0.5" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5 mt-2">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Recorte ou Assunto Específico (Opcional)</Label>
+                <textarea
+                  placeholder="Cole aqui um texto base, capítulos do livro ou temas específicos que a IA deve abordar..."
+                  value={sourceDetails}
+                  onChange={(e) => setSourceDetails(e.target.value)}
+                  className="min-h-[100px] w-full rounded-xl border border-input bg-background px-4 py-3 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-purple-500 resize-y"
+                />
+                <p className="text-[11px] text-muted-foreground italic mt-1">Dica: Quanto mais contexto você fornecer, melhor será a questão gerada.</p>
+              </div>
+            </div>
+
+            {/* CTA Generate Prompt */}
+            <div className="bg-purple-50 border border-purple-100 rounded-xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 mt-2">
+              <div>
+                <h4 className="font-bold text-base text-foreground">Tudo pronto?</h4>
+                <p className="text-sm text-muted-foreground">Copie o prompt configurado e leve-o para sua IA.</p>
+              </div>
+              <Button 
+                onClick={handleCopyPrompt} 
+                className="bg-purple-600 hover:bg-purple-700 text-white rounded-lg h-12 px-6 shadow-md shadow-purple-600/20 w-full sm:w-auto"
+              >
+                {copied ? <Check className="h-5 w-5 mr-2" /> : <Sparkles className="h-5 w-5 mr-2" />}
+                {copied ? "Copiado!" : "Gerar e Copiar Prompt"}
+              </Button>
+            </div>
           </div>
         </TabsContent>
 
