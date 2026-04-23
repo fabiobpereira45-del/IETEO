@@ -484,7 +484,7 @@ function BulkImportModal({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-6xl w-[95vw]">
+      <DialogContent className="sm:max-w-6xl w-[95vw]">
         <DialogHeader>
           <DialogTitle>Importar Lote de Questões</DialogTitle>
           <p className="text-sm text-muted-foreground mt-1 text-left">
@@ -802,7 +802,7 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
 
       {/* AI Generator Modal */}
       <Dialog open={aiModal} onOpenChange={setAiModal}>
-        <DialogContent className="max-w-6xl w-[95vw] p-0 overflow-hidden bg-background border-border max-h-[90vh]">
+        <DialogContent className="sm:max-w-6xl w-[95vw] p-0 overflow-hidden bg-background border-border max-h-[90vh]">
           <VisuallyHidden>
             <DialogTitle>Gerador de Questões com IA</DialogTitle>
           </VisuallyHidden>
