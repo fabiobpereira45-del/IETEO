@@ -191,10 +191,10 @@ L6 Criar → Sínteses, projetos, soluções originais
 Frontend: Next.js 14 (App Router) + TypeScript
 UI: shadcn/ui + Tailwind CSS
 Estado: Zustand + React Query
-Backend: Node.js (Fastify) + Python (FastAPI para IA)
+Backend: Node.js (Fastify) + Python (FastAPI para IA) / Next.js API Routes
 Banco: PostgreSQL (dados) + Redis (sessões/tempo real)
 Real-time: WebSockets (Socket.io) ou Server-Sent Events
-IA: Claude API (geração/correção) + LangChain
+IA: Integração descentralizada (OpenAI, Google Gemini, Groq) fornecida via API Key pelo usuário (professor)
 Mídia: AWS S3 ou Cloudflare R2
 Auth: NextAuth.js ou Clerk
 Deploy: Vercel (frontend) + Railway/Render (backend)
@@ -204,8 +204,8 @@ Deploy: Vercel (frontend) + Railway/Render (backend)
 ```
 Frontend: React + Vite + TypeScript
 Backend: Supabase (DB + Auth + Realtime + Storage)
-IA: Claude API via Edge Functions
-Deploy: Netlify + Supabase
+IA: @ai-sdk multi-provider (Groq, OpenAI, Gemini) usando API Key do usuário para não onerar sistema central
+Deploy: Netlify / Vercel + Supabase
 ```
 
 #### Stack Enterprise
@@ -272,7 +272,8 @@ POST   /api/results/export           // Exportar relatório
 ### 4.1 Geração de Questões via IA
 
 ```typescript
-// Prompt arquitetado para geração de alta qualidade
+// Prompt arquitetado para geração de alta qualidade suportando multi-modelos (OpenAI, Gemini, Groq)
+// O sistema agora é DESCENTRALIZADO: O professor escolhe a IA e fornece a própria API Key
 async function generateQuestions(config: {
   texto: string;
   quantidade: number;
@@ -281,23 +282,11 @@ async function generateQuestions(config: {
   dificuldades: Dificuldade[];
   disciplina: string;
   instrucoes_extras?: string;
+  aiProvider: 'openai' | 'google' | 'groq';
+  apiKey: string;
 }) {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 4000,
-      system: `Você é um especialista em psicometria e design instrucional.
-      Gera questões academicamente rigorosas, com distratores plausíveis,
-      gabarito justificado e feedback pedagógico. Sempre responde em JSON válido.`,
-      messages: [{
-        role: "user",
-        content: buildExtractionPrompt(config)
-      }]
-    })
-  });
-  // Parse + validação + enriquecimento
+  // Lógica delegada para @ai-sdk baseado na escolha do professor
+  // model = aiProvider === 'openai' ? openai('gpt-4o') : ...
 }
 ```
 

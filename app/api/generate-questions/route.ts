@@ -1,14 +1,10 @@
 import { createOpenAI } from "@ai-sdk/openai"
+import { createGoogleGenerativeAI } from "@ai-sdk/google"
 import { generateText } from "ai"
 import { parseOffice } from "officeparser"
 import PDFParser from "pdf2json"
 
 export const maxDuration = 60 // 60 seconds timeout
-
-const groq = createOpenAI({
-  apiKey: process.env.GROQ_API_KEY,
-  baseURL: "https://api.groq.com/openai/v1",
-})
 
 // ─── Helper: Extração Blindada de JSON ──────────────────────────────────────────
 
@@ -211,6 +207,8 @@ export async function POST(req: Request) {
     let sourceDetails = ""
     let audience = ""
     let difficulty = ""
+    let aiProvider = "groq"
+    let apiKey = ""
 
     if (isFormData) {
       const formData = await req.formData()
@@ -221,6 +219,8 @@ export async function POST(req: Request) {
       sourceDetails = formData.get("sourceDetails") as string || ""
       audience = formData.get("audience") as string || "Graduação Teológica"
       difficulty = formData.get("difficulty") as string || "Intermediário"
+      aiProvider = formData.get("aiProvider") as string || "groq"
+      apiKey = formData.get("apiKey") as string || ""
 
       const file = formData.get("file") as File | null
       if (file) {
@@ -249,6 +249,7 @@ export async function POST(req: Request) {
       const body = (await req.json()) as {
         discipline: string; count: number; types: string[]
         sourceDetails?: string; audience?: string; difficulty?: string
+        aiProvider?: string; apiKey?: string
       }
       discipline = body.discipline
       count = body.count
@@ -256,6 +257,27 @@ export async function POST(req: Request) {
       sourceDetails = body.sourceDetails || ""
       audience = body.audience || "Graduação Teológica"
       difficulty = body.difficulty || "Intermediário"
+      aiProvider = body.aiProvider || "groq"
+      apiKey = body.apiKey || ""
+    }
+
+    if (!apiKey) {
+      throw new Error("Chave de API (API Key) não fornecida. Por favor, insira sua credencial nas opções de IA.")
+    }
+
+    let model;
+    if (aiProvider === "openai") {
+      const openai = createOpenAI({ apiKey })
+      model = openai("gpt-4o-mini")
+    } else if (aiProvider === "google") {
+      const google = createGoogleGenerativeAI({ apiKey })
+      model = google("gemini-1.5-pro-latest")
+    } else {
+      const groq = createOpenAI({
+        apiKey,
+        baseURL: "https://api.groq.com/openai/v1",
+      })
+      model = groq("llama-3.3-70b-versatile")
     }
 
     const safeCount = Math.min(Math.max(1, count), 30)
@@ -292,7 +314,7 @@ ${sourceDetails ? `FOCO ESPECÍFICO: ${sourceDetails}.` : ""}
 LEMBRE-SE: Retorne APENAS o JSON bruto. Sem explicações.`
 
     const { text } = await generateText({
-      model: groq("llama-3.3-70b-versatile"),
+      model,
       system: SYSTEM_PROMPT,
       prompt: userPrompt,
       temperature: 0.7,

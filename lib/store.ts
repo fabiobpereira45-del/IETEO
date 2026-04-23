@@ -13,14 +13,14 @@ export interface StudyMaterial { id: string; disciplineId: string; title: string
 export interface FinancialSettings { id: string; enrollmentFee: number; monthlyFee: number; secondCallFee: number; finalExamFee: number; totalMonths: number; proLaboreFeePerLesson: number; creditCardUrl?: string; pixKey?: string; updatedAt: string; }
 export interface FinancialCharge {
   id: string;
-  studentId: string;
-  type: "enrollment" | "monthly" | "second_call" | "final_exam" | "other";
+  studentId?: string;
+  type: "enrollment" | "monthly" | "second_call" | "final_exam" | "other" | "expense";
   description: string;
   amount: number;
   dueDate: string;
   status: "pending" | "paid" | "cancelled" | "late" | "bolsa100" | "bolsa50" | "isento";
   paymentDate?: string;
-  paymentMethod?: "cartao" | "pix" | "dinheiro";
+  paymentMethod?: "cartao" | "pix" | "dinheiro" | "other";
   actualPaidAmount?: number;
   disciplineId?: string;
   professorId?: string;
@@ -879,7 +879,7 @@ export async function settleProLabore(data: {
   const useDate = data.date || new Date().toISOString().split('T')[0]
   
   const dbData = {
-    type: 'expense' as any,
+    type: 'expense',
     description: data.description,
     amount: data.amount,
     professor_id: data.professorId,
@@ -899,7 +899,11 @@ export async function settleProLabore(data: {
     .single()
     
   if (error) {
-    console.error("Error settling pro-labore:", error)
+    console.error("Error settling pro-labore (SQL Error):", error)
+    // Se o erro for de restrição NOT NULL em student_id, avisamos o usuário sobre o SQL
+    if (error.message.includes("student_id") && error.message.includes("not-null")) {
+      throw new Error("Erro de banco de dados: O campo student_id não permite valores nulos na tabela financial_charges. É necessário rodar o comando SQL de ajuste no Supabase.")
+    }
     throw new Error(error.message)
   }
   return insertedData
