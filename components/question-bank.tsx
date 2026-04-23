@@ -484,7 +484,7 @@ function BulkImportModal({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-6xl w-[95vw]">
+      <DialogContent className="sm:max-w-6xl w-[95vw] max-h-[90vh] overflow-hidden flex flex-col p-6">
         <DialogHeader>
           <DialogTitle>Importar Lote de Questões</DialogTitle>
           <p className="text-sm text-muted-foreground mt-1 text-left">
@@ -494,13 +494,13 @@ function BulkImportModal({
             </code>
           </p>
         </DialogHeader>
-        <div className="flex flex-col gap-3 py-2">
+        <div className="flex-1 flex flex-col gap-3 py-4 min-h-0">
           {error && <div className="text-destructive text-sm font-semibold">{error}</div>}
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder={`Exemplo:\nEm que ano o Brasil foi descoberto?; 1492; 1500; 1532; 1822; B\nQual o primeiro livro da Bíblia?; Gênesis; Êxodo; Levítico; Números; A`}
-            className="font-mono text-sm h-64 whitespace-pre"
+            className="font-mono text-sm flex-1 min-h-[300px] max-h-[60vh] overflow-y-auto whitespace-pre resize-none"
           />
         </div>
         <DialogFooter>
