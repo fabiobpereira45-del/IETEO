@@ -203,6 +203,7 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded, defaultDisc
   const [file, setFile] = useState<File | null>(null)
   const [sourceDetails, setSourceDetails] = useState("")
   const [copied, setCopied] = useState(false)
+  const [promptStep, setPromptStep] = useState<1 | 2>(1)
 
   useEffect(() => {
     if (defaultDisciplineId) {
@@ -271,7 +272,10 @@ Gere as questões agora.`
 
     navigator.clipboard.writeText(promptText)
     setCopied(true)
-    setTimeout(() => setCopied(false), 3000)
+    setTimeout(() => {
+      setCopied(false)
+      setPromptStep(2)
+    }, 1500)
   }
 
   async function handleGenerate() {
@@ -764,55 +768,118 @@ Gere as questões agora.`
               </div>
             </div>
 
-            {/* 3. Conteúdo e Modalidades */}
-            <div className="bg-card border border-border shadow-sm rounded-xl p-5 flex flex-col gap-4">
-              <div className="flex items-center gap-2 border-b border-border/50 pb-3 mb-1">
-                <ListChecks className="h-4 w-4 text-purple-600" />
-                <h4 className="font-semibold text-sm text-foreground">Conteúdo e Modalidades</h4>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Modalidades das Questões</Label>
-                <div className="flex flex-wrap gap-2">
-                  {(Object.keys(TYPE_LABELS) as QuestionType[]).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => toggleType(t)}
-                      className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all ${types.includes(t)
-                        ? "bg-purple-700 text-white border-purple-700 shadow-sm"
-                        : "bg-background text-muted-foreground border-border hover:border-purple-300 hover:bg-purple-50"
-                        }`}
-                    >
-                      {TYPE_LABELS[t]} {types.includes(t) && <Check className="inline-block w-3.5 h-3.5 ml-1 mb-0.5" />}
-                    </button>
-                  ))}
+            {promptStep === 1 ? (
+              <>
+                {/* 3. Conteúdo e Modalidades */}
+                <div className="bg-card border border-border shadow-sm rounded-xl p-5 flex flex-col gap-4">
+                  <div className="flex items-center gap-2 border-b border-border/50 pb-3 mb-1">
+                    <ListChecks className="h-4 w-4 text-purple-600" />
+                    <h4 className="font-semibold text-sm text-foreground">Conteúdo e Modalidades</h4>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Modalidades das Questões</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {(Object.keys(TYPE_LABELS) as QuestionType[]).map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => toggleType(t)}
+                          className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all ${types.includes(t)
+                            ? "bg-purple-700 text-white border-purple-700 shadow-sm"
+                            : "bg-background text-muted-foreground border-border hover:border-purple-300 hover:bg-purple-50"
+                            }`}
+                        >
+                          {TYPE_LABELS[t]} {types.includes(t) && <Check className="inline-block w-3.5 h-3.5 ml-1 mb-0.5" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5 mt-2">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Recorte ou Assunto Específico (Opcional)</Label>
+                    <textarea
+                      placeholder="Cole aqui um texto base, capítulos do livro ou temas específicos que a IA deve abordar..."
+                      value={sourceDetails}
+                      onChange={(e) => setSourceDetails(e.target.value)}
+                      className="min-h-[100px] w-full rounded-xl border border-input bg-background px-4 py-3 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-purple-500 resize-y"
+                    />
+                    <p className="text-[11px] text-muted-foreground italic mt-1">Dica: Quanto mais contexto você fornecer, melhor será a questão gerada.</p>
+                  </div>
+                </div>
+
+                {/* CTA Generate Prompt */}
+                <div className="bg-purple-50 border border-purple-100 rounded-xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 mt-2">
+                  <div>
+                    <h4 className="font-bold text-base text-foreground">Tudo pronto?</h4>
+                    <p className="text-sm text-muted-foreground">Copie o prompt configurado e leve-o para sua IA.</p>
+                  </div>
+                  <Button 
+                    onClick={handleCopyPrompt} 
+                    className="bg-purple-600 hover:bg-purple-700 text-white rounded-lg h-12 px-6 shadow-md shadow-purple-600/20 w-full sm:w-auto"
+                  >
+                    {copied ? <Check className="h-5 w-5 mr-2" /> : <Sparkles className="h-5 w-5 mr-2" />}
+                    {copied ? "Copiado!" : "Gerar e Copiar Prompt"}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col gap-6 animate-in fade-in zoom-in-95 duration-300">
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 text-amber-800">
+                  <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm">
+                    <strong>Aviso de Créditos:</strong> Para garantir estabilidade e livre escolha, o sistema não gera questões diretamente via API. Use seus créditos pessoais no ChatGPT/Gemini para maior controle e profundidade teológica.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-center gap-4 border border-border rounded-full p-1.5 w-max mx-auto bg-muted/30">
+                  <button onClick={() => setPromptStep(1)} className="px-4 py-1.5 text-sm font-medium rounded-full hover:bg-background transition-colors text-muted-foreground flex items-center gap-2">
+                    <span className="flex items-center justify-center w-5 h-5 rounded-full border border-current text-[10px]">1</span> Configurar Prompt
+                  </button>
+                  <div className="px-4 py-1.5 text-sm font-semibold rounded-full bg-background shadow-sm text-foreground flex items-center gap-2">
+                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px]">2</span> Abrir IA Externa
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold flex items-center gap-2 mb-4 text-purple-700">
+                    <Sparkles className="h-4 w-4" /> Sugestões de IAs Teológicas
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[
+                      { name: "ChatGPT", desc: "(OpenAI)", url: "https://chatgpt.com", color: "text-emerald-500", bg: "bg-emerald-50" },
+                      { name: "Gemini", desc: "(Google)", url: "https://gemini.google.com", color: "text-blue-500", bg: "bg-blue-50" },
+                      { name: "Claude", desc: "(Anthropic)", url: "https://claude.ai", color: "text-orange-500", bg: "bg-orange-50" },
+                      { name: "Copilot", desc: "(Microsoft)", url: "https://copilot.microsoft.com", color: "text-sky-500", bg: "bg-sky-50" }
+                    ].map(ia => (
+                      <a key={ia.name} href={ia.url} target="_blank" rel="noreferrer" className="flex flex-col items-center justify-center p-4 border border-border rounded-2xl hover:border-primary/50 hover:shadow-md transition-all group bg-card">
+                        <div className={`w-12 h-12 rounded-2xl ${ia.bg} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+                          <Sparkles className={`h-6 w-6 ${ia.color}`} />
+                        </div>
+                        <span className="font-bold text-sm text-foreground">{ia.name}</span>
+                        <span className="text-[10px] text-muted-foreground">{ia.desc}</span>
+                        <span className="text-[9px] uppercase tracking-wider text-primary mt-2 opacity-0 group-hover:opacity-100 transition-opacity">Abrir em nova aba</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border border-border shadow-sm rounded-2xl p-6 text-center mt-2 bg-card">
+                  <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-4">
+                    <Check className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-foreground mb-2">O que fazer após gerar as questões?</h3>
+                  <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6 leading-relaxed">
+                    Se a IA retornar as questões no formato que solicitamos no prompt, você conseguirá importá-las em massa. Vá até o <strong>Banco de Questões</strong> da disciplina correspondente e use o botão <strong>"Importar Lote"</strong>.
+                  </p>
+                  
+                  <div className="flex flex-wrap items-center justify-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                    <span className="border border-border rounded-full px-3 py-1">Copiar questões da IA</span>
+                    <span className="text-border">→</span>
+                    <span className="border border-border rounded-full px-3 py-1">Ir para Banco de Questões</span>
+                    <span className="text-border">→</span>
+                    <span className="border border-border rounded-full px-3 py-1 bg-muted/50">Colar e Salvar</span>
+                  </div>
                 </div>
               </div>
-              <div className="flex flex-col gap-1.5 mt-2">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Recorte ou Assunto Específico (Opcional)</Label>
-                <textarea
-                  placeholder="Cole aqui um texto base, capítulos do livro ou temas específicos que a IA deve abordar..."
-                  value={sourceDetails}
-                  onChange={(e) => setSourceDetails(e.target.value)}
-                  className="min-h-[100px] w-full rounded-xl border border-input bg-background px-4 py-3 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-purple-500 resize-y"
-                />
-                <p className="text-[11px] text-muted-foreground italic mt-1">Dica: Quanto mais contexto você fornecer, melhor será a questão gerada.</p>
-              </div>
-            </div>
-
-            {/* CTA Generate Prompt */}
-            <div className="bg-purple-50 border border-purple-100 rounded-xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 mt-2">
-              <div>
-                <h4 className="font-bold text-base text-foreground">Tudo pronto?</h4>
-                <p className="text-sm text-muted-foreground">Copie o prompt configurado e leve-o para sua IA.</p>
-              </div>
-              <Button 
-                onClick={handleCopyPrompt} 
-                className="bg-purple-600 hover:bg-purple-700 text-white rounded-lg h-12 px-6 shadow-md shadow-purple-600/20 w-full sm:w-auto"
-              >
-                {copied ? <Check className="h-5 w-5 mr-2" /> : <Sparkles className="h-5 w-5 mr-2" />}
-                {copied ? "Copiado!" : "Gerar e Copiar Prompt"}
-              </Button>
-            </div>
+            )}
           </div>
         </TabsContent>
 
