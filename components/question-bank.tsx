@@ -484,7 +484,7 @@ function BulkImportModal({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent className="max-w-6xl w-[95vw]">
         <DialogHeader>
           <DialogTitle>Importar Lote de Questões</DialogTitle>
           <p className="text-sm text-muted-foreground mt-1 text-left">

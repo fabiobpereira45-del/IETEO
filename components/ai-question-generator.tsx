@@ -250,9 +250,9 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded, defaultDisc
   function handleCopyPrompt() {
     const selectedDisc = disciplines.find((d) => d.id === disciplineId)
     const discName = selectedDisc?.name || disciplineId
-    
+
     const typesList = types.map((t) => TYPE_LABELS[t]).join(", ")
-    
+
     const promptText = `Atue como um Especialista em Teologia e Avaliação Acadêmica.
 Preciso que você crie exatamente ${count} questão(ões) para a disciplina de "${discName}".
 
@@ -414,7 +414,7 @@ Gere as questões agora.`
         <TabsContent value="automatic" className="animate-in fade-in slide-in-from-left-4 duration-300">
           <div className="flex flex-col gap-5">
             <div className="flex flex-col gap-5">
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* 1. Configuração Básica */}
                 <div className="bg-card border border-border shadow-sm rounded-xl p-5 flex flex-col gap-4 transition-all hover:border-primary/20">
@@ -811,8 +811,8 @@ Gere as questões agora.`
                     <h4 className="font-bold text-base text-foreground">Tudo pronto?</h4>
                     <p className="text-sm text-muted-foreground">Copie o prompt configurado e leve-o para sua IA.</p>
                   </div>
-                  <Button 
-                    onClick={handleCopyPrompt} 
+                  <Button
+                    onClick={handleCopyPrompt}
                     className="bg-purple-600 hover:bg-purple-700 text-white rounded-lg h-12 px-6 shadow-md shadow-purple-600/20 w-full sm:w-auto"
                   >
                     {copied ? <Check className="h-5 w-5 mr-2" /> : <Sparkles className="h-5 w-5 mr-2" />}
@@ -869,7 +869,7 @@ Gere as questões agora.`
                   <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6 leading-relaxed">
                     Se a IA retornar as questões no formato que solicitamos no prompt, você conseguirá importá-las em massa. Vá até o <strong>Banco de Questões</strong> da disciplina correspondente e use o botão <strong>"Importar Lote"</strong>.
                   </p>
-                  
+
                   <div className="flex flex-wrap items-center justify-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                     <span className="border border-border rounded-full px-3 py-1">Copiar questões da IA</span>
                     <span className="text-border">→</span>
