@@ -12,14 +12,22 @@ import {
   ChevronRight,
   MapPin,
   Clock,
-  ArrowRight
+  ArrowRight,
+  Send,
+  Loader2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { 
   getChallenges, 
   getChallengeSubmissions, 
+  saveChallengeSubmission,
   type Challenge, 
   type ChallengeSubmission,
   type StudentSession
@@ -34,19 +42,54 @@ export function StudentJourneyView({ session, disciplineId }: Props) {
   const [challenges, setChallenges] = useState<Challenge[]>([])
   const [submissions, setSubmissions] = useState<ChallengeSubmission[]>([])
   const [loading, setLoading] = useState(true)
+  const [activeChallenge, setActiveChallenge] = useState<Challenge | null>(null)
+  const [answer, setAnswer] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+  const [showCelebration, setShowCelebration] = useState(false)
+
+  async function load() {
+    const [allChs, allSubs] = await Promise.all([
+      getChallenges(disciplineId),
+      getChallengeSubmissions(session.studentId)
+    ])
+    setChallenges(allChs)
+    setSubmissions(allSubs)
+    setLoading(false)
+  }
 
   useEffect(() => {
-    async function load() {
-      const [allChs, allSubs] = await Promise.all([
-        getChallenges(disciplineId),
-        getChallengeSubmissions(session.studentId)
-      ])
-      setChallenges(allChs)
-      setSubmissions(allSubs)
-      setLoading(false)
-    }
     load()
   }, [disciplineId, session.studentId])
+
+  async function handleSubmit() {
+    if (!activeChallenge || !answer.trim()) return
+    setSubmitting(true)
+    
+    const isCorrect = activeChallenge.correctAnswer 
+      ? answer.trim().toLowerCase() === activeChallenge.correctAnswer.toLowerCase()
+      : true // Default to true for reflection/open tasks
+
+    await saveChallengeSubmission({
+      challengeId: activeChallenge.id,
+      studentId: session.studentId,
+      answer: answer.trim(),
+      isCorrect,
+      earnedPoints: isCorrect ? activeChallenge.points : 0
+    })
+
+    if (isCorrect) {
+      setShowCelebration(true)
+      setTimeout(() => {
+        setShowCelebration(false)
+        setActiveChallenge(null)
+        setAnswer("")
+        load()
+      }, 3000)
+    } else {
+      alert("Resposta incorreta. Tente novamente!")
+      setSubmitting(false)
+    }
+  }
 
   const totalPoints = submissions.reduce((acc, s) => acc + s.earnedPoints, 0)
   const completedCount = submissions.length
@@ -176,7 +219,10 @@ export function StudentJourneyView({ session, disciplineId }: Props) {
                     </div>
 
                     {isNext && (
-                      <Button className="w-full rounded-2xl h-12 text-sm font-bold shadow-lg shadow-primary/20 group-hover:gap-4 transition-all">
+                      <Button 
+                        onClick={() => setActiveChallenge(challenge)}
+                        className="w-full rounded-2xl h-12 text-sm font-bold shadow-lg shadow-primary/20 group-hover:gap-4 transition-all"
+                      >
                         Iniciar Desafio <ArrowRight className="h-4 w-4" />
                       </Button>
                     )}
@@ -216,6 +262,95 @@ export function StudentJourneyView({ session, disciplineId }: Props) {
           Cada desafio concluído aproxima você da maestria teológica. Ganhe XP, suba de nível e desbloqueie novos segredos da disciplina.
         </p>
       </div>
+
+      {/* Challenge Player Modal */}
+      <Dialog open={!!activeChallenge} onOpenChange={(o) => !o && !submitting && setActiveChallenge(null)}>
+        <DialogContent className="sm:max-w-lg rounded-[2.5rem] border-none p-0 overflow-hidden shadow-2xl">
+          {showCelebration ? (
+            <div className="bg-primary p-12 text-center text-primary-foreground space-y-6 animate-in zoom-in duration-500">
+              <div className="h-24 w-24 bg-white/20 rounded-full mx-auto flex items-center justify-center animate-bounce">
+                <Trophy className="h-12 w-12 text-yellow-300" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-3xl font-bold font-serif">Vitória Teológica!</h2>
+                <p className="text-primary-foreground/80">Você completou a missão e ganhou {activeChallenge?.points} XP.</p>
+              </div>
+              <div className="text-6xl font-bold animate-pulse">+{activeChallenge?.points}</div>
+            </div>
+          ) : (
+            <div className="flex flex-col">
+              <div className="bg-primary p-8 text-primary-foreground relative overflow-hidden">
+                <div className="absolute top-0 right-0 -mr-8 -mt-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
+                <div className="relative space-y-2">
+                  <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[2px] opacity-70">
+                    <Sparkles className="h-3 w-3" /> Missão da Semana {activeChallenge?.week}
+                  </div>
+                  <h3 className="text-2xl font-bold font-serif">{activeChallenge?.title}</h3>
+                </div>
+              </div>
+              
+              <div className="p-8 space-y-6">
+                <div className="space-y-4">
+                  <div className="bg-muted/50 p-6 rounded-3xl border-2 border-dashed border-primary/10">
+                    <p className="text-sm italic leading-relaxed text-foreground/80">
+                      "{activeChallenge?.description}"
+                    </p>
+                  </div>
+                  
+                  {activeChallenge?.type === 'riddle' && (
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest ml-1">Sua Resposta</Label>
+                      <Input 
+                        value={answer}
+                        onChange={(e) => setAnswer(e.target.value)}
+                        placeholder="Digite aqui..."
+                        className="h-14 rounded-2xl border-2 focus:border-primary/40 text-lg px-6"
+                        autoFocus
+                      />
+                    </div>
+                  )}
+
+                  {activeChallenge?.type === 'decoding' && (
+                    <div className="space-y-4">
+                      <div className="p-4 bg-navy text-white rounded-2xl font-mono text-center tracking-[4px] text-lg">
+                        {String(activeChallenge?.content).split('').map(c => c === ' ' ? ' ' : '_').join(' ')}
+                      </div>
+                      <Input 
+                        value={answer}
+                        onChange={(e) => setAnswer(e.target.value)}
+                        placeholder="Decifre o versículo..."
+                        className="h-14 rounded-2xl text-center"
+                        autoFocus
+                      />
+                    </div>
+                  )}
+
+                  {activeChallenge?.type === 'reflection' && (
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-bold uppercase tracking-widest ml-1">Sua Reflexão</Label>
+                      <Textarea 
+                        value={answer}
+                        onChange={(e) => setAnswer(e.target.value)}
+                        placeholder="Escreva seus pensamentos..."
+                        className="rounded-2xl min-h-[120px] resize-none px-6 py-4"
+                        autoFocus
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <Button 
+                  onClick={handleSubmit}
+                  disabled={!answer.trim() || submitting}
+                  className="w-full h-14 rounded-2xl text-lg font-bold shadow-xl shadow-primary/20"
+                >
+                  {submitting ? <Loader2 className="h-6 w-6 animate-spin" /> : <>Enviar Resposta <Send className="h-4 w-4 ml-2" /></>}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

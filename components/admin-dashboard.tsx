@@ -42,6 +42,7 @@ import { StudentManager } from "@/components/student-manager"
 import { ClassScheduleManager } from "@/components/class-schedule-manager"
 import { createClient } from "@/lib/supabase/client"
 import { GradesManager } from "@/components/grades-manager"
+import { ChallengeManager } from "@/components/admin/challenge-manager"
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
@@ -67,7 +68,7 @@ function formatTime(s: number) {
   return `${m}m${sec.toString().padStart(2, "0")}s`
 }
 
-type Tab = "overview" | "students" | "grades" | "submissions" | "questions" | "assessments" | "professors" | "semesters" | "class_schedules" | "materials" | "financial" | "settings" | "chat" | "attendance" | "classes" | "institutional"
+type Tab = "overview" | "students" | "grades" | "submissions" | "questions" | "assessments" | "challenges" | "professors" | "semesters" | "class_schedules" | "materials" | "financial" | "settings" | "chat" | "attendance" | "classes" | "institutional"
 
 interface Props {
   onLogout: () => void
@@ -163,6 +164,7 @@ export function AdminDashboard({ onLogout }: Props) {
       items: [
         { id: "questions", label: "Banco de Questões", icon: <BookOpen className="h-4 w-4" />, masterOnly: true },
         { id: "assessments", label: "Provas", icon: <FileText className="h-4 w-4" /> },
+        { id: "challenges", label: "Missões Semanais", icon: <Sparkles className="h-4 w-4" /> },
         { id: "submissions", label: "Respostas de Provas", icon: <CheckCircle2 className="h-4 w-4" /> },
       ]
     },
@@ -361,6 +363,7 @@ export function AdminDashboard({ onLogout }: Props) {
               {tab === "submissions" && <SubmissionsTab assessments={assessments} allSubmissions={submissions} questions={questions} onRefresh={refresh} isMaster={isMaster} />}
               {tab === "questions" && <QuestionBank isMaster={isMaster} />}
               {tab === "assessments" && <AssessmentsTab assessments={assessments} submissions={submissions} questions={questions} disciplines={disciplines} onRefresh={refresh} isMaster={isMaster} />}
+              {tab === "challenges" && <ChallengeManager />}
               {tab === "materials" && <StudyMaterialManager />}
               {tab === "semesters" && <SemesterManager isMaster={isMaster} />}
               {tab === "class_schedules" && isMaster && <ClassScheduleManager />}
