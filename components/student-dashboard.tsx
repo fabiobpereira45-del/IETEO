@@ -139,6 +139,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
 
     const isLocked = profile.payment_status !== 'paid' && charges.some(c => c.type === 'enrollment' && c.status !== 'paid')
 
+    const navItems: { id: Tab; label: string; icon: any }[] = [
         { id: "overview", label: "Visão Geral", icon: Home },
         { id: "journey", label: "Minha Jornada", icon: Sparkles },
         { id: "class-info", label: "Minha Turma", icon: Users },
@@ -149,6 +150,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
         { id: "financial", label: "Financeiro", icon: Clock },
         { id: "chat", label: "Mensagens", icon: MessageSquare },
         { id: "perfil", label: "Meu Perfil", icon: User },
+    ]
 
     const myDisciplineIds = new Set(mySchedules.map(s => s.disciplineId))
     const filteredMaterials = materials.filter(m => !m.disciplineId || myDisciplineIds.has(m.disciplineId))
