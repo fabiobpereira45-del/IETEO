@@ -18,8 +18,10 @@ import { StudentChatView } from "@/components/student-chat-view"
 import { StudentGradesView } from "@/components/student-grades-view"
 import { StudentAssessmentView } from "@/components/student-assessment-view"
 import { AvatarUpload } from "@/components/avatar-upload"
+import { StudentJourneyView } from "@/components/student/student-journey-view"
 import { createClient } from "@/lib/supabase/client"
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import { OverviewTab } from "./student/tabs/OverviewTab"
@@ -42,7 +44,7 @@ interface Props {
     onLogout: () => void
 }
 
-type Tab = "overview" | "class-info" | "curriculum" | "materials" | "grades" | "exams" | "financial" | "chat" | "perfil"
+type Tab = "overview" | "class-info" | "curriculum" | "materials" | "grades" | "exams" | "journey" | "financial" | "chat" | "perfil"
 
 export function StudentDashboard({ session, onBack, onLogout }: Props) {
     const [profile, setProfile] = useState<StudentProfile | null>(null)
@@ -137,8 +139,8 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
 
     const isLocked = profile.payment_status !== 'paid' && charges.some(c => c.type === 'enrollment' && c.status !== 'paid')
 
-    const navItems: { id: Tab; label: string; icon: any }[] = [
         { id: "overview", label: "Visão Geral", icon: Home },
+        { id: "journey", label: "Minha Jornada", icon: Sparkles },
         { id: "class-info", label: "Minha Turma", icon: Users },
         { id: "curriculum", label: "Grade Curricular", icon: CalendarDays },
         { id: "materials", label: "Materiais EAD", icon: Library },
@@ -147,7 +149,6 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
         { id: "financial", label: "Financeiro", icon: Clock },
         { id: "chat", label: "Mensagens", icon: MessageSquare },
         { id: "perfil", label: "Meu Perfil", icon: User },
-    ]
 
     const myDisciplineIds = new Set(mySchedules.map(s => s.disciplineId))
     const filteredMaterials = materials.filter(m => !m.disciplineId || myDisciplineIds.has(m.disciplineId))
@@ -328,6 +329,33 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                     ) : (
                         <div className="w-full max-w-[1600px] mx-auto">
                             {tab === "overview" && <OverviewTab profile={profile} charges={charges} disciplines={disciplines} onTabChange={setTab} />}
+                            {tab === "journey" && (
+                                <div className="space-y-8">
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                        <div>
+                                            <h2 className="text-2xl font-bold font-serif">Minha Jornada</h2>
+                                            <p className="text-muted-foreground">Complete missões semanais e suba de nível.</p>
+                                        </div>
+                                        <div className="w-full md:w-64">
+                                            <Select 
+                                                value={mySchedules[0]?.disciplineId || ""} 
+                                                onValueChange={() => {}}
+                                            >
+                                                <SelectTrigger className="rounded-xl border-primary/20 bg-white">
+                                                    <SelectValue placeholder="Selecione a Disciplina" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {mySchedules.map(s => {
+                                                        const d = disciplines.find(disc => disc.id === s.disciplineId)
+                                                        return <SelectItem key={s.id} value={s.disciplineId}>{d?.name || "Disciplina"}</SelectItem>
+                                                    })}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                    <StudentJourneyView session={session!} disciplineId={mySchedules[0]?.disciplineId || ""} />
+                                </div>
+                            )}
                             {tab === "class-info" && <ClassInfoTab myClass={myClass} classmates={classmates} mySchedules={mySchedules} disciplines={disciplines} officialGrades={officialGrades} />}
                             {tab === "curriculum" && <CurriculumTab semesters={semesters} disciplines={disciplines} />}
                             {tab === "materials" && <MaterialsTab filteredMaterials={filteredMaterials} disciplines={disciplines} />}

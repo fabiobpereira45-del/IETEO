@@ -68,6 +68,32 @@ export interface StudentGrade {
   createdAt: string;
 }
 
+export type ChallengeType = "riddle" | "quiz" | "reflection" | "decoding"
+
+export interface Challenge {
+  id: string
+  disciplineId: string
+  week: number
+  title: string
+  description: string
+  type: ChallengeType
+  content: any
+  correctAnswer?: string
+  points: number
+  isActive: boolean
+  createdAt: string
+}
+
+export interface ChallengeSubmission {
+  id: string
+  challengeId: string
+  studentId: string
+  answer: string
+  isCorrect: boolean
+  earnedPoints: number
+  submittedAt: string
+}
+
 export function hashPassword(plain: string): string {
   if (typeof window !== "undefined") return btoa(unescape(encodeURIComponent(plain)))
   return Buffer.from(plain).toString("base64")
@@ -408,6 +434,32 @@ function mapStudentGrade(row: any): StudentGrade {
 }
 function mapBoardMember(row: any): BoardMember { return { id: row.id, name: row.name, role: row.role, category: row.category, avatar_url: row.avatar_url, createdAt: row.created_at } }
 function mapProfessorDiscipline(row: any): ProfessorDiscipline { return { id: row.id, professorId: row.professor_id, disciplineId: row.discipline_id, createdAt: row.created_at } }
+function mapChallenge(row: any): Challenge {
+  return {
+    id: row.id,
+    disciplineId: row.discipline_id,
+    week: row.week,
+    title: row.title,
+    description: row.description,
+    type: row.type as ChallengeType,
+    content: row.content,
+    correctAnswer: row.correct_answer,
+    points: row.points,
+    isActive: !!row.is_active,
+    createdAt: row.created_at
+  }
+}
+function mapChallengeSubmission(row: any): ChallengeSubmission {
+  return {
+    id: row.id,
+    challengeId: row.challenge_id,
+    studentId: row.student_id,
+    answer: row.answer,
+    isCorrect: !!row.is_correct,
+    earnedPoints: row.earned_points,
+    submittedAt: row.submitted_at
+  }
+}
 
 // ─── Async Supabase Operations ───────────────────────────────────────────────
 
@@ -789,6 +841,76 @@ export async function getAllProfessorDisciplines(): Promise<ProfessorDiscipline[
   const supabase = createClient()
   const { data } = await supabase.from('professor_disciplines').select('*')
   return (data || []).map(mapProfessorDiscipline)
+}
+
+// ─── Challenges ─────────────────────────────────────────────────────────────
+
+export async function getChallenges(disciplineId?: string): Promise<Challenge[]> {
+  const supabase = createClient()
+  let query = supabase.from('challenges').select('*').order('week', { ascending: true })
+  if (disciplineId) query = query.eq('discipline_id', disciplineId)
+  const { data } = await query
+  return (data || []).map(mapChallenge)
+}
+
+export async function addChallenge(challenge: Omit<Challenge, "id" | "createdAt">): Promise<Challenge> {
+  const supabase = createClient()
+  const dbData = {
+    id: uid(),
+    discipline_id: challenge.disciplineId,
+    week: challenge.week,
+    title: challenge.title,
+    description: challenge.description,
+    type: challenge.type,
+    content: challenge.content,
+    correct_answer: challenge.correctAnswer || null,
+    points: challenge.points,
+    is_active: challenge.isActive,
+    created_at: new Date().toISOString()
+  }
+  const { data, error } = await supabase.from('challenges').insert(dbData).select().single()
+  if (error) throw error
+  return mapChallenge(data)
+}
+
+export async function updateChallenge(id: string, data: Partial<Omit<Challenge, "id" | "createdAt">>): Promise<void> {
+  const supabase = createClient()
+  const dbData: any = {}
+  if (data.disciplineId !== undefined) dbData.discipline_id = data.disciplineId
+  if (data.week !== undefined) dbData.week = data.week
+  if (data.title !== undefined) dbData.title = data.title
+  if (data.description !== undefined) dbData.description = data.description
+  if (data.type !== undefined) dbData.type = data.type
+  if (data.content !== undefined) dbData.content = data.content
+  if (data.correctAnswer !== undefined) dbData.correct_answer = data.correctAnswer
+  if (data.points !== undefined) dbData.points = data.points
+  if (data.isActive !== undefined) dbData.is_active = data.isActive
+  await supabase.from('challenges').update(dbData).eq('id', id)
+}
+
+export async function deleteChallenge(id: string): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('challenges').delete().eq('id', id)
+}
+
+export async function getChallengeSubmissions(studentId: string): Promise<ChallengeSubmission[]> {
+  const supabase = createClient()
+  const { data } = await supabase.from('challenge_submissions').select('*').eq('student_id', studentId)
+  return (data || []).map(mapChallengeSubmission)
+}
+
+export async function saveChallengeSubmission(sub: Omit<ChallengeSubmission, "id" | "submittedAt">): Promise<void> {
+  const supabase = createClient()
+  const dbData = {
+    id: uid(),
+    challenge_id: sub.challengeId,
+    student_id: sub.studentId,
+    answer: sub.answer,
+    is_correct: sub.isCorrect,
+    earned_points: sub.earnedPoints,
+    submitted_at: new Date().toISOString()
+  }
+  await supabase.from('challenge_submissions').insert(dbData)
 }
 
 export async function getProLaboreCalculations() {
