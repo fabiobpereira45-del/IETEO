@@ -126,21 +126,26 @@ export function ChallengeManager() {
   }
 
   async function handleSave() {
-    const payload = {
-      ...form,
-      content: form.type === 'quiz' ? JSON.parse(form.content || '[]') : form.content
-    }
+    try {
+      const payload = {
+        ...form,
+        content: form.type === 'quiz' ? JSON.parse(form.content || '[]') : form.content
+      }
 
-    if (editingChallenge) {
-      await updateChallenge(editingChallenge.id, payload)
-    } else {
-      await addChallenge(payload)
+      if (editingChallenge) {
+        await updateChallenge(editingChallenge.id, payload)
+      } else {
+        await addChallenge(payload)
+      }
+      
+      // Refresh
+      const allChs = await getChallenges()
+      setChallenges(allChs)
+      setIsModalOpen(false)
+    } catch (error) {
+      console.error(error)
+      alert("Erro ao salvar: Certifique-se de que o conteúdo está no formato correto. Para Quizzes, o conteúdo deve ser um JSON válido. Para outros tipos, pode ser texto comum.")
     }
-    
-    // Refresh
-    const allChs = await getChallenges()
-    setChallenges(allChs)
-    setIsModalOpen(false)
   }
 
   function handleAutoFill() {
