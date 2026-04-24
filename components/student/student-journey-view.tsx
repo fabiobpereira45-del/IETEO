@@ -57,16 +57,27 @@ export function StudentJourneyView({ session, disciplineId }: Props) {
     
     try {
       setLoading(true)
-      const [allChs, allDiscs, subs] = await Promise.all([
-        getChallenges(),
-        getDisciplines(),
-        getChallengeSubmissions(studentId)
-      ])
+      
+      // Load each resource independently to prevent one error from blocking everything
+      const chsPromise = getChallenges().catch(err => {
+        console.error("Erro ao carregar desafios:", err);
+        return [];
+      });
+      const discsPromise = getDisciplines().catch(err => {
+        console.error("Erro ao carregar disciplinas:", err);
+        return [];
+      });
+      const subsPromise = getChallengeSubmissions(studentId).catch(err => {
+        console.error("Erro ao carregar submissões:", err);
+        return [];
+      });
+
+      const [allChs, allDiscs, subs] = await Promise.all([chsPromise, discsPromise, subsPromise]);
 
       let filtered = [];
       if (disciplineId) {
         const selectedDisc = allDiscs.find(d => d.id === disciplineId);
-        filtered = allChs.filter(c => {
+        filtered = (allChs || []).filter(c => {
           if (c.disciplineId === disciplineId) return true;
           const challengeDisc = allDiscs.find(d => d.id === c.disciplineId);
           return challengeDisc && selectedDisc && 
@@ -74,17 +85,15 @@ export function StudentJourneyView({ session, disciplineId }: Props) {
         });
       }
 
-      // GLOBAL FALLBACK: If the filter resulted in 0 but there ARE challenges in the database,
-      // show them all so the student isn't blocked.
-      if (filtered.length === 0 && allChs.length > 0) {
-        console.log("DEBUG: Using global fallback because filtered challenges were 0");
+      // GLOBAL FALLBACK: If the filter resulted in 0 but there ARE challenges in the database, show them.
+      if (filtered.length === 0 && (allChs || []).length > 0) {
         filtered = allChs;
       }
 
       setChallenges(filtered || [])
       setSubmissions(subs || [])
     } catch (err) {
-      console.error("Erro ao carregar jornada:", err)
+      console.error("Erro fatal no carregamento da jornada:", err)
     } finally {
       setLoading(false)
     }
