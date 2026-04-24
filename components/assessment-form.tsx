@@ -1,7 +1,19 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
-import { CheckCircle2, AlertTriangle, Clock, BookOpenCheck, RotateCcw } from "lucide-react"
+import { useState, useEffect, useRef, useCallback, useMemo } from "react"
+import { 
+  CheckCircle2, 
+  AlertTriangle, 
+  Clock, 
+  BookOpenCheck, 
+  RotateCcw, 
+  ChevronLeft, 
+  ChevronRight, 
+  Send,
+  HelpCircle,
+  Hash,
+  LayoutGrid
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Textarea } from "@/components/ui/textarea"
@@ -45,6 +57,7 @@ export function AssessmentForm({ session, onSubmit }: Props) {
   const [isInitializing, setIsInitializing] = useState(true)
 
   const [answers, setAnswers] = useState<StudentAnswer[]>(() => getDraftAnswers())
+  const [currentIndex, setCurrentIndex] = useState(0)
   const [showConfirm, setShowConfirm] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const [timeLeft, setTimeLeft] = useState<number | null>(null)
@@ -148,8 +161,7 @@ export function AssessmentForm({ session, onSubmit }: Props) {
     if (ms <= 0) { handleFinalize(); return }
     const t = setTimeout(() => handleFinalize(), ms)
     return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assessment, isInitializing])
+  }, [assessment, isInitializing, handleFinalize])
 
   const getAnswer = (questionId: string) =>
     answers.find((a) => a.questionId === questionId)?.answer ?? ""
@@ -180,36 +192,6 @@ export function AssessmentForm({ session, onSubmit }: Props) {
     })
   }, [])
 
-
-  if (isInitializing) {
-    return (
-      <div className="flex flex-col items-center justify-center p-20 min-h-[60vh]">
-        <Clock className="h-10 w-10 animate-pulse text-muted-foreground mb-4" />
-        <p className="text-muted-foreground font-serif animate-pulse">Preparando sua avaliação...</p>
-      </div>
-    )
-  }
-
-  if (!assessment) {
-    console.error("Assessment not found for ID:", session.assessmentId)
-    return (
-      <div className="flex flex-col items-center justify-center p-12 sm:p-20 text-center glass rounded-3xl m-4 border-destructive/20 shadow-xl">
-        <AlertTriangle className="h-16 w-16 text-destructive mb-6" />
-        <h2 className="text-2xl sm:text-3xl font-bold font-serif">Avaliação não encontrada</h2>
-        <p className="text-muted-foreground mt-3 max-w-md mx-auto">
-          O link pode ter expirado ou o ID informado está incorreto. 
-          <span className="block mt-1 text-xs opacity-50 font-mono">ID: {session.assessmentId}</span>
-        </p>
-        <Button className="mt-8 px-8 py-6 text-lg rounded-2xl premium-shadow" onClick={() => window.location.href = "/"}>
-          Voltar ao Início
-        </Button>
-      </div>
-    )
-  }
-
-  const answered = answers.length
-  const progress = Math.round((answered / questions.length) * 100)
-
   const formatTime = (secs: number) => {
     const h = Math.floor(secs / 3600)
     const m = Math.floor((secs % 3600) / 60)
@@ -218,116 +200,166 @@ export function AssessmentForm({ session, onSubmit }: Props) {
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
   }
 
+  const progress = questions.length > 0 ? Math.round((answers.length / questions.length) * 100) : 0
+
+  if (isInitializing) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 min-h-[60vh]">
+        <Clock className="h-12 w-12 animate-spin text-primary mb-6" />
+        <p className="text-xl font-serif font-medium text-primary animate-pulse">Preparando sua avaliação sagrada...</p>
+      </div>
+    )
+  }
+
+  if (!assessment) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 text-center glass rounded-3xl m-4 border-destructive/20 shadow-xl">
+        <AlertTriangle className="h-16 w-16 text-destructive mb-6" />
+        <h2 className="text-2xl font-bold font-serif">Avaliação não encontrada</h2>
+        <p className="text-muted-foreground mt-3 max-w-md mx-auto">
+          O link pode ter expirado ou o ID informado está incorreto.
+        </p>
+        <Button className="mt-8 px-8 py-6 text-lg rounded-2xl premium-shadow" onClick={() => window.location.href = "/"}>
+          Voltar ao Início
+        </Button>
+      </div>
+    )
+  }
+
+  const currentQuestion = questions[currentIndex]
+  const isLastQuestion = currentIndex === questions.length - 1
+  const isSummary = currentIndex === questions.length
+
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6 pb-20 animate-in fade-in duration-700">
       <PortraitGuard />
-      {/* Assessment Info Header */}
-      <div className="rounded-2xl bg-primary text-primary-foreground p-5 sm:p-6 shadow-md border-b-4 border-accent">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-sm shrink-0">
-              <BookOpenCheck className="h-6 w-6" />
-            </div>
-            <div>
-              {assessment.institution && (
-                <div className="mb-2">
-                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-white/10 text-[10px] font-bold uppercase tracking-widest text-primary-foreground/90 border border-white/20">
-                    {assessment.institution}
-                  </span>
-                </div>
-              )}
-              <h2 className="text-xl font-serif font-bold leading-tight text-white/95">{assessment.title}</h2>
-              <p className="mt-1 text-xs text-primary-foreground/80 font-medium tracking-wide">
-                {disc?.name ?? "Disciplina Geral"} <span className="mx-1 opacity-50">•</span> Prof. {assessment.professor}
-              </p>
-            </div>
-          </div>
-          <div className="text-left sm:text-right shrink-0 bg-black/10 sm:bg-transparent p-2 sm:p-0 rounded-lg w-full sm:w-auto flex sm:block items-center justify-between">
-            <div className="text-sm font-bold text-white/95">{assessment.totalPoints.toFixed(1)} pts</div>
-            <div className="text-xs text-primary-foreground/70 sm:mt-0.5">{questions.length} questões</div>
-          </div>
-        </div>
-      </div>
 
-      {/* Sticky progress bar */}
-      <div className="sticky top-[73px] z-40 bg-background/95 backdrop-blur border-b border-border pb-3 -mx-4 px-4 pt-1">
-        <div className="flex items-center justify-between mb-2 gap-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="font-semibold text-foreground">{answered}</span>
-            <span>de</span>
-            <span className="font-semibold text-foreground">{questions.length}</span>
-            <span>respondidas</span>
-          </div>
-          <div className={cn(
-            "flex items-center gap-1.5 text-sm font-mono font-semibold transition-colors",
-            timeLeft !== null && timeLeft < 300 ? "text-red-500 animate-pulse" : "text-muted-foreground"
-          )}>
-            <Clock className="h-4 w-4" />
-            {timeLeft !== null ? (
-              <span title="Tempo restante">-{formatTime(timeLeft)}</span>
-            ) : (
-              formatTime(elapsed)
-            )}
-          </div>
-        </div>
-        <Progress value={progress} className="h-2" />
-      </div>
+      {/* Modern Header Navigation */}
+      <div className="sticky top-[73px] z-50 -mx-4 px-4 bg-background/80 backdrop-blur-xl border-b border-border/40 pb-4">
+        <div className="flex flex-col gap-4">
+          {/* Top Info Bar */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shadow-inner">
+                <BookOpenCheck className="h-5 w-5" />
+              </div>
+              <div className="hidden sm:block">
+                <h2 className="text-sm font-bold font-serif line-clamp-1">{assessment.title}</h2>
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                  {disc?.name} • Prof. {assessment.professor}
+                </p>
+              </div>
+            </div>
 
-      {/* Questions */}
-      <div className="flex flex-col gap-5">
-        {questions.map((q, idx) => {
-          const selected = getAnswer(q.id)
-          const isAnswered = !!selected
-          return (
-            <div
-              key={q.id}
+            <div className="flex items-center gap-2">
+              <div className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all duration-500",
+                timeLeft !== null && timeLeft < 300 
+                  ? "bg-red-500/10 text-red-500 border-red-500/20 animate-pulse" 
+                  : "bg-primary/5 text-primary border-primary/10"
+              )}>
+                <Clock className="h-3.5 w-3.5" />
+                {timeLeft !== null ? formatTime(timeLeft) : formatTime(elapsed)}
+              </div>
+              
+              <div className="bg-primary text-primary-foreground px-3 py-1.5 rounded-full text-xs font-bold shadow-lg shadow-primary/20">
+                {assessment.totalPoints.toFixed(1)} pts
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation Controls */}
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentIndex === 0}
+              onClick={() => setCurrentIndex(prev => prev - 1)}
+              className="rounded-xl h-10 w-10 p-0 sm:w-auto sm:px-4 shrink-0 transition-transform active:scale-95"
+            >
+              <ChevronLeft className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Anterior</span>
+            </Button>
+
+            <div className="flex-1 bg-secondary/30 rounded-xl h-10 px-4 flex items-center justify-center relative overflow-hidden group">
+              <div 
+                className="absolute inset-0 bg-primary/5 transition-all duration-1000" 
+                style={{ width: `${progress}%` }} 
+              />
+              <span className="relative text-xs font-bold text-muted-foreground group-hover:text-primary transition-colors">
+                Questão {Math.min(currentIndex + 1, questions.length)} de {questions.length}
+              </span>
+            </div>
+
+            <Button
+              variant={isSummary ? "default" : "outline"}
+              size="sm"
+              disabled={isSummary}
+              onClick={() => setCurrentIndex(prev => prev + 1)}
               className={cn(
-                "rounded-2xl border bg-card p-6 shadow-sm transition-all",
-                isAnswered ? "border-accent/40 ring-1 ring-accent/20" : "border-border"
+                "rounded-xl h-10 w-10 p-0 sm:w-auto sm:px-4 shrink-0 transition-all active:scale-95",
+                isLastQuestion && "bg-accent hover:bg-accent/90 text-accent-foreground border-accent"
               )}
             >
-              <div className="flex items-start gap-3 mb-5">
-                <span className={cn(
-                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold",
-                  isAnswered ? "bg-accent text-accent-foreground" : "bg-secondary text-secondary-foreground"
-                )}>
-                  {idx + 1}
-                </span>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      {q.type === "multiple-choice" ? "Múltipla Escolha" : q.type === "true-false" ? "Verdadeiro ou Falso" : "Discursiva"}
-                      {" "}· {assessment.pointsPerQuestion} pt
-                    </span>
-                  </div>
-                  <p className="text-base leading-relaxed text-foreground font-medium text-pretty">{q.text}</p>
-                </div>
-              </div>
+              <span className="hidden sm:inline">{isLastQuestion ? "Revisar" : "Próxima"}</span>
+              <ChevronRight className="h-4 w-4 sm:ml-2" />
+            </Button>
+          </div>
+          
+          <Progress value={progress} className="h-1 px-1 bg-secondary/50" />
+        </div>
+      </div>
 
-              {/* Multiple choice */}
-              {q.type === "multiple-choice" && (
-                <div className="flex flex-col gap-2">
-                  {q.choices.map((choice, ci) => {
-                    const isSelected = selected === choice.id
+      {/* Main Content Area */}
+      <div className="min-h-[50vh] flex flex-col items-center justify-center pt-8">
+        {!isSummary && currentQuestion ? (
+          <div key={currentQuestion.id} className="w-full space-y-8 animate-in slide-in-from-right-4 fade-in duration-500">
+            {/* Question Header */}
+            <div className="text-center space-y-4 max-w-2xl mx-auto">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-[10px] font-bold uppercase tracking-widest">
+                <Hash className="h-3 w-3" />
+                Questão {currentIndex + 1} • {assessment.pointsPerQuestion} Ponto
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-serif font-bold leading-tight text-foreground text-pretty">
+                {currentQuestion.text}
+              </h3>
+            </div>
+
+            {/* Question Interaction Area */}
+            <div className="w-full max-w-2xl mx-auto">
+              {/* Multiple Choice */}
+              {currentQuestion.type === "multiple-choice" && (
+                <div className="grid grid-cols-1 gap-3">
+                  {currentQuestion.choices.map((choice, ci) => {
+                    const isSelected = getAnswer(currentQuestion.id) === choice.id
                     return (
                       <button
                         key={choice.id}
-                        onClick={() => handleAnswer(q.id, choice.id)}
+                        onClick={() => handleAnswer(currentQuestion.id, choice.id)}
                         className={cn(
-                          "flex items-center gap-3 rounded-xl border px-4 py-3 text-sm text-left transition-all cursor-pointer",
+                          "group relative flex items-center gap-4 rounded-2xl border-2 p-5 text-left transition-all duration-300 hover:shadow-md active:scale-[0.98]",
                           isSelected
-                            ? "border-accent bg-accent/10 text-foreground font-medium"
-                            : "border-border bg-background text-muted-foreground hover:border-accent/50 hover:bg-accent/5 hover:text-foreground"
+                            ? "border-primary bg-primary/5 shadow-lg shadow-primary/5 ring-4 ring-primary/5"
+                            : "border-border bg-card hover:border-primary/30"
                         )}
                       >
-                        <span className={cn(
-                          "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold border transition-all",
-                          isSelected ? "border-accent bg-accent text-accent-foreground" : "border-border bg-secondary text-secondary-foreground"
+                        <div className={cn(
+                          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold transition-all duration-300",
+                          isSelected ? "bg-primary text-primary-foreground rotate-6" : "bg-secondary text-secondary-foreground"
                         )}>
                           {String.fromCharCode(65 + ci)}
+                        </div>
+                        <span className={cn(
+                          "text-base leading-relaxed flex-1 transition-colors",
+                          isSelected ? "text-primary font-semibold" : "text-foreground/80 group-hover:text-foreground"
+                        )}>
+                          {choice.text}
                         </span>
-                        <span className="leading-relaxed">{choice.text}</span>
-                        {isSelected && <CheckCircle2 className="ml-auto h-4 w-4 shrink-0 text-accent" />}
+                        {isSelected && (
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                            <CheckCircle2 className="h-6 w-6 text-primary animate-in zoom-in duration-300" />
+                          </div>
+                        )}
                       </button>
                     )
                   })}
@@ -335,26 +367,36 @@ export function AssessmentForm({ session, onSubmit }: Props) {
               )}
 
               {/* True / False */}
-              {q.type === "true-false" && (
-                <div className="flex gap-3">
+              {currentQuestion.type === "true-false" && (
+                <div className="grid grid-cols-2 gap-4">
                   {[
-                    { val: "true", label: "Verdadeiro" },
-                    { val: "false", label: "Falso" },
-                  ].map(({ val, label }) => {
-                    const isSelected = selected === val
+                    { val: "true", label: "Verdadeiro", icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-500/10", border: "border-emerald-500/30" },
+                    { val: "false", label: "Falso", icon: AlertTriangle, color: "text-rose-600", bg: "bg-rose-500/10", border: "border-rose-500/30" },
+                  ].map(({ val, label, icon: Icon, color, bg, border }) => {
+                    const isSelected = getAnswer(currentQuestion.id) === val
                     return (
                       <button
                         key={val}
-                        onClick={() => handleAnswer(q.id, val)}
+                        onClick={() => handleAnswer(currentQuestion.id, val)}
                         className={cn(
-                          "flex-1 py-3 rounded-xl border-2 font-semibold text-sm transition-all",
+                          "flex flex-col items-center justify-center gap-4 py-12 rounded-3xl border-2 transition-all duration-300 active:scale-95",
                           isSelected
-                            ? "border-accent bg-accent/10 text-accent"
-                            : "border-border hover:border-accent/50 text-muted-foreground"
+                            ? `${border} ${bg} shadow-xl shadow-black/5 ring-4 ring-primary/5`
+                            : "border-border bg-card hover:border-primary/20 hover:bg-primary/5"
                         )}
                       >
-                        {label}
-                        {isSelected && <CheckCircle2 className="inline ml-2 h-4 w-4" />}
+                        <div className={cn(
+                          "h-16 w-16 rounded-2xl flex items-center justify-center transition-all duration-500",
+                          isSelected ? `${bg} ${color} scale-110 rotate-12` : "bg-secondary text-muted-foreground"
+                        )}>
+                          <Icon className="h-8 w-8" />
+                        </div>
+                        <span className={cn(
+                          "text-xl font-bold font-serif transition-colors",
+                          isSelected ? color : "text-muted-foreground"
+                        )}>
+                          {label}
+                        </span>
                       </button>
                     )
                   })}
@@ -362,130 +404,221 @@ export function AssessmentForm({ session, onSubmit }: Props) {
               )}
 
               {/* Discursive */}
-              {q.type === "discursive" && (
-                <Textarea
-                  placeholder="Digite sua resposta aqui..."
-                  rows={4}
-                  value={selected}
-                  onChange={(e) => handleAnswer(q.id, e.target.value)}
-                  className="resize-y"
-                />
-              )}
-
-              {/* Fill in the Blanks */}
-              {q.type === "fill-in-the-blank" && (
-                <div className="text-base leading-relaxed text-foreground bg-secondary/20 p-4 rounded-xl border border-secondary/30">
-                  {(() => {
-                    const parts = q.text.split(/(\[\[.*?\]\])/g)
-                    let blankIdx = 0
-                    let currentData: Record<string, string> = {}
-                    try { currentData = JSON.parse(selected) } catch { }
-                    
-                    return parts.map((part, pi) => {
-                      if (part.startsWith("[[") && part.endsWith("]]")) {
-                        const idx = blankIdx++
-                        const key = `blank_${idx}`
-                        return (
-                          <input
-                            key={pi}
-                            type="text"
-                            value={currentData[key] || ""}
-                            onChange={(e) => handleSubAnswer(q.id, key, e.target.value)}
-                            className="mx-1 px-2 py-0.5 border-b-2 border-primary bg-background focus:outline-none focus:border-accent min-w-[80px] text-center"
-                            placeholder="..."
-                          />
-                        )
-                      }
-                      return <span key={pi}>{part}</span>
-                    })
-                  })()}
+              {currentQuestion.type === "discursive" && (
+                <div className="space-y-4">
+                  <div className="relative">
+                    <Textarea
+                      placeholder="Sua resposta fundamentada aqui..."
+                      rows={8}
+                      value={getAnswer(currentQuestion.id)}
+                      onChange={(e) => handleAnswer(currentQuestion.id, e.target.value)}
+                      className="resize-none rounded-3xl p-6 text-lg border-2 focus:border-primary transition-all shadow-inner bg-secondary/10"
+                    />
+                    <div className="absolute right-4 bottom-4 text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest">
+                      Campo de texto livre
+                    </div>
+                  </div>
+                  <p className="text-center text-xs text-muted-foreground italic">
+                    Dica: Seja claro e objetivo em sua argumentação teológica.
+                  </p>
                 </div>
               )}
 
-              {/* Matching */}
-              {q.type === "matching" && q.pairs && (
-                <div className="flex flex-col gap-3">
+              {/* Enhanced Fill in the Blanks */}
+              {currentQuestion.type === "fill-in-the-blank" && (
+                <div className="rounded-3xl border-2 border-primary/10 bg-gradient-to-br from-card to-secondary/20 p-8 shadow-xl">
+                  <div className="text-xl leading-loose text-foreground/90 font-serif text-center">
+                    {(() => {
+                      const parts = currentQuestion.text.split(/(\[\[.*?\]\])/g)
+                      let blankIdx = 0
+                      let currentData: Record<string, string> = {}
+                      try { currentData = JSON.parse(getAnswer(currentQuestion.id)) } catch { }
+                      
+                      return parts.map((part, pi) => {
+                        if (part.startsWith("[[") && part.endsWith("]]")) {
+                          const idx = blankIdx++
+                          const key = `blank_${idx}`
+                          return (
+                            <span key={pi} className="inline-block relative group mx-1">
+                              <input
+                                type="text"
+                                value={currentData[key] || ""}
+                                onChange={(e) => handleSubAnswer(currentQuestion.id, key, e.target.value)}
+                                className={cn(
+                                  "px-3 py-1 border-b-4 bg-transparent focus:outline-none transition-all text-primary font-bold min-w-[120px] text-center placeholder:text-muted-foreground/30",
+                                  currentData[key] ? "border-primary" : "border-primary/20 focus:border-primary"
+                                )}
+                                placeholder="preencher..."
+                              />
+                            </span>
+                          )
+                        }
+                        return <span key={pi}>{part}</span>
+                      })
+                    })()}
+                  </div>
+                  <div className="mt-8 flex justify-center">
+                    <div className="px-4 py-2 rounded-full bg-primary/5 text-primary text-xs font-bold uppercase tracking-widest border border-primary/10">
+                      Complete as lacunas acima
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Enhanced Matching */}
+              {currentQuestion.type === "matching" && currentQuestion.pairs && (
+                <div className="space-y-4">
                   {(() => {
                     let currentData: Record<string, string> = {}
-                    try { currentData = JSON.parse(selected) } catch { }
+                    try { currentData = JSON.parse(getAnswer(currentQuestion.id)) } catch { }
+                    const allRights = [...new Set(currentQuestion.pairs.map(p => p.right))].sort()
 
-                    // We shuffle the right side once or use fixed. 
-                    // To keep it simple, we just show choices as a Select.
-                    const allRights = q.pairs.map(p => p.right).sort()
+                    return (
+                      <div className="grid grid-cols-1 gap-4">
+                        {currentQuestion.pairs.map((p, pi) => (
+                          <div key={p.id} className="group flex flex-col sm:flex-row items-stretch sm:items-center gap-4 p-4 rounded-2xl border-2 border-border bg-card hover:border-primary/30 transition-all shadow-sm">
+                            <div className="flex-1 flex items-center gap-4">
+                              <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                                {pi + 1}
+                              </div>
+                              <div className="text-base font-medium font-serif leading-tight">{p.left}</div>
+                            </div>
+                            
+                            <div className="hidden sm:flex text-primary/30 group-hover:text-primary transition-colors">
+                              <ChevronRight className="h-5 w-5" />
+                            </div>
 
-                    return q.pairs.map((p, pi) => (
-                      <div key={p.id} className="flex flex-col sm:flex-row items-center gap-3 p-3 rounded-lg border border-border bg-background">
-                        <div className="flex-1 text-sm font-medium">{p.left}</div>
-                        <div className="hidden sm:block text-muted-foreground">→</div>
-                        <div className="w-full sm:w-64">
-                          <Select
-                            value={currentData[p.id] || ""}
-                            onValueChange={(val: string) => handleSubAnswer(q.id, p.id, val)}
-                          >
-                            <SelectTrigger className="h-9">
-                              <SelectValue placeholder="Selecione a correspondência" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {allRights.map((r, ri) => (
-                                <SelectItem key={ri} value={r}>{r}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                            <div className="w-full sm:w-72">
+                              <Select
+                                value={currentData[p.id] || ""}
+                                onValueChange={(val: string) => handleSubAnswer(currentQuestion.id, p.id, val)}
+                              >
+                                <SelectTrigger className="h-12 rounded-xl border-2 focus:ring-primary focus:ring-offset-0 bg-secondary/5">
+                                  <SelectValue placeholder="Selecione o par..." />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-xl">
+                                  {allRights.map((r, ri) => (
+                                    <SelectItem key={ri} value={r} className="rounded-lg py-3">{r}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))
+                    )
                   })()}
                 </div>
               )}
             </div>
-          )
-        })}
-      </div>
+          </div>
+        ) : (
+          /* Summary View */
+          <div className="w-full max-w-3xl space-y-8 animate-in zoom-in-95 fade-in duration-500 pb-12">
+            <div className="text-center space-y-4">
+              <div className="inline-flex h-20 w-20 items-center justify-center rounded-3xl bg-primary/10 text-primary mb-2 shadow-inner">
+                <LayoutGrid className="h-10 w-10" />
+              </div>
+              <h3 className="text-3xl font-serif font-bold">Revisão Final</h3>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Confira se todas as questões foram respondidas antes de enviar sua avaliação definitiva.
+              </p>
+            </div>
 
-      {/* Finalize button */}
-      <div className="rounded-2xl border border-border bg-card p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div>
-          <p className="font-semibold text-foreground">Pronto para finalizar?</p>
-          <p className="text-sm text-muted-foreground">
-            {answered < questions.length
-              ? `Você deixou ${questions.length - answered} questão(ões) sem resposta.`
-              : "Todas as questões foram respondidas."}
-          </p>
-        </div>
-        <Button
-          onClick={() => setShowConfirm(true)}
-          className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold px-6 h-11 text-base w-full sm:w-auto"
-        >
-          Finalizar Avaliação
-        </Button>
-      </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
+              {questions.map((q, i) => {
+                const answered = !!getAnswer(q.id)
+                return (
+                  <button
+                    key={q.id}
+                    onClick={() => setCurrentIndex(i)}
+                    className={cn(
+                      "group flex flex-col items-center justify-center p-6 rounded-2xl border-2 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg",
+                      answered 
+                        ? "border-primary/30 bg-primary/5 text-primary" 
+                        : "border-border bg-card text-muted-foreground hover:border-primary/20"
+                    )}
+                  >
+                    <span className="text-sm font-bold opacity-50 mb-1">Questão</span>
+                    <span className="text-3xl font-serif font-black">{i + 1}</span>
+                    <div className={cn(
+                      "mt-3 h-1.5 w-1.5 rounded-full transition-all",
+                      answered ? "bg-primary scale-150" : "bg-muted-foreground/30 group-hover:bg-primary/30"
+                    )} />
+                  </button>
+                )
+              })}
+            </div>
 
-      {/* Confirm dialog */}
-      <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <div className="flex justify-center mb-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/15">
-                <AlertTriangle className="h-6 w-6 text-accent" />
+            <div className="rounded-3xl border-2 border-primary/20 bg-primary/5 p-8 text-center space-y-6 shadow-xl shadow-primary/5">
+              <div className="space-y-2">
+                <p className="text-lg font-semibold text-primary">Status da Avaliação</p>
+                <p className="text-sm text-muted-foreground">
+                  {answers.length} de {questions.length} questões respondidas.
+                </p>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentIndex(0)}
+                  className="rounded-2xl h-14 px-8 border-2 font-bold transition-all hover:bg-background"
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Recomeçar Revisão
+                </Button>
+                
+                <Button
+                  onClick={() => setShowConfirm(true)}
+                  className="rounded-2xl h-14 px-12 bg-primary hover:bg-primary/90 text-primary-foreground font-black text-lg shadow-xl shadow-primary/20 transition-all hover:scale-105 active:scale-95"
+                >
+                  <Send className="mr-2 h-5 w-5" />
+                  Enviar Agora
+                </Button>
               </div>
             </div>
-            <DialogTitle className="text-center">Confirmar envio</DialogTitle>
-            <DialogDescription className="text-center">
-              Após finalizar, suas respostas serão bloqueadas e não poderão ser alteradas.{" "}
-              {answered < questions.length && (
-                <strong>Você ainda tem {questions.length - answered} questão(ões) sem resposta.</strong>
-              )}
+          </div>
+        )}
+      </div>
+
+      {/* Confirm Dialog */}
+      <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <DialogContent className="max-w-md rounded-[2rem] border-0 shadow-2xl p-0 overflow-hidden">
+          <div className="bg-primary p-8 text-primary-foreground text-center space-y-4">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md">
+              <HelpCircle className="h-8 w-8 text-white" />
+            </div>
+            <DialogTitle className="text-2xl font-serif font-bold">Deseja concluir?</DialogTitle>
+            <DialogDescription className="text-primary-foreground/80 font-medium">
+              Ao confirmar, suas respostas serão seladas e enviadas para correção. 
+              Esta ação não pode ser desfeita.
             </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setShowConfirm(false)} className="flex-1">Revisar respostas</Button>
-            <Button
-              onClick={() => { setShowConfirm(false); handleFinalize() }}
-              className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground font-bold"
-            >
-              Confirmar envio
-            </Button>
-          </DialogFooter>
+          </div>
+          
+          <div className="p-8 space-y-3">
+            {answers.length < questions.length && (
+              <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 text-sm font-bold mb-4">
+                <AlertTriangle className="h-5 w-5 shrink-0" />
+                Atenção: Você ainda tem {questions.length - answers.length} questões em branco!
+              </div>
+            )}
+            
+            <div className="flex flex-col gap-3">
+              <Button 
+                onClick={() => { setShowConfirm(false); handleFinalize() }}
+                className="rounded-2xl h-14 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg shadow-primary/20"
+              >
+                Sim, enviar avaliação
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={() => setShowConfirm(false)} 
+                className="rounded-2xl h-14 font-medium text-muted-foreground hover:bg-secondary/50"
+              >
+                Não, voltar para revisão
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

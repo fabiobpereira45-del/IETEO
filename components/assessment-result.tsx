@@ -1,7 +1,21 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Download, CheckCircle2, XCircle, Clock, Award, Minus, BookOpenCheck, AlertTriangle } from "lucide-react"
+import { useState, useEffect, useMemo } from "react"
+import { 
+  Download, 
+  CheckCircle2, 
+  XCircle, 
+  Clock, 
+  Award, 
+  Minus, 
+  BookOpenCheck, 
+  AlertTriangle,
+  ChevronLeft,
+  Share2,
+  Trophy,
+  History,
+  FileText
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   getAssessmentById, getQuestionsByDiscipline, getDisciplines, getSubmissionsByAssessment,
@@ -53,7 +67,7 @@ export function AssessmentResult({ submission, onBack }: Props) {
 
   const passed = submission.percentage >= 60
 
-  function formatTime(secs: number) {
+  const formatTime = (secs: number) => {
     const h = Math.floor(secs / 3600)
     const m = Math.floor((secs % 3600) / 60)
     const s = secs % 60
@@ -62,176 +76,155 @@ export function AssessmentResult({ submission, onBack }: Props) {
     return `${s}s`
   }
 
-  function formatDate(iso: string) {
+  const formatDate = (iso: string) => {
     return new Intl.DateTimeFormat("pt-BR", {
       day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
     }).format(new Date(iso))
   }
 
-  function handlePDF() {
+  const handlePDF = () => {
     if (!assessment) return
     printStudentPDF({ submission, assessment, questions })
   }
 
-  // Build answer key (gabarito) — only for non-discursive
-  const gabaritoItems = questions
-    .filter((q) => q.type !== "discursive")
-    .map((q) => {
-      const globalIdx = questions.findIndex((gq) => gq.id === q.id)
-      const studentAns = submission.answers.find((a) => a.questionId === q.id)
-      
-      let isCorrect = false
-      let label = "—"
-
-      if (q.type === "multiple-choice" || q.type === "true-false" || q.type === "incorrect-alternative") {
-        isCorrect = studentAns?.answer === q.correctAnswer
-        label = q.type === "true-false"
-          ? (q.correctAnswer === "true" ? "Verdadeiro" : "Falso")
-          : q.choices.find((c) => c.id === q.correctAnswer)?.text ?? "—"
-      } else if (q.type === "fill-in-the-blank") {
-        const matches = q.text.match(/\[\[(.*?)\]\]/g)
-        const correctWords = matches?.map(m => m.slice(2, -2).trim().toLowerCase()) || []
-        try {
-          const studentData = JSON.parse(studentAns?.answer || "{}")
-          let correctCount = 0
-          correctWords.forEach((word, idx) => {
-            if ((studentData[`blank_${idx}`] || "").trim().toLowerCase() === word) correctCount++
-          })
-          isCorrect = correctCount === correctWords.length
-          label = `${correctWords.length} lacuna(s)`
-        } catch { }
-      } else if (q.type === "matching" && q.pairs) {
-        try {
-          const studentData = JSON.parse(studentAns?.answer || "{}")
-          let correctCount = 0
-          q.pairs.forEach(p => {
-            if (studentData[p.id] === p.right) correctCount++
-          })
-          isCorrect = correctCount === q.pairs.length
-          label = `${q.pairs.length} associação(ões)`
-        } catch { }
-      }
-
-      return { num: globalIdx + 1, text: q.text, correctLabel: label, isCorrect, type: q.type }
-    })
-
-  if (isInitializing) {
-    return <div className="p-10 text-center text-muted-foreground animate-pulse">Carregando resultado...</div>
-  }
-
   const resultsReleased = assessment?.releaseResults === true
 
+  if (isInitializing) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 min-h-[60vh]">
+        <Trophy className="h-12 w-12 animate-bounce text-primary/40 mb-6" />
+        <p className="text-xl font-serif font-medium text-primary animate-pulse">Processando seus méritos acadêmicos...</p>
+      </div>
+    )
+  }
+
   return (
-    <div className="flex flex-col gap-6">
-      {/* Assessment Info Header */}
-      {assessment && (
-        <div className="rounded-2xl bg-primary text-primary-foreground p-5 sm:p-6 shadow-md border-b-4 border-accent">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="hidden sm:flex h-12 w-12 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-sm shrink-0">
-                <BookOpenCheck className="h-6 w-6" />
-              </div>
-              <div>
-                {assessment.institution && (
-                  <div className="mb-2">
-                    <span className="inline-block px-2.5 py-0.5 rounded-full bg-white/10 text-[10px] font-bold uppercase tracking-widest text-primary-foreground/90 border border-white/20">
-                      {assessment.institution}
-                    </span>
-                  </div>
-                )}
-                <h2 className="text-xl font-serif font-bold leading-tight text-white/95">{assessment.title}</h2>
-                <p className="mt-1 text-xs text-primary-foreground/80 font-medium tracking-wide">
-                  {disc?.name ?? "Disciplina Geral"} <span className="mx-1 opacity-50">•</span> Prof. {assessment.professor}
-                </p>
-              </div>
-            </div>
-            <div className="text-left sm:text-right shrink-0 bg-black/10 sm:bg-transparent p-2 sm:p-0 rounded-lg w-full sm:w-auto flex sm:block items-center justify-between">
-              <div className="text-sm font-bold text-white/95">{assessment.totalPoints.toFixed(1)} pts</div>
-              <div className="text-xs text-primary-foreground/70 sm:mt-0.5">{questions.length} questões</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Score card */}
+    <div className="max-w-4xl mx-auto space-y-8 pb-20 animate-in fade-in zoom-in-95 duration-700">
+      
+      {/* Celebration / Result Hero */}
       <div className={cn(
-        "rounded-2xl p-8 text-center shadow-lg flex flex-col items-center gap-4",
-        !resultsReleased ? "bg-secondary text-secondary-foreground" : passed ? "bg-primary text-primary-foreground" : "bg-destructive text-destructive-foreground"
+        "relative overflow-hidden rounded-[2.5rem] p-8 sm:p-12 text-center shadow-2xl border-b-8 transition-all duration-1000",
+        !resultsReleased 
+          ? "bg-gradient-to-br from-secondary to-secondary/50 text-secondary-foreground border-secondary/20" 
+          : passed 
+            ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground border-primary/20" 
+            : "bg-gradient-to-br from-destructive to-destructive/80 text-destructive-foreground border-destructive/20"
       )}>
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/20">
-          <Award className={cn("h-8 w-8", resultsReleased ? "text-white" : "text-foreground/80")} />
-        </div>
-        <div>
-          <p className="text-sm font-medium opacity-80 uppercase tracking-wider mb-1">Avaliação Concluída</p>
-          {resultsReleased ? (
-            <>
-              <p className="text-5xl font-bold font-serif">{submission.score.toFixed(1)}</p>
-              <p className="text-lg opacity-80">de {submission.totalPoints.toFixed(1)} pontos</p>
-            </>
-          ) : (
-            <p className="text-lg font-semibold mt-2 px-4">Os resultados desta prova ainda não foram liberados.</p>
-          )}
+        {/* Background Decorative Elements */}
+        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+          <div className="absolute top-[-10%] right-[-5%] w-64 h-64 bg-white rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-[-10%] left-[-5%] w-48 h-48 bg-black rounded-full blur-3xl" />
         </div>
 
-        {resultsReleased && (
-          <div className="rounded-full px-4 py-1.5 text-sm font-semibold bg-white/20 text-white flex flex-col items-center">
-            <span>{submission.percentage}% de acerto · {passed ? "Aprovado" : "Reprovado"}</span>
-            {classSubmissions.length > 1 && (
-              <span className="text-xs font-medium opacity-90 mt-0.5">Média da turma: {classAverageScore.toFixed(1)} pt{classAverageScore !== 1 ? 's' : ''}</span>
+        <div className="relative z-10 flex flex-col items-center gap-6">
+          <div className={cn(
+            "flex h-24 w-24 items-center justify-center rounded-[2rem] shadow-xl transition-transform duration-700 hover:rotate-12",
+            resultsReleased ? "bg-white/20 backdrop-blur-md" : "bg-black/10"
+          )}>
+            {resultsReleased ? (
+              passed ? <Trophy className="h-12 w-12 text-white" /> : <Award className="h-12 w-12 text-white" />
+            ) : (
+              <Clock className="h-12 w-12 text-foreground/50" />
             )}
           </div>
-        )}
 
-        {resultsReleased && (
-          <Button
-            variant="outline"
-            onClick={handlePDF}
-            className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white mt-2"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Salvar como PDF
-          </Button>
-        )}
+          <div className="space-y-2">
+            <h1 className="text-sm font-black uppercase tracking-[0.3em] opacity-70">
+              {resultsReleased ? (passed ? "Parabéns, Aluno!" : "Avaliação Concluída") : "Aguardando Resultados"}
+            </h1>
+            {resultsReleased ? (
+              <>
+                <div className="flex items-center justify-center gap-3">
+                  <span className="text-7xl sm:text-8xl font-serif font-black tracking-tighter tabular-nums">
+                    {submission.score.toFixed(1)}
+                  </span>
+                  <div className="text-left flex flex-col leading-none">
+                    <span className="text-xl font-bold opacity-80">de</span>
+                    <span className="text-2xl font-black opacity-90">{submission.totalPoints.toFixed(1)}</span>
+                  </div>
+                </div>
+                <p className="text-lg font-medium opacity-80 font-serif italic max-w-xs mx-auto">
+                  {passed 
+                    ? "Sua dedicação aos estudos teológicos rendeu excelentes frutos." 
+                    : "Continue firme em sua jornada de conhecimento bíblico."}
+                </p>
+              </>
+            ) : (
+              <h2 className="text-2xl font-serif font-bold mt-4 px-6">
+                Sua prova foi enviada com sucesso e está aguardando a liberação das notas.
+              </h2>
+            )}
+          </div>
+
+          {resultsReleased && (
+            <div className="flex flex-wrap justify-center gap-3">
+              <div className="bg-white/10 backdrop-blur-md border border-white/20 px-6 py-2 rounded-full text-sm font-bold flex items-center gap-2 shadow-lg">
+                <CheckCircle2 className="h-4 w-4" />
+                {submission.percentage}% de Acerto
+              </div>
+              {classSubmissions.length > 1 && (
+                <div className="bg-black/10 backdrop-blur-sm border border-black/5 px-6 py-2 rounded-full text-sm font-bold flex items-center gap-2">
+                  <LayoutGrid className="h-4 w-4" />
+                  Média: {classAverageScore.toFixed(1)}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex gap-4 mt-4">
+            {resultsReleased && (
+              <Button
+                onClick={handlePDF}
+                className="bg-white text-primary hover:bg-white/90 rounded-2xl px-8 h-14 font-black shadow-xl shadow-black/10 transition-all hover:scale-105 active:scale-95"
+              >
+                <Download className="h-5 w-5 mr-2" />
+                BAIXAR CERTIFICADO
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={() => window.print()}
+              className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-2xl px-6 h-14 font-bold backdrop-blur-sm"
+            >
+              <Share2 className="h-5 w-5 mr-2" />
+              IMPRIMIR
+            </Button>
+          </div>
+        </div>
       </div>
 
-      {/* Metadata */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Aluno</p>
-          <p className="text-sm font-semibold text-foreground">{submission.studentName}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Envio</p>
-          <p className="text-sm font-semibold text-foreground">{formatDate(submission.submittedAt)}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4 col-span-2 sm:col-span-1">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Tempo Total</p>
-          <div className="flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-            <p className="text-sm font-semibold text-foreground">{formatTime(submission.timeElapsedSeconds)}</p>
-          </div>
-        </div>
-        {(submission.focusLostCount ?? 0) > 0 && (
-          <div className={cn(
-            "rounded-xl border p-4 col-span-2 sm:col-span-1",
-            submission.focusLostCount! > 3 ? "border-red-200 bg-red-50" : "border-border bg-card"
-          )}>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Trocas de Aba</p>
-            <div className="flex items-center gap-1.5">
-              <AlertTriangle className={cn("h-3.5 w-3.5", submission.focusLostCount! > 3 ? "text-red-500" : "text-amber-500")} />
-              <p className={cn("text-sm font-semibold", submission.focusLostCount! > 3 ? "text-red-700" : "text-foreground")}>
-                {submission.focusLostCount} vez{submission.focusLostCount !== 1 ? "es" : ""}
-              </p>
+      {/* Metadata Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          { icon: FileText, label: "Disciplina", value: disc?.name || "Geral", sub: `Prof. ${assessment?.professor}` },
+          { icon: History, label: "Finalizado em", value: formatDate(submission.submittedAt), sub: "Envio Eletrônico" },
+          { icon: Clock, label: "Tempo de Prova", value: formatTime(submission.timeElapsedSeconds), sub: "Dedicação total" },
+        ].map((item, i) => (
+          <div key={i} className="bg-card border-2 border-border/50 rounded-3xl p-6 shadow-sm transition-all hover:border-primary/20 group">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-8 w-8 rounded-xl bg-secondary flex items-center justify-center text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+                <item.icon className="h-4 w-4" />
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{item.label}</span>
             </div>
+            <p className="text-lg font-bold font-serif leading-tight">{item.value}</p>
+            <p className="text-xs text-muted-foreground mt-1">{item.sub}</p>
           </div>
-        )}
+        ))}
       </div>
 
       {resultsReleased && (
-        <>
-          {/* Question review */}
-          <div className="flex flex-col gap-3">
-            <h2 className="text-base font-semibold text-foreground">Revisão das Respostas</h2>
+        <div className="space-y-8 pt-8">
+          <div className="flex items-center gap-4 px-2">
+            <div className="h-1 bg-border flex-1 rounded-full" />
+            <h2 className="text-xl font-serif font-black flex items-center gap-2 shrink-0">
+              <BookOpenCheck className="h-6 w-6 text-primary" />
+              Revisão de Desempenho
+            </h2>
+            <div className="h-1 bg-border flex-1 rounded-full" />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
             {questions.map((q, idx) => {
               const studentAns = submission.answers.find((a) => a.questionId === q.id)
               const isDiscursive = q.type === "discursive"
@@ -251,145 +244,141 @@ export function AssessmentResult({ submission, onBack }: Props) {
                 <div
                   key={q.id}
                   className={cn(
-                    "rounded-xl border p-5 bg-card",
-                    isDiscursive ? "border-border" :
-                      isCorrect ? "border-green-200 bg-green-50/50" :
-                        "border-red-200 bg-red-50/50"
+                    "rounded-[2rem] border-2 p-6 sm:p-8 transition-all shadow-sm",
+                    isDiscursive ? "border-border bg-card" :
+                      isCorrect ? "border-emerald-500/20 bg-emerald-500/[0.03]" :
+                        "border-rose-500/20 bg-rose-500/[0.03]"
                   )}
                 >
-                  <div className="flex items-start gap-3">
-                    {isDiscursive ? (
-                      <Minus className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                    ) : isCorrect ? (
-                      <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">
-                        Questão {idx + 1} · {assessment?.pointsPerQuestion ?? 1} pt
-                        {isDiscursive && " · Correção manual"}
-                      </p>
-                      <p className="text-sm font-medium text-foreground leading-relaxed mb-3 text-pretty">{q.text}</p>
+                  <div className="flex flex-col sm:flex-row items-start gap-6">
+                    <div className={cn(
+                      "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-sm",
+                      isDiscursive ? "bg-secondary text-muted-foreground" :
+                        isCorrect ? "bg-emerald-500 text-white" : "bg-rose-500 text-white"
+                    )}>
+                      {isDiscursive ? <Minus className="h-6 w-6" /> : isCorrect ? <CheckCircle2 className="h-6 w-6" /> : <XCircle className="h-6 w-6" />}
+                    </div>
 
-                      {isDiscursive ? (
-                        <div className="rounded-lg bg-muted p-3 text-sm text-foreground">
-                          {studentLabel}
+                    <div className="flex-1 space-y-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-2 py-0.5 rounded-full bg-secondary/50">
+                            Questão {idx + 1}
+                          </span>
+                          <span className="text-[10px] font-bold text-primary">
+                            {assessment?.pointsPerQuestion ?? 1} Ponto
+                          </span>
                         </div>
-                      ) : q.type === "fill-in-the-blank" ? (
-                        <div className="flex flex-col gap-2">
-                          {(() => {
-                            const matches = q.text.match(/\[\[(.*?)\]\]/g)
-                            if (!matches) return null
-                            const correctWords = matches.map(m => m.slice(2, -2).trim())
-                            let studentData: Record<string, string> = {}
-                            try { studentData = JSON.parse(studentAns?.answer || "{}") } catch { }
+                        <p className="text-lg font-serif font-bold text-foreground leading-snug">{q.text}</p>
+                      </div>
 
-                            return (
-                              <div className="flex flex-wrap gap-x-4 gap-y-2 mt-1">
-                                {correctWords.map((word, wIdx) => {
-                                  const studentWord = studentData[`blank_${wIdx}`] || "—"
-                                  const isWordCorrect = studentWord.trim().toLowerCase() === word.trim().toLowerCase()
-                                  return (
-                                    <div key={wIdx} className="flex flex-col border-l-2 pl-2 border-muted">
-                                      <span className="text-[10px] text-muted-foreground uppercase">Lacuna {wIdx + 1}</span>
-                                      <div className="flex items-center gap-1.5">
-                                        {isWordCorrect ? <CheckCircle2 className="h-3 w-3 text-green-600" /> : <XCircle className="h-3 w-3 text-red-500" />}
-                                        <span className={cn("text-xs font-semibold", isWordCorrect ? "text-green-700" : "text-red-700")}>{studentWord}</span>
-                                        {!isWordCorrect && <span className="text-[10px] text-green-600 font-medium">(Correto: {word})</span>}
-                                      </div>
+                      <div className="space-y-3">
+                        {isDiscursive ? (
+                          <div className="rounded-2xl bg-secondary/30 p-5 text-sm italic text-foreground border-l-4 border-primary/20">
+                            "{studentLabel}"
+                          </div>
+                        ) : q.type === "fill-in-the-blank" ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {(() => {
+                              const matches = q.text.match(/\[\[(.*?)\]\]/g)
+                              if (!matches) return null
+                              const correctWords = matches.map(m => m.slice(2, -2).trim())
+                              let studentData: Record<string, string> = {}
+                              try { studentData = JSON.parse(studentAns?.answer || "{}") } catch { }
+
+                              return correctWords.map((word, wIdx) => {
+                                const studentWord = studentData[`blank_${wIdx}`] || "—"
+                                const isWordCorrect = studentWord.trim().toLowerCase() === word.trim().toLowerCase()
+                                return (
+                                  <div key={wIdx} className={cn(
+                                    "flex flex-col p-4 rounded-xl border-2 transition-all",
+                                    isWordCorrect ? "border-emerald-500/20 bg-emerald-500/5" : "border-rose-500/20 bg-rose-500/5"
+                                  )}>
+                                    <span className="text-[10px] font-black uppercase opacity-40 mb-1">Lacuna {wIdx + 1}</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className={cn("text-base font-bold", isWordCorrect ? "text-emerald-700" : "text-rose-700")}>
+                                        {studentWord}
+                                      </span>
+                                      {!isWordCorrect && (
+                                        <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                                          Correto: {word}
+                                        </span>
+                                      )}
                                     </div>
-                                  )
-                                })}
-                              </div>
-                            )
-                          })()}
-                        </div>
-                      ) : q.type === "matching" && q.pairs ? (
-                        <div className="flex flex-col gap-2 mt-1">
-                          {(() => {
-                            let studentData: Record<string, string> = {}
-                            try { studentData = JSON.parse(studentAns?.answer || "{}") } catch { }
-
-                            return q.pairs.map((p, pIdx) => {
-                              const studentRight = studentData[p.id] || "—"
-                              const isPairCorrect = studentRight === p.right
-                              return (
-                                <div key={p.id} className="flex items-center gap-2 text-xs p-2 rounded bg-muted/30">
-                                  <div className="flex-1 font-medium">{p.left}</div>
-                                  <div className="text-muted-foreground">→</div>
-                                  <div className="flex-1 flex items-center gap-1.5">
-                                    {isPairCorrect ? <CheckCircle2 className="h-3 w-3 text-green-600" /> : <XCircle className="h-3 w-3 text-red-500" />}
-                                    <span className={cn("font-semibold", isPairCorrect ? "text-green-700" : "text-red-700")}>{studentRight}</span>
-                                    {!isPairCorrect && <span className="text-[10px] text-green-600">(Correto: {p.right})</span>}
                                   </div>
-                                </div>
-                              )
-                            })
-                          })()}
-                        </div>
-                      ) : (
-                        <>
-                          <p className={cn("text-xs", isCorrect ? "text-green-700" : "text-red-600")}>
-                            Sua resposta: <strong>{studentLabel}</strong>
-                          </p>
-                          {!isCorrect && correctLabel && (
-                            <p className="text-xs text-green-700 mt-1">
-                              Resposta correta: <strong>{correctLabel}</strong>
-                            </p>
-                          )}
-                        </>
-                      )}
+                                )
+                              })
+                            })()}
+                          </div>
+                        ) : q.type === "matching" && q.pairs ? (
+                          <div className="space-y-2">
+                            {(() => {
+                              let studentData: Record<string, string> = {}
+                              try { studentData = JSON.parse(studentAns?.answer || "{}") } catch { }
+
+                              return q.pairs.map((p) => {
+                                const studentRight = studentData[p.id] || "—"
+                                const isPairCorrect = studentRight === p.right
+                                return (
+                                  <div key={p.id} className={cn(
+                                    "flex items-center justify-between gap-4 p-3 rounded-xl border-2 transition-all",
+                                    isPairCorrect ? "border-emerald-500/10 bg-emerald-500/5" : "border-rose-500/10 bg-rose-500/5"
+                                  )}>
+                                    <span className="text-xs font-bold text-muted-foreground flex-1">{p.left}</span>
+                                    <div className="flex items-center gap-3 shrink-0">
+                                      <div className={cn("px-3 py-1 rounded-full text-xs font-black", isPairCorrect ? "bg-emerald-500 text-white" : "bg-rose-500 text-white")}>
+                                        {studentRight}
+                                      </div>
+                                      {!isPairCorrect && (
+                                        <div className="px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                          {p.right}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )
+                              })
+                            })()}
+                          </div>
+                        ) : (
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                            <div className={cn(
+                              "flex-1 p-4 rounded-2xl border-2",
+                              isCorrect ? "border-emerald-500/20 bg-emerald-500/5" : "border-rose-500/20 bg-rose-500/5"
+                            )}>
+                              <span className="text-[10px] font-black uppercase opacity-40 block mb-1">Sua Resposta</span>
+                              <span className={cn("text-base font-bold", isCorrect ? "text-emerald-700" : "text-rose-700")}>
+                                {studentLabel}
+                              </span>
+                            </div>
+                            {!isCorrect && correctLabel && (
+                              <div className="flex-1 p-4 rounded-2xl border-2 border-emerald-500/20 bg-emerald-500/5">
+                                <span className="text-[10px] font-black uppercase opacity-40 block mb-1">Correto</span>
+                                <span className="text-base font-bold text-emerald-700">
+                                  {correctLabel}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
               )
             })}
           </div>
-
-          {/* Gabarito table */}
-          {gabaritoItems.length > 0 && (
-            <div className="bg-card border border-border rounded-xl overflow-hidden">
-              <div className="px-5 py-3 border-b border-border bg-muted/40">
-                <h2 className="font-semibold text-foreground text-sm">Gabarito Oficial</h2>
-              </div>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground uppercase w-12">Nº</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground uppercase">Questão</th>
-                    <th className="text-left px-4 py-2 text-xs font-semibold text-muted-foreground uppercase">Resposta Correta</th>
-                    <th className="text-center px-4 py-2 text-xs font-semibold text-muted-foreground uppercase w-20">Resultado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {gabaritoItems.map(({ num, text, correctLabel, isCorrect }) => (
-                    <tr key={num} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
-                      <td className="px-4 py-2.5 font-bold text-muted-foreground">{num}</td>
-                      <td className="px-4 py-2.5 text-foreground text-xs max-w-xs truncate">{text}</td>
-                      <td className="px-4 py-2.5 text-green-700 font-semibold text-xs">{correctLabel}</td>
-                      <td className="px-4 py-2.5 text-center">
-                        {isCorrect
-                          ? <CheckCircle2 className="h-4 w-4 text-green-600 mx-auto" />
-                          : <XCircle className="h-4 w-4 text-red-500 mx-auto" />
-                        }
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </>
+        </div>
       )}
 
       {onBack && (
-        <div className="flex justify-center mt-6">
+        <div className="flex justify-center pt-8">
           <Button
-            variant="outline"
+            variant="ghost"
             onClick={onBack}
-            className="w-full sm:w-auto font-medium"
+            className="group rounded-2xl h-14 px-8 font-bold text-muted-foreground hover:text-primary transition-all"
           >
+            <ChevronLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" />
             Sair e Voltar ao Início
           </Button>
         </div>
