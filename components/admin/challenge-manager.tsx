@@ -52,6 +52,7 @@ export function ChallengeManager() {
   const [challenges, setChallenges] = useState<Challenge[]>([])
   const [disciplines, setDisciplines] = useState<Discipline[]>([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState("")
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>("all")
 
@@ -127,6 +128,7 @@ export function ChallengeManager() {
 
   async function handleSave() {
     try {
+      setSaving(true)
       const payload = {
         ...form,
         content: form.type === 'quiz' ? JSON.parse(form.content || '[]') : form.content
@@ -142,9 +144,11 @@ export function ChallengeManager() {
       const allChs = await getChallenges()
       setChallenges(allChs)
       setIsModalOpen(false)
-    } catch (error) {
+    } catch (error: any) {
       console.error(error)
-      alert("Erro ao salvar: Certifique-se de que o conteúdo está no formato correto. Para Quizzes, o conteúdo deve ser um JSON válido. Para outros tipos, pode ser texto comum.")
+      alert("Erro ao salvar: " + (error.message || "Verifique o console para mais detalhes."))
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -423,9 +427,9 @@ export function ChallengeManager() {
             <Button 
               onClick={handleSave} 
               className="rounded-xl px-8 shadow-lg"
-              disabled={!form.title || !form.description || !form.content || !form.disciplineId}
+              disabled={!form.title || !form.description || !form.content || !form.disciplineId || saving}
             >
-              {editingChallenge ? "Salvar Alterações" : "Criar Missão"}
+              {saving ? "Salvando..." : (editingChallenge ? "Salvar Alterações" : "Criar Missão")}
             </Button>
           </DialogFooter>
         </DialogContent>
