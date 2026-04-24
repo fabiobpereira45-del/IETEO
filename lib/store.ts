@@ -853,11 +853,13 @@ export async function getChallenges(disciplineId?: string): Promise<Challenge[]>
   return (data || []).map(mapChallenge)
 }
 
-export async function addChallenge(challenge: Omit<Challenge, "id" | "createdAt">): Promise<Challenge> {
+export async function addChallenge(challenge: Omit<Challenge, "id" | "createdAt">): Promise<void> {
   const supabase = createClient()
+  
+  // We use a safe string ID that works with both TEXT and UUID columns if needed
   const dbData = {
     id: uid(),
-    discipline_id: challenge.disciplineId,
+    discipline_id: challenge.disciplineId || null,
     week: challenge.week,
     title: challenge.title,
     description: challenge.description,
