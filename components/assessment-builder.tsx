@@ -215,6 +215,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
       await updateAssessment(assessment.id, {
         title: title.trim(),
         disciplineId,
+        professor: selectedDisc?.professorName || PROFESSOR_CREDENTIALS.name,
         logoBase64,
         rules: rules.trim(),
         questionIds: finalIds,
@@ -227,7 +228,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
       await addAssessment({
         title: title.trim(),
         disciplineId,
-        professor: PROFESSOR_CREDENTIALS.name,
+        professor: selectedDisc?.professorName || PROFESSOR_CREDENTIALS.name,
         institution: "Instituto de Ensino Teológico - IETEO",
         logoBase64,
         rules: rules.trim(),
@@ -565,7 +566,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
                   </div>
                   <div className="flex gap-2">
                     <span className="font-semibold whitespace-nowrap">Professor:</span>
-                    <span className="flex-1 truncate">{PROFESSOR_CREDENTIALS.name}</span>
+                    <span className="flex-1 truncate">{selectedDisc?.professorName || PROFESSOR_CREDENTIALS.name}</span>
                   </div>
                   <div className="flex gap-2">
                     <span className="font-semibold whitespace-nowrap">Nota:</span>
