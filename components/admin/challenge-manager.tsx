@@ -143,6 +143,28 @@ export function ChallengeManager() {
     setIsModalOpen(false)
   }
 
+  function handleAutoFill() {
+    const text = form.content
+    if (!text) return
+
+    // Regex patterns for AI output
+    const titleMatch = text.match(/Título:\s*(.*)/i)
+    const enigmaMatch = text.match(/(?:Enigma|Desafio|Versículo):\s*([\s\S]*?)(?=\nResposta:|$)/i)
+    const answerMatch = text.match(/Resposta:\s*(.*)/i)
+
+    const updates: Partial<typeof form> = {}
+
+    if (titleMatch?.[1]) updates.title = titleMatch[1].trim()
+    if (enigmaMatch?.[1]) updates.description = enigmaMatch[1].trim()
+    if (answerMatch?.[1]) updates.correctAnswer = answerMatch[1].trim()
+
+    if (Object.keys(updates).length > 0) {
+      setForm(prev => ({ ...prev, ...updates }))
+    } else {
+      alert("Não foi possível identificar os campos. Certifique-se de que o texto segue o formato da IA (Título:, Enigma:, Resposta:).")
+    }
+  }
+
   async function handleDelete(id: string) {
     if (!confirm("Tem certeza que deseja excluir esta missão?")) return
     await deleteChallenge(id)
@@ -337,7 +359,19 @@ export function ChallengeManager() {
             </div>
 
             <div className="space-y-2">
-              <Label>Conteúdo do Desafio (Enigma ou Perguntas) *</Label>
+              <div className="flex items-center justify-between">
+                <Label>Conteúdo do Desafio (Enigma ou Perguntas) *</Label>
+                {form.content && !form.content.startsWith('[') && (
+                  <Button 
+                    variant="ghost" 
+                    size="xs" 
+                    onClick={handleAutoFill}
+                    className="h-6 text-[10px] font-bold text-primary hover:bg-primary/10 flex items-center gap-1 px-2 rounded-lg"
+                  >
+                    <Sparkles className="h-3 w-3" /> Analisar e Preencher Campos
+                  </Button>
+                )}
+              </div>
               <Textarea 
                 value={form.content} 
                 onChange={(e) => setForm({...form, content: e.target.value})}
@@ -381,7 +415,11 @@ export function ChallengeManager() {
 
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setIsModalOpen(false)} className="rounded-xl">Cancelar</Button>
-            <Button onClick={handleSave} className="rounded-xl px-8">
+            <Button 
+              onClick={handleSave} 
+              className="rounded-xl px-8 shadow-lg"
+              disabled={!form.title || !form.description || !form.content || !form.disciplineId}
+            >
               {editingChallenge ? "Salvar Alterações" : "Criar Missão"}
             </Button>
           </DialogFooter>
