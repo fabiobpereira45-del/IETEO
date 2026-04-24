@@ -14,8 +14,9 @@ import {
   XCircle,
   HelpCircle,
   Scroll,
-  Dna,
-  MessageSquare
+  Dna, 
+  MessageSquare,
+  Wand2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,8 +27,9 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger
 } from "@/components/ui/dialog"
+import { AIChallengeGenerator } from "./ai-challenge-generator"
 import { 
   getChallenges, 
   addChallenge, 
@@ -55,6 +57,7 @@ export function ChallengeManager() {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false)
   const [editingChallenge, setEditingChallenge] = useState<Challenge | null>(null)
   
   // Form State
@@ -254,8 +257,17 @@ export function ChallengeManager() {
       {/* Create/Edit Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto rounded-[2rem]">
-          <DialogHeader>
+          <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <DialogTitle className="text-2xl font-serif">{editingChallenge ? "Editar Missão" : "Criar Nova Missão"}</DialogTitle>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setIsAIModalOpen(true)}
+              className="rounded-full border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all gap-2 h-8 px-4"
+            >
+              <Wand2 className="h-3.5 w-3.5" />
+              Gerar com IA
+            </Button>
           </DialogHeader>
 
           <div className="space-y-5 py-4">
@@ -373,6 +385,16 @@ export function ChallengeManager() {
               {editingChallenge ? "Salvar Alterações" : "Criar Missão"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Assistant Modal */}
+      <Dialog open={isAIModalOpen} onOpenChange={setIsAIModalOpen}>
+        <DialogContent className="sm:max-w-2xl rounded-[2.5rem] border-none shadow-2xl p-6">
+          <AIChallengeGenerator disciplines={disciplines} />
+          <div className="pt-4 flex justify-end">
+            <Button variant="outline" onClick={() => setIsAIModalOpen(false)} className="rounded-xl px-8">Fechar Assistente</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
