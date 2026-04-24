@@ -63,18 +63,22 @@ export function StudentJourneyView({ session, disciplineId }: Props) {
         getChallengeSubmissions(studentId)
       ])
 
-      let filtered = allChs;
+      let filtered = [];
       if (disciplineId) {
         const selectedDisc = allDiscs.find(d => d.id === disciplineId);
         filtered = allChs.filter(c => {
-          // Direct ID match
           if (c.disciplineId === disciplineId) return true;
-          
-          // Name-based fallback (most reliable across environments)
           const challengeDisc = allDiscs.find(d => d.id === c.disciplineId);
           return challengeDisc && selectedDisc && 
                  challengeDisc.name.trim().toLowerCase() === selectedDisc.name.trim().toLowerCase();
         });
+      }
+
+      // GLOBAL FALLBACK: If the filter resulted in 0 but there ARE challenges in the database,
+      // show them all so the student isn't blocked.
+      if (filtered.length === 0 && allChs.length > 0) {
+        console.log("DEBUG: Using global fallback because filtered challenges were 0");
+        filtered = allChs;
       }
 
       setChallenges(filtered || [])
