@@ -47,6 +47,8 @@ export function StudentJourneyView({ session, disciplineId }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
 
+  if (!session || !session.studentId) return null
+
   async function load() {
     const [allChs, allSubs] = await Promise.all([
       getChallenges(disciplineId),
@@ -91,8 +93,8 @@ export function StudentJourneyView({ session, disciplineId }: Props) {
     }
   }
 
-  const totalPoints = submissions.reduce((acc, s) => acc + s.earnedPoints, 0)
-  const completedCount = submissions.length
+  const totalPoints = submissions?.reduce((acc, s) => acc + (s.earnedPoints || 0), 0) || 0
+  const completedCount = submissions?.length || 0
   const currentLevel = Math.floor(totalPoints / 100) + 1
   const levelProgress = totalPoints % 100
 
@@ -157,9 +159,9 @@ export function StudentJourneyView({ session, disciplineId }: Props) {
         
         <div className="space-y-16 relative">
           {challenges.map((challenge, idx) => {
-            const isCompleted = submissions.some(s => s.challengeId === challenge.id)
+            const isCompleted = submissions?.some(s => s.challengeId === challenge.id) || false
             const isLocked = !challenge.isActive && !isCompleted
-            const isNext = !isCompleted && !isLocked && (idx === 0 || submissions.some(s => {
+            const isNext = !isCompleted && !isLocked && (idx === 0 || submissions?.some(s => {
               const prevCh = challenges[idx - 1]
               return prevCh && s.challengeId === prevCh.id
             }))
