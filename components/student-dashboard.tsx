@@ -3,7 +3,7 @@ import {
     LogOut, BookOpen, Clock, FileText, Loader2, ArrowLeft,
     CalendarDays, MessageSquare, CheckCircle2,
     Users, Menu, GraduationCap, Home, AlertCircle,
-    Library, BookOpenCheck, ChevronRight, User, X
+    Library, BookOpenCheck, ChevronRight, User, X, Sparkles
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
