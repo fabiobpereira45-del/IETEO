@@ -46,7 +46,8 @@ export default function HomePage() {
     // Restore student session
     async function checkStudentSession() {
       const studentSession = getStudentSession()
-      if (studentSession) {
+      // Only auto-restore assessment session if it actually has an assessmentId
+      if (studentSession && studentSession.assessmentId && studentSession.assessmentId !== "portal") {
         const existing = await getSubmissionByEmailAndAssessment(studentSession.email, studentSession.assessmentId)
         if (existing) {
           setSession(studentSession)
