@@ -57,11 +57,31 @@ export function StudentJourneyView({ session, disciplineId }: Props) {
     
     try {
       setLoading(true)
-      const [chs, subs] = await Promise.all([
-        getChallenges(disciplineId),
+      // Fetch ALL challenges and submissions to do a smart match
+      const [allChs, subs] = await Promise.all([
+        getChallenges(), // Fetch all to avoid ID mismatch issues
         getChallengeSubmissions(studentId)
       ])
-      setChallenges(chs || [])
+
+      // Smart Filter: Match by disciplineId OR by discipline Name if we can find it
+      let filtered = allChs;
+      if (disciplineId) {
+        // Find the name of the selected discipline
+        const { data: disc } = await createClient().from('disciplines').select('name').eq('id', disciplineId).maybeSingle();
+        
+        filtered = allChs.filter(c => 
+          c.disciplineId === disciplineId || 
+          (disc?.name && c.title.includes(disc.name)) // Fallback if IDs mismatch
+        );
+        
+        // If still empty, try to get challenges for this specific ID again just in case
+        if (filtered.length === 0) {
+          const direct = await getChallenges(disciplineId);
+          if (direct.length > 0) filtered = direct;
+        }
+      }
+
+      setChallenges(filtered || [])
       setSubmissions(subs || [])
     } catch (err) {
       console.error("Erro ao carregar jornada:", err)
