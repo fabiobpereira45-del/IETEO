@@ -47,21 +47,32 @@ export function StudentJourneyView({ session, disciplineId }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
 
-  if (!session || !session.studentId) return null
+  const studentId = session?.studentId
 
   async function load() {
-    const [allChs, allSubs] = await Promise.all([
-      getChallenges(disciplineId),
-      getChallengeSubmissions(session.studentId)
-    ])
-    setChallenges(allChs)
-    setSubmissions(allSubs)
-    setLoading(false)
+    if (!studentId) {
+      setLoading(false)
+      return
+    }
+    
+    try {
+      setLoading(true)
+      const [chs, subs] = await Promise.all([
+        getChallenges(disciplineId),
+        getChallengeSubmissions(studentId)
+      ])
+      setChallenges(chs || [])
+      setSubmissions(subs || [])
+    } catch (err) {
+      console.error("Erro ao carregar jornada:", err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
     load()
-  }, [disciplineId, session.studentId])
+  }, [disciplineId, studentId])
 
   async function handleSubmit() {
     if (!activeChallenge || !answer.trim()) return
@@ -73,7 +84,7 @@ export function StudentJourneyView({ session, disciplineId }: Props) {
 
     await saveChallengeSubmission({
       challengeId: activeChallenge.id,
-      studentId: session.studentId,
+      studentId: studentId!,
       answer: answer.trim(),
       isCorrect,
       earnedPoints: isCorrect ? activeChallenge.points : 0
@@ -126,7 +137,7 @@ export function StudentJourneyView({ session, disciplineId }: Props) {
           
           <div className="flex-1 space-y-4 text-center md:text-left">
             <div>
-              <h2 className="text-3xl font-bold font-serif tracking-tight">Jornada de {session.name}</h2>
+              <h2 className="text-3xl font-bold font-serif tracking-tight">Jornada de {session?.name || "Aluno"}</h2>
               <p className="text-primary-foreground/70 font-medium mt-1">Explorador Teológico • Nível {currentLevel}</p>
             </div>
             
