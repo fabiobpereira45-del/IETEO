@@ -49,6 +49,7 @@ type Tab = "overview" | "class-info" | "curriculum" | "materials" | "grades" | "
 export function StudentDashboard({ session, onBack, onLogout }: Props) {
     const [profile, setProfile] = useState<StudentProfile | null>(null)
     const [loading, setLoading] = useState(true)
+    const [selectedJourneyDisc, setSelectedJourneyDisc] = useState<string>("")
     const [tab, setTab] = useState<Tab>("overview")
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const supabase = createClient()
@@ -63,6 +64,12 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
     const [officialGrades, setOfficialGrades] = useState<StudentGrade[]>([])
 
     const [dataLoading, setDataLoading] = useState(false)
+
+    useEffect(() => {
+        if (tab === "journey" && !selectedJourneyDisc && mySchedules.length > 0) {
+            setSelectedJourneyDisc(mySchedules[0].disciplineId)
+        }
+    }, [tab, mySchedules])
 
     async function checkAuth() {
         setLoading(true)
@@ -340,8 +347,8 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                                         </div>
                                         <div className="w-full md:w-64">
                                             <Select 
-                                                value={mySchedules[0]?.disciplineId || ""} 
-                                                onValueChange={() => {}}
+                                                value={selectedJourneyDisc} 
+                                                onValueChange={setSelectedJourneyDisc}
                                             >
                                                 <SelectTrigger className="rounded-xl border-primary/20 bg-white">
                                                     <SelectValue placeholder="Selecione a Disciplina" />
@@ -355,7 +362,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                                             </Select>
                                         </div>
                                     </div>
-                                    <StudentJourneyView session={session!} disciplineId={mySchedules[0]?.disciplineId || ""} />
+                                    <StudentJourneyView session={session!} disciplineId={selectedJourneyDisc} />
                                 </div>
                             )}
                             {tab === "class-info" && <ClassInfoTab myClass={myClass} classmates={classmates} mySchedules={mySchedules} disciplines={disciplines} officialGrades={officialGrades} />}
