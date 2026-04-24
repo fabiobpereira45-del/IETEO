@@ -440,16 +440,37 @@ export function AssessmentForm({ session, onSubmit }: Props) {
                           const key = `blank_${idx}`
                           return (
                             <span key={pi} className="inline-block relative group mx-1">
-                              <input
-                                type="text"
-                                value={currentData[key] || ""}
-                                onChange={(e) => handleSubAnswer(currentQuestion.id, key, e.target.value)}
-                                className={cn(
-                                  "px-3 py-1 border-b-4 bg-transparent focus:outline-none transition-all text-primary font-bold min-w-[120px] text-center placeholder:text-muted-foreground/30",
-                                  currentData[key] ? "border-primary" : "border-primary/20 focus:border-primary"
-                                )}
-                                placeholder="preencher..."
-                              />
+                              {currentQuestion.choices && currentQuestion.choices.length > 0 ? (
+                                <Select
+                                  value={currentData[key] || ""}
+                                  onValueChange={(v) => handleSubAnswer(currentQuestion.id, key, v)}
+                                >
+                                  <SelectTrigger className={cn(
+                                    "inline-flex h-9 px-3 border-b-2 bg-white/50 backdrop-blur-sm focus:outline-none transition-all text-primary font-bold min-w-[140px] text-center rounded-lg border-primary/20 hover:border-primary/40",
+                                    currentData[key] && "border-primary/60"
+                                  )}>
+                                    <SelectValue placeholder="..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {currentQuestion.choices.map((choice) => (
+                                      <SelectItem key={choice.id} value={choice.text}>
+                                        {choice.text}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <input
+                                  type="text"
+                                  value={currentData[key] || ""}
+                                  onChange={(e) => handleSubAnswer(currentQuestion.id, key, e.target.value)}
+                                  className={cn(
+                                    "px-3 py-1 border-b-4 bg-transparent focus:outline-none transition-all text-primary font-bold min-w-[120px] text-center placeholder:text-muted-foreground/30",
+                                    currentData[key] ? "border-primary" : "border-primary/20 focus:border-primary"
+                                  )}
+                                  placeholder="preencher..."
+                                />
+                              )}
                             </span>
                           )
                         }

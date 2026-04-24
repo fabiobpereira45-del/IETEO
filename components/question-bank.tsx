@@ -225,7 +225,7 @@ function QuestionModal({
       disciplineId,
       type,
       text: text.trim(),
-      choices: type === "multiple-choice" ? choices.filter((c) => c.text.trim()) : [],
+      choices: (type === "multiple-choice" || type === "fill-in-the-blank") ? choices.filter((c) => c.text.trim()) : [],
       pairs: type === "matching" ? pairs.filter(p => p.left.trim() && p.right.trim()) : [],
       correctAnswer: type === "discursive" ? "" : correctAnswer,
       points,
@@ -286,43 +286,49 @@ function QuestionModal({
           </div>
 
           {/* Multiple choice options */}
-          {type === "multiple-choice" && (
+          {(type === "multiple-choice" || type === "fill-in-the-blank") && (
             <div className="flex flex-col gap-2">
-              <Label>Alternativas * <span className="text-muted-foreground font-normal text-xs">(marque a correta)</span></Label>
+              <Label>
+                {type === "multiple-choice" ? "Alternativas *" : "Banco de Palavras (Opcional)"}
+                {type === "multiple-choice" && <span className="text-muted-foreground font-normal text-xs ml-1">(marque a correta)</span>}
+                {type === "fill-in-the-blank" && <span className="text-muted-foreground font-normal text-xs ml-1">(opções que o aluno poderá escolher)</span>}
+              </Label>
               {choices.map((c, i) => (
                 <div key={c.id} className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setCorrectAnswer(c.id)}
-                    className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${correctAnswer === c.id
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border hover:border-primary"
-                      }`}
-                    aria-label={`Marcar alternativa ${i + 1} como correta`}
-                  >
-                    {correctAnswer === c.id && <Check className="h-3 w-3" />}
-                  </button>
+                  {type === "multiple-choice" && (
+                    <button
+                      type="button"
+                      onClick={() => setCorrectAnswer(c.id)}
+                      className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${correctAnswer === c.id
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border hover:border-primary"
+                        }`}
+                      aria-label={`Marcar alternativa ${i + 1} como correta`}
+                    >
+                      {correctAnswer === c.id && <Check className="h-3 w-3" />}
+                    </button>
+                  )}
                   <span className="text-xs font-bold text-muted-foreground w-4">{String.fromCharCode(65 + i)}</span>
                   <Input
                     value={c.text}
                     onChange={(e) => handleChoiceText(c.id, e.target.value)}
-                    placeholder={`Alternativa ${String.fromCharCode(65 + i)}`}
+                    placeholder={type === "multiple-choice" ? `Alternativa ${String.fromCharCode(65 + i)}` : `Opção ${i + 1}`}
                     className="flex-1"
                   />
                   <button
                     type="button"
                     onClick={() => removeChoice(c.id)}
-                    disabled={choices.length <= 2}
+                    disabled={type === "multiple-choice" ? choices.length <= 2 : choices.length <= 0}
                     className="text-muted-foreground hover:text-destructive disabled:opacity-30 transition-colors"
-                    aria-label="Remover alternativa"
+                    aria-label="Remover opção"
                   >
                     <X className="h-4 w-4" />
                   </button>
                 </div>
               ))}
-              {choices.length < 6 && (
+              {choices.length < 10 && (
                 <Button type="button" variant="outline" size="sm" onClick={addChoice} className="self-start mt-1">
-                  <Plus className="h-3.5 w-3.5 mr-1.5" /> Adicionar alternativa
+                  <Plus className="h-3.5 w-3.5 mr-1.5" /> Adicionar {type === "multiple-choice" ? "alternativa" : "opção"}
                 </Button>
               )}
             </div>
