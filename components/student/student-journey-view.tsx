@@ -24,21 +24,24 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
+import { Textarea } from "@/components/ui/textarea"
 import { 
   getChallenges, 
   getChallengeSubmissions, 
   saveChallengeSubmission,
+  getDisciplines,
   type Challenge, 
   type ChallengeSubmission,
   type StudentSession
 } from "@/lib/store"
 
 interface Props {
-  session: StudentSession
+  studentId: string
+  studentName: string
   disciplineId: string
 }
 
-export function StudentJourneyView({ session, disciplineId }: Props) {
+export function StudentJourneyView({ studentId, studentName, disciplineId }: Props) {
   const [challenges, setChallenges] = useState<Challenge[]>([])
   const [submissions, setSubmissions] = useState<ChallengeSubmission[]>([])
   const [loading, setLoading] = useState(true)
@@ -47,7 +50,7 @@ export function StudentJourneyView({ session, disciplineId }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
 
-  const studentId = session?.studentId
+  // studentId is now a prop
 
   async function load() {
     if (!studentId) {
@@ -166,7 +169,7 @@ export function StudentJourneyView({ session, disciplineId }: Props) {
           
           <div className="flex-1 space-y-4 text-center md:text-left">
             <div>
-              <h2 className="text-3xl font-bold font-serif tracking-tight">Jornada de {session?.name || "Aluno"}</h2>
+              <h2 className="text-3xl font-bold font-serif tracking-tight">Jornada de {studentName || "Aluno"}</h2>
               <p className="text-primary-foreground/70 font-medium mt-1">Explorador Teológico • Nível {currentLevel}</p>
             </div>
             

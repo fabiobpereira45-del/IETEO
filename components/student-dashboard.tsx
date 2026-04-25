@@ -362,7 +362,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                                             </Select>
                                         </div>
                                     </div>
-                                    <StudentJourneyView session={session!} disciplineId={selectedJourneyDisc} />
+                                     <StudentJourneyView studentId={profile.id} studentName={profile.name} disciplineId={selectedJourneyDisc} />
                                 </div>
                             )}
                             {tab === "class-info" && <ClassInfoTab myClass={myClass} classmates={classmates} mySchedules={mySchedules} disciplines={disciplines} officialGrades={officialGrades} />}
