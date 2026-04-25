@@ -846,11 +846,19 @@ export async function getAllProfessorDisciplines(): Promise<ProfessorDiscipline[
 // ─── Challenges ─────────────────────────────────────────────────────────────
 
 export async function getChallenges(disciplineId?: string): Promise<Challenge[]> {
-  const supabase = createClient()
-  let query = supabase.from('challenges').select('*').order('week', { ascending: true })
-  if (disciplineId) query = query.eq('discipline_id', disciplineId)
-  const { data } = await query
-  return (data || []).map(mapChallenge)
+  const url = disciplineId 
+    ? `/api/admin/challenges?disciplineId=${encodeURIComponent(disciplineId)}` 
+    : `/api/admin/challenges`
+  
+  const res = await fetch(url)
+  const result = await res.json()
+  
+  if (!res.ok) {
+    console.error("Error fetching challenges:", result.error)
+    return []
+  }
+  
+  return (result.data || []).map(mapChallenge)
 }
 
 export async function addChallenge(challenge: Omit<Challenge, "id" | "createdAt">): Promise<void> {

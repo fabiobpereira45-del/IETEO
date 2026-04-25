@@ -1,6 +1,27 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 
+export async function GET(request: Request) {
+    try {
+        const { searchParams } = new URL(request.url)
+        const disciplineId = searchParams.get("disciplineId")
+        
+        const supabase = createAdminClient()
+        let query = supabase.from('challenges').select('*').order('week', { ascending: true })
+        
+        if (disciplineId) {
+            query = query.eq('discipline_id', disciplineId)
+        }
+        
+        const { data, error } = await query
+        
+        if (error) throw error
+        return NextResponse.json({ success: true, data: data || [] })
+    } catch (err: any) {
+        return NextResponse.json({ error: err.message }, { status: 500 })
+    }
+}
+
 export async function POST(request: Request) {
     try {
         const data = await request.json()
