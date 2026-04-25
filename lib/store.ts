@@ -854,8 +854,6 @@ export async function getChallenges(disciplineId?: string): Promise<Challenge[]>
 }
 
 export async function addChallenge(challenge: Omit<Challenge, "id" | "createdAt">): Promise<void> {
-  const supabase = createClient()
-  
   // We use a safe string ID that works with both TEXT and UUID columns if needed
   const dbData = {
     id: uid(),
@@ -870,14 +868,20 @@ export async function addChallenge(challenge: Omit<Challenge, "id" | "createdAt"
     is_active: challenge.isActive,
     created_at: new Date().toISOString()
   }
-  const { data, error } = await supabase.from('challenges').insert(dbData).select().single()
-  if (error) throw error
-  return mapChallenge(data)
+  
+  const res = await fetch("/api/admin/challenges", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dbData)
+  })
+  
+  const result = await res.json()
+  if (!res.ok) throw new Error(result.error)
+  return mapChallenge(result.data) as any
 }
 
 export async function updateChallenge(id: string, data: Partial<Omit<Challenge, "id" | "createdAt">>): Promise<void> {
-  const supabase = createClient()
-  const dbData: any = {}
+  const dbData: any = { id }
   if (data.disciplineId !== undefined) dbData.discipline_id = data.disciplineId
   if (data.week !== undefined) dbData.week = data.week
   if (data.title !== undefined) dbData.title = data.title
@@ -887,12 +891,28 @@ export async function updateChallenge(id: string, data: Partial<Omit<Challenge, 
   if (data.correctAnswer !== undefined) dbData.correct_answer = data.correctAnswer
   if (data.points !== undefined) dbData.points = Math.round(Number(data.points || 0))
   if (data.isActive !== undefined) dbData.is_active = data.isActive
-  await supabase.from('challenges').update(dbData).eq('id', id)
+  
+  const res = await fetch("/api/admin/challenges", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dbData)
+  })
+  
+  if (!res.ok) {
+    const result = await res.json()
+    throw new Error(result.error)
+  }
 }
 
 export async function deleteChallenge(id: string): Promise<void> {
-  const supabase = createClient()
-  await supabase.from('challenges').delete().eq('id', id)
+  const res = await fetch(`/api/admin/challenges?id=${id}`, {
+    method: "DELETE"
+  })
+  
+  if (!res.ok) {
+    const result = await res.json()
+    throw new Error(result.error)
+  }
 }
 
 export async function getChallengeSubmissions(studentId: string): Promise<ChallengeSubmission[]> {
