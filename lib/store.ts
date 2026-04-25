@@ -866,7 +866,7 @@ export async function addChallenge(challenge: Omit<Challenge, "id" | "createdAt"
     type: challenge.type,
     content: challenge.content,
     correct_answer: challenge.correctAnswer || null,
-    points: challenge.points,
+    points: Math.round(Number(challenge.points || 0)),
     is_active: challenge.isActive,
     created_at: new Date().toISOString()
   }
@@ -885,7 +885,7 @@ export async function updateChallenge(id: string, data: Partial<Omit<Challenge, 
   if (data.type !== undefined) dbData.type = data.type
   if (data.content !== undefined) dbData.content = data.content
   if (data.correctAnswer !== undefined) dbData.correct_answer = data.correctAnswer
-  if (data.points !== undefined) dbData.points = data.points
+  if (data.points !== undefined) dbData.points = Math.round(Number(data.points || 0))
   if (data.isActive !== undefined) dbData.is_active = data.isActive
   await supabase.from('challenges').update(dbData).eq('id', id)
 }

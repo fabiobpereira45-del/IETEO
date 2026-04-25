@@ -403,6 +403,8 @@ export function ChallengeManager() {
                 <Label>Pontos (XP)</Label>
                 <Input 
                   type="number" 
+                  step="1"
+                  min="0"
                   value={form.points} 
                   onChange={(e) => setForm({...form, points: Number(e.target.value)})}
                   className="rounded-xl"
