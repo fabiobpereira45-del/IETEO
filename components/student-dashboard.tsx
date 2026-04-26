@@ -13,22 +13,31 @@ import {
     getClassmates, getStudentGrades, type StudentGrade, syncStudentGrades
 } from "@/lib/store"
 import { StudentAuth } from "@/components/student-auth"
-import { FinancialStudentView } from "@/components/financial-student-view"
-import { StudentChatView } from "@/components/student-chat-view"
-import { StudentGradesView } from "@/components/student-grades-view"
-import { StudentAssessmentView } from "@/components/student-assessment-view"
 import { AvatarUpload } from "@/components/avatar-upload"
-import { StudentJourneyView } from "@/components/student/student-journey-view"
 import { createClient } from "@/lib/supabase/client"
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
-import { OverviewTab } from "./student/tabs/OverviewTab"
-import { ClassInfoTab } from "./student/tabs/ClassInfoTab"
-import { CurriculumTab } from "./student/tabs/CurriculumTab"
-import { MaterialsTab } from "./student/tabs/MaterialsTab"
-import { ProfileTab } from "./student/tabs/ProfileTab"
+import dynamic from "next/dynamic"
+
+const LoadingFallback = () => (
+  <div className="flex flex-col items-center justify-center p-20 min-h-[40vh]">
+    <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+    <p className="mt-4 text-sm font-medium text-muted-foreground">Carregando...</p>
+  </div>
+)
+
+const FinancialStudentView = dynamic(() => import("@/components/financial-student-view").then(m => m.FinancialStudentView), { loading: LoadingFallback })
+const StudentChatView = dynamic(() => import("@/components/student-chat-view").then(m => m.StudentChatView), { loading: LoadingFallback })
+const StudentGradesView = dynamic(() => import("@/components/student-grades-view").then(m => m.StudentGradesView), { loading: LoadingFallback })
+const StudentAssessmentView = dynamic(() => import("@/components/student-assessment-view").then(m => m.StudentAssessmentView), { loading: LoadingFallback })
+const StudentJourneyView = dynamic(() => import("@/components/student/student-journey-view").then(m => m.StudentJourneyView), { loading: LoadingFallback })
+const OverviewTab = dynamic(() => import("./student/tabs/OverviewTab").then(m => m.OverviewTab), { loading: LoadingFallback })
+const ClassInfoTab = dynamic(() => import("./student/tabs/ClassInfoTab").then(m => m.ClassInfoTab), { loading: LoadingFallback })
+const CurriculumTab = dynamic(() => import("./student/tabs/CurriculumTab").then(m => m.CurriculumTab), { loading: LoadingFallback })
+const MaterialsTab = dynamic(() => import("./student/tabs/MaterialsTab").then(m => m.MaterialsTab), { loading: LoadingFallback })
+const ProfileTab = dynamic(() => import("./student/tabs/ProfileTab").then(m => m.ProfileTab), { loading: LoadingFallback })
 
 const DAY_LABEL: Record<string, string> = {
     monday: "Segunda-feira", tuesday: "Terça-feira", wednesday: "Quarta-feira",
@@ -75,6 +84,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
         setLoading(true)
         const p = await getStudentProfileAuth()
         setProfile(p)
+        setLoading(false)
         if (p) {
             // Auto-Healing: Sync orphaned grades to UUID
             syncStudentGrades(p.id, p.cpf, p.email).catch(e => console.error("Sync Error:", e))
@@ -92,24 +102,23 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                 const foundClass = cls.find(cl => cl.id === p.class_id)
                 if (foundClass) setMyClass(foundClass)
                 setMySchedules(sch.filter(sh => sh.classId === p.class_id))
-                
+
                 const [members, grades] = await Promise.all([
                     getClassmates(p.class_id),
                     getStudentGrades()
                 ])
                 setClassmates(members.filter(m => m.id !== p.id))
-                
+
                 // Robust matching: ID or CPF/Email
-                const myGrades = grades.filter(g => 
-                    g.studentId === p.id || 
-                    g.student_id === p.id || 
+                const myGrades = grades.filter(g =>
+                    g.studentId === p.id ||
+                    g.student_id === p.id ||
                     (g.studentIdentifier && (g.studentIdentifier === p.cpf || g.studentIdentifier === p.email))
                 )
                 setOfficialGrades(myGrades)
             }
             setDataLoading(false)
         }
-        setLoading(false)
     }
 
     useEffect(() => {
@@ -166,11 +175,11 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
         <div className="flex flex-col h-[100dvh] text-slate-100 pt-[env(safe-area-inset-top,0px)]" style={{ backgroundColor: '#0f172a' }}>
             <div className="p-6 border-b border-white/20 mb-4 bg-black/40 backdrop-blur-md">
                 <div className="relative mb-4 group inline-block">
-                    <AvatarUpload 
-                        currentUrl={profile.avatar_url} 
-                        userId={profile.id} 
-                        userName={profile.name} 
-                        type="student" 
+                    <AvatarUpload
+                        currentUrl={profile.avatar_url}
+                        userId={profile.id}
+                        userName={profile.name}
+                        type="student"
                         onUploadSuccess={(url) => setProfile(prev => prev ? { ...prev, avatar_url: url } : null)}
                     />
                 </div>
@@ -305,9 +314,9 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                             <BookOpen className="h-4 w-4" /> Sala de Provas
                         </Button>
 
-                        <Button 
-                            variant="ghost" 
-                            size="icon" 
+                        <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={handlePortalLogout}
                             className="text-red-500 hover:text-red-600 hover:bg-red-50 sm:hidden h-10 w-10"
                             title="Sair do Portal"
@@ -346,8 +355,8 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                                             <p className="text-muted-foreground">Complete missões semanais e suba de nível.</p>
                                         </div>
                                         <div className="w-full md:w-64">
-                                            <Select 
-                                                value={selectedJourneyDisc} 
+                                            <Select
+                                                value={selectedJourneyDisc}
                                                 onValueChange={setSelectedJourneyDisc}
                                             >
                                                 <SelectTrigger className="rounded-xl border-primary/20 bg-white">
@@ -362,7 +371,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                                             </Select>
                                         </div>
                                     </div>
-                                     <StudentJourneyView studentId={profile.id} studentName={profile.name} disciplineId={selectedJourneyDisc} />
+                                    <StudentJourneyView studentId={profile.id} studentName={profile.name} disciplineId={selectedJourneyDisc} />
                                 </div>
                             )}
                             {tab === "class-info" && <ClassInfoTab myClass={myClass} classmates={classmates} mySchedules={mySchedules} disciplines={disciplines} officialGrades={officialGrades} />}

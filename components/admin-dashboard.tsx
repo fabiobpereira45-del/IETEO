@@ -28,30 +28,44 @@ import {
 } from "@/lib/store"
 import { printStudentPDF, printBlankAssessmentPDF, printCompiledSubmissionsPDF, printOverviewPDF, printAnswerKeyPDF, printSubmissionsTablePDF } from "@/lib/pdf"
 import { ErrorBoundary } from "@/components/error-boundary"
-import { QuestionBank } from "@/components/question-bank"
-import { AssessmentBuilder } from "@/components/assessment-builder"
-import { ProfessorManager } from "@/components/professor-manager"
-import { SemesterManager } from "@/components/semester-manager"
-import { StudyMaterialManager } from "@/components/study-material-manager"
-import { FinancialConfig } from "@/components/financial-config"
-import { FinancialDashboard } from "@/components/financial-dashboard"
-import { ProfessorChatView } from "@/components/professor-chat-view"
-import { AttendanceManager } from "@/components/attendance-manager"
-import { ClassManager } from "@/components/class-manager"
-import { StudentManager } from "@/components/student-manager"
-import { ClassScheduleManager } from "@/components/class-schedule-manager"
+import dynamic from "next/dynamic"
 import { createClient } from "@/lib/supabase/client"
-import { GradesManager } from "@/components/grades-manager"
-import { ChallengeManager } from "@/components/admin/challenge-manager"
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
-import { InstitutionalManager } from "@/components/institutional-manager"
 import { AvatarUpload } from "@/components/avatar-upload"
-import { OverviewTab } from "./admin/tabs/OverviewTab"
-import { SubmissionsTab } from "./admin/tabs/SubmissionsTab"
-import { AssessmentsTab } from "./admin/tabs/AssessmentsTab"
-import { SettingsTab } from "./admin/tabs/SettingsTab"
+
+const LoadingFallback = () => (
+  <div className="flex flex-col items-center justify-center p-20 min-h-[60vh]">
+    <div className="relative">
+      <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="w-8 h-8 premium-gradient rounded-lg animate-pulse" />
+      </div>
+    </div>
+    <p className="mt-6 font-medium text-muted-foreground">Carregando módulo...</p>
+  </div>
+)
+
+const QuestionBank = dynamic(() => import("@/components/question-bank").then(m => m.QuestionBank), { loading: LoadingFallback })
+const AssessmentBuilder = dynamic(() => import("@/components/assessment-builder").then(m => m.AssessmentBuilder), { loading: LoadingFallback })
+const ProfessorManager = dynamic(() => import("@/components/professor-manager").then(m => m.ProfessorManager), { loading: LoadingFallback })
+const SemesterManager = dynamic(() => import("@/components/semester-manager").then(m => m.SemesterManager), { loading: LoadingFallback })
+const StudyMaterialManager = dynamic(() => import("@/components/study-material-manager").then(m => m.StudyMaterialManager), { loading: LoadingFallback })
+const FinancialConfig = dynamic(() => import("@/components/financial-config").then(m => m.FinancialConfig), { loading: LoadingFallback })
+const FinancialDashboard = dynamic(() => import("@/components/financial-dashboard").then(m => m.FinancialDashboard), { loading: LoadingFallback })
+const ProfessorChatView = dynamic(() => import("@/components/professor-chat-view").then(m => m.ProfessorChatView), { loading: LoadingFallback })
+const AttendanceManager = dynamic(() => import("@/components/attendance-manager").then(m => m.AttendanceManager), { loading: LoadingFallback })
+const ClassManager = dynamic(() => import("@/components/class-manager").then(m => m.ClassManager), { loading: LoadingFallback })
+const StudentManager = dynamic(() => import("@/components/student-manager").then(m => m.StudentManager), { loading: LoadingFallback })
+const ClassScheduleManager = dynamic(() => import("@/components/class-schedule-manager").then(m => m.ClassScheduleManager), { loading: LoadingFallback })
+const GradesManager = dynamic(() => import("@/components/grades-manager").then(m => m.GradesManager), { loading: LoadingFallback })
+const ChallengeManager = dynamic(() => import("@/components/admin/challenge-manager").then(m => m.ChallengeManager), { loading: LoadingFallback })
+const InstitutionalManager = dynamic(() => import("@/components/institutional-manager").then(m => m.InstitutionalManager), { loading: LoadingFallback })
+const OverviewTab = dynamic(() => import("./admin/tabs/OverviewTab").then(m => m.OverviewTab), { loading: LoadingFallback })
+const SubmissionsTab = dynamic(() => import("./admin/tabs/SubmissionsTab").then(m => m.SubmissionsTab), { loading: LoadingFallback })
+const AssessmentsTab = dynamic(() => import("./admin/tabs/AssessmentsTab").then(m => m.AssessmentsTab), { loading: LoadingFallback })
+const SettingsTab = dynamic(() => import("./admin/tabs/SettingsTab").then(m => m.SettingsTab), { loading: LoadingFallback })
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -345,16 +359,8 @@ export function AdminDashboard({ onLogout }: Props) {
         </header>
 
         <main className="flex-1 p-4 lg:p-8 max-w-[1600px] mx-auto w-full">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center p-20 min-h-[60vh]">
-              <div className="relative">
-                <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-8 h-8 premium-gradient rounded-lg animate-pulse" />
-                </div>
-              </div>
-              <p className="mt-6 font-medium text-muted-foreground">Carregando dados da nuvem...</p>
-            </div>
+          {(loading && ["overview", "submissions", "assessments", "settings"].includes(tab)) ? (
+            <LoadingFallback />
           ) : (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
               {tab === "overview" && <OverviewTab assessments={assessments} submissions={submissions} questions={questions} disciplines={disciplines} />}
