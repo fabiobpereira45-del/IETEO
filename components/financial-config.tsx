@@ -24,8 +24,7 @@ export function FinancialConfig() {
     const [totalMonths, setTotalMonths] = useState("24")
     const [proLaboreFee, setProLaboreFee] = useState("0")
     const [creditCardUrl, setCreditCardUrl] = useState("")
-
-
+    const [pixKey, setPixKey] = useState("")
 
     async function load() {
         setLoading(true)
@@ -42,6 +41,7 @@ export function FinancialConfig() {
             setTotalMonths(data.totalMonths.toString())
             setProLaboreFee(data.proLaboreFeePerLesson?.toString() || "0")
             setCreditCardUrl(data.creditCardUrl || "")
+            setPixKey(data.pixKey || "")
         }
 
 
@@ -61,7 +61,8 @@ export function FinancialConfig() {
                     finalExamFee: parseFloat(finalExamFee) || 0,
                     totalMonths: parseInt(totalMonths) || 12,
                     proLaboreFeePerLesson: parseFloat(proLaboreFee) || 0,
-                    creditCardUrl: creditCardUrl
+                    creditCardUrl: creditCardUrl,
+                    pixKey: pixKey
                 })
             ])
             alert("Configurações salvas com sucesso!")
@@ -147,10 +148,25 @@ export function FinancialConfig() {
                     />
                 </div>
 
+                <div className="flex flex-col gap-1.5 md:col-span-2 bg-green-50/50 p-4 rounded-xl border border-green-100">
+                    <div className="flex items-center gap-2 mb-1">
+                        <QrCode className="h-4 w-4 text-green-600" />
+                        <Label className="text-green-700 font-bold text-sm">Chave Pix (Copia e Cola ou E-mail/CPF)</Label>
+                    </div>
+                    <Input
+                        type="text"
+                        value={pixKey}
+                        onChange={(e) => setPixKey(e.target.value)}
+                        placeholder="Insira a chave PIX ou o código Copia e Cola"
+                        className="border-green-200 focus:ring-green-500"
+                    />
+                    <span className="text-[10px] text-green-600 font-medium italic">Esta chave será exibida para os alunos na área financeira.</span>
+                </div>
+
                 <div className="flex flex-col gap-1.5 md:col-span-2 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
                     <div className="flex items-center gap-2 mb-1">
                         <CreditCard className="h-4 w-4 text-blue-600" />
-                        <Label className="text-blue-700 font-bold text-sm">Link de Pagamento (Cartão de Crédito)</Label>
+                        <Label className="text-blue-700 font-bold text-sm">Link de Pagamento (Cartão de Crédito - Opcional)</Label>
                     </div>
                     <Input
                         type="text"
@@ -159,7 +175,7 @@ export function FinancialConfig() {
                         placeholder="Ex: https://link.mercadopago.com.br/meu-pagamento"
                         className="border-blue-200 focus:ring-blue-500"
                     />
-                    <span className="text-[10px] text-blue-600 font-medium italic">Insira o link externo (Mercado Pago, PicPay, etc.) para recebimento via cartão.</span>
+                    <span className="text-[10px] text-blue-600 font-medium italic">Insira o link externo (Mercado Pago, PicPay, etc.) caso aceite cartão.</span>
                 </div>
             </div>
 
