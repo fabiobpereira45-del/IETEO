@@ -117,6 +117,20 @@ export function StudentJourneyView({ studentId, studentName, disciplineId }: Pro
     } else if (activeChallenge.type === 'decoding') {
       const expected = activeChallenge.correctAnswer || String(activeChallenge.content)
       isCorrect = answer.trim().toLowerCase() === expected.trim().toLowerCase()
+    } else if (activeChallenge.type === 'quiz') {
+      try {
+        const quizData = JSON.parse(activeChallenge.content as string)
+        const userAnswers = JSON.parse(answer) // array of strings
+        // If not all answered
+        if (!Array.isArray(userAnswers) || userAnswers.length !== quizData.length) {
+          isCorrect = false
+        } else {
+          // Compare each answer
+          isCorrect = quizData.every((q: any, i: number) => q.answer === userAnswers[i])
+        }
+      } catch (e) {
+        isCorrect = false
+      }
     } else {
       const expected = activeChallenge.correctAnswer || ""
       isCorrect = expected ? answer.trim().toLowerCase() === expected.trim().toLowerCase() : false
@@ -408,11 +422,64 @@ export function StudentJourneyView({ studentId, studentName, disciplineId }: Pro
                       />
                     </div>
                   )}
+
+                  {activeChallenge?.type === 'quiz' && (() => {
+                    let quizData: any[] = []
+                    try {
+                      quizData = typeof activeChallenge.content === 'string' ? JSON.parse(activeChallenge.content) : activeChallenge.content
+                    } catch(e) {}
+                    
+                    if (!Array.isArray(quizData) || quizData.length === 0) return <div className="p-4 bg-red-50 text-red-500 rounded-2xl border border-red-100 text-sm">Quiz configurado incorretamente. O conteúdo não é um JSON válido.</div>
+
+                    let currentAnswers: string[] = []
+                    try { currentAnswers = JSON.parse(answer) || [] } catch(e) { currentAnswers = new Array(quizData.length).fill("") }
+
+                    return (
+                      <div className="space-y-6">
+                        {quizData.map((q, i) => (
+                          <div key={i} className="space-y-3 bg-white p-6 rounded-[2rem] border border-border/50 shadow-sm">
+                            <h4 className="font-bold font-serif text-lg text-foreground">{i + 1}. {q.question}</h4>
+                            <div className="space-y-2 pt-2">
+                              {q.options?.map((opt: string, optIdx: number) => (
+                                <button
+                                  key={optIdx}
+                                  onClick={() => {
+                                    const newAnswers = [...currentAnswers]
+                                    newAnswers[i] = opt
+                                    setAnswer(JSON.stringify(newAnswers))
+                                  }}
+                                  className={cn(
+                                    "w-full text-left p-4 rounded-xl border-2 transition-all text-sm font-medium",
+                                    currentAnswers[i] === opt 
+                                      ? "border-primary bg-primary/5 text-primary shadow-inner" 
+                                      : "border-border hover:border-primary/30 hover:bg-muted/30"
+                                  )}
+                                >
+                                  {opt}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()}
                 </div>
 
                 <Button 
                   onClick={handleSubmit}
-                  disabled={!answer.trim() || submitting}
+                  disabled={
+                    submitting || 
+                    (activeChallenge?.type === 'quiz' ? 
+                      (function(){
+                        try {
+                          const qData = JSON.parse(activeChallenge?.content as string)
+                          const aData = JSON.parse(answer)
+                          return !Array.isArray(aData) || aData.some((a: string) => !a) || aData.length !== qData.length
+                        } catch(e) { return true }
+                      })()
+                    : !answer.trim())
+                  }
                   className="w-full h-14 rounded-2xl text-lg font-bold shadow-xl shadow-primary/20"
                 >
                   {submitting ? <Loader2 className="h-6 w-6 animate-spin" /> : <>Enviar Resposta <Send className="h-4 w-4 ml-2" /></>}
