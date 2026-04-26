@@ -363,8 +363,8 @@ export function StudentJourneyView({ studentId, studentName, disciplineId }: Pro
               <div className="text-6xl font-bold animate-pulse">+{activeChallenge?.points}</div>
             </div>
           ) : (
-            <div className="flex flex-col">
-              <div className="bg-primary p-8 text-primary-foreground relative overflow-hidden">
+            <div className="flex flex-col h-full max-h-[85vh]">
+              <div className="bg-primary p-8 text-primary-foreground relative overflow-hidden shrink-0">
                 <div className="absolute top-0 right-0 -mr-8 -mt-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
                 <div className="relative space-y-2">
                   <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[2px] opacity-70">
@@ -374,13 +374,15 @@ export function StudentJourneyView({ studentId, studentName, disciplineId }: Pro
                 </div>
               </div>
               
-              <div className="p-8 space-y-6">
+              <div className="p-8 space-y-6 overflow-y-auto flex-1">
                 <div className="space-y-4">
-                  <div className="bg-muted/50 p-6 rounded-3xl border-2 border-dashed border-primary/10">
-                    <p className="text-sm italic leading-relaxed text-foreground/80">
-                      "{activeChallenge?.description}"
-                    </p>
-                  </div>
+                  {activeChallenge?.description && !activeChallenge.description.trim().startsWith('[') && !activeChallenge.description.trim().startsWith('{') && (
+                    <div className="bg-muted/50 p-6 rounded-3xl border-2 border-dashed border-primary/10">
+                      <p className="text-sm italic leading-relaxed text-foreground/80 whitespace-pre-wrap">
+                        "{activeChallenge.description}"
+                      </p>
+                    </div>
+                  )}
                   
                   {activeChallenge?.type === 'riddle' && (
                     <div className="space-y-2">
@@ -465,7 +467,9 @@ export function StudentJourneyView({ studentId, studentName, disciplineId }: Pro
                     )
                   })()}
                 </div>
+              </div>
 
+              <div className="p-8 pt-0 shrink-0 bg-background border-t border-border/10">
                 <Button 
                   onClick={handleSubmit}
                   disabled={
@@ -480,7 +484,7 @@ export function StudentJourneyView({ studentId, studentName, disciplineId }: Pro
                       })()
                     : !answer.trim())
                   }
-                  className="w-full h-14 rounded-2xl text-lg font-bold shadow-xl shadow-primary/20"
+                  className="w-full h-14 rounded-2xl text-lg font-bold shadow-xl shadow-primary/20 mt-4"
                 >
                   {submitting ? <Loader2 className="h-6 w-6 animate-spin" /> : <>Enviar Resposta <Send className="h-4 w-4 ml-2" /></>}
                 </Button>
