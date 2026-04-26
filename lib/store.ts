@@ -924,13 +924,21 @@ export async function deleteChallenge(id: string): Promise<void> {
 }
 
 export async function getChallengeSubmissions(studentId: string): Promise<ChallengeSubmission[]> {
-  const supabase = createClient()
-  const { data } = await supabase.from('challenge_submissions').select('*').eq('student_id', studentId)
-  return (data || []).map(mapChallengeSubmission)
+  try {
+    const res = await fetch(`/api/student/challenge-submissions?studentId=${studentId}`)
+    if (!res.ok) {
+      console.error("Erro na resposta getChallengeSubmissions")
+      return []
+    }
+    const data = await res.json()
+    return (data || []).map(mapChallengeSubmission)
+  } catch (err) {
+    console.error("Falha de rede em getChallengeSubmissions:", err)
+    return []
+  }
 }
 
 export async function saveChallengeSubmission(sub: Omit<ChallengeSubmission, "id" | "submittedAt">): Promise<void> {
-  const supabase = createClient()
   const dbData = {
     id: uid(),
     challenge_id: sub.challengeId,
@@ -940,7 +948,18 @@ export async function saveChallengeSubmission(sub: Omit<ChallengeSubmission, "id
     earned_points: sub.earnedPoints,
     submitted_at: new Date().toISOString()
   }
-  await supabase.from('challenge_submissions').insert(dbData)
+  
+  const res = await fetch("/api/student/challenge-submissions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dbData)
+  })
+  
+  if (!res.ok) {
+    const err = await res.json()
+    console.error("Erro ao salvar submissão:", err)
+    throw new Error(err.error || "Erro ao salvar na base de dados")
+  }
 }
 
 export async function getProLaboreCalculations() {
