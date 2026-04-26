@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
@@ -525,6 +526,7 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
   const [selectedDiscipline, setSelectedDiscipline] = useState<Discipline | null>(null)
   const [questions, setQuestions] = useState<Question[]>([])
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({})
+  const [selectedQuestions, setSelectedQuestions] = useState<Set<string>>(new Set())
 
   // Modals
   const [discModal, setDiscModal] = useState(false)
@@ -537,6 +539,9 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
 
   const [aiModal, setAiModal] = useState(false)
   const [importModal, setImportModal] = useState(false)
+  
+  const [deleteBatchConfirm, setDeleteBatchConfirm] = useState(false)
+  const [isDeletingBatch, setIsDeletingBatch] = useState(false)
 
   async function reload(discIdToSelect?: string) {
     const discs = await getDisciplines()
@@ -564,6 +569,7 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
     } else {
       setQuestions([])
     }
+    setSelectedQuestions(new Set())
   }
 
   useEffect(() => {
@@ -574,6 +580,7 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
     setSelectedDiscipline(d)
     const qs = await getQuestionsByDiscipline(d.id)
     setQuestions(qs)
+    setSelectedQuestions(new Set())
   }
 
   async function handleDeleteDisc(id: string) {
@@ -592,6 +599,41 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
       reload(selectedDiscipline.id)
     }
     setDeleteQId(null)
+  }
+
+  async function handleDeleteBatch() {
+    setIsDeletingBatch(true)
+    try {
+      for (const id of selectedQuestions) {
+        await deleteQuestion(id)
+      }
+      if (selectedDiscipline) {
+        await reload(selectedDiscipline.id)
+      }
+      setDeleteBatchConfirm(false)
+    } catch (err: any) {
+      alert(`Erro ao excluir questões: ${err.message}`)
+    } finally {
+      setIsDeletingBatch(false)
+    }
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedQuestions.size === questions.length && questions.length > 0) {
+      setSelectedQuestions(new Set())
+    } else {
+      setSelectedQuestions(new Set(questions.map((q) => q.id)))
+    }
+  }
+
+  const toggleQuestion = (id: string) => {
+    const next = new Set(selectedQuestions)
+    if (next.has(id)) {
+      next.delete(id)
+    } else {
+      next.add(id)
+    }
+    setSelectedQuestions(next)
   }
 
   const discToDelete = disciplines.find((d) => d.id === deleteDiscId)
@@ -677,6 +719,15 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
           </div>
           {selectedDiscipline && (
             <div className="flex items-center gap-2">
+              {selectedQuestions.size > 0 && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setDeleteBatchConfirm(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-1.5" /> Excluir ({selectedQuestions.size})
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant="outline"
@@ -717,15 +768,32 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
               </Button>
             </div>
           ) : (
-            questions.map((q, i) => (
-              <div
-                key={q.id}
-                className="group flex items-start gap-3 p-4 rounded-lg border border-border bg-background hover:border-primary/30 transition-colors"
-              >
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
-                  {i + 1}
-                </div>
-                <div className="flex-1 min-w-0">
+            <>
+              <div className="flex items-center gap-3 px-1 mb-1">
+                <Checkbox
+                  checked={questions.length > 0 && selectedQuestions.size === questions.length}
+                  onCheckedChange={toggleSelectAll}
+                  id="select-all"
+                />
+                <label htmlFor="select-all" className="text-sm font-medium text-muted-foreground cursor-pointer select-none">
+                  Selecionar todas ({questions.length})
+                </label>
+              </div>
+              {questions.map((q, i) => (
+                <div
+                  key={q.id}
+                  className={`group flex items-start gap-3 p-4 rounded-lg border transition-colors ${selectedQuestions.has(q.id) ? "border-primary/50 bg-primary/5" : "border-border bg-background hover:border-primary/30"}`}
+                >
+                  <div className="mt-1">
+                    <Checkbox
+                      checked={selectedQuestions.has(q.id)}
+                      onCheckedChange={() => toggleQuestion(q.id)}
+                    />
+                  </div>
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
+                    {i + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${q.type === "multiple-choice" ? "bg-blue-100 text-blue-700" :
                       q.type === "true-false" ? "bg-amber-100 text-amber-700" :
@@ -780,7 +848,8 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
                   </Button>
                 </div>
               </div>
-            ))
+            ))}
+            </>
           )}
         </div>
       </div>
@@ -878,6 +947,28 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
               onClick={() => deleteQId && handleDeleteQ(deleteQId)}
             >
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Batch Confirm */}
+      <AlertDialog open={deleteBatchConfirm} onOpenChange={setDeleteBatchConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {selectedQuestions.size} {selectedQuestions.size === 1 ? "questão" : "questões"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir as questões selecionadas? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingBatch}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDeleteBatch}
+              disabled={isDeletingBatch}
+            >
+              {isDeletingBatch ? "Excluindo..." : "Excluir"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
