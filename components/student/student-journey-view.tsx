@@ -110,16 +110,41 @@ export function StudentJourneyView({ studentId, studentName, disciplineId }: Pro
     if (!activeChallenge || !answer.trim()) return
     setSubmitting(true)
     
-    const isCorrect = activeChallenge.correctAnswer 
-      ? answer.trim().toLowerCase() === activeChallenge.correctAnswer.toLowerCase()
-      : true // Default to true for reflection/open tasks
+    let isCorrect = false
+    
+    if (activeChallenge.type === 'reflection') {
+      isCorrect = true
+    } else if (activeChallenge.type === 'decoding') {
+      const expected = activeChallenge.correctAnswer || String(activeChallenge.content)
+      isCorrect = answer.trim().toLowerCase() === expected.trim().toLowerCase()
+    } else {
+      const expected = activeChallenge.correctAnswer || ""
+      isCorrect = expected ? answer.trim().toLowerCase() === expected.trim().toLowerCase() : false
+    }
+
+    const earnedPoints = isCorrect ? activeChallenge.points : 0
+
+    // Optimistic UI update so points show up immediately in the background
+    const optimisticSubmission: ChallengeSubmission = {
+      id: "temp-" + Date.now(),
+      challengeId: activeChallenge.id,
+      studentId: studentId!,
+      answer: answer.trim(),
+      isCorrect,
+      earnedPoints,
+      submittedAt: new Date().toISOString()
+    }
+
+    if (isCorrect) {
+      setSubmissions(prev => [...prev, optimisticSubmission])
+    }
 
     await saveChallengeSubmission({
       challengeId: activeChallenge.id,
       studentId: studentId!,
       answer: answer.trim(),
       isCorrect,
-      earnedPoints: isCorrect ? activeChallenge.points : 0
+      earnedPoints
     })
 
     if (isCorrect) {
@@ -132,8 +157,9 @@ export function StudentJourneyView({ studentId, studentName, disciplineId }: Pro
       }, 3000)
     } else {
       alert("Resposta incorreta. Tente novamente!")
-      setSubmitting(false)
     }
+    
+    setSubmitting(false)
   }
 
   const totalPoints = submissions?.reduce((acc, s) => acc + (s.earnedPoints || 0), 0) || 0
