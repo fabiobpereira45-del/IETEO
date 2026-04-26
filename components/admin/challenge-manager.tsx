@@ -387,6 +387,15 @@ export function ChallengeManager() {
                 placeholder={form.type === 'quiz' ? 'Cole o JSON das perguntas ou digite aqui...' : 'Escreva o enigma ou código aqui...'}
                 className="rounded-xl h-32 font-mono text-xs"
               />
+              {form.type === 'quiz' && (
+                <div className="bg-primary/5 text-primary border border-primary/20 rounded-xl p-3 text-xs leading-relaxed mt-2">
+                  <strong>💡 Dica para Quizzes com ChatGPT:</strong><br/>
+                  Copie e cole este prompt na IA: <br/>
+                  <span className="font-mono bg-primary/10 px-1 py-0.5 rounded select-all cursor-pointer block mt-1 border border-primary/20">
+                    "Crie um quiz com X perguntas sobre o tema Y. Entregue APENAS o código JSON puro, com as chaves 'question', 'options' (array com 4 opções) e 'answer'."
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
