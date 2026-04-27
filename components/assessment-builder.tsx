@@ -43,6 +43,7 @@ interface Props {
 
 export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) {
   const [step, setStep] = useState(1)
+  const [saving, setSaving] = useState(false)
 
   // Step 1
   const [title, setTitle] = useState("")
@@ -205,9 +206,11 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
     }
   }
 
-  async function handleSave() {
-    // We already selected IDs asynchronously when moving to step 4, so selectedIds holds the exact preview.
-    const finalIds = [...selectedIds]
+    if (saving) return
+    setSaving(true)
+    try {
+      // We already selected IDs asynchronously when moving to step 4, so selectedIds holds the exact preview.
+      const finalIds = [...selectedIds]
 
     const totalPoints = finalIds.length * pointsPerQuestion
 
@@ -241,10 +244,14 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
         modality,
         timeLimitMinutes: timeLimitMinutes > 0 ? timeLimitMinutes : null,
       })
+      onClose()
+      onSave()
+    } catch (error) {
+      console.error("Erro ao salvar prova:", error)
+      alert("Erro ao salvar prova. Por favor, tente novamente.")
+    } finally {
+      setSaving(false)
     }
-
-    onSave()
-    onClose()
   }
 
   const totalPoints = questionCount * pointsPerQuestion
@@ -684,9 +691,9 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
               Próximo <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           ) : (
-            <Button onClick={handleSave}>
-              <Check className="h-4 w-4 mr-1.5" />
-              {assessment ? "Salvar Alterações" : "Publicar Prova"}
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-1.5" />}
+              {assessment ? (saving ? "Salvando..." : "Salvar Alterações") : (saving ? "Publicando..." : "Publicar Prova")}
             </Button>
           )}
         </div>

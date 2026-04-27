@@ -225,7 +225,7 @@ export async function registerStudentByAdmin(data: any): Promise<void> {
   // Trigger n8n WhatsApp
   try {
     const student = { name: data.name, phone: data.phone };
-    await triggerN8nWebhook('matricula_confirmada', {
+    triggerN8nWebhook('matricula_confirmada', {
       type: 'enrollment',
       name: student.name,
       phone: student.phone,
@@ -611,7 +611,7 @@ export async function addFinancialCharge(charge: Omit<FinancialCharge, "id" | "c
   try {
     const { data: student } = await supabase.from('students').select('name, phone').eq('id', charge.studentId).maybeSingle()
     if (student) {
-      await triggerN8nWebhook('pagamento_gerado', {
+      triggerN8nWebhook('pagamento_gerado', {
         type: 'financial',
         studentName: student.name,
         studentPhone: student.phone,
@@ -649,7 +649,7 @@ export async function updateFinancialChargeStatus(id: string, status: FinancialC
       const { data: charge } = await supabase.from('financial_charges').select('*, students(*)').eq('id', id).single()
       if (charge) {
         // 1. Trigger n8n WhatsApp (Payment Confirmed)
-        await triggerN8nWebhook('pagamento_confirmado', {
+        triggerN8nWebhook('pagamento_confirmado', {
           type: 'payment',
           name: charge.students?.name,
           phone: charge.students?.phone,
@@ -1354,7 +1354,7 @@ export async function updateAssessment(id: string, data: Partial<Omit<Assessment
       const { data: assessment } = await supabase.from('assessments').select('title, discipline_id').eq('id', id).maybeSingle()
       if (assessment) {
         const { data: discipline } = await supabase.from('disciplines').select('name').eq('id', assessment.discipline_id).maybeSingle()
-        await triggerN8nWebhook('prova_publicada', {
+        triggerN8nWebhook('prova_publicada', {
           type: 'assessment',
           assessmentTitle: assessment.title,
           disciplineName: discipline?.name || 'Disciplina',
@@ -1439,7 +1439,7 @@ export async function saveSubmission(sub: StudentSubmission): Promise<StudentSub
   try {
     const assessment = await getAssessmentById(sub.assessmentId);
     if (assessment) {
-      await triggerN8nWebhook('prova_concluida', {
+      triggerN8nWebhook('prova_concluida', {
         type: 'exam_completion',
         name: sub.studentName,
         phone: sub.studentEmail.split('@')[0], // Fallback/Identifier
@@ -1821,7 +1821,7 @@ export async function sendChatMessage(studentId: string, disciplineId: string, m
   if (!isFromStudent) {
     const { data: student } = await supabase.from('students').select('name, phone').eq('id', studentId).single();
     if (student) {
-      await triggerN8nWebhook('nova_mensagem_chat', {
+      triggerN8nWebhook('nova_mensagem_chat', {
         type: 'chat',
         studentName: student.name,
         phone: student.phone,
@@ -1919,7 +1919,7 @@ export async function triggerAttendanceAlerts(disciplineId: string, disciplineNa
     const rate = (absent / total) * 100
 
     if (rate > 25) { // Threshold for alert
-      await triggerN8nWebhook('alerta_frequencia', {
+      triggerN8nWebhook('alerta_frequencia', {
         type: 'absenteeism_alert',
         studentId: s.id,
         studentName: s.name,
@@ -2027,7 +2027,7 @@ export async function saveAttendance(studentId: string, disciplineId: string, da
     const { data: student } = await supabase.from('students').select('name, phone').eq('id', studentId).single();
     const { data: discipline } = await supabase.from('disciplines').select('name').eq('id', disciplineId).single();
     if (student) {
-      await triggerN8nWebhook('falta_registrada', {
+      triggerN8nWebhook('falta_registrada', {
         type: 'attendance',
         studentName: student.name,
         phone: student.phone,

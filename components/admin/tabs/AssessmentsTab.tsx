@@ -20,7 +20,7 @@ interface Props {
   submissions: StudentSubmission[]
   questions: Question[]
   disciplines: Discipline[]
-  onRefresh: () => void
+  onRefresh: (showLoading?: boolean) => void
   isMaster: boolean
 }
 
@@ -54,19 +54,19 @@ export function AssessmentsTab({ assessments, submissions, questions, discipline
   async function handleDelete() {
     if (deleteId) {
       await deleteAssessment(deleteId)
-      onRefresh()
+      onRefresh(false)
       setDeleteId(null)
     }
   }
 
   async function handleTogglePublish(a: Assessment) {
     await updateAssessment(a.id, { isPublished: !a.isPublished })
-    onRefresh()
+    onRefresh(false)
   }
 
   async function handleToggleArchive(a: Assessment) {
     await updateAssessment(a.id, { archived: !a.archived })
-    onRefresh()
+    onRefresh(false)
   }
 
   function handlePrint(a: Assessment) {
@@ -79,19 +79,19 @@ export function AssessmentsTab({ assessments, submissions, questions, discipline
       openAt: localOpenAt ? new Date(localOpenAt).toISOString() : null,
       closeAt: localCloseAt ? new Date(localCloseAt).toISOString() : null
     })
-    onRefresh()
+    onRefresh(false)
   }
 
   async function handleShuffleToggle() {
     if (!active) return
     await updateAssessment(active.id, { shuffleVariants: !active.shuffleVariants })
-    onRefresh()
+    onRefresh(false)
   }
 
   async function handleReleaseResultsToggle() {
     if (!active) return
     await updateAssessment(active.id, { releaseResults: !active.releaseResults })
-    onRefresh()
+    onRefresh(false)
   }
 
   return (
@@ -302,7 +302,7 @@ export function AssessmentsTab({ assessments, submissions, questions, discipline
           open={builderOpen}
           assessment={editingAssessment}
           onClose={() => setBuilderOpen(false)}
-          onSave={onRefresh}
+          onSave={() => onRefresh(false)}
         />
       </ErrorBoundary>
 
