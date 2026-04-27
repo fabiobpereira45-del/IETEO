@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AIAssistantChat } from "./ai-assistant-chat"
 import {
   type Discipline, type Question, type QuestionType,
-  addQuestion, uid,
+  addQuestion, addQuestionsBatch, addAssessment, uid,
 } from "@/lib/store"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -196,6 +196,30 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded, defaultDisc
 
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [loadingMessage, setLoadingMessage] = useState("O agente está elaborando as questões...")
+
+  const loadingMessages = [
+    "O agente está elaborando as questões...",
+    "Consultando base teológica e doutrinária...",
+    "Refinando o rigor acadêmico das questões...",
+    "Cruzando referências bíblicas...",
+    "Gerando distratores plausíveis...",
+    "Finalizando a estruturação da prova..."
+  ]
+
+  useEffect(() => {
+    let interval: any
+    if (loading) {
+      let i = 0
+      interval = setInterval(() => {
+        i = (i + 1) % loadingMessages.length
+        setLoadingMessage(loadingMessages[i])
+      }, 3000)
+    } else {
+      setLoadingMessage(loadingMessages[0])
+    }
+    return () => clearInterval(interval)
+  }, [loading])
   const [error, setError] = useState<string | null>(null)
   const [generated, setGenerated] = useState<GeneratedQuestion[]>([])
   const [selected, setSelected] = useState<Set<number>>(new Set())
@@ -339,23 +363,20 @@ Gere as questões agora.`
 
     try {
       const toSave = generated.filter((_, i) => selected.has(i))
-      const savedIds: string[] = []
+      
+      const questionsData = toSave.map(q => ({
+        disciplineId,
+        type: q.type,
+        text: q.text,
+        choices: q.choices,
+        pairs: q.pairs,
+        correctAnswer: q.correctAnswer,
+        points: pointsPerQuestion,
+      }))
 
-      for (const q of toSave) {
-        const result = await addQuestion({
-          disciplineId,
-          type: q.type,
-          text: q.text,
-          choices: q.choices,
-          pairs: q.pairs,
-          correctAnswer: q.correctAnswer,
-          points: pointsPerQuestion,
-        })
-        savedIds.push(result.id)
-      }
+      const savedIds = await addQuestionsBatch(questionsData)
 
       if (createAssessment && savedIds.length > 0) {
-        const { addAssessment } = await import("@/lib/store")
         await addAssessment({
           title: `Avaliação que o professor irá editar`,
           disciplineId,
@@ -615,11 +636,16 @@ Gere as questões agora.`
             </div>
 
             {loading && (
-              <div className="bg-card border border-border rounded-xl p-10 flex flex-col items-center gap-3 text-muted-foreground">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm font-medium">O agente está elaborando as questões...</p>
-                <p className="text-xs text-center max-w-xs">
-                  Consultando base teológica e gerando questões academicamente rigorosas para "{selectedDiscipline?.name}"
+              <div className="bg-card border border-border rounded-xl p-10 flex flex-col items-center gap-3 text-muted-foreground shadow-sm">
+                <div className="relative">
+                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+                  </div>
+                </div>
+                <p className="text-base font-bold text-foreground animate-pulse">{loadingMessage}</p>
+                <p className="text-xs text-center max-w-xs opacity-70">
+                  Gerando conteúdo academicamente rigoroso para "{selectedDiscipline?.name}"
                 </p>
               </div>
             )}

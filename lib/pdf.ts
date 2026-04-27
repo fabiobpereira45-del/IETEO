@@ -39,19 +39,34 @@ function getAnswerLabel(answer: string, question: Question): string {
 
 function getCorrectLabel(question: Question): string {
   if (question.type === "true-false") {
-    return question.correctAnswer === "true" ? "Verdadeiro" : "Falso"
+    const letter = question.correctAnswer === "true" ? "(a)" : "(b)"
+    const text = question.correctAnswer === "true" ? "Verdadeiro" : "Falso"
+    return `${letter} ${text}`
   }
   if (question.type === "discursive") {
     return "Questão discursiva — correção manual"
   }
-  const choice = question.choices.find((c) => c.id === question.correctAnswer)
-  return choice ? choice.text : "—"
+  
+  const choices = (question.choices || []).filter(c => c.text && c.text.trim() !== "")
+  const index = choices.findIndex((c) => c.id === question.correctAnswer)
+  if (index !== -1) {
+    const letter = String.fromCharCode(97 + index)
+    return `(${letter}) ${choices[index].text}`
+  }
+  
+  return "—"
 }
 
 function typeLabel(type: Question["type"]): string {
-  if (type === "multiple-choice") return "Múltipla Escolha"
-  if (type === "true-false") return "Verdadeiro ou Falso"
-  return "Discursiva"
+  const labels: Record<string, string> = {
+    "multiple-choice": "Múltipla Escolha",
+    "true-false": "Verdadeiro ou Falso",
+    "incorrect-alternative": "Alternativa Incorreta",
+    "fill-in-the-blank": "Completar Lacunas",
+    "matching": "Relacionar Colunas",
+    "discursive": "Discursiva"
+  }
+  return labels[type] || "Questão"
 }
 
 export function printStudentPDF({ submission, assessment, questions }: PDFData): void {
@@ -69,17 +84,19 @@ export function printStudentPDF({ submission, assessment, questions }: PDFData):
       const statusColor = isDiscursive ? "#6b7280" : isCorrect ? "#16a34a" : "#dc2626"
       const statusText = isDiscursive ? "Discursiva" : isCorrect ? "Correta" : "Incorreta"
 
-      const choicesHTML =
-        q.type === "multiple-choice"
+      const isChoiceType = q.type === "multiple-choice" || q.type === "incorrect-alternative"
+      const choicesHTML = isChoiceType
           ? `<ul style="margin:4px 0 0 0;padding:0;list-style:none;">
-              ${q.choices
+              ${(q.choices || []).filter(c => c.text && c.text.trim() !== "")
             .map(
-              (c) =>
-                `<li style="margin:2px 0;padding:3px 6px;border-radius:4px;font-size:12px;
+              (c, idx) => {
+                const letter = String.fromCharCode(97 + idx)
+                return `<li style="margin:2px 0;padding:3px 6px;border-radius:4px;font-size:12px;
                     background:${c.id === q.correctAnswer ? "#dcfce7" : c.id === studentAns?.answer && !isCorrect ? "#fee2e2" : "#f9fafb"};
                     color:${c.id === q.correctAnswer ? "#166534" : c.id === studentAns?.answer && !isCorrect ? "#991b1b" : "#374151"}">
-                    ${c.text}${c.id === q.correctAnswer ? " ✓" : ""}${c.id === studentAns?.answer && !isCorrect ? " ✗" : ""}
+                    <strong>(${letter})</strong> ${c.text}${c.id === q.correctAnswer ? " ✓" : ""}${c.id === studentAns?.answer && !isCorrect ? " ✗" : ""}
                     </li>`
+              }
             )
             .join("")}
              </ul>`
@@ -105,8 +122,8 @@ export function printStudentPDF({ submission, assessment, questions }: PDFData):
           ${discursiveHTML}
           ${q.type === "true-false"
           ? `<div style="margin-top:6px;display:flex;gap:8px;">
-                  <span style="padding:3px 10px;border-radius:4px;font-size:12px;background:${studentAns?.answer === "true" && !isCorrect ? "#fee2e2" : studentAns?.answer === "true" ? "#dcfce7" : "#f3f4f6"};color:${studentAns?.answer === "true" && !isCorrect ? "#991b1b" : studentAns?.answer === "true" ? "#166534" : "#374151"}">Verdadeiro${q.correctAnswer === "true" ? " ✓" : ""}${studentAns?.answer === "true" && !isCorrect ? " ✗" : ""}</span>
-                  <span style="padding:3px 10px;border-radius:4px;font-size:12px;background:${studentAns?.answer === "false" && !isCorrect ? "#fee2e2" : studentAns?.answer === "false" ? "#dcfce7" : "#f3f4f6"};color:${studentAns?.answer === "false" && !isCorrect ? "#991b1b" : studentAns?.answer === "false" ? "#166534" : "#374151"}">Falso${q.correctAnswer === "false" ? " ✓" : ""}${studentAns?.answer === "false" && !isCorrect ? " ✗" : ""}</span>
+                  <span style="padding:3px 10px;border-radius:4px;font-size:12px;background:${studentAns?.answer === "true" && !isCorrect ? "#fee2e2" : studentAns?.answer === "true" ? "#dcfce7" : "#f3f4f6"};color:${studentAns?.answer === "true" && !isCorrect ? "#991b1b" : studentAns?.answer === "true" ? "#166534" : "#374151"}"><strong>(a)</strong> Verdadeiro${q.correctAnswer === "true" ? " ✓" : ""}${studentAns?.answer === "true" && !isCorrect ? " ✗" : ""}</span>
+                  <span style="padding:3px 10px;border-radius:4px;font-size:12px;background:${studentAns?.answer === "false" && !isCorrect ? "#fee2e2" : studentAns?.answer === "false" ? "#dcfce7" : "#f3f4f6"};color:${studentAns?.answer === "false" && !isCorrect ? "#991b1b" : studentAns?.answer === "false" ? "#166534" : "#374151"}"><strong>(b)</strong> Falso${q.correctAnswer === "false" ? " ✓" : ""}${studentAns?.answer === "false" && !isCorrect ? " ✗" : ""}</span>
                  </div>`
           : ""
         }
@@ -225,32 +242,27 @@ export function printBlankAssessmentPDF({ assessment, questions }: Omit<PDFData,
 
     const rows = orderedQuestions
       .map((q, i) => {
-        const choicesHTML =
-          q.type === "multiple-choice"
-            ? `<ul style="margin:8px 0 0 0;padding:0;list-style:none;">
-                ${q.choices
-              .map(
-                (c) =>
-                  `<li style="margin:4px 0;padding:4px 6px;font-size:13px;color:#374151;">
-                        <span style="display:inline-block;width:14px;height:14px;border:1px solid #9ca3af;border-radius:50%;margin-right:8px;vertical-align:middle;"></span>
-                        ${c.text}
-                      </li>`
-              )
-              .join("")}
-               </ul>`
-            : ""
+        const isChoiceType = q.type === "multiple-choice" || q.type === "incorrect-alternative" || q.type === "true-false"
+        const displayChoices = q.type === "true-false"
+          ? [{ id: "true", text: "Verdadeiro" }, { id: "false", text: "Falso" }]
+          : (q.choices || []).filter(c => c.text && c.text.trim() !== "")
+
+        const choicesHTML = isChoiceType
+          ? `<ul style="margin:8px 0 0 0;padding:0;list-style:none;">
+              ${displayChoices.map((c, idx) => {
+                const letter = String.fromCharCode(97 + idx)
+                return `<li style="margin:4px 0;padding:4px 6px;font-size:13px;color:#374151;display:flex;align-items:center;">
+                  <span style="display:inline-block;width:14px;height:14px;border:1px solid #9ca3af;border-radius:50%;margin-right:8px;flex-shrink:0;"></span>
+                  <span style="font-weight:bold;margin-right:6px;">(${letter})</span>
+                  ${c.text}
+                </li>`
+              }).join("")}
+             </ul>`
+          : ""
 
         const discursiveSpaceHTML =
           q.type === "discursive"
             ? `<div style="margin-top:10px;height:100px;border-bottom:1px solid #d1d5db;background:repeating-linear-gradient(transparent,transparent 24px,#e5e7eb 24px,#e5e7eb 25px);"></div>`
-            : ""
-
-        const tfSpaceHTML =
-          q.type === "true-false"
-            ? `<div style="margin-top:10px;display:flex;gap:12px;font-size:13px;color:#374151;">
-                <span>(&nbsp;&nbsp;&nbsp;) Verdadeiro</span>
-                <span>(&nbsp;&nbsp;&nbsp;) Falso</span>
-               </div>`
             : ""
 
         return `
@@ -259,7 +271,6 @@ export function printBlankAssessmentPDF({ assessment, questions }: Omit<PDFData,
               ${i + 1}. ${q.text} <span style="font-weight:normal;color:#6b7280;font-size:11px;">(${assessment.pointsPerQuestion} pt${assessment.pointsPerQuestion !== 1 ? "s" : ""})</span>
             </div>
             ${choicesHTML}
-            ${tfSpaceHTML}
             ${discursiveSpaceHTML}
           </div>`
       })
@@ -363,17 +374,19 @@ export function printCompiledSubmissionsPDF({ submissions, assessment, questions
         const statusColor = isDiscursive ? "#6b7280" : isCorrect ? "#16a34a" : "#dc2626"
         const statusText = isDiscursive ? "Discursiva" : isCorrect ? "Correta" : "Incorreta"
 
-        const choicesHTML =
-          q.type === "multiple-choice"
+        const isChoiceType = q.type === "multiple-choice" || q.type === "incorrect-alternative"
+        const choicesHTML = isChoiceType
             ? `<ul style="margin:4px 0 0 0;padding:0;list-style:none;">
-                ${q.choices
+                ${(q.choices || []).filter(c => c.text && c.text.trim() !== "")
               .map(
-                (c) =>
-                  `<li style="margin:2px 0;padding:3px 6px;border-radius:4px;font-size:12px;
+                (c, idx) => {
+                  const letter = String.fromCharCode(97 + idx)
+                  return `<li style="margin:2px 0;padding:3px 6px;border-radius:4px;font-size:12px;
                       background:${c.id === q.correctAnswer ? "#dcfce7" : c.id === studentAns?.answer && !isCorrect ? "#fee2e2" : "#f9fafb"};
                       color:${c.id === q.correctAnswer ? "#166534" : c.id === studentAns?.answer && !isCorrect ? "#991b1b" : "#374151"}">
-                      ${c.text}${c.id === q.correctAnswer ? " ✓" : ""}${c.id === studentAns?.answer && !isCorrect ? " ✗" : ""}
+                      <strong>(${letter})</strong> ${c.text}${c.id === q.correctAnswer ? " ✓" : ""}${c.id === studentAns?.answer && !isCorrect ? " ✗" : ""}
                       </li>`
+                }
               )
               .join("")}
                </ul>`
@@ -399,8 +412,8 @@ export function printCompiledSubmissionsPDF({ submissions, assessment, questions
             ${discursiveHTML}
             ${q.type === "true-false"
             ? `<div style="margin-top:6px;display:flex;gap:8px;">
-                    <span style="padding:3px 10px;border-radius:4px;font-size:12px;background:${studentAns?.answer === "true" && !isCorrect ? "#fee2e2" : studentAns?.answer === "true" ? "#dcfce7" : "#f3f4f6"};color:${studentAns?.answer === "true" && !isCorrect ? "#991b1b" : studentAns?.answer === "true" ? "#166534" : "#374151"}">Verdadeiro${q.correctAnswer === "true" ? " ✓" : ""}${studentAns?.answer === "true" && !isCorrect ? " ✗" : ""}</span>
-                    <span style="padding:3px 10px;border-radius:4px;font-size:12px;background:${studentAns?.answer === "false" && !isCorrect ? "#fee2e2" : studentAns?.answer === "false" ? "#dcfce7" : "#f3f4f6"};color:${studentAns?.answer === "false" && !isCorrect ? "#991b1b" : studentAns?.answer === "false" ? "#166534" : "#374151"}">Falso${q.correctAnswer === "false" ? " ✓" : ""}${studentAns?.answer === "false" && !isCorrect ? " ✗" : ""}</span>
+                    <span style="padding:3px 10px;border-radius:4px;font-size:12px;background:${studentAns?.answer === "true" && !isCorrect ? "#fee2e2" : studentAns?.answer === "true" ? "#dcfce7" : "#f3f4f6"};color:${studentAns?.answer === "true" && !isCorrect ? "#991b1b" : studentAns?.answer === "true" ? "#166534" : "#374151"}"><strong>(a)</strong> Verdadeiro${q.correctAnswer === "true" ? " ✓" : ""}${studentAns?.answer === "true" && !isCorrect ? " ✗" : ""}</span>
+                    <span style="padding:3px 10px;border-radius:4px;font-size:12px;background:${studentAns?.answer === "false" && !isCorrect ? "#fee2e2" : studentAns?.answer === "false" ? "#dcfce7" : "#f3f4f6"};color:${studentAns?.answer === "false" && !isCorrect ? "#991b1b" : studentAns?.answer === "false" ? "#166534" : "#374151"}"><strong>(b)</strong> Falso${q.correctAnswer === "false" ? " ✓" : ""}${studentAns?.answer === "false" && !isCorrect ? " ✗" : ""}</span>
                    </div>`
             : ""
           }
@@ -590,22 +603,26 @@ export function printAnswerKeyPDF({ assessment, questions }: { assessment: Asses
     const isDiscursive = q.type === "discursive"
 
     let optionsHTML = ""
-    if (q.type === "multiple-choice") {
+    const isChoiceType = q.type === "multiple-choice" || q.type === "incorrect-alternative" || q.type === "true-false"
+    if (isChoiceType) {
+      const displayChoices = q.type === "true-false"
+        ? [{ id: "true", text: "Verdadeiro" }, { id: "false", text: "Falso" }]
+        : (q.choices || []).filter(c => c.text && c.text.trim() !== "")
+
       optionsHTML = `<ul style="margin:8px 0 0 0;padding:0;list-style:none;">
-        ${q.choices.map(c => `
-          <li style="margin:4px 0;padding:6px 12px;border-radius:6px;font-size:13px;
-              background:${c.id === q.correctAnswer ? "#dcfce7" : "#f9fafb"};
-              color:${c.id === q.correctAnswer ? "#166534" : "#374151"};
-              border:1px solid ${c.id === q.correctAnswer ? "#166534" : "#e5e7eb"}">
-              ${c.text}${c.id === q.correctAnswer ? " (Correta)" : ""}
-          </li>
-        `).join("")}
+        ${displayChoices.map((c, idx) => {
+          const letter = String.fromCharCode(97 + idx)
+          const isCorrect = q.type === "true-false" ? (c.id === q.correctAnswer) : (c.id === q.correctAnswer)
+          return `
+            <li style="margin:4px 0;padding:6px 12px;border-radius:6px;font-size:13px;
+                background:${isCorrect ? "#dcfce7" : "#f9fafb"};
+                color:${isCorrect ? "#166534" : "#374151"};
+                border:1px solid ${isCorrect ? "#166534" : "#e5e7eb"}">
+                <strong>(${letter})</strong> ${c.text}${isCorrect ? " (Correta)" : ""}
+            </li>
+          `
+        }).join("")}
       </ul>`
-    } else if (q.type === "true-false") {
-      optionsHTML = `<div style="margin-top:8px;display:flex;gap:12px;">
-        <span style="padding:4px 12px;border-radius:6px;font-size:13px;background:${q.correctAnswer === "true" ? "#dcfce7" : "#f3f4f6"};color:${q.correctAnswer === "true" ? "#166534" : "#374151"};border:1px solid ${q.correctAnswer === "true" ? "#166534" : "#e5e7eb"}">Verdadeiro ${q.correctAnswer === "true" ? "✓" : ""}</span>
-        <span style="padding:4px 12px;border-radius:6px;font-size:13px;background:${q.correctAnswer === "false" ? "#dcfce7" : "#f3f4f6"};color:${q.correctAnswer === "false" ? "#166534" : "#374151"};border:1px solid ${q.correctAnswer === "false" ? "#166534" : "#e5e7eb"}">Falso ${q.correctAnswer === "false" ? "✓" : ""}</span>
-      </div>`
     }
 
     return `

@@ -23,7 +23,7 @@ import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import {
   type Discipline, type Question, type QuestionType, type Choice, type MatchingPair,
   getDisciplines, addDiscipline, updateDiscipline, deleteDiscipline,
-  getQuestionsByDiscipline, addQuestion, updateQuestion, deleteQuestion, uid, getDisciplineQuestionCounts,
+  getQuestionsByDiscipline, addQuestion, addQuestionsBatch, updateQuestion, deleteQuestion, uid, getDisciplineQuestionCounts,
 } from "@/lib/store"
 import { AIQuestionGenerator } from "./ai-question-generator"
 
@@ -449,6 +449,7 @@ function BulkImportModal({
     let addedCount = 0
 
     try {
+      const questionsToInsert: any[] = []
       for (const line of lines) {
         if (line.toLowerCase().startsWith("pergunta;")) continue
 
@@ -467,7 +468,7 @@ function BulkImportModal({
           else if (letter === "C") correctId = choices[2].id
           else if (letter === "D") correctId = choices[3].id
 
-          await addQuestion({
+          questionsToInsert.push({
             disciplineId,
             type: "multiple-choice",
             text: qText.trim(),
@@ -477,6 +478,10 @@ function BulkImportModal({
           })
           addedCount++
         }
+      }
+      
+      if (questionsToInsert.length > 0) {
+        await addQuestionsBatch(questionsToInsert)
       }
       if (addedCount > 0) {
         onSave()

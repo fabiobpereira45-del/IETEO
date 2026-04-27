@@ -1234,6 +1234,35 @@ export async function addQuestion(data: Omit<Question, "id" | "createdAt">): Pro
     created_at: q.created_at
   })
 }
+
+export async function addQuestionsBatch(questions: Omit<Question, "id" | "createdAt">[]): Promise<string[]> {
+  const supabase = createClient()
+  const dbRows = questions.map(q => {
+    const id = uid()
+    const row: any = {
+      id,
+      discipline_id: q.disciplineId,
+      type: q.type,
+      text: q.text,
+      choices: q.choices,
+      correct_answer: q.correctAnswer,
+      points: q.points,
+      created_at: new Date().toISOString()
+    }
+    
+    // Support matching pairs inside choices object
+    if (q.pairs && q.pairs.length > 0) {
+      row.choices = { options: q.choices || [], matchingPairs: q.pairs }
+    }
+    
+    return row
+  })
+
+  const { error } = await supabase.from('questions').insert(dbRows)
+  if (error) throw new Error(`Erro ao salvar lote de questões: ${error.message}`)
+  
+  return dbRows.map(r => r.id)
+}
 export async function updateQuestion(id: string, data: Partial<Omit<Question, "id" | "createdAt">>): Promise<void> {
   const updateData: any = {}
   if (data.disciplineId !== undefined) updateData.discipline_id = data.disciplineId
