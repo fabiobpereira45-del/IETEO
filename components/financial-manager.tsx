@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+// Version: 1.2.3 - Fixed Financial Status Logic
 import { toast } from "sonner"
 import { DollarSign, Plus, Eye, CheckCircle2, AlertCircle, Clock, Trash2, Zap, Loader2, Download, FileText, Pencil, Gift } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -382,6 +383,8 @@ export function FinancialManager({ onRefresh, month, year, scope }: {
         if (status === 'bolsa100') return <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded font-medium flex items-center gap-1">Bolsa 100%</span>
         if (status === 'bolsa50') return <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded font-medium flex items-center gap-1">Bolsa 50%</span>
         if (status === 'isento') return <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded font-medium flex items-center gap-1">Isento</span>
+        // Default to "Em dia" if not late/overdue in this context? 
+        // Actually this is for INDIVIDUAL charges, so "Pendente" (amber) is fine for a future charge.
         return <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded font-medium flex items-center gap-1"><Clock className="h-3 w-3" /> Pendente</span>
     }
 
@@ -581,8 +584,6 @@ export function FinancialManager({ onRefresh, month, year, scope }: {
                                                     <span className="text-blue-600 font-bold flex items-center gap-1"><Zap className="h-3 w-3" /> Bolsa 100%</span>
                                                 ) : studentCharges.some(c => c.type === 'monthly' && c.status === 'bolsa50') ? (
                                                     <span className="text-blue-500 font-bold flex items-center gap-1"><Zap className="h-3 w-3" /> Bolsa 50%</span>
-                                                ) : pending.length > 0 ? (
-                                                     <span className="text-amber-600 font-bold flex items-center gap-1"><Clock className="h-3 w-3" /> Pendente</span>
                                                 ) : (
                                                     <span className="text-green-600 font-bold flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Em dia</span>
                                                 )}

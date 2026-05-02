@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import {
   Sparkles, BookOpen, Hash, ListChecks, Loader2, Check,
   ChevronDown, ChevronUp, Plus, AlertCircle, X, MessageSquare, Settings2,
-  Key, Cpu, Copy, Terminal
+  Key, Cpu, Copy, Terminal, FileText, BrainCircuit, GraduationCap, 
+  Layers, Zap, Info, ShieldCheck, ChevronRight
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,6 +16,7 @@ import {
   type Discipline, type Question, type QuestionType,
   addQuestion, addQuestionsBatch, addAssessment, uid,
 } from "@/lib/store"
+import { cn } from "@/lib/utils"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -25,6 +27,8 @@ interface GeneratedQuestion {
   pairs?: { id: string; left: string; right: string }[]
   correctAnswer: string
   explanation: string | null
+  bloomLevel?: number // 1-6
+  difficulty?: "facil" | "medio" | "dificil"
 }
 
 interface Props {
@@ -33,27 +37,36 @@ interface Props {
   defaultDisciplineId?: string
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const BLOOM_LEVELS = [
+  { level: 1, label: "Lembrar", desc: "Reconhecer e citar fatos e conceitos bíblicos." },
+  { level: 2, label: "Compreender", desc: "Interpretar e resumir parágrafos teológicos." },
+  { level: 3, label: "Aplicar", desc: "Usar a doutrina em situações práticas ou casos." },
+  { level: 4, label: "Analisar", desc: "Distinguir entre diferentes posições teológicas." },
+  { level: 5, label: "Avaliar", desc: "Julgar o valor de uma afirmação baseada em evidências." },
+  { level: 6, label: "Criar", desc: "Sintetizar novos insights a partir de várias fontes." },
+]
 
 const TYPE_LABELS: Record<QuestionType, string> = {
   "multiple-choice": "Múltipla Escolha",
   "true-false": "Verdadeiro ou Falso",
-  "discursive": "Discursiva",
-  "incorrect-alternative": "Escolha a Incorreta",
+  "discursive": "Dissertativa / Subjetiva",
+  "incorrect-alternative": "Alternativa Incorreta",
   "fill-in-the-blank": "Completar Lacunas",
   "matching": "Relacionar Colunas"
 }
 
 const TYPE_COLORS: Record<QuestionType, string> = {
-  "multiple-choice": "bg-blue-100 text-blue-700",
-  "true-false": "bg-amber-100 text-amber-700",
-  "discursive": "bg-purple-100 text-purple-700",
-  "incorrect-alternative": "bg-red-100 text-red-700",
-  "fill-in-the-blank": "bg-cyan-100 text-cyan-700",
-  "matching": "bg-indigo-100 text-indigo-700"
+  "multiple-choice": "bg-indigo-500/10 text-indigo-600 border-indigo-500/20",
+  "true-false": "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+  "discursive": "bg-violet-500/10 text-violet-600 border-violet-500/20",
+  "incorrect-alternative": "bg-rose-500/10 text-rose-600 border-rose-500/20",
+  "fill-in-the-blank": "bg-sky-500/10 text-sky-600 border-sky-500/20",
+  "matching": "bg-amber-500/10 text-amber-600 border-amber-500/20"
 }
 
-// ─── Single question preview card ────────────────────────────────────────────
+// ─── Components ───────────────────────────────────────────────────────────────
 
 function QuestionPreviewCard({
   q,
@@ -70,110 +83,100 @@ function QuestionPreviewCard({
 
   return (
     <div
-      className={`border rounded-xl transition-colors ${selected
-        ? "border-primary bg-primary/5"
-        : "border-border bg-card hover:border-primary/50"
-        }`}
+      className={cn(
+        "group border-2 rounded-2xl transition-all duration-300 overflow-hidden",
+        selected
+          ? "border-primary bg-primary/[0.02] shadow-lg shadow-primary/5"
+          : "border-border bg-card hover:border-primary/30"
+      )}
     >
-      <div className="flex items-start gap-3 p-4">
-        {/* Checkbox */}
+      <div className="flex items-start gap-4 p-5">
+        {/* Selection Marker */}
         <button
           onClick={onToggle}
-          className={`mt-0.5 flex-shrink-0 h-5 w-5 rounded border-2 flex items-center justify-center transition-colors ${selected
-            ? "bg-primary border-primary text-primary-foreground"
-            : "border-border bg-background"
-            }`}
-          aria-label={selected ? "Desselecionar questão" : "Selecionar questão"}
+          className={cn(
+            "mt-1 flex-shrink-0 h-6 w-6 rounded-lg border-2 flex items-center justify-center transition-all duration-300",
+            selected
+              ? "bg-primary border-primary text-primary-foreground scale-110 rotate-3 shadow-md"
+              : "border-border bg-background group-hover:border-primary/50"
+          )}
         >
-          {selected && <Check className="h-3 w-3" />}
+          {selected && <Check className="h-4 w-4" />}
         </button>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-2">
-            <span className="text-xs font-semibold text-muted-foreground">Q{index + 1}</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLORS[q.type]}`}>
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Q{index + 1}</span>
+            <span className={cn("text-[10px] px-2.5 py-1 rounded-full font-bold border uppercase tracking-wider", TYPE_COLORS[q.type])}>
               {TYPE_LABELS[q.type]}
             </span>
+            {q.bloomLevel && (
+              <span className="text-[10px] px-2.5 py-1 rounded-full font-bold bg-secondary text-secondary-foreground border border-border uppercase tracking-wider flex items-center gap-1">
+                <Layers className="h-3 w-3" /> Bloom {q.bloomLevel}
+              </span>
+            )}
           </div>
 
-          <p className="text-sm text-foreground leading-relaxed">{q.text}</p>
+          <p className="text-base font-medium text-foreground leading-relaxed mb-4">{q.text}</p>
 
-          {/* Choices (múltipla escolha) */}
-          {q.type === "multiple-choice" && q.choices.length > 0 && (
-            <div className="mt-3 flex flex-col gap-1.5">
-              {q.choices.map((c) => (
-                <div
-                  key={c.id}
-                  className={`flex items-start gap-2 text-sm rounded-lg px-3 py-2 ${c.id === q.correctAnswer
-                    ? "bg-green-50 text-green-800 border border-green-200"
-                    : "bg-muted/50 text-muted-foreground"
-                    }`}
-                >
-                  {c.id === q.correctAnswer && (
-                    <Check className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-green-600" />
-                  )}
-                  <span>{c.text}</span>
+          {/* Type-Specific Content */}
+          <div className="space-y-2">
+            {q.type === "multiple-choice" && q.choices.map((c, i) => (
+              <div
+                key={c.id}
+                className={cn(
+                  "flex items-start gap-3 text-sm rounded-xl px-4 py-2.5 transition-colors",
+                  c.id === q.correctAnswer
+                    ? "bg-emerald-500/10 text-emerald-800 border border-emerald-500/20 font-semibold"
+                    : "bg-muted/40 text-muted-foreground border border-transparent"
+                )}
+              >
+                <span className="opacity-50 mt-0.5">{String.fromCharCode(65 + i)})</span>
+                <span>{c.text}</span>
+              </div>
+            ))}
+
+            {q.type === "true-false" && (
+              <div className="flex gap-2">
+                <div className={cn(
+                  "px-4 py-2 rounded-xl text-sm font-bold border",
+                  q.correctAnswer === "true" 
+                    ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20" 
+                    : "bg-rose-500/10 text-rose-700 border-rose-500/20"
+                )}>
+                  Gabarito: {q.correctAnswer === "true" ? "Verdadeiro" : "Falso"}
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            )}
 
-          {/* True/False */}
-          {q.type === "true-false" && (
-            <div className="mt-3">
-              <span className={`text-sm px-3 py-1.5 rounded-lg font-semibold ${q.correctAnswer === "true"
-                ? "bg-green-50 text-green-700 border border-green-200"
-                : "bg-red-50 text-red-700 border border-red-200"
-                }`}>
-                Resposta: {q.correctAnswer === "true" ? "Verdadeiro" : "Falso"}
-              </span>
-            </div>
-          )}
+            {q.type === "matching" && q.pairs && (
+              <div className="grid grid-cols-1 gap-2 bg-muted/30 p-4 rounded-xl border border-border/50">
+                {q.pairs.map((p, i) => (
+                  <div key={p.id} className="flex flex-col sm:flex-row gap-2 text-xs">
+                    <div className="flex-1 p-2 rounded-lg bg-background border border-border">{p.left}</div>
+                    <div className="flex items-center justify-center px-2 text-primary/40">→</div>
+                    <div className="flex-1 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/20 text-emerald-700 font-medium">{p.right}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-          {/* Discursive */}
-          {q.type === "discursive" && (
-            <p className="mt-2 text-xs text-muted-foreground italic">
-              Questão discursiva — correção manual pelo professor
-            </p>
-          )}
-
-          {/* Fill in the blank */}
-          {q.type === "fill-in-the-blank" && (
-            <div className="mt-3">
-              <span className="text-sm px-3 py-1.5 rounded-lg font-semibold bg-cyan-50 text-cyan-800 border border-cyan-200">
-                Gabarito (Lacunas): {q.correctAnswer}
-              </span>
-            </div>
-          )}
-
-          {/* Matching Pairs */}
-          {q.type === "matching" && q.pairs && q.pairs.length > 0 && (
-            <div className="mt-3 flex flex-col gap-2 bg-muted/30 p-3 rounded-lg border border-border">
-              <p className="text-xs font-semibold text-muted-foreground mb-1">Gabarito das Colunas:</p>
-              {q.pairs.map((p, i) => (
-                <div key={p.id} className="flex flex-col sm:flex-row gap-2 text-sm text-foreground">
-                  <span className="font-medium min-w-[30px]">{i + 1}.</span>
-                  <div className="flex-1 rounded p-1.5 bg-background border">{p.left}</div>
-                  <span className="hidden sm:block text-muted-foreground">→</span>
-                  <div className="flex-1 rounded p-1.5 bg-green-50 border border-green-200">{p.right}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Explanation toggle */}
+          {/* Explanation / Theological Rationale */}
           {q.explanation && (
-            <button
-              onClick={() => setExpanded((e) => !e)}
-              className="mt-3 flex items-center gap-1.5 text-xs text-primary hover:underline"
-            >
-              {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              {expanded ? "Ocultar fundamentação" : "Ver fundamentação teológica"}
-            </button>
-          )}
-          {expanded && q.explanation && (
-            <div className="mt-2 bg-primary/5 border border-primary/20 rounded-lg p-3 text-xs text-foreground leading-relaxed">
-              {q.explanation}
+            <div className="mt-5 border-t border-border/50 pt-4">
+              <button
+                onClick={() => setExpanded(!expanded)}
+                className="flex items-center gap-2 text-xs font-bold text-primary/80 hover:text-primary uppercase tracking-widest"
+              >
+                {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                {expanded ? "Ocultar Exegese" : "Ver Fundamentação Teológica"}
+              </button>
+              {expanded && (
+                <div className="mt-3 bg-primary/5 rounded-xl p-4 text-sm text-foreground/80 leading-relaxed italic border border-primary/10 animate-in fade-in slide-in-from-top-1">
+                  {q.explanation}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -182,9 +185,8 @@ function QuestionPreviewCard({
   )
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
-
 export function AIQuestionGenerator({ disciplines, onQuestionsAdded, defaultDisciplineId }: Props) {
+  // State
   const [disciplineId, setDisciplineId] = useState(defaultDisciplineId || disciplines[0]?.id || "")
   const [count, setCount] = useState(5)
   const [types, setTypes] = useState<QuestionType[]>(["multiple-choice", "true-false"])
@@ -193,130 +195,61 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded, defaultDisc
   const [difficulty, setDifficulty] = useState("Intermediário")
   const [aiProvider, setAiProvider] = useState("groq")
   const [apiKey, setApiKey] = useState("")
-
+  
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [loadingMessage, setLoadingMessage] = useState("O agente está elaborando as questões...")
-
-  const loadingMessages = [
-    "O agente está elaborando as questões...",
-    "Consultando base teológica e doutrinária...",
-    "Refinando o rigor acadêmico das questões...",
-    "Cruzando referências bíblicas...",
-    "Gerando distratores plausíveis...",
-    "Finalizando a estruturação da prova..."
-  ]
-
-  useEffect(() => {
-    let interval: any
-    if (loading) {
-      let i = 0
-      interval = setInterval(() => {
-        i = (i + 1) % loadingMessages.length
-        setLoadingMessage(loadingMessages[i])
-      }, 3000)
-    } else {
-      setLoadingMessage(loadingMessages[0])
-    }
-    return () => clearInterval(interval)
-  }, [loading])
   const [error, setError] = useState<string | null>(null)
   const [generated, setGenerated] = useState<GeneratedQuestion[]>([])
   const [selected, setSelected] = useState<Set<number>>(new Set())
-  const [saved, setSaved] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [sourceDetails, setSourceDetails] = useState("")
-  const [copied, setCopied] = useState(false)
-  const [promptStep, setPromptStep] = useState<1 | 2>(1)
+  
+  // Refs for auto-scroll
+  const resultsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (defaultDisciplineId) {
-      setDisciplineId(defaultDisciplineId)
-    }
+    if (defaultDisciplineId) setDisciplineId(defaultDisciplineId)
     if (typeof window !== "undefined") {
-      const savedProvider = localStorage.getItem("teologia_aiProvider") || "groq"
-      setAiProvider(savedProvider)
+      try {
+        setAiProvider(localStorage.getItem("teologia_aiProvider") || "groq")
+        setApiKey(localStorage.getItem("teologia_apiKey") || "")
+      } catch (e) {
+        console.warn("Storage access failed", e)
+      }
     }
   }, [defaultDisciplineId])
 
-  function handleProviderChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const val = e.target.value
+  const handleProviderChange = (val: string) => {
     setAiProvider(val)
-    if (typeof window !== "undefined") {
+    try {
       localStorage.setItem("teologia_aiProvider", val)
-    }
+    } catch (e) {}
   }
 
-  const selectedDiscipline = disciplines.find((d) => d.id === disciplineId)
-
-  function toggleType(t: QuestionType) {
-    setTypes((prev) =>
-      prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]
-    )
+  const handleApiKeyChange = (val: string) => {
+    setApiKey(val)
+    try {
+      localStorage.setItem("teologia_apiKey", val)
+    } catch (e) {}
   }
 
-  function toggleSelect(i: number) {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      next.has(i) ? next.delete(i) : next.add(i)
-      return next
-    })
+  const toggleType = (t: QuestionType) => {
+    setTypes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
   }
 
-  function selectAll() {
-    setSelected(new Set(generated.map((_, i) => i)))
-  }
-
-  function deselectAll() {
-    setSelected(new Set())
-  }
-
-  function handleCopyPrompt() {
-    const selectedDisc = disciplines.find((d) => d.id === disciplineId)
-    const discName = selectedDisc?.name || disciplineId
-
-    const typesList = types.map((t) => TYPE_LABELS[t]).join(", ")
-
-    const promptText = `Atue como um Especialista em Teologia e Avaliação Acadêmica.
-Preciso que você crie exatamente ${count} questão(ões) para a disciplina de "${discName}".
-
-Público-Alvo: ${audience}
-Nível de Dificuldade: ${difficulty}
-Modalidades das questões solicitadas: ${typesList}.
-
-Diretrizes obrigatórias:
-1. Retorne as questões em formato CSV rigoroso, separando as colunas por ponto e vírgula (;).
-2. O formato de cada linha deve ser: Pergunta; Alternativa A; Alternativa B; Alternativa C; Alternativa D; Letra Correta.
-3. Não inclua numeração antes da pergunta.
-4. Para questões que não sejam de Múltipla Escolha, adapte o formato, mas mantenha as 6 colunas. Ex para V/F: Pergunta; Verdadeiro; Falso; ; ; Letra Correta.
-5. Não adicione nenhum texto introdutório, explicações ou notas no final. Apenas o conteúdo do CSV.
-
-${sourceDetails ? `\nBASE DE CONHECIMENTO / CONTEXTO OBRIGATÓRIO:\n${sourceDetails}\n` : ""}
-Gere as questões agora.`
-
-    navigator.clipboard.writeText(promptText)
-    setCopied(true)
-    setTimeout(() => {
-      setCopied(false)
-      setPromptStep(2)
-    }, 1500)
-  }
-
-  async function handleGenerate() {
-    if (!disciplineId) return
-    if (types.length === 0) {
-      setError("Selecione ao menos uma modalidade.")
+  const handleGenerate = async () => {
+    if (!apiKey) {
+      setError("Por favor, insira sua Chave de API nas configurações abaixo.")
       return
     }
     setLoading(true)
     setError(null)
     setGenerated([])
-    setSelected(new Set())
-    setSaved(false)
-
+    
     try {
       const formData = new FormData()
-      formData.append("discipline", selectedDiscipline?.name ?? disciplineId)
+      const selectedDisc = disciplines.find(d => d.id === disciplineId)
+      formData.append("discipline", selectedDisc?.name ?? disciplineId)
       formData.append("count", count.toString())
       formData.append("types", JSON.stringify(types))
       formData.append("sourceDetails", sourceDetails)
@@ -324,13 +257,7 @@ Gere as questões agora.`
       formData.append("difficulty", difficulty)
       formData.append("aiProvider", aiProvider)
       formData.append("apiKey", apiKey)
-
-      if (file) {
-        if (file.size > 10 * 1024 * 1024) {
-          throw new Error("O arquivo selecionado é muito grande (máximo 10MB). Por favor, use um PDF menor ou remova imagens pesadas.")
-        }
-        formData.append("file", file)
-      }
+      if (file) formData.append("file", file)
 
       const res = await fetch("/api/generate-questions", {
         method: "POST",
@@ -338,32 +265,29 @@ Gere as questões agora.`
       })
 
       if (!res.ok) {
-        if (res.status === 413) {
-          throw new Error("O arquivo enviado excede o limite do servidor (Vercel geralmente limita a 4.5MB). Tente um arquivo menor.")
-        }
         const data = await res.json().catch(() => null)
-        throw new Error(data?.error ?? `Erro no servidor (${res.status}).`)
+        throw new Error(data?.error ?? "Erro ao conectar com o Agente Teológico.")
       }
 
       const data = await res.json()
       const qs: GeneratedQuestion[] = data.questions ?? []
       setGenerated(qs)
       setSelected(new Set(qs.map((_, i) => i)))
+      
+      // Smooth scroll to results
+      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
     } catch (e: any) {
-      setError(e.message || "Erro ao gerar questões.")
+      setError(e.message)
     } finally {
       setLoading(false)
     }
   }
 
-  async function handleSave(createAssessment = false) {
+  const handleSave = async (createAssessment = false) => {
     if (selected.size === 0) return
     setSaving(true)
-    setError(null)
-
     try {
       const toSave = generated.filter((_, i) => selected.has(i))
-      
       const questionsData = toSave.map(q => ({
         disciplineId,
         type: q.type,
@@ -378,541 +302,374 @@ Gere as questões agora.`
 
       if (createAssessment && savedIds.length > 0) {
         await addAssessment({
-          title: `Avaliação que o professor irá editar`,
+          id: uid(),
+          title: `Avaliação - ${disciplines.find(d => d.id === disciplineId)?.name}`,
           disciplineId,
-          professor: "IA Teológica",
+          professor: "IA Teológica Expert",
           institution: "IETEO",
           questionIds: savedIds,
           pointsPerQuestion: pointsPerQuestion,
           totalPoints: savedIds.length * pointsPerQuestion,
-          openAt: null,
-          closeAt: null,
           isPublished: false,
-          shuffleVariants: true,
-          rules: "Avaliação gerada automaticamente por IA.",
-          modality: "public"
+          modality: "public",
+          rules: "Use os conceitos discutidos em sala de aula para fundamentar suas respostas.",
         })
       }
 
-      setSaved(true)
       setGenerated([])
-      setSelected(new Set())
       onQuestionsAdded(createAssessment)
     } catch (e: any) {
-      setError(`Erro ao salvar: ${e.message}`)
+      setError(e.message)
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex items-start gap-3 bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-4">
-        <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
-          <Sparkles className="h-5 w-5 text-primary-foreground" />
+    <div className="flex flex-col gap-8 pb-10">
+      {/* ─── Hero Section ─── */}
+      <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-indigo-600 via-violet-600 to-primary p-8 text-white shadow-2xl shadow-primary/20">
+        <div className="absolute top-0 right-0 p-4 opacity-10">
+          <BrainCircuit className="h-40 w-40" />
         </div>
-        <div>
-          <h3 className="font-semibold text-foreground">Agente IA Teológico</h3>
-          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-            Especialista em Teologia. Gere questões automaticamente ou converse com o assistente para preparar seus materiais.
-          </p>
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-black uppercase tracking-[0.2em]">
+              <Sparkles className="h-3 w-3" /> Motor de Inteligência Teológica
+            </div>
+            <h2 className="text-3xl font-serif font-bold">Divine Assessment Architect</h2>
+            <p className="text-white/80 text-sm max-w-md font-medium">
+              Transforme seus materiais didáticos em avaliações acadêmicas de alto rigor teológico em segundos.
+            </p>
+          </div>
+          <div className="flex gap-2">
+             <div className="h-16 w-16 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 flex flex-col items-center justify-center">
+                <span className="text-[10px] font-bold opacity-60 uppercase">Bloom</span>
+                <span className="text-xl font-black">1-6</span>
+             </div>
+             <div className="h-16 w-16 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 flex flex-col items-center justify-center">
+                <span className="text-[10px] font-bold opacity-60 uppercase">Tipos</span>
+                <span className="text-xl font-black">6+</span>
+             </div>
+          </div>
         </div>
       </div>
 
-      <Tabs defaultValue="automatic" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-muted/50 p-1 rounded-xl mb-4">
-          <TabsTrigger value="automatic" className="rounded-lg data-[state=active]:accent-gradient data-[state=active]:text-white transition-all py-2 gap-2 text-xs sm:text-sm">
-            <Settings2 className="h-4 w-4" /> Automático
-          </TabsTrigger>
-          <TabsTrigger value="prompt" className="rounded-lg data-[state=active]:accent-gradient data-[state=active]:text-white transition-all py-2 gap-2 text-xs sm:text-sm">
-            <Terminal className="h-4 w-4" /> Gerar Prompt
-          </TabsTrigger>
-          <TabsTrigger value="chat" className="rounded-lg data-[state=active]:accent-gradient data-[state=active]:text-white transition-all py-2 gap-2 text-xs sm:text-sm">
-            <MessageSquare className="h-4 w-4" /> Chat
-          </TabsTrigger>
-        </TabsList>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* ─── Sidebar Configuration (Left) ─── */}
+        <div className="lg:col-span-5 space-y-6">
+          
+          {/* Identity & Context */}
+          <div className="glass-card rounded-3xl p-6 space-y-5 border border-border/50 shadow-xl shadow-black/5">
+             <div className="flex items-center gap-3 border-b border-border/40 pb-4 mb-2">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                   <GraduationCap className="h-4 w-4" />
+                </div>
+                <h3 className="font-bold text-sm uppercase tracking-wider">Contexto Acadêmico</h3>
+             </div>
 
-        <TabsContent value="automatic" className="animate-in fade-in slide-in-from-left-4 duration-300">
-          <div className="flex flex-col gap-5">
-            <div className="flex flex-col gap-5">
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* 1. Configuração Básica */}
-                <div className="bg-card border border-border shadow-sm rounded-xl p-5 flex flex-col gap-4 transition-all hover:border-primary/20">
-                  <div className="flex items-center gap-2 border-b border-border/50 pb-3 mb-1">
-                    <Settings2 className="h-4 w-4 text-primary" />
-                    <h4 className="font-semibold text-sm text-foreground">Configuração Básica</h4>
-                  </div>
-                  <div className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-1.5">
-                      <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Disciplina Correspondente</Label>
-                      <select
-                        value={disciplineId}
-                        onChange={(e) => setDisciplineId(e.target.value)}
-                        className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground font-medium w-full outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-                      >
-                        {disciplines.map((d) => (
-                          <option key={d.id} value={d.id}>{d.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Quantidade de Questões</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={20}
-                        value={count}
-                        onChange={(e) => setCount(Number(e.target.value))}
-                        className="h-9 font-medium"
-                      />
-                    </div>
-                  </div>
+             <div className="space-y-4">
+                <div className="space-y-2">
+                   <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                      <BookOpen className="h-3 w-3" /> Disciplina Foco
+                   </Label>
+                   <select
+                     value={disciplineId}
+                     onChange={(e) => setDisciplineId(e.target.value)}
+                     className="w-full h-11 rounded-xl border-2 border-border bg-background px-4 text-sm font-semibold focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all outline-none"
+                   >
+                     {disciplines.map((d) => (
+                       <option key={d.id} value={d.id}>{d.name}</option>
+                     ))}
+                   </select>
                 </div>
 
-                {/* 2. Nível e Público */}
-                <div className="bg-card border border-border shadow-sm rounded-xl p-5 flex flex-col gap-4 transition-all hover:border-primary/20">
-                  <div className="flex items-center gap-2 border-b border-border/50 pb-3 mb-1">
-                    <BookOpen className="h-4 w-4 text-primary" />
-                    <h4 className="font-semibold text-sm text-foreground">Perfil Pedagógico</h4>
-                  </div>
-                  <div className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-1.5">
-                      <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Adequação / Público-Alvo</Label>
-                      <select
-                        value={audience}
-                        onChange={(e) => setAudience(e.target.value)}
-                        className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground font-medium w-full outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-                      >
-                        <option value="Escola Bíblica (Membros Gerais)">Escola Bíblica (Básico)</option>
-                        <option value="Seminário Teológico / Graduação">Seminário Teológico (Normal)</option>
-                        <option value="Pós-Graduação / Especialização">Pós / Especialização (Intenso)</option>
-                      </select>
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Complexidade Exigida</Label>
+                <div className="grid grid-cols-2 gap-4">
+                   <div className="space-y-2">
+                      <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Complexidade</Label>
                       <select
                         value={difficulty}
                         onChange={(e) => setDifficulty(e.target.value)}
-                        className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground font-medium w-full outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
+                        className="w-full h-10 rounded-xl border-2 border-border bg-background px-3 text-xs font-bold focus:border-primary transition-all outline-none"
                       >
                         <option value="Básico">Básico</option>
                         <option value="Intermediário">Intermediário</option>
                         <option value="Avançado">Avançado</option>
                       </select>
-                    </div>
-                  </div>
+                   </div>
+                   <div className="space-y-2">
+                      <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Nº Questões</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={30}
+                        value={count}
+                        onChange={(e) => setCount(Number(e.target.value))}
+                        className="h-10 rounded-xl border-2 font-bold text-center"
+                      />
+                   </div>
                 </div>
-              </div>
+             </div>
+          </div>
 
-              {/* 3. Base de Conhecimento */}
-              <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 flex flex-col gap-4 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mt-16 blur-3xl pointer-events-none" />
-                <div className="flex items-center justify-between border-b border-primary/10 pb-3 mb-1 relative z-10">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    <h4 className="font-semibold text-sm text-primary-foreground/80 text-foreground">Base de Conhecimento Alvo</h4>
-                  </div>
-                  <span className="text-[10px] uppercase font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full tracking-wide">Opcional</span>
+          {/* Source Material */}
+          <div className="glass-card rounded-3xl p-6 space-y-5 border border-border/50 shadow-xl shadow-black/5 bg-primary/5">
+             <div className="flex items-center gap-3 border-b border-primary/10 pb-4 mb-2">
+                <div className="h-8 w-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
+                   <FileText className="h-4 w-4" />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 relative z-10">
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Arquivo de Referência</Label>
-                    <p className="text-[11px] text-muted-foreground mb-1 leading-tight">Envie PDF, PPTX ou Imagem contendo o assunto.</p>
-                    <div className="relative">
+                <h3 className="font-bold text-sm uppercase tracking-wider text-primary">Fonte de Extração</h3>
+             </div>
+
+             <div className="space-y-4">
+                <div className="space-y-2">
+                   <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Anexo de Referência (PDF/Word)</Label>
+                   <div className="relative group">
+                      <div className="absolute inset-0 bg-primary/5 rounded-xl border-2 border-dashed border-primary/20 group-hover:border-primary/40 transition-colors pointer-events-none flex items-center justify-center">
+                         {!file ? <span className="text-[10px] font-bold text-primary/40">ARRASTE OU CLIQUE AQUI</span> : <span className="text-[10px] font-bold text-primary truncate px-4">{file.name}</span>}
+                      </div>
                       <Input
                         type="file"
-                        accept=".pdf,.pptx,.ppt,.txt,.jpg,.jpeg,.png"
                         onChange={(e) => setFile(e.target.files?.[0] || null)}
-                        className="text-xs cursor-pointer h-9 file:text-xs file:mr-3 file:bg-primary/10 file:text-primary file:border-0 file:rounded file:px-2 file:py-1 hover:file:bg-primary/20 transition-all font-medium"
+                        className="opacity-0 h-12 cursor-pointer"
                       />
-                    </div>
-                    {file && (
-                      <p className="text-xs text-green-600 dark:text-green-500 font-medium flex items-center gap-1 mt-1 truncate">
-                        <Check className="h-3 w-3 flex-shrink-0" /> Anexado: {file.name}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Recorte de Estudo</Label>
-                    <p className="text-[11px] text-muted-foreground mb-1 leading-tight">Direciona a IA para uma página ou tema específico.</p>
-                    <Input
-                      placeholder="Ex: Pág 10 a 15, Cap 2, Unidade IV..."
-                      value={sourceDetails}
-                      onChange={(e) => setSourceDetails(e.target.value)}
-                      className="text-sm h-9 bg-background/50 backdrop-blur-sm"
-                    />
-                  </div>
+                   </div>
                 </div>
+
+                <div className="space-y-2">
+                   <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Direcionamento (Opcional)</Label>
+                   <Input
+                     placeholder="Ex: Focar no capítulo 3, página 45..."
+                     value={sourceDetails}
+                     onChange={(e) => setSourceDetails(e.target.value)}
+                     className="h-10 rounded-xl border-2 bg-background/50"
+                   />
+                </div>
+             </div>
+          </div>
+
+          {/* AI Settings */}
+          <div className="glass-card rounded-3xl p-6 space-y-5 border border-border/50 shadow-xl shadow-black/5">
+             <div className="flex items-center gap-3 border-b border-border/40 pb-4 mb-2">
+                <div className="h-8 w-8 rounded-lg bg-secondary text-secondary-foreground flex items-center justify-center">
+                   <Settings2 className="h-4 w-4" />
+                </div>
+                <h3 className="font-bold text-sm uppercase tracking-wider">Motor de Inferência</h3>
+             </div>
+
+             <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
+                   <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center justify-between">
+                      Provider {aiProvider === 'groq' && <span className="text-[9px] bg-emerald-500 text-white px-1.5 rounded">Rápido</span>}
+                   </Label>
+                   <select
+                     value={aiProvider}
+                     onChange={(e) => handleProviderChange(e.target.value)}
+                     className="w-full h-10 rounded-xl border-2 border-border bg-background px-3 text-xs font-bold outline-none"
+                   >
+                     <option value="groq">Groq (Llama 3.3)</option>
+                     <option value="openai">OpenAI (GPT-4o)</option>
+                     <option value="google">Google (Gemini 1.5)</option>
+                   </select>
+                </div>
+                <div className="space-y-2">
+                   <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">API Key Privada</Label>
+                   <div className="relative">
+                      <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
+                      <Input
+                        type="password"
+                        placeholder="sk-..."
+                        value={apiKey}
+                        onChange={(e) => handleApiKeyChange(e.target.value)}
+                        className="h-10 pl-9 rounded-xl border-2 text-xs"
+                      />
+                   </div>
+                </div>
+             </div>
+          </div>
+        </div>
+
+        {/* ─── Main Area: Formats & Execution (Right) ─── */}
+        <div className="lg:col-span-7 space-y-6">
+           {/* Question Formats Selector */}
+           <div className="glass-card rounded-3xl p-8 border border-border/50 shadow-xl shadow-black/5 h-full flex flex-col">
+              <div className="flex items-center justify-between mb-8">
+                 <div className="space-y-1">
+                    <h3 className="text-xl font-bold font-serif">Estrutura da Avaliação</h3>
+                    <p className="text-xs text-muted-foreground font-medium">Selecione os tipos de questões que o agente deve compor.</p>
+                 </div>
+                 <div className="h-12 w-12 rounded-2xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
+                    <Zap className="h-6 w-6" />
+                 </div>
               </div>
 
-              {/* 3.5 Opções de IA e Credenciais */}
-              <div className="bg-card border border-border shadow-sm rounded-xl p-5 flex flex-col gap-4 transition-all hover:border-primary/20">
-                <div className="flex items-center gap-2 border-b border-border/50 pb-3 mb-1">
-                  <Cpu className="h-4 w-4 text-primary" />
-                  <h4 className="font-semibold text-sm text-foreground">Motor de IA</h4>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Provedor de Inteligência Artificial</Label>
-                  <select
-                    value={aiProvider}
-                    onChange={handleProviderChange}
-                    className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground font-medium w-full outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-                  >
-                    <option value="groq">Groq (Llama 3)</option>
-                    <option value="openai">OpenAI (GPT-4o)</option>
-                    <option value="google">Google (Gemini)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* 4. Formato das Questões */}
-              <div className="bg-card border border-border shadow-sm rounded-xl p-5 flex flex-col gap-4 transition-all hover:border-primary/20">
-                <div className="flex items-center justify-between border-b border-border/50 pb-3 mb-1">
-                  <div className="flex items-center gap-2">
-                    <ListChecks className="h-4 w-4 text-primary" />
-                    <h4 className="font-semibold text-sm text-foreground">Dinâmica das Questões</h4>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Valor em Pontos</Label>
-                    <Input
-                      type="number"
-                      min={0.5}
-                      max={10}
-                      step={0.5}
-                      value={pointsPerQuestion}
-                      onChange={(e) => setPointsPerQuestion(Number(e.target.value))}
-                      className="w-16 h-7 text-xs text-center font-bold px-1"
-                    />
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Selecione Modalidades Autorizadas</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {(Object.keys(TYPE_LABELS) as QuestionType[]).map((t) => (
-                      <button
-                        key={t}
-                        onClick={() => toggleType(t)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${types.includes(t)
-                          ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                          : "bg-background text-muted-foreground border-border hover:border-primary/40 hover:bg-muted"
-                          }`}
-                      >
-                        {TYPE_LABELS[t]} {types.includes(t) && <Check className="inline-block w-3 h-3 ml-1 mb-0.5" />}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Erros e Botão CTA */}
-              {error && (
-                <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 rounded-lg px-4 py-3 border border-destructive/20 animate-in fade-in">
-                  <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <span className="font-medium">{error}</span>
-                </div>
-              )}
-
-              <div className="flex justify-end pt-2">
-                <Button
-                  onClick={handleGenerate}
-                  disabled={loading || saving || !disciplineId || types.length === 0}
-                  className="h-12 px-6 rounded-full font-semibold shadow-lg shadow-primary/20 w-full sm:w-auto"
-                  size="lg"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                      Elaborando prova detalhada...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-5 w-5 mr-2" />
-                      Gerar Base de Avaliação com IA
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-
-            {loading && (
-              <div className="bg-card border border-border rounded-xl p-10 flex flex-col items-center gap-3 text-muted-foreground shadow-sm">
-                <div className="relative">
-                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Sparkles className="h-4 w-4 text-primary animate-pulse" />
-                  </div>
-                </div>
-                <p className="text-base font-bold text-foreground animate-pulse">{loadingMessage}</p>
-                <p className="text-xs text-center max-w-xs opacity-70">
-                  Gerando conteúdo academicamente rigoroso para "{selectedDiscipline?.name}"
-                </p>
-              </div>
-            )}
-
-            {saved && !generated.length && (
-              <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-green-800">
-                <Check className="h-5 w-5 flex-shrink-0" />
-                <p className="text-sm font-medium">Operação realizada com sucesso!</p>
-                <button onClick={() => setSaved(false)} className="ml-auto">
-                  <X className="h-4 w-4 opacity-60 hover:opacity-100" />
-                </button>
-              </div>
-            )}
-
-            {generated.length > 0 && (
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between flex-wrap gap-3">
-                  <p className="text-sm font-semibold text-foreground">
-                    {generated.length} questão{generated.length !== 1 ? "ões" : ""} gerada{generated.length !== 1 ? "s" : ""}
-                    {selected.size > 0 && (
-                      <span className="text-muted-foreground font-normal">
-                        {" "}— {selected.size} selecionada{selected.size !== 1 ? "s" : ""}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
+                {(Object.keys(TYPE_LABELS) as QuestionType[]).map((t) => {
+                  const isSelected = types.includes(t)
+                  return (
+                    <button
+                      key={t}
+                      onClick={() => toggleType(t)}
+                      className={cn(
+                        "group relative flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all duration-300",
+                        isSelected 
+                          ? "border-primary bg-primary/5 ring-4 ring-primary/5" 
+                          : "border-border bg-card hover:border-primary/20"
+                      )}
+                    >
+                      <div className={cn(
+                        "h-10 w-10 rounded-xl flex items-center justify-center mb-3 transition-all duration-500",
+                        isSelected ? "bg-primary text-primary-foreground rotate-12 scale-110" : "bg-muted text-muted-foreground"
+                      )}>
+                        {t === 'multiple-choice' && <ListChecks className="h-5 w-5" />}
+                        {t === 'true-false' && <CheckCircle2 className="h-5 w-5" />}
+                        {t === 'discursive' && <MessageSquare className="h-5 w-5" />}
+                        {t === 'fill-in-the-blank' && <Zap className="h-5 w-5" />}
+                        {t === 'matching' && <Layers className="h-5 w-5" />}
+                        {t === 'incorrect-alternative' && <X className="h-5 w-5" />}
+                      </div>
+                      <span className={cn(
+                        "text-[10px] font-black uppercase tracking-widest text-center leading-tight",
+                        isSelected ? "text-primary" : "text-muted-foreground"
+                      )}>
+                        {TYPE_LABELS[t]}
                       </span>
-                    )}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={selectAll}>
-                      Selecionar todas
-                    </Button>
-                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={deselectAll}>
-                      Limpar seleção
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-3">
-                  {generated.map((q, i) => (
-                    <QuestionPreviewCard
-                      key={i}
-                      q={q}
-                      index={i}
-                      selected={selected.has(i)}
-                      onToggle={() => toggleSelect(i)}
-                    />
-                  ))}
-                </div>
-
-                <div className="flex flex-col sm:flex-row justify-end gap-3 mt-4">
-                  {error && (
-                    <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2 flex-grow">
-                      <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                      <span>{error}</span>
-                    </div>
-                  )}
-                  <Button
-                    variant="outline"
-                    onClick={() => handleSave(false)}
-                    disabled={selected.size === 0 || saving}
-                    className="flex-1 sm:flex-none"
-                  >
-                    {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
-                    Guardar no banco
-                  </Button>
-                  <Button
-                    onClick={() => handleSave(true)}
-                    disabled={selected.size === 0 || saving}
-                    className="flex-1 sm:flex-none accent-gradient text-white border-none"
-                  >
-                    {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                    Guardar e Gerar Prova
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="prompt" className="animate-in fade-in duration-300">
-          <div className="flex flex-col gap-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* 1. Perfil da Avaliação */}
-              <div className="bg-card border border-border shadow-sm rounded-xl p-5 flex flex-col gap-4">
-                <div className="flex items-center gap-2 border-b border-border/50 pb-3 mb-1">
-                  <BookOpen className="h-4 w-4 text-purple-600" />
-                  <h4 className="font-semibold text-sm text-foreground">Perfil da Avaliação</h4>
-                </div>
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Disciplina</Label>
-                    <select
-                      value={disciplineId}
-                      onChange={(e) => setDisciplineId(e.target.value)}
-                      className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground font-medium w-full outline-none focus:border-primary"
-                    >
-                      {disciplines.map((d) => (
-                        <option key={d.id} value={d.id}>{d.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Público-Alvo</Label>
-                    <select
-                      value={audience}
-                      onChange={(e) => setAudience(e.target.value)}
-                      className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground font-medium w-full outline-none focus:border-primary"
-                    >
-                      <option value="Escola Bíblica (Membros Gerais)">Escola Bíblica (Básico)</option>
-                      <option value="Seminário Teológico / Graduação">Seminário Teológico (Normal)</option>
-                      <option value="Pós-Graduação / Especialização">Pós / Especialização (Intenso)</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* 2. Complexidade e Volume */}
-              <div className="bg-card border border-border shadow-sm rounded-xl p-5 flex flex-col gap-4">
-                <div className="flex items-center gap-2 border-b border-border/50 pb-3 mb-1">
-                  <Sparkles className="h-4 w-4 text-purple-600" />
-                  <h4 className="font-semibold text-sm text-foreground">Complexidade e Volume</h4>
-                </div>
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Nível Exigido</Label>
-                    <select
-                      value={difficulty}
-                      onChange={(e) => setDifficulty(e.target.value)}
-                      className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground font-medium w-full outline-none focus:border-primary"
-                    >
-                      <option value="Básico">Básico</option>
-                      <option value="Intermediário">Intermediário</option>
-                      <option value="Avançado">Avançado</option>
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Qtd. de Questões</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={50}
-                      value={count}
-                      onChange={(e) => setCount(Number(e.target.value))}
-                      className="h-10 font-medium"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {promptStep === 1 ? (
-              <>
-                {/* 3. Conteúdo e Modalidades */}
-                <div className="bg-card border border-border shadow-sm rounded-xl p-5 flex flex-col gap-4">
-                  <div className="flex items-center gap-2 border-b border-border/50 pb-3 mb-1">
-                    <ListChecks className="h-4 w-4 text-purple-600" />
-                    <h4 className="font-semibold text-sm text-foreground">Conteúdo e Modalidades</h4>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Modalidades das Questões</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {(Object.keys(TYPE_LABELS) as QuestionType[]).map((t) => (
-                        <button
-                          key={t}
-                          onClick={() => toggleType(t)}
-                          className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all ${types.includes(t)
-                            ? "bg-purple-700 text-white border-purple-700 shadow-sm"
-                            : "bg-background text-muted-foreground border-border hover:border-purple-300 hover:bg-purple-50"
-                            }`}
-                        >
-                          {TYPE_LABELS[t]} {types.includes(t) && <Check className="inline-block w-3.5 h-3.5 ml-1 mb-0.5" />}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1.5 mt-2">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Recorte ou Assunto Específico (Opcional)</Label>
-                    <textarea
-                      placeholder="Cole aqui um texto base, capítulos do livro ou temas específicos que a IA deve abordar..."
-                      value={sourceDetails}
-                      onChange={(e) => setSourceDetails(e.target.value)}
-                      className="min-h-[100px] w-full rounded-xl border border-input bg-background px-4 py-3 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-purple-500 resize-y"
-                    />
-                    <p className="text-[11px] text-muted-foreground italic mt-1">Dica: Quanto mais contexto você fornecer, melhor será a questão gerada.</p>
-                  </div>
-                </div>
-
-                {/* CTA Generate Prompt */}
-                <div className="bg-purple-50 border border-purple-100 rounded-xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 mt-2">
-                  <div>
-                    <h4 className="font-bold text-base text-foreground">Tudo pronto?</h4>
-                    <p className="text-sm text-muted-foreground">Copie o prompt configurado e leve-o para sua IA.</p>
-                  </div>
-                  <Button
-                    onClick={handleCopyPrompt}
-                    className="bg-purple-600 hover:bg-purple-700 text-white rounded-lg h-12 px-6 shadow-md shadow-purple-600/20 w-full sm:w-auto"
-                  >
-                    {copied ? <Check className="h-5 w-5 mr-2" /> : <Sparkles className="h-5 w-5 mr-2" />}
-                    {copied ? "Copiado!" : "Gerar e Copiar Prompt"}
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <div className="flex flex-col gap-6 animate-in fade-in zoom-in-95 duration-300">
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 text-amber-800">
-                  <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm">
-                    <strong>Aviso de Créditos:</strong> Para garantir estabilidade e livre escolha, o sistema não gera questões diretamente via API. Use seus créditos pessoais no ChatGPT/Gemini para maior controle e profundidade teológica.
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-center gap-4 border border-border rounded-full p-1.5 w-max mx-auto bg-muted/30">
-                  <button onClick={() => setPromptStep(1)} className="px-4 py-1.5 text-sm font-medium rounded-full hover:bg-background transition-colors text-muted-foreground flex items-center gap-2">
-                    <span className="flex items-center justify-center w-5 h-5 rounded-full border border-current text-[10px]">1</span> Configurar Prompt
-                  </button>
-                  <div className="px-4 py-1.5 text-sm font-semibold rounded-full bg-background shadow-sm text-foreground flex items-center gap-2">
-                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px]">2</span> Abrir IA Externa
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold flex items-center gap-2 mb-4 text-purple-700">
-                    <Sparkles className="h-4 w-4" /> Sugestões de IAs Teológicas
-                  </h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {[
-                      { name: "ChatGPT", desc: "(OpenAI)", url: "https://chatgpt.com", color: "text-emerald-500", bg: "bg-emerald-50" },
-                      { name: "Gemini", desc: "(Google)", url: "https://gemini.google.com", color: "text-blue-500", bg: "bg-blue-50" },
-                      { name: "Claude", desc: "(Anthropic)", url: "https://claude.ai", color: "text-orange-500", bg: "bg-orange-50" },
-                      { name: "Copilot", desc: "(Microsoft)", url: "https://copilot.microsoft.com", color: "text-sky-500", bg: "bg-sky-50" }
-                    ].map(ia => (
-                      <a key={ia.name} href={ia.url} target="_blank" rel="noreferrer" className="flex flex-col items-center justify-center p-4 border border-border rounded-2xl hover:border-primary/50 hover:shadow-md transition-all group bg-card">
-                        <div className={`w-12 h-12 rounded-2xl ${ia.bg} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
-                          <Sparkles className={`h-6 w-6 ${ia.color}`} />
+                      {isSelected && (
+                        <div className="absolute top-2 right-2">
+                          <Check className="h-3 w-3 text-primary" />
                         </div>
-                        <span className="font-bold text-sm text-foreground">{ia.name}</span>
-                        <span className="text-[10px] text-muted-foreground">{ia.desc}</span>
-                        <span className="text-[9px] uppercase tracking-wider text-primary mt-2 opacity-0 group-hover:opacity-100 transition-opacity">Abrir em nova aba</span>
-                      </a>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="border border-border shadow-sm rounded-2xl p-6 text-center mt-2 bg-card">
-                  <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-4">
-                    <Check className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <h3 className="text-lg font-bold text-foreground mb-2">O que fazer após gerar as questões?</h3>
-                  <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6 leading-relaxed">
-                    Se a IA retornar as questões no formato que solicitamos no prompt, você conseguirá importá-las em massa. Vá até o <strong>Banco de Questões</strong> da disciplina correspondente e use o botão <strong>"Importar Lote"</strong>.
-                  </p>
-
-                  <div className="flex flex-wrap items-center justify-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                    <span className="border border-border rounded-full px-3 py-1">Copiar questões da IA</span>
-                    <span className="text-border">→</span>
-                    <span className="border border-border rounded-full px-3 py-1">Ir para Banco de Questões</span>
-                    <span className="text-border">→</span>
-                    <span className="border border-border rounded-full px-3 py-1 bg-muted/50">Colar e Salvar</span>
-                  </div>
-                </div>
+                      )}
+                    </button>
+                  )
+                })}
               </div>
-            )}
-          </div>
-        </TabsContent>
 
-        <TabsContent value="chat" className="animate-in fade-in slide-in-from-right-4 duration-300">
-          <AIAssistantChat selectedDiscipline={selectedDiscipline} />
-        </TabsContent>
-      </Tabs>
+              <div className="mt-auto space-y-6">
+                 {error && (
+                   <div className="flex items-center gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-sm animate-in shake-in-1">
+                      <AlertCircle className="h-5 w-5 shrink-0" />
+                      <span className="font-bold">{error}</span>
+                   </div>
+                 )}
+
+                 <Button
+                   onClick={handleGenerate}
+                   disabled={loading || types.length === 0}
+                   className="w-full h-16 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-black text-lg shadow-xl shadow-primary/30 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+                 >
+                   {loading ? (
+                     <>
+                        <Loader2 className="h-6 w-6 mr-3 animate-spin" />
+                        ARQUITETANDO QUESTÕES...
+                     </>
+                   ) : (
+                     <>
+                        <Sparkles className="h-6 w-6 mr-3" />
+                        GERAR PROVA AGORA
+                     </>
+                   )}
+                 </Button>
+                 
+                 <div className="flex items-center justify-center gap-6 opacity-40 grayscale">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/4/4d/OpenAI_Logo.svg" className="h-4" alt="OpenAI" />
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/8/8a/Google_Gemini_logo.svg" className="h-4" alt="Gemini" />
+                    <span className="text-[10px] font-black tracking-widest uppercase">Llama 3.3 Powered</span>
+                 </div>
+              </div>
+           </div>
+        </div>
+      </div>
+
+      {/* ─── Results Area ─── */}
+      {generated.length > 0 && (
+        <div ref={resultsRef} className="space-y-8 animate-in fade-in slide-in-from-bottom-10 duration-1000">
+          <div className="flex items-center justify-between border-b-2 border-border pb-4">
+             <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                   <ShieldCheck className="h-6 w-6" />
+                </div>
+                <div>
+                   <h3 className="text-2xl font-serif font-bold">Questões Geradas</h3>
+                   <p className="text-sm text-muted-foreground font-medium">Revise o rigor doutrinário e a pedagogia antes de salvar.</p>
+                </div>
+             </div>
+             <div className="flex items-center gap-3">
+                <Button variant="outline" size="sm" onClick={() => setSelected(new Set(generated.map((_, i) => i)))} className="rounded-xl text-[10px] font-black uppercase tracking-widest h-9">
+                   Selecionar Todas
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setSelected(new Set())} className="rounded-xl text-[10px] font-black uppercase tracking-widest h-9">
+                   Limpar
+                </Button>
+             </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+             {generated.map((q, i) => (
+               <QuestionPreviewCard
+                 key={i}
+                 q={q}
+                 index={i}
+                 selected={selected.has(i)}
+                 onToggle={() => {
+                   const next = new Set(selected)
+                   if (next.has(i)) next.delete(i)
+                   else next.add(i)
+                   setSelected(next)
+                 }}
+               />
+             ))}
+          </div>
+
+          <div className="sticky bottom-6 z-[60] bg-background/80 backdrop-blur-xl border border-border/50 p-4 rounded-3xl shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 max-w-4xl mx-auto ring-1 ring-black/5">
+             <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black">
+                   {selected.size}
+                </div>
+                <p className="text-sm font-bold">Questões selecionadas para o banco.</p>
+             </div>
+             
+             <div className="flex gap-3 w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  onClick={() => handleSave(false)}
+                  disabled={selected.size === 0 || saving}
+                  className="flex-1 sm:flex-none h-12 rounded-2xl px-6 font-bold border-2 transition-all"
+                >
+                  {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+                  Só no Banco
+                </Button>
+                <Button
+                  onClick={() => handleSave(true)}
+                  disabled={selected.size === 0 || saving}
+                  className="flex-1 sm:flex-none h-12 rounded-2xl px-8 bg-primary hover:bg-primary/90 text-primary-foreground font-black shadow-lg shadow-primary/20 transition-all active:scale-95"
+                >
+                  {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ChevronRight className="h-4 w-4 mr-2" />}
+                  Publicar Prova Direto
+                </Button>
+             </div>
+          </div>
+        </div>
+      )}
     </div>
+  )
+}
+
+function CheckCircle2(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
   )
 }

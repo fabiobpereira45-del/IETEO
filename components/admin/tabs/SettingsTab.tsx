@@ -88,7 +88,11 @@ export function SettingsTab({ assessments, onRefresh, onLogout }: Props) {
     if (!confirm("Certeza que deseja migrar os dados antigos criados localmente para a Nuvem (Supabase)?")) return;
     setMigrating(true)
     try {
-      const getLocal = (key: string) => JSON.parse(localStorage.getItem(key) || "[]")
+      const getLocal = (key: string) => {
+        try {
+          return JSON.parse(localStorage.getItem(key) || "[]")
+        } catch { return [] }
+      }
       const d = getLocal("ibad_disciplines_v2")
       const q = getLocal("ibad_question_bank")
       const a = getLocal("ibad_assessments")

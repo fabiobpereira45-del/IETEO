@@ -123,7 +123,11 @@ function readLocal<T>(key: string, fallback: T): T {
 }
 function writeLocal<T>(key: string, value: T): void {
   if (typeof window === "undefined") return
-  localStorage.setItem(key, JSON.stringify(value))
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch (err) {
+    console.warn("localStorage is not available:", err)
+  }
 }
 
 export function uid(): string {
@@ -147,7 +151,13 @@ export function saveProfessorSession(professorId: string, role: "master" | "prof
   }
 }
 export function clearProfessorSession(): void {
-  if (typeof window !== "undefined") localStorage.removeItem(KEYS.PROFESSOR_SESSION)
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.removeItem(KEYS.PROFESSOR_SESSION)
+    } catch (err) {
+      console.warn("Erro ao remover sessão do professor:", err)
+    }
+  }
 }
 
 export async function registerStudentAuth(name: string, cpf: string, password: string) {
@@ -291,8 +301,12 @@ export function getStudentSession(): StudentSession | null { return readLocal<St
 export function saveStudentSession(s: StudentSession): void { writeLocal(KEYS.STUDENT_SESSION, s) }
 export function clearStudentSession(): void {
   if (typeof window !== "undefined") {
-    localStorage.removeItem(KEYS.STUDENT_SESSION)
-    localStorage.removeItem(KEYS.DRAFT_ANSWERS)
+    try {
+      localStorage.removeItem(KEYS.STUDENT_SESSION)
+      localStorage.removeItem(KEYS.DRAFT_ANSWERS)
+    } catch (err) {
+      console.warn("Erro ao limpar sessão do estudante:", err)
+    }
   }
 }
 
@@ -417,8 +431,6 @@ function mapClassSchedule(row: any): ClassSchedule { return { id: row.id, classI
 function mapStudentGrade(row: any): StudentGrade {
   return {
     id: row.id,
-    studentId: row.student_id,
-    student_id: row.student_id,
     studentIdentifier: row.student_identifier,
     studentName: row.student_name,
     disciplineId: row.discipline_id || undefined,
@@ -1292,7 +1304,14 @@ export async function deleteQuestion(id: string): Promise<void> {
 
 export async function getAssessments(): Promise<Assessment[]> {
   const supabase = createClient()
-  const { data, error } = await supabase.from('assessments').select('*').order('created_at', { ascending: false })
+  const { data, error } = await supabase.from('assessments')
+    .select('id, title, discipline_id, professor, institution, question_ids, points_per_question, total_points, open_at, close_at, is_published, shuffle_variants, rules, release_results, modality, created_at, time_limit_minutes')
+    .order('created_at', { ascending: false })
+  
+  if (error) {
+    console.error("Error fetching assessments:", error)
+    return []
+  }
   return (data || []).map(mapAssessment)
 }
 export async function getAssessmentById(id: string): Promise<Assessment | null> {
@@ -2163,7 +2182,6 @@ export async function saveStudentGrade(grade: Omit<StudentGrade, 'id' | 'created
 
   const dbData: any = {
     student_identifier: grade.studentIdentifier,
-    student_id: student_id,
     student_name: grade.studentName,
     discipline_id: grade.disciplineId || null,
     is_public: grade.isPublic,

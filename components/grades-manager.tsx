@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import {
     StudentGrade, getStudentGrades, saveStudentGrade, deleteStudentGrade, releaseAllGrades,
-    StudentProfile, getStudents, Discipline, getDisciplines, bulkSyncGrades
+    StudentProfile, getStudents, Discipline, getDisciplines, bulkSyncGrades, getClasses, ClassRoom
 } from "@/lib/store"
 import { printGradesReportPDF } from "@/lib/pdf"
 import { ErrorBoundary } from "@/components/error-boundary"
@@ -29,6 +29,8 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
     const [isEditing, setIsEditing] = useState<string | null>(null)
     const [isCreating, setIsCreating] = useState(false)
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+    const [classes, setClasses] = useState<ClassRoom[]>([])
+    const [selectedClassId, setSelectedClassId] = useState<string>("all")
 
     // Form State
     const [formData, setFormData] = useState<any>({
@@ -47,14 +49,16 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
     const loadData = async () => {
         try {
             setLoading(true)
-            const [fetchedGrades, fetchedStudents, fetchedDisciplines] = await Promise.all([
+            const [fetchedGrades, fetchedStudents, fetchedDisciplines, fetchedClasses] = await Promise.all([
                 getStudentGrades(),
                 getStudents(),
-                getDisciplines()
+                getDisciplines(),
+                getClasses()
             ])
             setGrades(fetchedGrades)
             setStudents(fetchedStudents)
             setDisciplines(fetchedDisciplines)
+            setClasses(fetchedClasses)
             setError(null)
         } catch (err: any) {
             setError(err.message)
@@ -71,6 +75,9 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
         try {
             if (!formData.studentName || !formData.studentIdentifier) {
                 throw new Error("O nome e identificador do aluno são obrigatórios.")
+            }
+            if (!formData.disciplineId) {
+                throw new Error("Selecione uma disciplina. O lançamento geral não é permitido no momento.")
             }
 
             const gradeToSave = {
@@ -201,7 +208,19 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                         </h2>
                         <p className="text-muted-foreground mt-1">Gere as notas de alunos matriculados e alunos de prova pública.</p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2 items-center">
+                        <div className="flex items-center gap-2 bg-muted px-3 py-1 rounded-lg border border-border">
+                            <span className="text-xs font-bold text-muted-foreground uppercase">Filtrar Turma:</span>
+                            <select
+                                className="bg-transparent border-none text-sm font-medium focus:ring-0 cursor-pointer"
+                                value={selectedClassId}
+                                onChange={(e) => setSelectedClassId(e.target.value)}
+                            >
+                                <option value="all">Todas as Turmas</option>
+                                {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                        </div>
+
                         {isMaster && (
                             <>
                                 <Button 
@@ -269,7 +288,9 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                                             }}
                                         >
                                             <option value="">Buscar Aluno Matriculado...</option>
-                                            {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                            {students
+                                                .filter(s => selectedClassId === "all" || s.class_id === selectedClassId)
+                                                .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                         </select>
                                     )}
                                 </div>
@@ -353,7 +374,19 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                 {/* Listagem de Notas */}
                 <div className="space-y-8">
                     {['matriculados', 'publicos'].map((tipo) => {
-                        const list = grades.filter(g => tipo === 'publicos' ? g.isPublic : !g.isPublic)
+                        let list = grades.filter(g => tipo === 'publicos' ? g.isPublic : !g.isPublic)
+                        
+                        // Apply Turma Filter
+                        if (selectedClassId !== "all" && tipo === 'matriculados') {
+                            list = list.filter(g => {
+                                const student = students.find(s => 
+                                    s.cpf === g.studentIdentifier || 
+                                    s.enrollment_number === g.studentIdentifier || 
+                                    s.email === g.studentIdentifier
+                                )
+                                return student?.class_id === selectedClassId
+                            })
+                        }
                         if (list.length === 0) return null
 
                         return (
