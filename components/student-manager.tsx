@@ -4,8 +4,9 @@ import { useState, useEffect, useMemo } from "react"
 import {
     Users, Plus, ShieldCheck, Mail, Loader2, CheckCircle2, User, Phone,
     MapPin, Building2, UserCircle2, MessageSquare, Search, Pencil, Trash2,
-    X, AlertTriangle, Eye, EyeOff, BookOpen, MessageCircle, Download
+    X, AlertTriangle, Eye, EyeOff, BookOpen, MessageCircle, Download, FileText
 } from "lucide-react"
+import { printEnrollmentCertificatePDF } from "@/lib/pdf"
 import jsPDF from "jspdf"
 import "jspdf-autotable"
 import { Button } from "@/components/ui/button"
@@ -537,6 +538,14 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
                                                     onClick={() => openEdit(stu)}
                                                 >
                                                     <Pencil className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    size="sm" variant="ghost"
+                                                    className="h-8 w-8 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                                    title="Comprovante de Matrícula"
+                                                    onClick={() => printEnrollmentCertificatePDF(stu, cls?.name || "N/A")}
+                                                >
+                                                    <FileText className="h-4 w-4" />
                                                 </Button>
                                                 {/* WhatsApp */}
                                                 <Button

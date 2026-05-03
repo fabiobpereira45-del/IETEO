@@ -346,7 +346,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                         </div>
                     ) : (
                         <div className="w-full max-w-[1600px] mx-auto">
-                            {tab === "overview" && <OverviewTab profile={profile} charges={charges} disciplines={disciplines} onTabChange={setTab} />}
+                            {tab === "overview" && profile && <OverviewTab profile={profile} charges={charges} disciplines={disciplines} myClass={myClass} onTabChange={setTab} />}
                             {tab === "journey" && (
                                 <div className="space-y-8">
                                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

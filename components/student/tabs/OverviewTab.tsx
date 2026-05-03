@@ -11,10 +11,13 @@ interface OverviewTabProps {
   profile: StudentProfile
   charges: FinancialCharge[]
   disciplines: Discipline[]
+  myClass: any // added
   onTabChange: (tab: Tab) => void
 }
 
-export function OverviewTab({ profile, charges, disciplines, onTabChange }: OverviewTabProps) {
+import { printEnrollmentCertificatePDF } from "@/lib/pdf"
+
+export function OverviewTab({ profile, charges, disciplines, myClass, onTabChange }: OverviewTabProps) {
   const now = new Date()
   const currentMonth = (now.getMonth() + 1).toString().padStart(2, '0')
   const currentYear = now.getFullYear().toString()
@@ -69,6 +72,15 @@ export function OverviewTab({ profile, charges, disciplines, onTabChange }: Over
               <Button variant="ghost" className="text-white hover:bg-white/10 font-bold rounded-2xl h-12 px-8" onClick={() => onTabChange("materials")}>
                 Materiais
               </Button>
+              {profile.status === 'active' && (
+                <Button 
+                    variant="outline" 
+                    className="hidden lg:flex border-white/30 text-white hover:bg-white/10 font-bold rounded-2xl h-12 px-8 gap-2" 
+                    onClick={() => printEnrollmentCertificatePDF(profile, myClass?.name || 'Teologia Ministerial')}
+                >
+                    <FileText className="h-4 w-4" /> Comprovante
+                </Button>
+              )}
             </div>
           </div>
         </div>

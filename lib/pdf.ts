@@ -1309,3 +1309,236 @@ export function printProLaboreReceipt(data: {
   win.document.close();
   win.onload = () => win.print();
 }
+
+export function printEnrollmentCertificatePDF(student: StudentProfile, className: string): void {
+  const issueDate = new Date().toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  });
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Comprovante de Matrícula — ${student.name}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Playfair+Display:wght@700&display=swap');
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: 'Inter', sans-serif; 
+      color: #1e293b; 
+      background: #f8fafc; 
+      padding: 40px;
+    }
+    
+    .certificate-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 60px;
+      border: 1px solid #e2e8f0;
+      position: relative;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .certificate-container::before {
+      content: '';
+      position: absolute;
+      top: 10px; left: 10px; right: 10px; bottom: 10px;
+      border: 2px solid #1e3a8a;
+      pointer-events: none;
+    }
+    .certificate-container::after {
+      content: '';
+      position: absolute;
+      top: 15px; left: 15px; right: 15px; bottom: 15px;
+      border: 1px solid #94a3b8;
+      pointer-events: none;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 50px;
+      position: relative;
+    }
+
+    .logo-text {
+      font-family: 'Playfair Display', serif;
+      font-size: 32px;
+      font-weight: 700;
+      color: #1e3a8a;
+      margin-bottom: 4px;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+    }
+
+    .doc-title {
+      text-align: center;
+      margin-top: 60px;
+      margin-bottom: 40px;
+    }
+
+    .doc-title h1 {
+      font-size: 28px;
+      font-weight: 800;
+      color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .content {
+      font-size: 16px;
+      line-height: 1.8;
+      color: #334155;
+      text-align: justify;
+      margin-bottom: 60px;
+    }
+
+    .student-name {
+      font-weight: 800;
+      color: #1e3a8a;
+      text-decoration: underline;
+    }
+
+    .details-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 40px 0;
+      padding: 24px;
+      background: #f1f5f9;
+      border-radius: 8px;
+    }
+
+    .detail-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .detail-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .detail-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    .footer {
+      margin-top: 80px;
+      text-align: center;
+    }
+
+    .signature-line {
+      width: 250px;
+      border-top: 1px solid #1e293b;
+      margin: 0 auto 10px;
+    }
+
+    .signature-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    .watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-30deg);
+      font-size: 120px;
+      font-weight: 900;
+      color: rgba(30, 58, 138, 0.03);
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .auth-code {
+      position: absolute;
+      bottom: 30px;
+      left: 40px;
+      font-size: 9px;
+      color: #94a3b8;
+      font-family: monospace;
+    }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .certificate-container { box-shadow: none; border: none; }
+      .certificate-container::before, .certificate-container::after { display: block; }
+    }
+  </style>
+</head>
+<body>
+  <div class="certificate-container">
+    <div class="watermark">IETEO OFICIAL</div>
+    
+    <div class="header">
+      <div class="logo-text">IETEO</div>
+      <div class="subtitle">Instituto de Ensino Teológico</div>
+    </div>
+
+    <div class="doc-title">
+      <h1>Comprovante de Matrícula</h1>
+    </div>
+
+    <div class="content">
+      Declaramos, para os devidos fins, que o(a) aluno(a) <span class="student-name">${student.name}</span> está regularmente matriculado(a) nesta instituição de ensino, cursando o programa acadêmico de Teologia Ministerial, sob a situação de <strong>MATRÍCULA ATIVA</strong>.
+    </div>
+
+    <div class="details-grid">
+      <div class="detail-item">
+        <span class="detail-label">Número de Matrícula</span>
+        <span class="detail-value">${student.enrollment_number || 'NÃO ATRIBUÍDO'}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Turma Atual</span>
+        <span class="detail-value">${className}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">CPF</span>
+        <span class="detail-value">${student.cpf || 'NÃO INFORMADO'}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Data de Emissão</span>
+        <span class="detail-value">${issueDate}</span>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="signature-line"></div>
+      <div class="signature-title">Diretoria Acadêmica - IETEO</div>
+      <div style="font-size: 10px; color: #94a3b8; margin-top: 20px;">
+        Este documento foi gerado eletronicamente e possui validade jurídica como comprovante oficial de vínculo acadêmico.
+      </div>
+    </div>
+
+    <div class="auth-code">
+      VALIDAÇÃO: ${student.id.substring(0, 8).toUpperCase()}-${new Date().getTime().toString(16).toUpperCase()}
+    </div>
+  </div>
+</body>
+</html>`
+
+  const win = window.open("", "_blank")
+  if (!win) return
+  win.document.write(html)
+  win.document.close()
+  win.onload = () => win.print()
+}
