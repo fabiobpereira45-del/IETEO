@@ -472,6 +472,7 @@ export function FinancialManager({ onRefresh, month, year, scope }: {
                             <SelectItem value="paying">Pagantes (Sem Bolsa)</SelectItem>
                             <SelectItem value="bolsa100">Bolsa 100% (Integral)</SelectItem>
                             <SelectItem value="bolsa50">Bolsa 50% (Parcial)</SelectItem>
+                            <SelectItem value="pending">Com Pendência</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -500,7 +501,16 @@ export function FinancialManager({ onRefresh, month, year, scope }: {
                                 const matchBolsa = searchBolsa === "all" || (
                                     searchBolsa === "paying" ? !studentCharges.some(c => c.status === 'bolsa100' || c.status === 'bolsa50') :
                                     searchBolsa === "bolsa100" ? studentCharges.some(c => c.status === 'bolsa100') :
-                                    searchBolsa === "bolsa50" ? studentCharges.some(c => c.status === 'bolsa50') : true
+                                    searchBolsa === "bolsa50" ? studentCharges.some(c => c.status === 'bolsa50') :
+                                    searchBolsa === "pending" ? charges.some(c => 
+                                        c.studentId === s.id && 
+                                        c.status !== 'paid' && 
+                                        c.status !== 'cancelled' && 
+                                        c.status !== 'bolsa100' && 
+                                        c.status !== 'bolsa50' && 
+                                        c.status !== 'isento' &&
+                                        c.dueDate < new Date().toISOString().split('T')[0]
+                                    ) : true
                                 )
                                 return matchName && matchEnroll && matchClass && matchBolsa
                             }).length} Alunos Filtrados
@@ -528,7 +538,16 @@ export function FinancialManager({ onRefresh, month, year, scope }: {
                                     const matchBolsa = searchBolsa === "all" || (
                                         searchBolsa === "paying" ? !studentCharges.some(c => c.status === 'bolsa100' || c.status === 'bolsa50') :
                                         searchBolsa === "bolsa100" ? studentCharges.some(c => c.status === 'bolsa100') :
-                                        searchBolsa === "bolsa50" ? studentCharges.some(c => c.status === 'bolsa50') : true
+                                        searchBolsa === "bolsa50" ? studentCharges.some(c => c.status === 'bolsa50') :
+                                        searchBolsa === "pending" ? charges.some(c => 
+                                            c.studentId === s.id && 
+                                            c.status !== 'paid' && 
+                                            c.status !== 'cancelled' && 
+                                            c.status !== 'bolsa100' && 
+                                            c.status !== 'bolsa50' && 
+                                            c.status !== 'isento' &&
+                                            c.dueDate < new Date().toISOString().split('T')[0]
+                                        ) : true
                                     )
                                     return matchName && matchEnroll && matchClass && matchBolsa
                                 })
