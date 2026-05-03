@@ -19,6 +19,7 @@ import {
 import { printGradesReportPDF } from "@/lib/pdf"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { Switch } from "@/components/ui/switch"
+import { useMemo, useCallback } from "react"
 
 export function GradesManager({ isMaster }: { isMaster: boolean }) {
     const [grades, setGrades] = useState<StudentGrade[]>([])
@@ -35,6 +36,7 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
     const [releasing, setReleasing] = useState(false)
     const [gradeSettings, setGradeSettings] = useState<GradeSettings | null>(null)
     const [currentPage, setCurrentPage] = useState(1)
+    const [formDataLoaded, setFormDataLoaded] = useState(false) // Lazy-load form data
     const PAGE_SIZE = 20
 
     // Form State
@@ -51,20 +53,15 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
         customDivisor: "4"
     })
 
-    const loadData = async () => {
+    // Core load: only grades + settings (fast)
+    const loadData = useCallback(async () => {
         try {
             setLoading(true)
-            const [fetchedGrades, fetchedStudents, fetchedDisciplines, fetchedClasses, fetchedSettings] = await Promise.all([
+            const [fetchedGrades, fetchedSettings] = await Promise.all([
                 getStudentGrades(),
-                getStudents(),
-                getDisciplines(),
-                getClasses(),
                 getGradeSettings()
             ])
             setGrades(fetchedGrades)
-            setStudents(fetchedStudents)
-            setDisciplines(fetchedDisciplines)
-            setClasses(fetchedClasses)
             setGradeSettings(fetchedSettings)
             setError(null)
         } catch (err: any) {
@@ -72,7 +69,21 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
         } finally {
             setLoading(false)
         }
-    }
+    }, [])
+
+    // Lazy load form data (students, disciplines, classes) only when needed
+    const ensureFormData = useCallback(async () => {
+        if (formDataLoaded) return
+        const [fetchedStudents, fetchedDisciplines, fetchedClasses] = await Promise.all([
+            getStudents(),
+            getDisciplines(),
+            getClasses()
+        ])
+        setStudents(fetchedStudents)
+        setDisciplines(fetchedDisciplines)
+        setClasses(fetchedClasses)
+        setFormDataLoaded(true)
+    }, [formDataLoaded])
 
     useEffect(() => {
         loadData()
@@ -124,21 +135,21 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
         }
     }
 
-    const calculateAverage = (grade: StudentGrade) => {
+    const calculateAverage = useCallback((grade: StudentGrade) => {
         if (!gradeSettings) return "0.00"
         return calculateGlobalAverage(grade, gradeSettings)
-    }
+    }, [gradeSettings])
 
-    const toggleRelease = async (grade: StudentGrade) => {
+    const toggleRelease = useCallback(async (grade: StudentGrade) => {
         try {
             await saveStudentGrade({ ...grade, isPublic: !grade.isPublic }, grade.id);
             loadData();
         } catch (err: any) {
             alert("Erro ao alterar visibilidade: " + err.message);
         }
-    }
+    }, [loadData])
 
-    const handleSync = async () => {
+    const handleSync = useCallback(async () => {
         try {
             setSyncLoading(true)
             const { totalAffected } = await bulkSyncGrades()
@@ -149,9 +160,9 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
         } finally {
             setSyncLoading(false)
         }
-    }
+    }, [loadData])
 
-    const handleReleaseAll = async () => {
+    const handleReleaseAll = useCallback(async () => {
         const msg = selectedClassId === "all" 
             ? "Deseja liberar as notas e médias de TODOS os alunos para visualização?"
             : "Deseja liberar as notas de TODOS os alunos da TURMA SELECIONADA?"
@@ -166,7 +177,7 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
         } finally {
             setReleasing(false)
         }
-    }
+    }, [selectedClassId, loadData])
 
 
     if (loading) {
@@ -238,6 +249,7 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                             Exportar PDF
                         </Button>
                         <Button onClick={() => {
+                            ensureFormData()
                             setFormData({
                                 studentIdentifier: "", studentName: "", disciplineId: "", isPublic: false,
                                 examGrade: "", worksGrade: "", seminarGrade: "", participationBonus: "", attendanceScore: "", customDivisor: "4"
@@ -438,6 +450,7 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                                                              {grade.isPublic ? "Publicado" : "Privado"}
                                                          </Button>
                                                         <Button variant="outline" size="sm" onClick={() => {
+                                                            ensureFormData()
                                                             setFormData(grade)
                                                             setIsEditing(grade.id)
                                                             window.scrollTo({ top: 0, behavior: 'smooth' })

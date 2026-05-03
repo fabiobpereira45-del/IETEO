@@ -2149,7 +2149,11 @@ export async function unlockAttendance(id: string): Promise<void> {
 
 export async function getStudentGrades(): Promise<StudentGrade[]> {
   const supabase = createClient()
-  const { data, error } = await supabase.from('student_grades').select('*').order('created_at', { ascending: false })
+  const { data, error } = await supabase
+    .from('student_grades')
+    .select('id, student_identifier, student_name, discipline_id, is_public, exam_grade, works_grade, seminar_grade, participation_bonus, attendance_score, custom_divisor, created_at, student_id')
+    .order('created_at', { ascending: false })
+    .limit(500) // Safety cap - prevents unbounded queries
   if (error) throw new Error(error.message)
   return (data || []).map(mapStudentGrade)
 }
