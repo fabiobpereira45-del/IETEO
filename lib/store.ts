@@ -533,6 +533,48 @@ export async function updateFinancialSettings(settings: Omit<FinancialSettings, 
     .match({ type: 'monthly', status: 'bolsa100' })
 }
 
+export async function getGradeSettings(): Promise<GradeSettings | null> {
+  const supabase = createClient()
+  const { data, error } = await supabase.from('grade_settings').select('*').maybeSingle()
+  if (error) return null
+  if (!data) {
+    // Default settings if none exist
+    return {
+      id: 'default',
+      examWeight: 10,
+      testWeight: 0,
+      workWeight: 0,
+      presenceValue: 0.5,
+      bonusWeight: 0,
+      updatedAt: new Date().toISOString()
+    }
+  }
+  return {
+    id: data.id,
+    examWeight: data.exam_weight,
+    testWeight: data.test_weight,
+    work_weight: data.work_weight,
+    presenceValue: data.presence_value,
+    bonusWeight: data.bonus_weight,
+    updatedAt: data.updated_at
+  }
+}
+
+export async function saveGradeSettings(settings: Partial<GradeSettings>): Promise<void> {
+  const supabase = createClient()
+  const dbData = {
+    exam_weight: settings.examWeight,
+    test_weight: settings.testWeight,
+    work_weight: settings.workWeight,
+    presence_value: settings.presenceValue,
+    bonus_weight: settings.bonusWeight,
+    updated_at: new Date().toISOString()
+  }
+
+  const { error } = await supabase.from('grade_settings').upsert({ id: 'global', ...dbData })
+  if (error) throw new Error(error.message)
+}
+
 
 export async function getClasses(): Promise<ClassRoom[]> {
   const supabase = createClient()
