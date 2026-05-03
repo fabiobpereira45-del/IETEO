@@ -163,12 +163,15 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
     }
 
     const handleReleaseAll = async () => {
-        if (!confirm("Deseja liberar as notas e médias de TODOS os alunos listados para visualização?")) return
+        const msg = selectedClassId === "all" 
+            ? "Deseja liberar as notas e médias de TODOS os alunos para visualização?"
+            : "Deseja liberar as notas de TODOS os alunos da TURMA SELECIONADA?"
+        if (!confirm(msg)) return
         try {
             setLoading(true)
-            await releaseAllGrades()
+            await releaseAllGrades(selectedClassId)
             await loadData()
-            alert("Todas as notas foram liberadas com sucesso!")
+            alert("Notas liberadas com sucesso!")
         } catch (err: any) {
             alert("Erro ao liberar todas as notas: " + err.message)
         } finally {

@@ -2240,9 +2240,24 @@ export async function deleteStudentGrade(id: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
-export async function releaseAllGrades(): Promise<void> {
+export async function releaseAllGrades(classId?: string): Promise<void> {
   const supabase = createClient()
-  const { error } = await supabase.from('student_grades').update({ is_public: true }).eq('is_public', false)
+  let query = supabase.from('student_grades').update({ is_public: true })
+  
+  if (classId && classId !== 'all') {
+      // Since student_grades doesn't have class_id, we need to find students first
+      const { data: students } = await supabase.from('students').select('cpf, enrollment_number, email').eq('class_id', classId)
+      if (students && students.length > 0) {
+          const identifiers = students.flatMap(s => [s.cpf, s.enrollment_number, s.email].filter(Boolean))
+          query = query.in('student_identifier', identifiers)
+      } else {
+          return // No students in this class
+      }
+  } else {
+      query = query.not('is_public', 'eq', true)
+  }
+
+  const { error } = await query
   if (error) throw new Error(error.message)
 }
 
