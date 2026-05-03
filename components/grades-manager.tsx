@@ -34,6 +34,8 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
     const [selectedClassId, setSelectedClassId] = useState<string>("all")
     const [releasing, setReleasing] = useState(false)
     const [gradeSettings, setGradeSettings] = useState<GradeSettings | null>(null)
+    const [currentPage, setCurrentPage] = useState(1)
+    const PAGE_SIZE = 20
 
     // Form State
     const [formData, setFormData] = useState<any>({
@@ -382,6 +384,11 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                         }
                         if (list.length === 0) return null
 
+                        // Paginate
+                        const totalPages = Math.ceil(list.length / PAGE_SIZE)
+                        const start = (currentPage - 1) * PAGE_SIZE
+                        const paginated = list.slice(start, start + PAGE_SIZE)
+
                         return (
                             <div key={tipo} className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
                                 <div className="bg-muted/50 px-6 py-4 border-b border-border">
@@ -390,7 +397,7 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                                     </h3>
                                 </div>
                                 <div className="divide-y divide-border">
-                                    {list.map((grade) => (
+                                    {paginated.map((grade) => (
                                         <div key={grade.id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                                             <div>
                                                 <h4 className="font-bold text-foreground text-lg">{grade.studentName}</h4>
@@ -416,7 +423,7 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
 
                                             <div className="flex items-center gap-6">
                                                 <div className="text-center bg-muted px-4 py-2 rounded-lg border border-border min-w-[100px]">
-                                                    <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Média (/{grade.customDivisor})</div>
+                                                    <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Média (/{gradeSettings?.divisor || grade.customDivisor})</div>
                                                     <div className={`text-2xl font-black ${parseFloat(calculateAverage(grade)) >= 7 ? 'text-green-600' : 'text-amber-600'}`}>
                                                         {calculateAverage(grade)}
                                                     </div>
@@ -451,6 +458,23 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                             </div>
                         )
                     })}
+
+                    {/* Pagination Controls */}
+                    {grades.length > PAGE_SIZE && (
+                        <div className="flex items-center justify-between bg-card border border-border rounded-xl p-4">
+                            <span className="text-sm text-muted-foreground">
+                                Exibindo {Math.min((currentPage - 1) * PAGE_SIZE + 1, grades.length)}–{Math.min(currentPage * PAGE_SIZE, grades.length)} de {grades.length} registros
+                            </span>
+                            <div className="flex gap-2">
+                                <Button variant="outline" size="sm" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
+                                    ← Anterior
+                                </Button>
+                                <Button variant="outline" size="sm" disabled={currentPage * PAGE_SIZE >= grades.length} onClick={() => setCurrentPage(p => p + 1)}>
+                                    Próxima →
+                                </Button>
+                            </div>
+                        </div>
+                    )}
 
                     {grades.length === 0 && !isCreating && (
                         <div className="bg-card border border-border border-dashed rounded-xl p-12 text-center text-muted-foreground">
