@@ -107,7 +107,10 @@ export function GradeConfig() {
                                     type="number" 
                                     step="0.1" 
                                     value={settings.examWeight} 
-                                    onChange={e => setSettings({...settings, examWeight: parseFloat(e.target.value) || 0})}
+                                    onChange={e => {
+                                        const val = e.target.value.replace(',', '.')
+                                        setSettings({...settings, examWeight: parseFloat(val) || 0})
+                                    }}
                                 />
                                 <p className="text-[10px] text-muted-foreground italic">Pontuação máxima que a prova pode atingir.</p>
                             </div>
@@ -118,7 +121,10 @@ export function GradeConfig() {
                                     type="number" 
                                     step="0.1" 
                                     value={settings.testWeight} 
-                                    onChange={e => setSettings({...settings, testWeight: parseFloat(e.target.value) || 0})}
+                                    onChange={e => {
+                                        const val = e.target.value.replace(',', '.')
+                                        setSettings({...settings, testWeight: parseFloat(val) || 0})
+                                    }}
                                 />
                             </div>
 
@@ -128,7 +134,10 @@ export function GradeConfig() {
                                     type="number" 
                                     step="0.1" 
                                     value={settings.workWeight} 
-                                    onChange={e => setSettings({...settings, workWeight: parseFloat(e.target.value) || 0})}
+                                    onChange={e => {
+                                        const val = e.target.value.replace(',', '.')
+                                        setSettings({...settings, workWeight: parseFloat(val) || 0})
+                                    }}
                                 />
                             </div>
 
@@ -138,7 +147,10 @@ export function GradeConfig() {
                                     type="number" 
                                     step="0.1" 
                                     value={settings.bonusWeight} 
-                                    onChange={e => setSettings({...settings, bonusWeight: parseFloat(e.target.value) || 0})}
+                                    onChange={e => {
+                                        const val = e.target.value.replace(',', '.')
+                                        setSettings({...settings, bonusWeight: parseFloat(val) || 0})
+                                    }}
                                 />
                             </div>
                         </div>
@@ -158,7 +170,10 @@ export function GradeConfig() {
                                     type="number" 
                                     step="0.01" 
                                     value={settings.presenceValue} 
-                                    onChange={e => setSettings({...settings, presenceValue: parseFloat(e.target.value) || 0})}
+                                    onChange={e => {
+                                        const val = e.target.value.replace(',', '.')
+                                        setSettings({...settings, presenceValue: parseFloat(val) || 0})
+                                    }}
                                     className="border-amber-200 focus:ring-amber-500"
                                 />
                                 <div className="bg-amber-50 p-3 rounded-lg border border-amber-100 text-[11px] text-amber-800 leading-relaxed">

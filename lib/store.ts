@@ -2365,14 +2365,19 @@ export async function syncAllAttendanceScores(): Promise<void> {
   const settings = await getGradeSettings()
   if (!settings) throw new Error("Configurações não encontradas.")
   
+  console.log("DEBUG: Iniciando sincronização retrospectiva...");
+  
   // 1. Get all presences
   const { data: allAtt, error: attError } = await supabase
     .from('attendances')
     .select('student_id, discipline_id')
     .eq('is_present', true)
   
-  if (attError) throw new Error(attError.message)
-  if (!allAtt) return
+  if (attError) throw new Error("Erro ao buscar presenças: " + attError.message)
+  if (!allAtt || allAtt.length === 0) {
+    console.log("DEBUG: Nenhuma presença encontrada para sincronizar.");
+    return
+  }
 
   // 2. Group by student and discipline
   const counts: Record<string, number> = {}
@@ -2381,19 +2386,46 @@ export async function syncAllAttendanceScores(): Promise<void> {
     counts[key] = (counts[key] || 0) + 1
   })
 
+  console.log(`DEBUG: Processando ${Object.keys(counts).length} pares aluno/disciplina...`);
+
   // 3. Update student_grades
-  // Note: We do this in a loop, but we could optimize with a RPC if needed.
-  // For now, let's just process the existing records.
+  // Optimization: Fetch all students to have their identifiers (email/cpf) ready
+  const { data: students } = await supabase.from('students').select('id, name, email, cpf')
+  const studentMap = new RecordMap<any>(students || [], 'id')
+
   const updates = Object.entries(counts).map(async ([key, count]) => {
     const [studentId, disciplineId] = key.split(':')
     const score = Math.min(count * settings.presenceValue, 10.0)
+    const student = studentMap[studentId]
     
-    return supabase.from('student_grades')
+    // Attempt update by student_id
+    const { data: updated, error: uErr } = await supabase.from('student_grades')
       .update({ attendance_score: score })
-      .match({ student_id: studentId, discipline_id: disciplineId })
+      .eq('student_id', studentId)
+      .eq('discipline_id', disciplineId)
+      .select()
+
+    // If no record found by student_id, try by student_identifier (legacy)
+    if (!uErr && (!updated || updated.length === 0) && student) {
+      await supabase.from('student_grades')
+        .update({ attendance_score: score, student_id: studentId }) // Also backfill the ID
+        .eq('student_identifier', student.email)
+        .eq('discipline_id', disciplineId)
+    }
   })
 
   await Promise.all(updates)
+  console.log("DEBUG: Sincronização concluída.");
+}
+
+// Helper class for local mapping
+class RecordMap<T> {
+    [key: string]: T;
+    constructor(items: T[], keyField: keyof T) {
+        items.forEach(item => {
+            this[String(item[keyField])] = item;
+        });
+    }
 }
 
 // ─── Profile / Avatar Management ──────────────────────────────────────────
