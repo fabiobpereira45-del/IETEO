@@ -318,7 +318,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                             variant="ghost"
                             size="icon"
                             onClick={handlePortalLogout}
-                            className="text-red-500 hover:text-red-600 hover:bg-red-50 sm:hidden h-10 w-10"
+                            className="text-red-500 hover:text-red-600 hover:bg-red-50 h-10 w-10"
                             title="Sair do Portal"
                         >
                             <LogOut className="h-5 w-5" />
