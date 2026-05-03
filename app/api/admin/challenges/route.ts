@@ -57,11 +57,22 @@ export async function DELETE(request: Request) {
         if (!id) return NextResponse.json({ error: "ID is required" }, { status: 400 })
         
         const supabase = createAdminClient()
+        
+        // Check for dependencies first to give a better error
+        const { count: subCount } = await supabase.from('challenge_submissions').select('*', { count: 'exact', head: true }).eq('challenge_id', id)
+        
+        if (subCount && subCount > 0) {
+            return NextResponse.json({ 
+                error: `Não é possível excluir esta missão pois ela possui ${subCount} respostas de alunos registradas. Exclua as respostas primeiro ou desative a missão.` 
+            }, { status: 400 })
+        }
+
         const { error } = await supabase.from('challenges').delete().eq('id', id)
         
         if (error) throw error
         return NextResponse.json({ success: true })
     } catch (err: any) {
+        console.error("DELETE Challenge Error:", err)
         return NextResponse.json({ error: err.message }, { status: 500 })
     }
 }

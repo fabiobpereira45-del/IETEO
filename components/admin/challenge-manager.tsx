@@ -176,8 +176,13 @@ export function ChallengeManager() {
 
   async function handleDelete(id: string) {
     if (!confirm("Tem certeza que deseja excluir esta missão?")) return
-    await deleteChallenge(id)
-    setChallenges(prev => prev.filter(c => c.id !== id))
+    try {
+      await deleteChallenge(id)
+      setChallenges(prev => prev.filter(c => c.id !== id))
+    } catch (error: any) {
+      console.error("Erro ao excluir missão:", error)
+      alert("Erro ao excluir missão: " + (error.message || "Verifique as dependências (submissões de alunos) ou o console."))
+    }
   }
 
   return (
