@@ -225,26 +225,24 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                         </div>
 
                         {isMaster && (
-                            <>
-                                <Button 
-                                    variant="outline" 
-                                    onClick={handleSync} 
-                                    disabled={syncLoading}
-                                    className="border-blue-600 text-blue-600 hover:bg-blue-50"
-                                >
-                                    {syncLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                                    Sincronizar Vínculos
-                                </Button>
-                                <Button variant="outline" onClick={handleReleaseAll} className="border-green-600 text-green-600 hover:bg-green-50">
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    Liberar Todas
-                                </Button>
-                                <Button variant="outline" onClick={() => printGradesReportPDF(grades, "Relatório Geral de Notas")} className="border-primary text-primary hover:bg-primary/10">
-                                    <Download className="h-4 w-4 mr-2" />
-                                    Exportar PDF
-                                </Button>
-                            </>
+                            <Button 
+                                variant="outline" 
+                                onClick={handleSync} 
+                                disabled={syncLoading}
+                                className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                            >
+                                {syncLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                                Sincronizar Vínculos
+                            </Button>
                         )}
+                        <Button variant="outline" onClick={handleReleaseAll} className="border-green-600 text-green-600 hover:bg-green-50">
+                            <Eye className="h-4 w-4 mr-2" />
+                            Liberar Todas
+                        </Button>
+                        <Button variant="outline" onClick={() => printGradesReportPDF(grades, "Relatório Geral de Notas")} className="border-primary text-primary hover:bg-primary/10">
+                            <Download className="h-4 w-4 mr-2" />
+                            Exportar PDF
+                        </Button>
                         <Button onClick={() => {
                             setFormData({
                                 studentIdentifier: "", studentName: "", disciplineId: "", isPublic: false,
