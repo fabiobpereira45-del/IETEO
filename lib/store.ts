@@ -2242,23 +2242,45 @@ export async function deleteStudentGrade(id: string): Promise<void> {
 
 export async function releaseAllGrades(classId?: string): Promise<void> {
   const supabase = createClient()
-  let query = supabase.from('student_grades').update({ is_public: true })
   
   if (classId && classId !== 'all') {
-      // Since student_grades doesn't have class_id, we need to find students first
-      const { data: students } = await supabase.from('students').select('cpf, enrollment_number, email').eq('class_id', classId)
-      if (students && students.length > 0) {
-          const identifiers = students.flatMap(s => [s.cpf, s.enrollment_number, s.email].filter(Boolean))
-          query = query.in('student_identifier', identifiers)
-      } else {
-          return // No students in this class
-      }
-  } else {
-      query = query.not('is_public', 'eq', true)
-  }
+    // 1. Find students in this class
+    const { data: students, error: sErr } = await supabase
+      .from('students')
+      .select('cpf, enrollment_number, email')
+      .eq('class_id', classId)
+    
+    if (sErr) throw new Error(sErr.message)
+    
+    if (students && students.length > 0) {
+      // 2. Extract all possible identifiers (CPF, enrollment, email)
+      const identifiers = Array.from(new Set(
+        students.flatMap(s => [
+          s.cpf?.replace(/\D/g, ''), 
+          s.enrollment_number, 
+          s.email?.toLowerCase().trim()
+        ].filter(Boolean))
+      ))
 
-  const { error } = await query
-  if (error) throw new Error(error.message)
+      if (identifiers.length > 0) {
+        const { error: uErr } = await supabase
+          .from('student_grades')
+          .update({ is_public: true })
+          .in('student_identifier', identifiers)
+        
+        if (uErr) throw new Error(uErr.message)
+      }
+    }
+  } else {
+    // 3. Global Release: Update all records where is_public is not true
+    // We use a dummy filter that is always true for all records (id is not null)
+    const { error: uErr } = await supabase
+      .from('student_grades')
+      .update({ is_public: true })
+      .filter('id', 'neq', '00000000-0000-0000-0000-000000000000')
+    
+    if (uErr) throw new Error(uErr.message)
+  }
 }
 
 // ─── Profile / Avatar Management ──────────────────────────────────────────

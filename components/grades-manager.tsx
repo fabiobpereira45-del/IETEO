@@ -31,6 +31,7 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
     const [classes, setClasses] = useState<ClassRoom[]>([])
     const [selectedClassId, setSelectedClassId] = useState<string>("all")
+    const [releasing, setReleasing] = useState(false)
 
     // Form State
     const [formData, setFormData] = useState<any>({
@@ -168,14 +169,14 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
             : "Deseja liberar as notas de TODOS os alunos da TURMA SELECIONADA?"
         if (!confirm(msg)) return
         try {
-            setLoading(true)
+            setReleasing(true)
             await releaseAllGrades(selectedClassId)
             await loadData()
             alert("Notas liberadas com sucesso!")
         } catch (err: any) {
             alert("Erro ao liberar todas as notas: " + err.message)
         } finally {
-            setLoading(false)
+            setReleasing(false)
         }
     }
 
@@ -235,8 +236,13 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                                 Sincronizar Vínculos
                             </Button>
                         )}
-                        <Button variant="outline" onClick={handleReleaseAll} className="border-green-600 text-green-600 hover:bg-green-50">
-                            <Eye className="h-4 w-4 mr-2" />
+                        <Button 
+                            variant="outline" 
+                            onClick={handleReleaseAll} 
+                            disabled={releasing}
+                            className="border-green-600 text-green-600 hover:bg-green-50"
+                        >
+                            {releasing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Eye className="h-4 w-4 mr-2" />}
                             Liberar Todas
                         </Button>
                         <Button variant="outline" onClick={() => printGradesReportPDF(grades, "Relatório Geral de Notas")} className="border-primary text-primary hover:bg-primary/10">
