@@ -63,6 +63,14 @@ export function GradeConfig() {
         </div>
     )
 
+    if (error) return (
+        <div className="p-10 text-center bg-red-50 border border-red-100 rounded-2xl mx-auto max-w-2xl mt-10">
+            <h3 className="text-red-800 font-bold mb-2">Erro ao carregar configurações</h3>
+            <p className="text-red-600 text-sm mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>Tentar Novamente</Button>
+        </div>
+    )
+
     if (!settings) return null
 
     return (

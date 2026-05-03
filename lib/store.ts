@@ -535,28 +535,33 @@ export async function updateFinancialSettings(settings: Omit<FinancialSettings, 
 
 export async function getGradeSettings(): Promise<GradeSettings | null> {
   const supabase = createClient()
-  const { data, error } = await supabase.from('grade_settings').select('*').maybeSingle()
-  if (error) return null
-  if (!data) {
-    // Default settings if none exist
-    return {
-      id: 'default',
-      examWeight: 10,
-      testWeight: 0,
-      workWeight: 0,
-      presenceValue: 0.5,
-      bonusWeight: 0,
-      updatedAt: new Date().toISOString()
+  try {
+    const { data, error } = await supabase.from('grade_settings').select('*').maybeSingle()
+    
+    if (data) {
+      return {
+        id: data.id,
+        examWeight: data.exam_weight,
+        testWeight: data.test_weight,
+        work_weight: data.work_weight,
+        presenceValue: data.presence_value,
+        bonusWeight: data.bonus_weight,
+        updatedAt: data.updated_at
+      }
     }
+  } catch (err) {
+    console.warn("Table grade_settings might be missing, using defaults:", err)
   }
+
+  // Default settings if none exist or table error
   return {
-    id: data.id,
-    examWeight: data.exam_weight,
-    testWeight: data.test_weight,
-    work_weight: data.work_weight,
-    presenceValue: data.presence_value,
-    bonusWeight: data.bonus_weight,
-    updatedAt: data.updated_at
+    id: 'default',
+    examWeight: 10,
+    testWeight: 0,
+    workWeight: 0,
+    presenceValue: 0.5,
+    bonusWeight: 0,
+    updatedAt: new Date().toISOString()
   }
 }
 
