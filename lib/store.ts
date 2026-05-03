@@ -68,6 +68,16 @@ export interface StudentGrade {
   createdAt: string;
 }
 
+export interface GradeSettings {
+  id: string;
+  examWeight: number;
+  testWeight: number;
+  workWeight: number;
+  presenceValue: number;
+  bonusWeight: number;
+  updatedAt: string;
+}
+
 export type ChallengeType = "riddle" | "quiz" | "reflection" | "decoding"
 
 export interface Challenge {
@@ -2002,7 +2012,9 @@ export async function saveAttendance(studentId: string, disciplineId: string, da
       .eq('discipline_id', disciplineId)
       .maybeSingle();
 
-    const weightPerPresence = 2.5; // Each presence is worth exactly 2.5 points as per user request
+    // 1.5 Get Grade Settings for presence value
+    const gSettings = await getGradeSettings();
+    const weightPerPresence = gSettings?.presenceValue || 0.5;
     const maxAttendanceScore = 10.0;
 
     // 2. Count all presences for this student in this discipline
@@ -2281,6 +2293,60 @@ export async function releaseAllGrades(classId?: string): Promise<void> {
     
     if (uErr) throw new Error(uErr.message)
   }
+}
+
+/**
+ * Standardized average calculation using global settings.
+ * formula: (Grade/10 * Weight) for each category + AttendanceScore (already in points)
+ */
+export function calculateGlobalAverage(grade: StudentGrade, settings: GradeSettings): string {
+  const e = ((grade.examGrade || 0) / 10) * (settings.examWeight || 0)
+  const t = ((grade.seminarGrade || 0) / 10) * (settings.testWeight || 0)
+  const w = ((grade.worksGrade || 0) / 10) * (settings.workWeight || 0)
+  const b = ((grade.participationBonus || 0) / 10) * (settings.bonusWeight || 0)
+  const p = (grade.attendanceScore || 0) // Already calculated as presenceCount * presenceValue
+  
+  return (e + t + w + b + p).toFixed(2)
+}
+
+/**
+ * Retrospectively syncs all attendance scores in student_grades table
+ * based on the current presenceValue in settings.
+ */
+export async function syncAllAttendanceScores(): Promise<void> {
+  const supabase = createClient()
+  const settings = await getGradeSettings()
+  if (!settings) throw new Error("Configurações não encontradas.")
+  
+  // 1. Get all presences
+  const { data: allAtt, error: attError } = await supabase
+    .from('attendances')
+    .select('student_id, discipline_id')
+    .eq('is_present', true)
+  
+  if (attError) throw new Error(attError.message)
+  if (!allAtt) return
+
+  // 2. Group by student and discipline
+  const counts: Record<string, number> = {}
+  allAtt.forEach(a => {
+    const key = `${a.student_id}:${a.discipline_id}`
+    counts[key] = (counts[key] || 0) + 1
+  })
+
+  // 3. Update student_grades
+  // Note: We do this in a loop, but we could optimize with a RPC if needed.
+  // For now, let's just process the existing records.
+  const updates = Object.entries(counts).map(async ([key, count]) => {
+    const [studentId, disciplineId] = key.split(':')
+    const score = Math.min(count * settings.presenceValue, 10.0)
+    
+    return supabase.from('student_grades')
+      .update({ attendance_score: score })
+      .match({ student_id: studentId, discipline_id: disciplineId })
+  })
+
+  await Promise.all(updates)
 }
 
 // ─── Profile / Avatar Management ──────────────────────────────────────────

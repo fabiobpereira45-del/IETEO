@@ -60,6 +60,7 @@ const ClassManager = dynamic(() => import("@/components/class-manager").then(m =
 const StudentManager = dynamic(() => import("@/components/student-manager").then(m => m.StudentManager), { loading: LoadingFallback })
 const ClassScheduleManager = dynamic(() => import("@/components/class-schedule-manager").then(m => m.ClassScheduleManager), { loading: LoadingFallback })
 const GradesManager = dynamic(() => import("@/components/grades-manager").then(m => m.GradesManager), { loading: LoadingFallback })
+const GradeConfig = dynamic(() => import("@/components/grade-config").then(m => m.GradeConfig), { loading: LoadingFallback })
 const ChallengeManager = dynamic(() => import("@/components/admin/challenge-manager").then(m => m.ChallengeManager), { loading: LoadingFallback })
 const InstitutionalManager = dynamic(() => import("@/components/institutional-manager").then(m => m.InstitutionalManager), { loading: LoadingFallback })
 const OverviewTab = dynamic(() => import("./admin/tabs/OverviewTab").then(m => m.OverviewTab), { loading: LoadingFallback })
@@ -82,7 +83,7 @@ function formatTime(s: number) {
   return `${m}m${sec.toString().padStart(2, "0")}s`
 }
 
-type Tab = "overview" | "students" | "grades" | "submissions" | "questions" | "assessments" | "challenges" | "professors" | "semesters" | "class_schedules" | "materials" | "financial" | "settings" | "chat" | "attendance" | "classes" | "institutional"
+type Tab = "overview" | "students" | "grades" | "submissions" | "questions" | "assessments" | "challenges" | "professors" | "semesters" | "class_schedules" | "materials" | "financial" | "settings" | "chat" | "attendance" | "classes" | "institutional" | "grade_config"
 
 interface Props {
   onLogout: () => void
@@ -154,6 +155,7 @@ export function AdminDashboard({ onLogout }: Props) {
       title: "Administração",
       items: [
         { id: "financial", label: "Financeiro", icon: <DollarSign className="h-4 w-4" />, masterOnly: true },
+        { id: "grade_config", label: "Configuração de Notas", icon: <Calculator className="h-4 w-4" />, masterOnly: true },
         { id: "professors", label: "Professores", icon: <ShieldCheck className="h-4 w-4" />, masterOnly: true },
         { id: "settings", label: "Configurações", icon: <Settings className="h-4 w-4" /> },
       ]
@@ -379,6 +381,7 @@ export function AdminDashboard({ onLogout }: Props) {
               {tab === "financial" && <FinancialDashboard />}
               {tab === "professors" && isMaster && <ProfessorManager />}
               {tab === "institutional" && <InstitutionalManager />}
+              {tab === "grade_config" && isMaster && <GradeConfig />}
               {tab === "settings" && <SettingsTab assessments={assessments} onRefresh={refresh} onLogout={onLogout} />}
             </div>
           )}

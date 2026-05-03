@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import {
     StudentGrade, getStudentGrades, saveStudentGrade, deleteStudentGrade, releaseAllGrades,
-    StudentProfile, getStudents, Discipline, getDisciplines, bulkSyncGrades, getClasses, ClassRoom
+    StudentProfile, getStudents, Discipline, getDisciplines, bulkSyncGrades, getClasses, ClassRoom,
+    getGradeSettings, calculateGlobalAverage, type GradeSettings
 } from "@/lib/store"
 import { printGradesReportPDF } from "@/lib/pdf"
 import { ErrorBoundary } from "@/components/error-boundary"
@@ -32,6 +33,7 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
     const [classes, setClasses] = useState<ClassRoom[]>([])
     const [selectedClassId, setSelectedClassId] = useState<string>("all")
     const [releasing, setReleasing] = useState(false)
+    const [gradeSettings, setGradeSettings] = useState<GradeSettings | null>(null)
 
     // Form State
     const [formData, setFormData] = useState<any>({
@@ -50,16 +52,18 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
     const loadData = async () => {
         try {
             setLoading(true)
-            const [fetchedGrades, fetchedStudents, fetchedDisciplines, fetchedClasses] = await Promise.all([
+            const [fetchedGrades, fetchedStudents, fetchedDisciplines, fetchedClasses, fetchedSettings] = await Promise.all([
                 getStudentGrades(),
                 getStudents(),
                 getDisciplines(),
-                getClasses()
+                getClasses(),
+                getGradeSettings()
             ])
             setGrades(fetchedGrades)
             setStudents(fetchedStudents)
             setDisciplines(fetchedDisciplines)
             setClasses(fetchedClasses)
+            setGradeSettings(fetchedSettings)
             setError(null)
         } catch (err: any) {
             setError(err.message)
@@ -119,26 +123,8 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
     }
 
     const calculateAverage = (grade: StudentGrade) => {
-        // As requested: (Exam + Attendance) / 2
-        // We still allow the old way if other grades are present, 
-        // but the default for automatic migration will be divisor 2.
-        const exam = (parseFloat(grade.examGrade as any) || 0)
-        const attendance = (parseFloat(grade.attendanceScore as any) || 0)
-        
-        // If works/seminar/participation are 0, use the specific formula
-        if (grade.worksGrade === 0 && grade.seminarGrade === 0 && grade.participationBonus === 0) {
-            return ((exam + attendance) / 2).toFixed(2)
-        }
-
-        const total =
-            exam +
-            (parseFloat(grade.worksGrade as any) || 0) +
-            (parseFloat(grade.seminarGrade as any) || 0) +
-            (parseFloat(grade.participationBonus as any) || 0) +
-            attendance
-
-        const divisor = grade.customDivisor > 0 ? grade.customDivisor : 1;
-        return (total / divisor).toFixed(2)
+        if (!gradeSettings) return "0.00"
+        return calculateGlobalAverage(grade, gradeSettings)
     }
 
     const toggleRelease = async (grade: StudentGrade) => {

@@ -2,7 +2,8 @@ import { useEffect, useState } from "react"
 import { FileText, Award, CalendarCheck, Loader2, Calculator, CheckCircle2, Clock } from "lucide-react"
 import {
     type Discipline, type Semester, type StudentSubmission, type Attendance, type Assessment, type StudentGrade,
-    getDisciplines, getSemesters, getSubmissions, getAttendances, getAssessments, getStudentGrades, getStudentAttendances
+    getDisciplines, getSemesters, getSubmissions, getAttendances, getAssessments, getStudentGrades, getStudentAttendances,
+    getGradeSettings, calculateGlobalAverage, type GradeSettings
 } from "@/lib/store"
 
 interface Props {
@@ -17,21 +18,24 @@ export function StudentGradesView({ studentId, studentEmail, studentDoc }: Props
     const [officialGrades, setOfficialGrades] = useState<StudentGrade[]>([])
     const [submissions, setSubmissions] = useState<StudentSubmission[]>([])
     const [attendances, setAttendances] = useState<Attendance[]>([])
+    const [gradeSettings, setGradeSettings] = useState<GradeSettings | null>(null)
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
         async function loadData() {
             setLoading(true)
             try {
-                const [d, sem, sub, allGrades] = await Promise.all([
+                const [d, sem, sub, allGrades, fetchedSettings] = await Promise.all([
                     getDisciplines(),
                     getSemesters(),
                     getSubmissions(),
-                    getStudentGrades()
+                    getStudentGrades(),
+                    getGradeSettings()
                 ])
 
                 setDisciplines(d)
                 setSemesters(sem)
+                setGradeSettings(fetchedSettings)
 
                 // Audit Logs for Debugging
                 console.log("--- AUDIT NOTAS ---")
@@ -95,12 +99,8 @@ export function StudentGradesView({ studentId, studentEmail, studentDoc }: Props
     }
 
     const calculateAverage = (grade: StudentGrade) => {
-        // Formula Requested: (Exam + Presence) / 2
-        const exam = (grade.examGrade || 0)
-        const attendance = (grade.attendanceScore || 0)
-        
-        // Use the simplified formula (sum / 2)
-        return ((exam + attendance) / 2).toFixed(2)
+        if (!gradeSettings) return "0.00"
+        return calculateGlobalAverage(grade, gradeSettings)
     }
 
     return (
