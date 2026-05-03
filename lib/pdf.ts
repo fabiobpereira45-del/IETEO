@@ -306,7 +306,7 @@ export function printBlankAssessmentPDF({ assessment, questions }: Omit<PDFData,
           </div>
           <div style="display:flex;gap:16px;">
             <div style="font-size:14px;color:#334155;white-space:nowrap;">
-              Polo: ___________________________________
+              Turma: ___________________________________
             </div>
             <div style="font-size:14px;color:#334155;white-space:nowrap;">
               Nota: __________
