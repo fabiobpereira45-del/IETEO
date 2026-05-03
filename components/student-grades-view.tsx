@@ -184,7 +184,9 @@ export function StudentGradesView({ studentId, studentEmail, studentDoc }: Props
                                     )}
                                     <div className="mt-4 text-[10px] text-muted-foreground text-right italic font-medium">
                                         Fórmula: {gradeSettings 
-                                            ? `(Prova * ${gradeSettings.examWeight}) + (Teste * ${gradeSettings.testWeight}) + (Trabalho * ${gradeSettings.workWeight}) + Presença`
+                                            ? (gradeSettings.divisor > 1 
+                                                ? `(Soma de Notas) / ${gradeSettings.divisor}`
+                                                : `(Prova * ${gradeSettings.examWeight/10}) + (Teste * ${gradeSettings.testWeight/10}) + (Trabalho * ${gradeSettings.workWeight/10}) + Presença`)
                                             : "(Nota da Prova + Nota de Presença) / 2"}
                                     </div>
                                 </div>

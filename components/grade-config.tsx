@@ -153,6 +153,22 @@ export function GradeConfig() {
                                     }}
                                 />
                             </div>
+
+                            <div className="grid gap-2 pt-2 border-t border-border/50">
+                                <Label className="text-xs uppercase tracking-wider font-bold text-primary">Divisor da Média</Label>
+                                <Input 
+                                    type="number" 
+                                    step="1" 
+                                    min="1"
+                                    value={settings.divisor} 
+                                    onChange={e => {
+                                        const val = e.target.value.replace(',', '.')
+                                        setSettings({...settings, divisor: parseFloat(val) || 1})
+                                    }}
+                                    className="border-primary/20 focus:ring-primary"
+                                />
+                                <p className="text-[10px] text-muted-foreground italic">Se maior que 1, a média será: (Soma de tudo) / Divisor.</p>
+                            </div>
                         </div>
                     </div>
 

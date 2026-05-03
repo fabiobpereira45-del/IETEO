@@ -1,30 +1,23 @@
+const { createClient } = require('@supabase/supabase-js')
 
-const { createClient } = require('@supabase/supabase-js');
+const supabaseUrl = 'https://plwqgvfbkjdnlzgljnef.supabase.co'
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsd3FndmZia2pkbmx6Z2xqbmVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1MDUyMTIsImV4cCI6MjA4ODA4MTIxMn0.WJORz2Q3FbZG1dl7Y1NMSiMwDleVRryPSeXlo0kJdlI'
 
-const supabaseUrl = 'https://plwqgvfbkjdnlzgljnef.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsd3FndmZia2pkbmx6Z2xqbmVmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjUwNTIxMiwiZXhwIjoyMDg4MDgxMjEyfQ.MRAysnDpPqxksxK3xIPWcd_PE9fvJMyA23i6Gl4H1VQ';
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(supabaseUrl, supabaseKey)
 
-async function check() {
-  const { data, error } = await supabase.rpc('get_tables'); // This might not work if the RPC doesn't exist
-  if (error) {
-    // Try querying pg_catalog if we have permissions
-    const { data: tables, error: tError } = await supabase.from('pg_catalog.pg_tables').select('tablename').eq('schemaname', 'public');
-     if (tError) {
-        console.error('Tables Error:', tError);
-        // Try another way: query information_schema
-        const { data: isTables, error: isError } = await supabase.from('information_schema.tables').select('table_name').eq('table_schema', 'public');
-        if (isError) {
-           console.error('IS Tables Error:', isError);
-        } else {
-           console.log('Tables:', isTables.map(t => t.table_name));
-        }
-     } else {
-        console.log('Tables:', tables.map(t => t.tablename));
-     }
-  } else {
-    console.log('Tables:', data);
+async function listTables() {
+  console.log("Listing tables via RPC or direct select if possible...")
+  // Note: Supabase doesn't easily let you list tables from the anon key unless an RPC exists.
+  // But I can try to select from likely names.
+  const tables = ['challenges', 'weekly_challenges', 'student_challenges', 'missions']
+  for (const table of tables) {
+    const { count, error } = await supabase.from(table).select('*', { count: 'exact', head: true })
+    if (!error) {
+        console.log(`Table '${table}' exists and has ${count} rows.`)
+    } else {
+        console.log(`Table '${table}' error: ${error.message}`)
+    }
   }
 }
 
-check();
+listTables()

@@ -69,12 +69,12 @@ export interface StudentGrade {
 }
 
 export interface GradeSettings {
-  id: string;
   examWeight: number;
   testWeight: number;
   workWeight: number;
-  presenceValue: number;
   bonusWeight: number;
+  presenceValue: number;
+  divisor: number;
   updatedAt: string;
 }
 
@@ -533,50 +533,46 @@ export async function updateFinancialSettings(settings: Omit<FinancialSettings, 
     .match({ type: 'monthly', status: 'bolsa100' })
 }
 
-export async function getGradeSettings(): Promise<GradeSettings | null> {
+export async function getGradeSettings(): Promise<GradeSettings> {
   const supabase = createClient()
   try {
-    const { data, error } = await supabase.from('grade_settings').select('*').maybeSingle()
+    const { data, error } = await supabase.from('grade_settings').select('*').eq('id', 'global').maybeSingle()
+    if (error || !data) throw new Error("Not found")
     
-    if (data) {
-      return {
-        id: data.id,
-        examWeight: data.exam_weight,
-        testWeight: data.test_weight,
-        work_weight: data.work_weight,
-        presenceValue: data.presence_value,
-        bonusWeight: data.bonus_weight,
-        updatedAt: data.updated_at
-      }
+    return {
+      examWeight: Number(data.exam_weight || 10),
+      testWeight: Number(data.test_weight || 0),
+      workWeight: Number(data.work_weight || 0),
+      bonusWeight: Number(data.bonus_weight || 0),
+      presenceValue: Number(data.presence_value || 0.5),
+      divisor: Number(data.divisor || 2),
+      updatedAt: data.updated_at
     }
   } catch (err) {
-    console.warn("Table grade_settings might be missing, using defaults:", err)
-  }
-
-  // Default settings if none exist or table error
-  return {
-    id: 'default',
-    examWeight: 10,
-    testWeight: 0,
-    workWeight: 0,
-    presenceValue: 0.5,
-    bonusWeight: 0,
-    updatedAt: new Date().toISOString()
+    return {
+      examWeight: 10,
+      testWeight: 0,
+      workWeight: 0,
+      bonusWeight: 0,
+      presenceValue: 0.5,
+      divisor: 2,
+      updatedAt: new Date().toISOString()
+    }
   }
 }
 
-export async function saveGradeSettings(settings: Partial<GradeSettings>): Promise<void> {
+export async function saveGradeSettings(settings: GradeSettings): Promise<void> {
   const supabase = createClient()
-  const dbData = {
+  const { error } = await supabase.from('grade_settings').upsert({
+    id: 'global',
     exam_weight: settings.examWeight,
     test_weight: settings.testWeight,
     work_weight: settings.workWeight,
-    presence_value: settings.presenceValue,
     bonus_weight: settings.bonusWeight,
+    presence_value: settings.presenceValue,
+    divisor: settings.divisor,
     updated_at: new Date().toISOString()
-  }
-
-  const { error } = await supabase.from('grade_settings').upsert({ id: 'global', ...dbData })
+  })
   if (error) throw new Error(error.message)
 }
 
@@ -2149,7 +2145,7 @@ export async function unlockAttendance(id: string): Promise<void> {
 
 // ─── n8n WhatsApp Integration ──────────────────────────────────────────────
 
-// ─── Notas (Student Grades) ───────────────────────────────────────────────────
+// ─── Notas (Student Grades) ───────────────────────────────────────────
 
 export async function getStudentGrades(): Promise<StudentGrade[]> {
   const supabase = createClient()
@@ -2347,11 +2343,24 @@ export async function releaseAllGrades(classId?: string): Promise<void> {
  * formula: (Grade/10 * Weight) for each category + AttendanceScore (already in points)
  */
 export function calculateGlobalAverage(grade: StudentGrade, settings: GradeSettings): string {
-  const e = ((grade.examGrade || 0) / 10) * (settings.examWeight || 0)
-  const t = ((grade.seminarGrade || 0) / 10) * (settings.testWeight || 0)
-  const w = ((grade.worksGrade || 0) / 10) * (settings.workWeight || 0)
-  const b = ((grade.participationBonus || 0) / 10) * (settings.bonusWeight || 0)
-  const p = (grade.attendanceScore || 0) // Already calculated as presenceCount * presenceValue
+  const exam = (grade.examGrade || 0)
+  const test = (grade.seminarGrade || 0)
+  const work = (grade.worksGrade || 0)
+  const bonus = (grade.participationBonus || 0)
+  const presence = (grade.attendanceScore || 0)
+  
+  // If divisor is set (greater than 1), use simple sum divided by divisor
+  if (settings.divisor > 1) {
+    const sum = exam + test + work + bonus + presence
+    return (sum / settings.divisor).toFixed(2)
+  }
+
+  // Fallback to weighted system
+  const e = (exam / 10) * (settings.examWeight || 0)
+  const t = (test / 10) * (settings.testWeight || 0)
+  const w = (work / 10) * (settings.workWeight || 0)
+  const b = (bonus / 10) * (settings.bonusWeight || 0)
+  const p = presence
   
   return (e + t + w + b + p).toFixed(2)
 }

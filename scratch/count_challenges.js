@@ -5,14 +5,10 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 const supabase = createClient(supabaseUrl, supabaseKey)
 
-async function check() {
-  console.log("Checking student_grades columns...")
-  const { data, error } = await supabase.from('student_grades').select('*').limit(1)
-  if (data && data.length > 0) {
-    console.log("Columns found:", Object.keys(data[0]))
-  } else {
-    console.log("No data in student_grades or error:", error?.message)
-  }
+async function count() {
+  console.log("Counting challenges...")
+  const { count, error } = await supabase.from('challenges').select('*', { count: 'exact', head: true })
+  console.log("Count:", count, "Error:", error?.message)
 }
 
-check()
+count()
