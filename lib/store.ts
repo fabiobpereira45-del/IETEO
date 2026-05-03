@@ -2389,43 +2389,40 @@ export async function syncAllAttendanceScores(): Promise<void> {
   console.log(`DEBUG: Processando ${Object.keys(counts).length} pares aluno/disciplina...`);
 
   // 3. Update student_grades
-  // Optimization: Fetch all students to have their identifiers (email/cpf) ready
   const { data: students } = await supabase.from('students').select('id, name, email, cpf')
-  const studentMap = new RecordMap<any>(students || [], 'id')
+  const studentMap: Record<string, any> = {}
+  students?.forEach(s => { studentMap[s.id] = s })
 
-  const updates = Object.entries(counts).map(async ([key, count]) => {
+  // Process sequentially to avoid Supabase connection overhead/timeouts
+  for (const [key, count] of Object.entries(counts)) {
     const [studentId, disciplineId] = key.split(':')
     const score = Math.min(count * settings.presenceValue, 10.0)
     const student = studentMap[studentId]
     
-    // Attempt update by student_id
+    // Attempt 1: by student_id
     const { data: updated, error: uErr } = await supabase.from('student_grades')
-      .update({ attendance_score: score })
+      .update({ attendance_score: score, student_id: studentId })
       .eq('student_id', studentId)
       .eq('discipline_id', disciplineId)
       .select()
 
-    // If no record found by student_id, try by student_identifier (legacy)
+    // Attempt 2: by legacy identifier (email/cpf) if Attempt 1 found nothing
     if (!uErr && (!updated || updated.length === 0) && student) {
-      await supabase.from('student_grades')
-        .update({ attendance_score: score, student_id: studentId }) // Also backfill the ID
-        .eq('student_identifier', student.email)
-        .eq('discipline_id', disciplineId)
+      const identifiers = [student.email, student.cpf, student.email?.split('@')[0]].filter(Boolean)
+      
+      for (const ident of identifiers) {
+        const { data: up2 } = await supabase.from('student_grades')
+          .update({ attendance_score: score, student_id: studentId }) 
+          .eq('student_identifier', ident)
+          .eq('discipline_id', disciplineId)
+          .select()
+        
+        if (up2 && up2.length > 0) break;
+      }
     }
-  })
+  }
 
-  await Promise.all(updates)
   console.log("DEBUG: Sincronização concluída.");
-}
-
-// Helper class for local mapping
-class RecordMap<T> {
-    [key: string]: T;
-    constructor(items: T[], keyField: keyof T) {
-        items.forEach(item => {
-            this[String(item[keyField])] = item;
-        });
-    }
 }
 
 // ─── Profile / Avatar Management ──────────────────────────────────────────
