@@ -432,15 +432,14 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                             <Search className="h-3 w-3 text-muted-foreground" />
                             <input
                                 type="text"
-                                placeholder="Buscar aluno por nome..."
-                                className="bg-transparent border-none text-xs font-medium focus:ring-0 w-full text-foreground placeholder:text-muted-foreground/60"
+                                placeholder="Buscar aluno..."
+                                className="bg-transparent border-none text-xs font-medium focus:ring-0 w-full text-foreground"
                                 value={searchTerm}
                                 onChange={(e) => {
                                     setSearchTerm(e.target.value);
                                     setCurrentPage(1);
                                 }}
                             />
-                        </div>
                         </div>
 
                         {isMaster && (
