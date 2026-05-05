@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, memo } from "react"
 import {
-    Plus, Pencil, Trash2, GraduationCap, Calculator, Loader2, Save, X, Download, Eye, EyeOff, RefreshCw
+    Plus, Pencil, Trash2, GraduationCap, Calculator, Loader2, Save, X, Download, Eye, EyeOff, RefreshCw, Search
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -121,6 +121,8 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
     const [classes, setClasses] = useState<ClassRoom[]>([])
     const [selectedClassId, setSelectedClassId] = useState<string>("all")
+    const [selectedDisciplineId, setSelectedDisciplineId] = useState<string>("all")
+    const [searchTerm, setSearchTerm] = useState("")
     const [releasing, setReleasing] = useState(false)
     const [gradeSettings, setGradeSettings] = useState<GradeSettings | null>(null)
     const [currentPage, setCurrentPage] = useState(1)
@@ -145,14 +147,16 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
     const loadData = useCallback(async () => {
         try {
             setLoading(true)
-            const [fetchedGrades, fetchedSettings, fetchedClasses] = await Promise.all([
+            const [fetchedGrades, fetchedSettings, fetchedClasses, fetchedDisciplines] = await Promise.all([
                 getStudentGrades(),
                 getGradeSettings(),
-                getClasses()
+                getClasses(),
+                getDisciplines()
             ])
             setGrades(fetchedGrades)
             setGradeSettings(fetchedSettings)
             setClasses(fetchedClasses)
+            setDisciplines(fetchedDisciplines)
             setError(null)
         } catch (err: any) {
             setError(err.message)
@@ -196,29 +200,46 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
 
     // 2. Optimized Filtering Logic
     const filteredGrades = useMemo(() => {
+        let allFiltered = grades;
+
+        // 1. Filter by search term
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            allFiltered = allFiltered.filter(g => 
+                g.studentName.toLowerCase().includes(term) || 
+                g.studentIdentifier.toLowerCase().includes(term)
+            );
+        }
+
+        // 2. Filter by Discipline
+        if (selectedDisciplineId !== "all") {
+            allFiltered = allFiltered.filter(g => g.disciplineId === selectedDisciplineId);
+        }
+
+        // 3. Alphabetical Sort (Locked as requested)
+        allFiltered.sort((a, b) => a.studentName.localeCompare(b.studentName));
+
+        // 4. Split into sections and filter by Class
         const matriculados: StudentGrade[] = [];
         const publicos: StudentGrade[] = [];
 
-        grades.forEach(g => {
-            if (g.isPublic) {
-                publicos.push(g);
-            } else {
-                // Filter by class if selected
-                if (selectedClassId !== "all") {
-                    const student = studentMap.get(g.studentIdentifier.replace(/\D/g, '')) || 
-                                    studentMap.get(g.studentIdentifier);
-                    
-                    if (student?.class_id === selectedClassId) {
-                        matriculados.push(g);
-                    }
-                } else {
-                    matriculados.push(g);
-                }
+        allFiltered.forEach(g => {
+            // Check if matches class filter (only for matriculados usually, but we check for all here)
+            let matchesClass = true;
+            if (selectedClassId !== "all") {
+                const student = studentMap.get(g.studentIdentifier.replace(/\D/g, '')) || 
+                                studentMap.get(g.studentIdentifier);
+                matchesClass = student?.class_id === selectedClassId;
+            }
+
+            if (matchesClass) {
+                if (g.isPublic) publicos.push(g);
+                else matriculados.push(g);
             }
         });
 
         return { matriculados, publicos };
-    }, [grades, selectedClassId, studentMap]);
+    }, [grades, searchTerm, selectedDisciplineId, selectedClassId, studentMap]);
 
     // 3. Pagination Logic
     const paginatedMatriculados = useMemo(() => {
@@ -377,19 +398,49 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                     </div>
                     <div className="flex flex-wrap gap-2 items-center">
                         <div className="flex items-center gap-2 bg-muted px-3 py-1.5 rounded-lg border border-border shadow-sm">
-                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Filtrar Turma:</span>
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Turma:</span>
                             <select
                                 className="bg-transparent border-none text-xs font-bold focus:ring-0 cursor-pointer text-foreground"
                                 value={selectedClassId}
                                 onChange={(e) => {
                                     setSelectedClassId(e.target.value);
-                                    setCurrentPage(1); // Reset page on filter change
-                                    if (e.target.value !== "all") ensureFormData(); // Pre-load students for filtering if class selected
+                                    setCurrentPage(1);
+                                    if (e.target.value !== "all") ensureFormData();
                                 }}
                             >
                                 <option value="all">Todas as Turmas</option>
                                 {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
+                        </div>
+
+                        <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-lg border border-border/50">
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Disciplina:</span>
+                            <select
+                                className="bg-transparent border-none text-xs font-bold focus:ring-0 cursor-pointer text-foreground"
+                                value={selectedDisciplineId}
+                                onChange={(e) => {
+                                    setSelectedDisciplineId(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                            >
+                                <option value="all">Todas as Disciplinas</option>
+                                {disciplines.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                            </select>
+                        </div>
+
+                        <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-lg border border-border/50 flex-1 min-w-[200px]">
+                            <Search className="h-3 w-3 text-muted-foreground" />
+                            <input
+                                type="text"
+                                placeholder="Buscar aluno por nome..."
+                                className="bg-transparent border-none text-xs font-medium focus:ring-0 w-full text-foreground placeholder:text-muted-foreground/60"
+                                value={searchTerm}
+                                onChange={(e) => {
+                                    setSearchTerm(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                            />
+                        </div>
                         </div>
 
                         {isMaster && (
