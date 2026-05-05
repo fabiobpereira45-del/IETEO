@@ -2078,25 +2078,40 @@ export async function saveAttendance(studentId: string, disciplineId: string, da
     const { data: student } = await supabase.from('students').select('id, name, email').eq('id', studentId).single();
 
     if (student) {
-      // 3. Find/Update student_grade using student_id
-      const { data: existingGrade } = await supabase.from('student_grades')
-        .select('id')
-        .match({ student_id: studentId, discipline_id: disciplineId })
-        .maybeSingle();
+      const cleanCpf = student.cpf ? student.cpf.replace(/\D/g, '') : null;
+      const { data: existingGrades } = await supabase.from('student_grades')
+        .select('id, student_identifier, student_id')
+        .eq('discipline_id', disciplineId);
 
       const gradeData: any = {
         student_id: studentId,
         student_name: student.name,
-        discipline_id: disciplineId,
         attendance_score: attendanceScore,
-        student_identifier: student.email
       };
 
-      if (existingGrade) {
-        await supabase.from('student_grades').update(gradeData).eq('id', existingGrade.id);
-      } else {
+      let updatedAny = false;
+      if (existingGrades) {
+        for (const grade of existingGrades) {
+          let isMatch = false;
+          if (grade.student_id === studentId) isMatch = true;
+          else if (grade.student_identifier) {
+            const ident = grade.student_identifier.toLowerCase().trim();
+            const cleanIdent = ident.replace(/\D/g, '');
+            if (ident === student.email?.toLowerCase().trim()) isMatch = true;
+            else if (cleanCpf && cleanIdent === cleanCpf) isMatch = true;
+          }
+          if (isMatch) {
+            await supabase.from('student_grades').update(gradeData).eq('id', grade.id);
+            updatedAny = true;
+          }
+        }
+      }
+
+      if (!updatedAny) {
         await supabase.from('student_grades').insert({ 
           ...gradeData, 
+          discipline_id: disciplineId,
+          student_identifier: student.email || student.cpf || student.id,
           exam_grade: 0,
           works_grade: 0,
           seminar_grade: 0,
@@ -2411,65 +2426,49 @@ export function calculateGlobalAverage(grade: StudentGrade, settings: GradeSetti
  */
 export async function syncAllAttendanceScores(): Promise<void> {
   const supabase = createClient()
+  console.log("🚀 [Sync] Iniciando sincronização robusta...");
   
-  console.log("DEBUG: Iniciando sincronização retrospectiva de presença...");
-  
-  // 1. Get all presences
-  const { data: allAtt, error: attError } = await supabase
-    .from('attendances')
-    .select('student_id, discipline_id')
-    .eq('is_present', true)
-  
-  if (attError) throw new Error("Erro ao buscar presenças: " + attError.message)
-  if (!allAtt || allAtt.length === 0) {
-    console.log("DEBUG: Nenhuma presença encontrada para sincronizar.");
-    return
-  }
+  const { data: students } = await supabase.from('students').select('id, name, email, cpf')
+  if (!students) return
+  const studentById: Record<string, any> = {}
+  students.forEach(s => { studentById[s.id] = s })
 
-  // 2. Group by student and discipline
+  const { data: allAtt } = await supabase.from('attendances').select('student_id, discipline_id').eq('is_present', true)
+  if (!allAtt) return
+
   const counts: Record<string, number> = {}
   allAtt.forEach(a => {
+    if (!a.student_id || !a.discipline_id) return
     const key = `${a.student_id}:${a.discipline_id}`
     counts[key] = (counts[key] || 0) + 1
   })
 
-  console.log(`DEBUG: Processando ${Object.keys(counts).length} pares aluno/disciplina...`);
-
-  // 3. Update student_grades
-  const { data: students } = await supabase.from('students').select('id, name, email, cpf')
-  const studentMap: Record<string, any> = {}
-  students?.forEach(s => { studentMap[s.id] = s })
-
-  // Process sequentially to avoid Supabase connection overhead/timeouts
-  for (const [key, count] of Object.entries(counts)) {
+  for (const [key, rawCount] of Object.entries(counts)) {
     const [studentId, disciplineId] = key.split(':')
-    const score = Math.min(count * 2.5, 10.0)
-    const student = studentMap[studentId]
-    
-    // Attempt 1: by student_id
-    const { data: updated, error: uErr } = await supabase.from('student_grades')
-      .update({ attendance_score: score, student_id: studentId })
-      .eq('student_id', studentId)
-      .eq('discipline_id', disciplineId)
-      .select()
+    const score = Math.min(rawCount * 2.5, 10.0)
+    const student = studentById[studentId]
+    if (!student) continue
 
-    // Attempt 2: by legacy identifier (email/cpf) if Attempt 1 found nothing
-    if (!uErr && (!updated || updated.length === 0) && student) {
-      const identifiers = [student.email, student.cpf, student.email?.split('@')[0]].filter(Boolean)
-      
-      for (const ident of identifiers) {
-        const { data: up2 } = await supabase.from('student_grades')
-          .update({ attendance_score: score, student_id: studentId }) 
-          .eq('student_identifier', ident)
-          .eq('discipline_id', disciplineId)
-          .select()
-        
-        if (up2 && up2.length > 0) break;
+    const cleanCpf = student.cpf ? student.cpf.replace(/\D/g, '') : null
+
+    const { data: existingGrades } = await supabase.from('student_grades').select('id, student_identifier, student_id').eq('discipline_id', disciplineId)
+    if (existingGrades) {
+      for (const grade of existingGrades) {
+        let isMatch = false
+        if (grade.student_id === studentId) isMatch = true
+        else if (grade.student_identifier) {
+          const ident = grade.student_identifier.toLowerCase().trim()
+          const cleanIdent = ident.replace(/\D/g, '')
+          if (ident === student.email?.toLowerCase().trim()) isMatch = true
+          else if (cleanCpf && cleanIdent === cleanCpf) isMatch = true
+        }
+        if (isMatch) {
+          await supabase.from('student_grades').update({ attendance_score: score, student_id: studentId }).eq('id', grade.id)
+        }
       }
     }
   }
-
-  console.log("DEBUG: Sincronização concluída.");
+  console.log("✅ [Sync] Sincronização concluída.");
 }
 
 // ─── Profile / Avatar Management ──────────────────────────────────────────
