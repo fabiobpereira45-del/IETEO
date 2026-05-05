@@ -914,7 +914,7 @@ export function printGradesReportPDF(grades: StudentGrade[], disciplineName: str
   const rows = grades.map(g => {
     const final = calculateGlobalAverage(g, settings)
     const status = parseFloat(final) >= 7 ? '<span style="color: green;">APROVADO</span>' : '<span style="color: red;">REPROVADO</span>'
-    const displayPresence = (settings?.divisor && settings.divisor > 1) ? (g.attendanceScore * settings.divisor) : (g.attendanceScore || 0)
+    const displayPresence = g.attendanceScore || 0
     return `
       <tr style="border-bottom: 1px solid #eee;">
         <td style="padding: 8px; font-size: 12px;">${g.studentName}</td>
