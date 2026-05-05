@@ -395,6 +395,7 @@ export function FinancialStudentView({ studentId }: Props) {
                                                                 </body>
                                                                 </html>
                                                             `)
+                                                        }
                                                     }}
                                                     className="text-[10px] font-bold bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors border border-blue-100"
                                                 >
