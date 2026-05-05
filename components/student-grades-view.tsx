@@ -163,7 +163,7 @@ export function StudentGradesView({ studentId, studentEmail, studentDoc }: Props
 
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
                                         {[
-                                            { label: "Presença", val: (gradeSettings?.divisor && gradeSettings.divisor > 1) ? (grade.attendanceScore * gradeSettings.divisor) : grade.attendanceScore, isSecret: false, color: "text-blue-600" },
+                                            { label: "Presença", val: grade.attendanceScore, isSecret: false, color: "text-blue-600" },
                                             { label: "Prova", val: grade.examGrade, isSecret: !grade.isPublic, color: "text-primary" },
                                             { label: "Trabalhos", val: grade.worksGrade, isSecret: false, color: "text-foreground" },
                                             { label: "Testes/Outros", val: (grade.seminarGrade || 0) + (grade.participationBonus || 0), isSecret: false, color: "text-foreground" },
