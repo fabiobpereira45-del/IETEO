@@ -19,6 +19,7 @@ export function StudentGradesView({ studentId, studentEmail, studentDoc }: Props
     const [submissions, setSubmissions] = useState<StudentSubmission[]>([])
     const [attendances, setAttendances] = useState<Attendance[]>([])
     const [gradeSettings, setGradeSettings] = useState<GradeSettings | null>(null)
+    const [selectedDisciplineId, setSelectedDisciplineId] = useState<string>("all")
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -124,10 +125,28 @@ export function StudentGradesView({ studentId, studentEmail, studentDoc }: Props
             </div>
 
             <div className="flex flex-col gap-6">
-                <h3 className="text-xl font-bold font-serif text-foreground border-b border-border pb-2 flex items-center gap-2">
-                    <Calculator className="h-5 w-5 text-primary" />
-                    Boletim de Notas
-                </h3>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border pb-2">
+                    <h3 className="text-xl font-bold font-serif text-foreground flex items-center gap-2">
+                        <Calculator className="h-5 w-5 text-primary" />
+                        Boletim de Notas
+                    </h3>
+                    
+                    <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-lg border border-border/50">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Filtrar Disciplina:</span>
+                        <select
+                            className="bg-transparent border-none text-xs font-bold focus:ring-0 cursor-pointer text-foreground"
+                            value={selectedDisciplineId}
+                            onChange={(e) => setSelectedDisciplineId(e.target.value)}
+                        >
+                            <option value="all">Todas as Disciplinas</option>
+                            {officialGrades
+                                .map(g => ({ id: g.disciplineId, name: disciplines.find(d => d.id === g.disciplineId)?.name || "Disciplina Geral" }))
+                                .sort((a, b) => a.name.localeCompare(b.name))
+                                .map(d => <option key={d.id} value={d.id}>{d.name}</option>)
+                            }
+                        </select>
+                    </div>
+                </div>
 
                 {officialGrades.length === 0 ? (
                     <div className="bg-card border border-border border-dashed rounded-xl p-10 text-center text-muted-foreground">
@@ -136,9 +155,12 @@ export function StudentGradesView({ studentId, studentEmail, studentDoc }: Props
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-4">
-                        {officialGrades.map(grade => {
-                            const disc = disciplines.find(d => d.id === grade.disciplineId)
-                            const avg = parseFloat(calculateAverage(grade))
+                        {officialGrades
+                            .filter(g => selectedDisciplineId === "all" || g.disciplineId === selectedDisciplineId)
+                            .map(grade => {
+                                const disc = disciplines.find(d => d.id === grade.disciplineId)
+                                const avg = parseFloat(calculateAverage(grade))
+                                const isApproved = avg >= 7.0;
 
                             return (
                                 <div key={grade.id} className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
@@ -150,13 +172,13 @@ export function StudentGradesView({ studentId, studentEmail, studentDoc }: Props
 
                                         <div className="flex items-center gap-4 bg-muted/50 p-3 rounded-xl border border-border">
                                             <div className="text-right">
-                                                <div className="text-[10px] uppercase font-bold text-muted-foreground">Média Final</div>
-                                                <div className={`text-2xl font-black ${grade.isPublic ? (avg >= 7 ? 'text-green-600' : 'text-amber-600') : 'text-muted-foreground opacity-50'}`}>
+                                                <div className="text-[10px] uppercase font-bold text-muted-foreground">{grade.isPublic ? (isApproved ? "APROVADO" : "EM ANÁLISE") : "Média Final"}</div>
+                                                <div className={`text-2xl font-black ${grade.isPublic ? (isApproved ? 'text-green-600' : 'text-amber-600') : 'text-muted-foreground opacity-50'}`}>
                                                     {grade.isPublic ? avg.toFixed(2) : "--"}
                                                 </div>
                                             </div>
-                                            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${grade.isPublic ? (avg >= 7 ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-700') : 'bg-muted text-muted-foreground'}`}>
-                                                {grade.isPublic ? (avg >= 7 ? <CheckCircle2 className="h-6 w-6" /> : <Award className="h-6 w-6" />) : <Clock className="h-6 w-6" />}
+                                            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${grade.isPublic ? (isApproved ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-700') : 'bg-muted text-muted-foreground'}`}>
+                                                {grade.isPublic ? (isApproved ? <CheckCircle2 className="h-6 w-6" /> : <Award className="h-6 w-6" />) : <Clock className="h-6 w-6" />}
                                             </div>
                                         </div>
                                     </div>
