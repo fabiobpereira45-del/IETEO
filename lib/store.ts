@@ -2082,15 +2082,15 @@ export async function saveAttendance(studentId: string, disciplineId: string, da
       .match({ student_id: studentId, discipline_id: disciplineId });
 
     const presenceCount = (allAtt || []).filter((a: any) => a.is_present).length;
-    const attendanceScore = Math.min(presenceCount * weightPerPresence, maxAttendanceScore);
+    const attendanceScore = Math.min(presenceCount * 2.5, 10.0);
 
     // 3. Get student info for the grade record
     const { data: student } = await supabase.from('students').select('id, name, email').eq('id', studentId).single();
 
     if (student) {
-      // 4. Find/Update student_grade using student_id (Migration to ID-based matching)
+      // 4. Find/Update student_grade using student_id
       const { data: existingGrade } = await supabase.from('student_grades')
-        .select('id')
+        .select('id, exam_grade')
         .match({ student_id: studentId, discipline_id: disciplineId })
         .maybeSingle();
 
@@ -2099,13 +2099,22 @@ export async function saveAttendance(studentId: string, disciplineId: string, da
         student_name: student.name,
         discipline_id: disciplineId,
         attendance_score: attendanceScore,
-        student_identifier: student.email // Keep for backwards compatibility if needed, but primary is student_id
+        student_identifier: student.email
       };
 
       if (existingGrade) {
         await supabase.from('student_grades').update(gradeData).eq('id', existingGrade.id);
       } else {
-        await supabase.from('student_grades').insert({ ...gradeData, is_public: false, created_at: new Date().toISOString() });
+        await supabase.from('student_grades').insert({ 
+          ...gradeData, 
+          exam_grade: 0,
+          works_grade: 0,
+          seminar_grade: 0,
+          participation_bonus: 0,
+          custom_divisor: 2,
+          is_public: false, 
+          created_at: new Date().toISOString() 
+        });
       }
     }
   } catch (err) {
@@ -2402,27 +2411,11 @@ export async function blockAllGrades(classId?: string): Promise<void> {
  */
 export function calculateGlobalAverage(grade: StudentGrade, settings: GradeSettings): string {
   const exam = (grade.examGrade || 0)
-  const test = (grade.seminarGrade || 0)
-  const work = (grade.worksGrade || 0)
-  const bonus = (grade.participationBonus || 0)
   const presence = (grade.attendanceScore || 0)
   
-  // If divisor is set (greater than 1), use simple sum divided by divisor
-  if (settings.divisor > 1) {
-    const sum = exam + test + work + bonus + presence
-    const avg = sum / settings.divisor
-    return Math.min(avg, 10.0).toFixed(2)
-  }
-
-  // Fallback to weighted system
-  const e = (exam / 10) * (settings.examWeight || 0)
-  const t = (test / 10) * (settings.testWeight || 0)
-  const w = (work / 10) * (settings.workWeight || 0)
-  const b = (bonus / 10) * (settings.bonusWeight || 0)
-  const p = presence
-  
-  const final = e + t + w + b + p
-  return Math.min(final, 10.0).toFixed(2)
+  // Rule: (Presence Total + Exam Grade) / 2
+  const avg = (presence + exam) / 2
+  return Math.min(avg, 10.0).toFixed(2)
 }
 
 /**
@@ -2465,7 +2458,7 @@ export async function syncAllAttendanceScores(): Promise<void> {
   // Process sequentially to avoid Supabase connection overhead/timeouts
   for (const [key, count] of Object.entries(counts)) {
     const [studentId, disciplineId] = key.split(':')
-    const score = Math.min(count * settings.presenceValue, 10.0)
+    const score = Math.min(count * 2.5, 10.0)
     const student = studentMap[studentId]
     
     // Attempt 1: by student_id

@@ -41,61 +41,64 @@ const GradeRow = memo(({
     calculateAverage: (g: StudentGrade) => string
 }) => {
     const average = calculateAverage(grade);
-    const isPassing = parseFloat(average) >= 7;
+    const isPassing = parseFloat(average) >= 7.0;
+    const presenceCount = Math.round(grade.attendanceScore / 2.5);
 
     return (
         <div className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in fade-in duration-300">
-            <div>
+            <div className="flex-1">
                 <h4 className="font-bold text-foreground text-lg">{grade.studentName}</h4>
-                <p className="text-sm text-muted-foreground font-mono mb-2">ID: {grade.studentIdentifier}</p>
-                <div className="flex flex-wrap gap-2 mt-2">
-                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-primary/10 text-primary border border-primary/20">
-                        Prova: {grade.examGrade}
-                    </span>
-                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
-                        Presença: {grade.attendanceScore}
-                    </span>
-                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-secondary text-secondary-foreground border border-border">
-                        Trabalhos: {grade.worksGrade}
-                    </span>
-                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-secondary text-secondary-foreground border border-border">
-                        Testes: {grade.seminarGrade}
-                    </span>
-                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-secondary text-secondary-foreground border border-border">
-                        Outros: {grade.participationBonus}
-                    </span>
+                <p className="text-[10px] text-muted-foreground font-mono mb-3 uppercase tracking-wider">ID: {grade.studentIdentifier}</p>
+                <div className="flex flex-wrap gap-3">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[9px] font-black uppercase text-blue-600 tracking-tighter">Presença e Frequência</span>
+                        <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 shadow-sm">
+                            {grade.attendanceScore.toFixed(1)} pts ({presenceCount} presenças)
+                        </span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[9px] font-black uppercase text-primary tracking-tighter">Nota da Prova</span>
+                        <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-primary/5 text-primary border border-primary/20 shadow-sm">
+                            {grade.examGrade.toFixed(1)} pts
+                        </span>
+                    </div>
                 </div>
             </div>
 
             <div className="flex items-center gap-6">
-                <div className="text-center bg-muted px-4 py-2 rounded-lg border border-border min-w-[100px]">
-                    <div className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">
-                        Média (/{gradeSettings?.divisor || grade.customDivisor})
+                <div className="text-center bg-card px-5 py-3 rounded-2xl border-2 border-border/50 min-w-[140px] shadow-sm relative overflow-hidden group">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-blue-600" />
+                    <div className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mb-1">
+                        Média Final
                     </div>
-                    <div className={`text-2xl font-black ${isPassing ? 'text-green-600' : 'text-amber-600'}`}>
+                    <div className={`text-3xl font-black ${isPassing ? 'text-green-600' : 'text-amber-600'}`}>
                         {average}
                     </div>
-                    <div className="flex flex-col gap-2 mt-4">
-                        <div className="flex gap-2">
-                            <Button 
-                                variant={grade.isPublic ? "default" : "outline"} 
-                                size="sm" 
-                                onClick={() => onToggleRelease(grade)}
-                                className={cn("flex-1", grade.isPublic ? "bg-green-600 hover:bg-green-700" : "")}
-                            >
-                                {grade.isPublic ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
-                                {grade.isPublic ? "Publicado" : "Privado"}
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => onEdit(grade)} className="flex-1">
-                                <Pencil className="h-4 w-4 mr-2" /> Editar
-                            </Button>
-                        </div>
-                        {isMaster && (
-                            <Button variant="destructive" size="sm" onClick={() => onDelete(grade.id)} className="w-full">
-                                <Trash2 className="h-4 w-4 mr-2" /> Excluir
-                            </Button>
-                        )}
+                    <div className="text-[9px] text-muted-foreground font-medium mt-1 uppercase tracking-tighter">
+                        (Pres + Prova) / 2
                     </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                        <Button 
+                            variant={grade.isPublic ? "default" : "outline"} 
+                            size="sm" 
+                            onClick={() => onToggleRelease(grade)}
+                            className={cn("h-8 rounded-lg text-[10px] font-bold uppercase px-3", grade.isPublic ? "bg-green-600 hover:bg-green-700" : "")}
+                        >
+                            {grade.isPublic ? <Eye className="h-3 w-3 mr-1.5" /> : <EyeOff className="h-3 w-3 mr-1.5" />}
+                            {grade.isPublic ? "Publicado" : "Privado"}
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => onEdit(grade)} className="h-8 rounded-lg text-[10px] font-bold uppercase px-3">
+                            <Pencil className="h-3 w-3 mr-1.5" /> Editar
+                        </Button>
+                    </div>
+                    {isMaster && (
+                        <Button variant="ghost" size="sm" onClick={() => onDelete(grade.id)} className="h-8 rounded-lg text-[10px] font-bold uppercase px-3 text-red-500 hover:text-red-600 hover:bg-red-50">
+                            <Trash2 className="h-3 w-3 mr-1.5" /> Excluir
+                        </Button>
+                    )}
                 </div>
             </div>
         </div>
@@ -135,7 +138,7 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
         seminarGrade: "",
         participationBonus: "",
         attendanceScore: "",
-        customDivisor: "4"
+        customDivisor: "2"
     })
 
     // Core load: only grades + settings + classes
@@ -235,9 +238,6 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
             if (!formData.studentName || !formData.studentIdentifier) {
                 throw new Error("O nome e identificador do aluno são obrigatórios.")
             }
-            if (!formData.disciplineId) {
-                // Permitindo lançamento geral sem disciplina
-            }
 
             const gradeToSave = {
                 studentIdentifier: formData.studentIdentifier,
@@ -250,7 +250,7 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                 seminarGrade: parseFloat(formData.seminarGrade) || 0,
                 participationBonus: parseFloat(formData.participationBonus) || 0,
                 attendanceScore: parseFloat(formData.attendanceScore) || 0,
-                customDivisor: parseFloat(formData.customDivisor) || 4
+                customDivisor: parseFloat(formData.customDivisor) || 2
             }
 
             await saveStudentGrade(gradeToSave as any, isEditing || undefined)
@@ -415,16 +415,6 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                         </Button>
                         <Button 
                             variant="outline" 
-                            size="sm"
-                            onClick={handleBlockAll} 
-                            disabled={releasing}
-                            className="border-amber-600 text-amber-600 hover:bg-amber-50 h-9"
-                        >
-                            {releasing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <EyeOff className="h-4 w-4 mr-2" />}
-                            <span className="hidden sm:inline">Bloquear Todas</span>
-                        </Button>
-                        <Button 
-                            variant="outline" 
                             size="sm" 
                             disabled={grades.length === 0}
                             onClick={() => {
@@ -443,7 +433,7 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                             ensureFormData()
                             setFormData({
                                 studentIdentifier: "", studentName: "", disciplineId: "", isPublic: false,
-                                examGrade: "", worksGrade: "", seminarGrade: "", participationBonus: "", attendanceScore: "", customDivisor: "4"
+                                examGrade: "", worksGrade: "", seminarGrade: "", participationBonus: "", attendanceScore: "", customDivisor: "2"
                             })
                             setIsCreating(true)
                             setIsEditing(null)
@@ -529,28 +519,12 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
 
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 md:col-span-2 mt-2">
                                 <div className="space-y-1.5">
+                                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Presença (Pts)</Label>
+                                    <Input type="number" step="0.1" value={formData.attendanceScore} onChange={(e) => setFormData({ ...formData, attendanceScore: e.target.value })} placeholder="Cada presença = 2.5 pts" />
+                                </div>
+                                <div className="space-y-1.5">
                                     <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Nota de Prova</Label>
                                     <Input type="number" step="0.1" value={formData.examGrade} onChange={(e) => setFormData({ ...formData, examGrade: e.target.value })} />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Nota de Trabalhos</Label>
-                                    <Input type="number" step="0.1" value={formData.worksGrade} onChange={(e) => setFormData({ ...formData, worksGrade: e.target.value })} />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Nota de Testes</Label>
-                                    <Input type="number" step="0.1" value={formData.seminarGrade} onChange={(e) => setFormData({ ...formData, seminarGrade: e.target.value })} />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Outros Bônus</Label>
-                                    <Input type="number" step="0.1" value={formData.participationBonus} onChange={(e) => setFormData({ ...formData, participationBonus: e.target.value })} />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Presença</Label>
-                                    <Input type="number" step="0.1" value={formData.attendanceScore} onChange={(e) => setFormData({ ...formData, attendanceScore: e.target.value })} />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Divisor</Label>
-                                    <Input type="number" step="1" min="1" value={formData.customDivisor} onChange={(e) => setFormData({ ...formData, customDivisor: e.target.value })} />
                                 </div>
                             </div>
                         </div>

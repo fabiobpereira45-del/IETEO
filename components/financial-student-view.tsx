@@ -286,80 +286,117 @@ export function FinancialStudentView({ studentId }: Props) {
                                             {c.status === "paid" && (
                                                 <button
                                                     onClick={() => {
-                                                        const win = window.open('', '', 'width=600,height=600')
+                                                        const win = window.open('', '', 'width=700,height=800')
                                                         if (win) {
                                                             win.document.write(`
                                                                 <html>
                                                                 <head>
                                                                     <meta charset="utf-8" />
-                                                                    <title>Comprovante - IETEO</title>
+                                                                    <title>Recibo IETEO - ${c.description}</title>
                                                                     <style>
-                                                                        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
-                                                                        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; display: flex; justify-content: center; padding: 40px; margin: 0; }
-                                                                        .receipt { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); max-width: 450px; width: 100%; position: relative; overflow: hidden; }
-                                                                        .receipt::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 6px; background: linear-gradient(to right, #0ea5e9, #2563eb); }
-                                                                        .header { text-align: center; margin-bottom: 30px; }
-                                                                        .logo { max-width: 140px; margin-bottom: 15px; }
-                                                                        .title { font-size: 22px; font-weight: 900; color: #1e293b; margin: 0 0 5px 0; text-transform: uppercase; letter-spacing: 0.5px; }
-                                                                        .subtitle { font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; }
-                                                                        .details { background: #f8fafc; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 30px; }
-                                                                        .detail-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 14px; align-items: center; }
-                                                                        .detail-label { color: #64748b; font-weight: 600; }
-                                                                        .detail-value { color: #0f172a; font-weight: 700; text-align: right; max-width: 60%; word-break: break-word; }
-                                                                        .badge { background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800; text-transform: uppercase; }
-                                                                        .total-row { display: flex; justify-content: space-between; margin-top: 20px; padding-top: 20px; border-top: 2px dashed #cbd5e1; font-size: 18px; font-weight: 900; color: #0f172a; align-items: center; }
-                                                                        .total-value { color: #2563eb; font-size: 24px; }
-                                                                        .footer { text-align: center; font-size: 12px; color: #94a3b8; margin-bottom: 25px; line-height: 1.5; }
-                                                                        .print-btn { display: block; width: 100%; background: #2563eb; color: white; border: none; padding: 14px 24px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.2s; text-transform: uppercase; letter-spacing: 1px; }
-                                                                        .print-btn:hover { background: #1d4ed8; }
-                                                                        @media print { 
-                                                                            .print-btn { display: none; } 
-                                                                            body { background: white; padding: 0; justify-content: flex-start; } 
-                                                                            .receipt { box-shadow: none; max-width: 100%; padding: 20px; border-radius: 0; } 
+                                                                        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+                                                                        
+                                                                        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; }
+                                                                        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f1f5f9; color: #0f172a; display: flex; justify-content: center; padding: 40px 20px; }
+                                                                        
+                                                                        .container { background: white; width: 100%; max-width: 550px; border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1); position: relative; overflow: hidden; padding: 40px; }
+                                                                        
+                                                                        .accent-bar { position: absolute; top: 0; left: 0; right: 0; height: 8px; background: linear-gradient(90deg, #2563eb, #7c3aed, #db2777); }
+                                                                        .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 120px; font-weight: 900; color: rgba(15, 23, 42, 0.03); pointer-events: none; white-space: nowrap; }
+                                                                        
+                                                                        .header { text-align: center; margin-bottom: 40px; position: relative; }
+                                                                        .logo-container { width: 100px; height: 100px; background: white; border-radius: 20px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border: 1px solid #f1f5f9; padding: 10px; }
+                                                                        .logo { width: 100%; height: auto; object-fit: contain; }
+                                                                        .brand-name { font-size: 28px; font-weight: 800; color: #1e293b; letter-spacing: -0.025em; margin-bottom: 4px; }
+                                                                        .brand-tagline { font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; }
+                                                                        
+                                                                        .status-banner { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 12px; margin-bottom: 30px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+                                                                        .status-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; }
+                                                                        .status-text { font-size: 12px; font-weight: 700; color: #166534; text-transform: uppercase; }
+                                                                        
+                                                                        .section-title { font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+                                                                        .section-title::after { content: ""; flex: 1; height: 1px; background: #f1f5f9; }
+                                                                        
+                                                                        .detail-card { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 16px; padding: 24px; margin-bottom: 30px; }
+                                                                        .row { display: flex; justify-content: space-between; margin-bottom: 16px; border-bottom: 1px solid rgba(0,0,0,0.03); padding-bottom: 12px; }
+                                                                        .row:last-child { margin-bottom: 0; border-bottom: 0; padding-bottom: 0; }
+                                                                        
+                                                                        .label { font-size: 13px; color: #64748b; font-weight: 500; }
+                                                                        .value { font-size: 14px; color: #0f172a; font-weight: 700; text-align: right; }
+                                                                        
+                                                                        .amount-section { margin: 40px 0; padding: 30px; background: #1e293b; border-radius: 20px; color: white; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+                                                                        .amount-label { font-size: 14px; font-weight: 600; color: #94a3b8; }
+                                                                        .amount-value { font-size: 32px; font-weight: 800; color: #38bdf8; }
+                                                                        
+                                                                        .footer { text-align: center; }
+                                                                        .footer-text { font-size: 12px; color: #64748b; line-height: 1.6; margin-bottom: 30px; }
+                                                                        
+                                                                        .btn-print { background: #2563eb; color: white; border: none; width: 100%; padding: 18px; border-radius: 14px; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2); }
+                                                                        .btn-print:hover { background: #1d4ed8; transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3); }
+                                                                        
+                                                                        @media print {
+                                                                            body { background: white; padding: 0; }
+                                                                            .container { box-shadow: none; max-width: 100%; border-radius: 0; padding: 20px; }
+                                                                            .btn-print { display: none; }
                                                                         }
                                                                     </style>
                                                                 </head>
                                                                 <body>
-                                                                    <div class="receipt">
+                                                                    <div class="container">
+                                                                        <div class="accent-bar"></div>
+                                                                        <div class="watermark">PAGO</div>
+                                                                        
                                                                         <div class="header">
-                                                                            <img src="/logo.png" alt="IETEO" class="logo" onerror="this.style.display='none'" />
-                                                                            <h1 class="title">IETEO</h1>
-                                                                            <div class="subtitle">Comprovante de Pagamento</div>
+                                                                            <div class="logo-container">
+                                                                                <img src="/logo.png" alt="IETEO" class="logo" onerror="this.src='https://ieteo-dashboard.vercel.app/logo.png'" />
+                                                                            </div>
+                                                                            <h1 class="brand-name">IETEO</h1>
+                                                                            <p class="brand-tagline">Instituto Educacional de Teologia</p>
                                                                         </div>
-                                                                        <div class="details">
-                                                                            <div class="detail-row">
-                                                                                <span class="detail-label">Descrição</span> 
-                                                                                <span class="detail-value">${c.description}</span>
+                                                                        
+                                                                        <div class="status-banner">
+                                                                            <div class="status-dot"></div>
+                                                                            <span class="status-text">Pagamento Confirmado</span>
+                                                                        </div>
+                                                                        
+                                                                        <div class="section-title">Informações do Pagamento</div>
+                                                                        <div class="detail-card">
+                                                                            <div class="row">
+                                                                                <span class="label">Descrição</span>
+                                                                                <span class="value">${c.description}</span>
                                                                             </div>
-                                                                            <div class="detail-row">
-                                                                                <span class="detail-label">Data do Pagamento</span> 
-                                                                                <span class="detail-value">${new Date(c.paymentDate!).toLocaleString('pt-BR')}</span>
+                                                                            <div class="row">
+                                                                                <span class="label">Data de Pagamento</span>
+                                                                                <span class="value">${new Date(c.paymentDate!).toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' })}</span>
                                                                             </div>
-                                                                            ${c.paymentMethod ? \`
-                                                                            <div class="detail-row">
-                                                                                <span class="detail-label">Método</span> 
-                                                                                <span class="detail-value" style="text-transform: capitalize;">\${c.paymentMethod}</span>
-                                                                            </div>\` : ''}
-                                                                            <div class="detail-row">
-                                                                                <span class="detail-label">Status</span> 
-                                                                                <span class="badge">PAGO</span>
+                                                                            <div class="row">
+                                                                                <span class="label">Método de Pagamento</span>
+                                                                                <span class="value" style="text-transform: uppercase;">${c.paymentMethod || "Não Informado"}</span>
                                                                             </div>
-                                                                            <div class="total-row">
-                                                                                <span class="detail-label">Valor Pago</span> 
-                                                                                <span class="total-value">R$ ${c.actualPaidAmount ? c.actualPaidAmount.toFixed(2) : c.amount.toFixed(2)}</span>
+                                                                            <div class="row">
+                                                                                <span class="label">Código de Autenticação</span>
+                                                                                <span class="value" style="font-family: monospace; font-size: 11px;">#${c.id.slice(0, 8).toUpperCase()}</span>
                                                                             </div>
                                                                         </div>
+                                                                        
+                                                                        <div class="amount-section">
+                                                                            <span class="amount-label">Valor Total</span>
+                                                                            <span class="amount-value">R$ ${c.actualPaidAmount ? c.actualPaidAmount.toFixed(2) : c.amount.toFixed(2)}</span>
+                                                                        </div>
+                                                                        
                                                                         <div class="footer">
-                                                                            <strong>Instituto Educacional de Teologia</strong><br/>
-                                                                            Este documento comprova o recebimento do valor especificado referente aos serviços educacionais.
+                                                                            <p class="footer-text">
+                                                                                Este documento é um comprovante digital oficial de quitação financeira perante ao IETEO. 
+                                                                                Em caso de dúvidas, entre em contato com nossa secretaria.
+                                                                            </p>
+                                                                            <button class="btn-print" onclick="window.print()">Imprimir Recibo</button>
                                                                         </div>
-                                                                        <button class="print-btn" onclick="window.print()">Imprimir Comprovante</button>
                                                                     </div>
                                                                 </body>
                                                                 </html>
                                                             `)
                                                     }}
-                                                    className="text-[10px] font-bold bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
+                                                    className="text-[10px] font-bold bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors border border-blue-100"
                                                 >
                                                     RECIBO
                                                 </button>
