@@ -1961,9 +1961,10 @@ export async function getAttendanceAnalysis(disciplineId: string, students: Stud
   // Issue 2: High absence rate (> 25%)
   students.forEach(s => {
     const sAtt = records.filter(r => String(r.studentId) === String(s.id))
-    const total = sAtt.length
+    const total = Math.min(sAtt.length, 4)
     if (total > 0) {
-      const absent = sAtt.filter(r => !r.isPresent).length
+      const presents = Math.min(sAtt.filter(r => r.isPresent).length, 4)
+      const absent = total - presents
       const rate = (absent / total) * 100
       if (rate > 25) {
         issues.push({

@@ -951,17 +951,25 @@ export function printGradesReportPDF(grades: StudentGrade[], disciplineName: str
 }
 
 export function printAttendanceReportPDF(attendances: Attendance[], students: StudentProfile[], disciplineName: string): void {
-  const totalPresences = attendances.filter(a => a.isPresent === true).length
-  const totalAbsences = attendances.length - totalPresences
-  const globalRate = attendances.length > 0 ? (totalPresences / attendances.length * 100).toFixed(1) : "0"
+  const studentStats = students.map(s => {
+    const sAtt = attendances.filter(a => String(a.studentId) === String(s.id))
+    return {
+      presents: Math.min(sAtt.filter(a => a.isPresent === true).length, 4),
+      total: Math.min(sAtt.length, 4)
+    }
+  })
+  const totalPresences = studentStats.reduce((acc, s) => acc + s.presents, 0)
+  const totalPossible = studentStats.reduce((acc, s) => acc + s.total, 0)
+  const totalAbsences = totalPossible - totalPresences
+  const globalRate = totalPossible > 0 ? (totalPresences / totalPossible * 100).toFixed(1) : "0"
 
   console.log(`[Agente Especialista] Gerando relatório para "${disciplineName}". Registros recebidos: ${attendances.length}`);
 
   const logs = students.map(s => {
     // Robust comparison: ensure both sides are strings
     const sAtt = attendances.filter(a => String(a.studentId) === String(s.id))
-    const presents = sAtt.filter(a => a.isPresent === true).length
-    const total = sAtt.length
+    const presents = Math.min(sAtt.filter(a => a.isPresent === true).length, 4)
+    const total = Math.min(sAtt.length, 4) || 4
     const pct = total > 0 ? (presents/total)*100 : 0
     return { name: s.name, presents, total, pct, enrollment: s.enrollment_number }
   })

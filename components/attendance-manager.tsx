@@ -386,9 +386,11 @@ export function AttendanceManager() {
                                                             <span>{student.name}</span>
                                                             {(() => {
                                                                 const sAtt = allAttendances.filter(a => String(a.studentId) === String(student.id))
-                                                                if (sAtt.length === 0) return null
-                                                                const absent = sAtt.filter(a => !a.isPresent).length
-                                                                const rate = (absent / sAtt.length) * 100
+                                                                const total = Math.min(sAtt.length, 4)
+                                                                if (total === 0) return null
+                                                                const presents = Math.min(sAtt.filter(a => a.isPresent).length, 4)
+                                                                const absent = total - presents
+                                                                const rate = (absent / total) * 100
                                                                 if (rate > 25) {
                                                                     return (
                                                                         <div className="flex items-center gap-2 mt-1">
