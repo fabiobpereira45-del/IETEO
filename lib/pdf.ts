@@ -1,7 +1,8 @@
-import type { 
-  Assessment, Question, StudentAnswer, StudentSubmission, 
-  Semester, Discipline, ProfessorAccount, ProfessorDiscipline, 
-  FinancialCharge, StudentProfile, StudentGrade, Attendance 
+import { 
+  type Assessment, type Question, type StudentAnswer, type StudentSubmission, 
+  type Semester, type Discipline, type ProfessorAccount, type ProfessorDiscipline, 
+  type FinancialCharge, type StudentProfile, type StudentGrade, type Attendance, type GradeSettings,
+  calculateGlobalAverage
 } from "./store"
 
 interface PDFData {
@@ -909,17 +910,19 @@ export function printFinancialReportPDF(charges: FinancialCharge[], students: St
   const win = window.open("", "_blank"); if (!win) return; win.document.write(html); win.document.close(); win.onload = () => win.print()
 }
 
-export function printGradesReportPDF(grades: StudentGrade[], disciplineName: string): void {
+export function printGradesReportPDF(grades: StudentGrade[], disciplineName: string, settings: GradeSettings): void {
   const rows = grades.map(g => {
-    const final = (g.examGrade + g.worksGrade + g.seminarGrade + (g.participationBonus || 0)) / (g.customDivisor || 3)
-    const status = final >= 7 ? '<span style="color: green;">APROVADO</span>' : '<span style="color: red;">REPROVADO</span>'
+    const final = calculateGlobalAverage(g, settings)
+    const status = parseFloat(final) >= 7 ? '<span style="color: green;">APROVADO</span>' : '<span style="color: red;">REPROVADO</span>'
+    const displayPresence = (settings?.divisor && settings.divisor > 1) ? (g.attendanceScore * settings.divisor) : (g.attendanceScore || 0)
     return `
       <tr style="border-bottom: 1px solid #eee;">
         <td style="padding: 8px; font-size: 12px;">${g.studentName}</td>
         <td style="padding: 8px; font-size: 12px; text-align: center;">${g.examGrade.toFixed(1)}</td>
         <td style="padding: 8px; font-size: 12px; text-align: center;">${g.worksGrade.toFixed(1)}</td>
         <td style="padding: 8px; font-size: 12px; text-align: center;">${g.seminarGrade.toFixed(1)}</td>
-        <td style="padding: 8px; font-size: 12px; text-align: center; font-weight: bold;">${final.toFixed(1)}</td>
+        <td style="padding: 8px; font-size: 12px; text-align: center;">${displayPresence.toFixed(1)}</td>
+        <td style="padding: 8px; font-size: 12px; text-align: center; font-weight: bold;">${final}</td>
         <td style="padding: 8px; font-size: 10px; text-align: center; font-weight: bold;">${status}</td>
       </tr>
     `
@@ -936,6 +939,7 @@ export function printGradesReportPDF(grades: StudentGrade[], disciplineName: str
         <th style="padding: 10px; font-size: 10px; text-align: center;">PROVA</th>
         <th style="padding: 10px; font-size: 10px; text-align: center;">TRABALHO</th>
         <th style="padding: 10px; font-size: 10px; text-align: center;">SEMINÁRIO</th>
+        <th style="padding: 10px; font-size: 10px; text-align: center;">PRESENÇA</th>
         <th style="padding: 10px; font-size: 10px; text-align: center;">MÉDIA</th>
         <th style="padding: 10px; font-size: 10px; text-align: center;">SITUAÇÃO</th>
       </tr></thead>

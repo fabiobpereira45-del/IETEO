@@ -8,13 +8,19 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey)
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const studentId = searchParams.get('studentId')
+  const challengeId = searchParams.get('challengeId')
   
-  if (!studentId) return NextResponse.json({ error: 'Missing studentId' }, { status: 400 })
+  let query = supabase.from('challenge_submissions').select('*')
 
-  const { data, error } = await supabase
-    .from('challenge_submissions')
-    .select('*')
-    .eq('student_id', studentId)
+  if (studentId) {
+    query = query.eq('student_id', studentId)
+  } else if (challengeId) {
+    query = query.eq('challenge_id', challengeId)
+  } else {
+    return NextResponse.json({ error: 'Missing filter' }, { status: 400 })
+  }
+
+  const { data, error } = await query
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
@@ -33,4 +39,22 @@ export async function POST(request: Request) {
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+}
+
+export async function DELETE(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const id = searchParams.get('id')
+  const challengeId = searchParams.get('challengeId')
+
+  if (id) {
+    const { error } = await supabase.from('challenge_submissions').delete().eq('id', id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  } else if (challengeId) {
+    const { error } = await supabase.from('challenge_submissions').delete().eq('challenge_id', challengeId)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  } else {
+    return NextResponse.json({ error: 'Missing id or challengeId' }, { status: 400 })
+  }
+
+  return NextResponse.json({ success: true })
 }

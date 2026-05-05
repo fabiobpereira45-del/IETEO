@@ -71,14 +71,15 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
     const [mySchedules, setMySchedules] = useState<ClassSchedule[]>([])
     const [classmates, setClassmates] = useState<StudentProfile[]>([])
     const [officialGrades, setOfficialGrades] = useState<StudentGrade[]>([])
+    const [journeyDiscs, setJourneyDiscs] = useState<Discipline[]>([])
 
     const [dataLoading, setDataLoading] = useState(false)
 
     useEffect(() => {
-        if (tab === "journey" && !selectedJourneyDisc && mySchedules.length > 0) {
-            setSelectedJourneyDisc(mySchedules[0].disciplineId)
+        if (tab === "journey" && !selectedJourneyDisc && journeyDiscs.length > 0) {
+            setSelectedJourneyDisc(journeyDiscs[0].id)
         }
-    }, [tab, mySchedules])
+    }, [tab, journeyDiscs])
 
     async function checkAuth() {
         setLoading(true)
@@ -90,18 +91,26 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
             syncStudentGrades(p.id, p.cpf, p.email).catch(e => console.error("Sync Error:", e))
 
             setDataLoading(true)
-            const [s, d, m, c, cls, sch] = await Promise.all([
+            const [s, d, m, c, cls, sch, allChs] = await Promise.all([
                 getSemesters(), getDisciplines(), getStudyMaterials(), getFinancialCharges(p.id),
-                getClasses(), getClassSchedules()
+                getClasses(), getClassSchedules(),
+                fetch("/api/admin/challenges").then(r => r.json()).then(r => r.data || [])
             ])
             setSemesters(s)
             setDisciplines(d)
             setMaterials(m)
             setCharges(c)
+
+            // Identify disciplines with challenges
+            const discIdsWithChallenges = new Set(allChs.map((ch: any) => ch.discipline_id))
+            const jDiscs = d.filter(disc => discIdsWithChallenges.has(disc.id))
+            setJourneyDiscs(jDiscs)
+
             if (p.class_id) {
                 const foundClass = cls.find(cl => cl.id === p.class_id)
                 if (foundClass) setMyClass(foundClass)
-                setMySchedules(sch.filter(sh => sh.classId === p.class_id))
+                const classSchedules = sch.filter(sh => sh.classId === p.class_id)
+                setMySchedules(classSchedules)
 
                 const [members, grades] = await Promise.all([
                     getClassmates(p.class_id),
@@ -327,7 +336,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                 </header>
 
                 {/* Content View */}
-                <main className="flex-1 overflow-y-auto p-4 md:p-8 animate-in fade-in slide-in-from-bottom-2 duration-700 bg-slate-50/50">
+                <main className="flex-1 overflow-y-auto p-4 md:p-8 animate-in fade-in bg-slate-50/50">
                     {dataLoading ? (
                         <div className="flex flex-col justify-center items-center h-full gap-3">
                             <Loader2 className="h-10 w-10 animate-spin text-primary opacity-40" />
@@ -363,10 +372,9 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                                                     <SelectValue placeholder="Selecione a Disciplina" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {mySchedules.map(s => {
-                                                        const d = disciplines.find(disc => disc.id === s.disciplineId)
-                                                        return <SelectItem key={s.id} value={s.disciplineId}>{d?.name || "Disciplina"}</SelectItem>
-                                                    })}
+                                                    {journeyDiscs.map(d => (
+                                                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                                                    ))}
                                                 </SelectContent>
                                             </Select>
                                         </div>

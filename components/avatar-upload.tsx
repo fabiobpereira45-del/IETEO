@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef } from "react"
-import { Camera, Loader2, User } from "lucide-react"
+import { Camera, Loader2, User, X } from "lucide-react"
 import { uploadAvatar, updateProfileAvatar } from "@/lib/store"
 import { toast } from "sonner"
 
@@ -51,6 +51,21 @@ export function AvatarUpload({ currentUrl, userId, userName, type, onUploadSucce
     }
   }
 
+  const handleRemove = async () => {
+    if (!confirm("Deseja realmente remover sua foto de perfil?")) return
+    
+    try {
+      setUploading(true)
+      await updateProfileAvatar(userId, "", type)
+      onUploadSuccess("")
+      toast.success("Foto removida com sucesso!")
+    } catch (error: any) {
+      toast.error("Erro ao remover foto: " + error.message)
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const initials = userName
     .split(' ')
     .map(n => n[0])
@@ -73,6 +88,16 @@ export function AvatarUpload({ currentUrl, userId, userName, type, onUploadSucce
           </div>
         )}
       </div>
+
+      {currentUrl && !uploading && (
+        <button
+          onClick={handleRemove}
+          className="absolute -top-2 -right-2 p-1.5 bg-red-500 text-white rounded-full shadow-md hover:bg-red-600 transition-all z-30"
+          title="Remover foto"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
 
       <button
         onClick={() => fileInputRef.current?.click()}

@@ -198,57 +198,36 @@ export async function registerStudentAuth(name: string, cpf: string, password: s
 }
 
 export async function registerStudentByAdmin(data: any): Promise<void> {
-  const supabase = createClient()
+  const res = await fetch("/api/admin/enrollment", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: data.name,
+      email: data.email,
+      password: data.password,
+      cpf: data.cpf,
+      phone: data.phone,
+      address: data.address,
+      church: data.church,
+      pastor_name: data.pastor,
+      class_id: data.classId,
+      payment_status: data.paymentStatus,
+      enrollment_number: data.enrollmentNumber
+    })
+  })
 
-  // Vacancy check
-  if (data.classId) {
-    const { data: cls } = await supabase.from('classes').select('max_students').eq('id', data.classId).single()
-    if (cls) {
-      const { count } = await supabase.from('students').select('*', { count: 'exact', head: true }).eq('class_id', data.classId)
-      if (count !== null && count >= cls.max_students) {
-        throw new Error("Esta turma já está com as vagas esgotadas.")
-      }
-    }
+  if (!res.ok) {
+    const error = await res.json()
+    throw new Error(error.error || "Erro ao matricular aluno")
   }
-
-  const cleanCpf = data.cpf ? data.cpf.replace(/\D/g, '') : ""
-
-  // Use email if provided, else generate fake one
-  const email = data.email || `${cleanCpf || uid().slice(0, 11)}@student.ieteo.com`
-
-  const nameUC = (data.name || "").toUpperCase().trim()
-
-  const { data: authData, error: authError } = await supabase.auth.signUp({
-    email,
-    password: data.password,
-    options: { data: { name: nameUC, type: 'student' } }
-  })
-  if (authError) throw new Error(authError.message)
-  if (!authData.user) throw new Error("Erro ao criar usuário na base de dados (Auth).")
-
-  const matricula = `2026${Math.floor(1000 + Math.random() * 9000)}`
-
-  const { error: dbError } = await supabase.from('students').insert({
-    auth_user_id: authData.user.id,
-    name: nameUC,
-    cpf: cleanCpf,
-    email,
-    enrollment_number: matricula,
-    phone: data.phone || null,
-    address: data.address || null,
-    church: data.church || null,
-    pastor_name: data.pastor || null,
-    class_id: data.classId || null
-  })
-  if (dbError) throw new Error(dbError.message)
 
   // Trigger n8n WhatsApp
   try {
-    const student = { name: data.name, phone: data.phone };
+    const matricula = `2026${Math.floor(1000 + Math.random() * 9000)}` // This is just for the notification fallback
     triggerN8nWebhook('matricula_confirmada', {
       type: 'enrollment',
-      name: student.name,
-      phone: student.phone,
+      name: data.name,
+      phone: data.phone,
       matricula
     });
   } catch (err) {
@@ -1000,6 +979,43 @@ export async function getChallengeSubmissions(studentId: string): Promise<Challe
   } catch (err) {
     console.error("Falha de rede em getChallengeSubmissions:", err)
     return []
+  }
+}
+
+export async function getChallengeSubmissionsByChallenge(challengeId: string): Promise<ChallengeSubmission[]> {
+  try {
+    const res = await fetch(`/api/student/challenge-submissions?challengeId=${challengeId}`)
+    if (!res.ok) {
+      console.error("Erro na resposta getChallengeSubmissionsByChallenge")
+      return []
+    }
+    const data = await res.json()
+    return (data || []).map(mapChallengeSubmission)
+  } catch (err) {
+    console.error("Falha de rede em getChallengeSubmissionsByChallenge:", err)
+    return []
+  }
+}
+
+export async function deleteChallengeSubmission(id: string): Promise<void> {
+  const res = await fetch(`/api/student/challenge-submissions?id=${id}`, {
+    method: "DELETE"
+  })
+  
+  if (!res.ok) {
+    const result = await res.json()
+    throw new Error(result.error)
+  }
+}
+
+export async function deleteAllChallengeSubmissions(challengeId: string): Promise<void> {
+  const res = await fetch(`/api/student/challenge-submissions?challengeId=${challengeId}`, {
+    method: "DELETE"
+  })
+  
+  if (!res.ok) {
+    const result = await res.json()
+    throw new Error(result.error)
   }
 }
 
@@ -2332,10 +2348,48 @@ export async function releaseAllGrades(classId?: string): Promise<void> {
     }
   } else {
     // 3. Global Release: Update all records where is_public is not true
-    // We use a dummy filter that is always true for all records (id is not null)
     const { error: uErr } = await supabase
       .from('student_grades')
       .update({ is_public: true })
+      .filter('id', 'neq', '00000000-0000-0000-0000-000000000000')
+    
+    if (uErr) throw new Error(uErr.message)
+  }
+}
+
+export async function blockAllGrades(classId?: string): Promise<void> {
+  const supabase = createClient()
+  
+  if (classId && classId !== 'all') {
+    const { data: students, error: sErr } = await supabase
+      .from('students')
+      .select('cpf, enrollment_number, email')
+      .eq('class_id', classId)
+    
+    if (sErr) throw new Error(sErr.message)
+    
+    if (students && students.length > 0) {
+      const identifiers = Array.from(new Set(
+        students.flatMap(s => [
+          s.cpf?.replace(/\D/g, ''), 
+          s.enrollment_number, 
+          s.email?.toLowerCase().trim()
+        ].filter(Boolean))
+      ))
+
+      if (identifiers.length > 0) {
+        const { error: uErr } = await supabase
+          .from('student_grades')
+          .update({ is_public: false })
+          .in('student_identifier', identifiers)
+        
+        if (uErr) throw new Error(uErr.message)
+      }
+    }
+  } else {
+    const { error: uErr } = await supabase
+      .from('student_grades')
+      .update({ is_public: false })
       .filter('id', 'neq', '00000000-0000-0000-0000-000000000000')
     
     if (uErr) throw new Error(uErr.message)
@@ -2356,7 +2410,8 @@ export function calculateGlobalAverage(grade: StudentGrade, settings: GradeSetti
   // If divisor is set (greater than 1), use simple sum divided by divisor
   if (settings.divisor > 1) {
     const sum = exam + test + work + bonus + presence
-    return (sum / settings.divisor).toFixed(2)
+    const avg = sum / settings.divisor
+    return Math.min(avg, 10.0).toFixed(2)
   }
 
   // Fallback to weighted system
@@ -2366,7 +2421,8 @@ export function calculateGlobalAverage(grade: StudentGrade, settings: GradeSetti
   const b = (bonus / 10) * (settings.bonusWeight || 0)
   const p = presence
   
-  return (e + t + w + b + p).toFixed(2)
+  const final = e + t + w + b + p
+  return Math.min(final, 10.0).toFixed(2)
 }
 
 /**

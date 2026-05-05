@@ -152,11 +152,15 @@ export function ClassInfoTab({ myClass, classmates, mySchedules, disciplines, of
                                     const disc = disciplines.find(d => d.id === sched.disciplineId)
                                     const grade = officialGrades.find(g => g.disciplineId === sched.disciplineId)
                                     
-                                    const totalGrade = grade ? (
-                                        (grade.examGrade || 0) + (grade.worksGrade || 0) + (grade.seminarGrade || 0) + (grade.participationBonus || 0) + (grade.attendanceScore || 0)
-                                    ) : 0
                                     const divisor = (grade?.customDivisor && grade.customDivisor > 0) ? grade.customDivisor : 1
-                                    const average = grade ? totalGrade / divisor : null
+                                    const presencePoints = grade?.attendanceScore || 0
+                                    // Use the same logic: if divisor > 1, assume presence was pre-scaled
+                                    const adjustedPresence = divisor > 1 ? (presencePoints * divisor) : presencePoints
+                                    
+                                    const totalGrade = grade ? (
+                                        (grade.examGrade || 0) + (grade.worksGrade || 0) + (grade.seminarGrade || 0) + (grade.participationBonus || 0) + adjustedPresence
+                                    ) : 0
+                                    const average = grade ? Math.min(totalGrade / divisor, 10.0) : null
                                     
                                     const isCurrentMonth = disc?.description?.toLowerCase().includes(new Date().toLocaleString('pt-br', { month: 'long' }).toLowerCase())
                                     if (isCurrentMonth) return null // Skip as it's already in the highlight section

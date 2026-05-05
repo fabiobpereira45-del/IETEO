@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Archive, ArchiveRestore, CheckCircle2, Download, Eye, EyeOff, FileCheck, FileText, Link2, Pencil, Plus, Save, Trash2 } from "lucide-react"
+import { useEffect, useState, useCallback } from "react"
+import { Archive, ArchiveRestore, CheckCircle2, Download, Eye, EyeOff, FileCheck, FileText, Link2, Pencil, Plus, Save, Trash2, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,27 +9,55 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { type Assessment, type StudentSubmission, type Question, type Discipline, updateAssessment, deleteAssessment } from "@/lib/store"
+import { 
+    type Assessment, type StudentSubmission, type Question, type Discipline, updateAssessment, deleteAssessment,
+    getAssessments, getSubmissions, getQuestions, getDisciplines
+} from "@/lib/store"
 import { printBlankAssessmentPDF, printAnswerKeyPDF } from "@/lib/pdf"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { AssessmentBuilder } from "@/components/assessment-builder"
 import { cn } from "@/lib/utils"
 
 interface Props {
-  assessments: Assessment[]
-  submissions: StudentSubmission[]
-  questions: Question[]
-  disciplines: Discipline[]
-  onRefresh: (showLoading?: boolean) => void
   isMaster: boolean
 }
 
-export function AssessmentsTab({ assessments, submissions, questions, disciplines, onRefresh, isMaster }: Props) {
+export function AssessmentsTab({ isMaster }: Props) {
+  const [assessments, setAssessments] = useState<Assessment[]>([])
+  const [submissions, setSubmissions] = useState<StudentSubmission[]>([])
+  const [questions, setQuestions] = useState<Question[]>([])
+  const [disciplines, setDisciplines] = useState<Discipline[]>([])
+  const [loading, setLoading] = useState(true)
+
   const [builderOpen, setBuilderOpen] = useState(false)
   const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showArchived, setShowArchived] = useState(false)
+
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    try {
+        const [a, s, q, d] = await Promise.all([
+            getAssessments(),
+            getSubmissions(),
+            getQuestions(),
+            getDisciplines()
+        ])
+        setAssessments(a)
+        setSubmissions(s)
+        setQuestions(q)
+        setDisciplines(d)
+    } catch (err) {
+        console.error("Error loading assessments data:", err)
+    } finally {
+        setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   const filteredAssessments = assessments.filter(a => a.archived === showArchived)
   const active = assessments.find(a => !a.archived && a.isPublished) || assessments.find(a => !a.archived)
@@ -44,6 +72,15 @@ export function AssessmentsTab({ assessments, submissions, questions, discipline
     }
   }, [active?.id])
 
+  if (loading) {
+      return (
+          <div className="flex flex-col items-center justify-center p-20 min-h-[40vh]">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="mt-4 text-sm text-muted-foreground">Carregando provas...</p>
+          </div>
+      )
+  }
+
   function handleCopyLink(a: Assessment) {
     const url = `${window.location.origin}/prova?id=${a.id}`
     navigator.clipboard.writeText(url)
@@ -54,19 +91,19 @@ export function AssessmentsTab({ assessments, submissions, questions, discipline
   async function handleDelete() {
     if (deleteId) {
       await deleteAssessment(deleteId)
-      onRefresh(false)
+      loadData()
       setDeleteId(null)
     }
   }
 
   async function handleTogglePublish(a: Assessment) {
     await updateAssessment(a.id, { isPublished: !a.isPublished })
-    onRefresh(false)
+    loadData()
   }
 
   async function handleToggleArchive(a: Assessment) {
     await updateAssessment(a.id, { archived: !a.archived })
-    onRefresh(false)
+    loadData()
   }
 
   function handlePrint(a: Assessment) {
@@ -79,19 +116,19 @@ export function AssessmentsTab({ assessments, submissions, questions, discipline
       openAt: localOpenAt ? new Date(localOpenAt).toISOString() : null,
       closeAt: localCloseAt ? new Date(localCloseAt).toISOString() : null
     })
-    onRefresh(false)
+    loadData()
   }
 
   async function handleShuffleToggle() {
     if (!active) return
     await updateAssessment(active.id, { shuffleVariants: !active.shuffleVariants })
-    onRefresh(false)
+    loadData()
   }
 
   async function handleReleaseResultsToggle() {
     if (!active) return
     await updateAssessment(active.id, { releaseResults: !active.releaseResults })
-    onRefresh(false)
+    loadData()
   }
 
   return (
@@ -302,7 +339,7 @@ export function AssessmentsTab({ assessments, submissions, questions, discipline
           open={builderOpen}
           assessment={editingAssessment}
           onClose={() => setBuilderOpen(false)}
-          onSave={() => onRefresh(false)}
+          onSave={() => loadData()}
         />
       </ErrorBoundary>
 
@@ -321,3 +358,4 @@ export function AssessmentsTab({ assessments, submissions, questions, discipline
     </div>
   )
 }
+

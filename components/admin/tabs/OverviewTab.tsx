@@ -1,23 +1,57 @@
 "use client"
 
-import { useState } from "react"
-import { BarChart3, BookOpen, Download, FileText, GraduationCap } from "lucide-react"
+import { useState, useEffect } from "react"
+import { BarChart3, BookOpen, Download, FileText, GraduationCap, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
-import { type Assessment, type StudentSubmission, type Question, type Discipline } from "@/lib/store"
+import { 
+    type Assessment, type StudentSubmission, type Question, type Discipline,
+    getAssessments, getSubmissions, getQuestions, getDisciplines
+} from "@/lib/store"
 import { printOverviewPDF } from "@/lib/pdf"
 
-interface Props {
-  assessments: Assessment[]
-  submissions: StudentSubmission[]
-  questions: Question[]
-  disciplines: Discipline[]
-}
-
-export function OverviewTab({ assessments, submissions, questions, disciplines }: Props) {
+export function OverviewTab() {
+  const [assessments, setAssessments] = useState<Assessment[]>([])
+  const [submissions, setSubmissions] = useState<StudentSubmission[]>([])
+  const [questions, setQuestions] = useState<Question[]>([])
+  const [disciplines, setDisciplines] = useState<Discipline[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedQuestion, setSelectedQuestion] = useState<any>(null)
+
+  useEffect(() => {
+    async function loadData() {
+        setLoading(true)
+        try {
+            const [a, s, q, d] = await Promise.all([
+                getAssessments(),
+                getSubmissions(),
+                getQuestions(),
+                getDisciplines()
+            ])
+            setAssessments(a)
+            setSubmissions(s)
+            setQuestions(q)
+            setDisciplines(d)
+        } catch (err) {
+            console.error("Error loading overview data:", err)
+        } finally {
+            setLoading(false)
+        }
+    }
+    loadData()
+  }, [])
+
+  if (loading) {
+      return (
+          <div className="flex flex-col items-center justify-center p-20 min-h-[40vh]">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="mt-4 text-sm text-muted-foreground">Carregando estatísticas...</p>
+          </div>
+      )
+  }
+
   const totalStudents = submissions.length
   const avgScore = totalStudents > 0
     ? Math.round(submissions.reduce((acc, s) => acc + s.percentage, 0) / totalStudents)
@@ -65,7 +99,7 @@ export function OverviewTab({ assessments, submissions, questions, disciplines }
           { label: "Questões no Banco", value: questions.length, icon: <BookOpen className="h-5 w-5" />, color: "text-orange" },
           { label: "Provas Criadas", value: assessments.length, icon: <FileText className="h-5 w-5" />, color: "text-navy" },
           { label: "Total de Disciplinas", value: disciplines.length, icon: <GraduationCap className="h-5 w-5" />, color: "text-purple-600" },
-          { label: "Média Global (Banco)", value: "N/A", icon: <BarChart3 className="h-5 w-5" />, color: "text-muted-foreground" },
+          { label: "Média Global (Banco)", value: totalStudents > 0 ? `${avgScore}%` : "N/A", icon: <BarChart3 className="h-5 w-5" />, color: "text-primary" },
         ].map(({ label, value, icon, color }) => (
           <div key={label} className="bg-card border border-border/50 rounded-2xl p-6 hover-lift premium-shadow group">
             <div className={`${color} mb-4 p-3 rounded-xl bg-muted group-hover:bg-white transition-colors w-12 h-12 flex items-center justify-center`}>{icon}</div>
@@ -153,3 +187,4 @@ export function OverviewTab({ assessments, submissions, questions, disciplines }
     </div>
   )
 }
+

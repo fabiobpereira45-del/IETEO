@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
 import {
   Users, FileText, BookOpen, Settings, BarChart3, Download, LogOut,
   Plus, Pencil, Trash2, Eye, EyeOff, Trophy, CheckCircle2, Link2, FileCheck,
@@ -93,11 +93,7 @@ interface Props {
 
 export function AdminDashboard({ onLogout }: Props) {
   const [tab, setTab] = useState<Tab>("overview")
-  const [assessments, setAssessments] = useState<Assessment[]>([])
-  const [submissions, setSubmissions] = useState<StudentSubmission[]>([])
-  const [questions, setQuestions] = useState<Question[]>([])
-  const [disciplines, setDisciplines] = useState<Discipline[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const [username, setUsername] = useState("")
@@ -107,20 +103,11 @@ export function AdminDashboard({ onLogout }: Props) {
   const isMaster = session?.role === "master"
   const supabase = createClient()
 
-  async function refresh(showLoading: boolean = true) {
-    if (showLoading) setLoading(true)
-    const [a, s, q, d] = await Promise.all([
-      getAssessments(),
-      getSubmissions(),
-      getQuestions(),
-      getDisciplines()
-    ])
-    setAssessments(a)
-    setSubmissions(s)
-    setQuestions(q)
-    setDisciplines(d)
-    if (showLoading) setLoading(false)
-  }
+  // Improved refresh mechanism: individual tabs now manage their own fetching.
+  // We provide this callback for backward compatibility and potential triggers.
+  const refresh = useCallback(async (showLoading: boolean = true) => {
+    // Logic moved to components
+  }, [])
 
   async function handleLogout() {
     clearProfessorSession()
@@ -129,7 +116,6 @@ export function AdminDashboard({ onLogout }: Props) {
   }
 
   useEffect(() => {
-    refresh()
     async function fetchUser() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
@@ -143,7 +129,7 @@ export function AdminDashboard({ onLogout }: Props) {
     fetchUser()
   }, [supabase.auth, session?.professorId])
 
-  const menuGroups = [
+  const menuGroups = useMemo(() => [
     {
       title: "Principal",
       items: [
@@ -192,7 +178,8 @@ export function AdminDashboard({ onLogout }: Props) {
         { id: "class_schedules", label: "Quadro de Horários", icon: <CalendarDays className="h-4 w-4" />, masterOnly: true },
       ]
     }
-  ]
+  ], [isMaster])
+
 
   const renderNavItem = (item: any) => (
     <button
@@ -365,24 +352,24 @@ export function AdminDashboard({ onLogout }: Props) {
             <LoadingFallback />
           ) : (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-              {tab === "overview" && <OverviewTab assessments={assessments} submissions={submissions} questions={questions} disciplines={disciplines} />}
+              {tab === "overview" && <OverviewTab />}
               {tab === "students" && <StudentManager isMaster={isMaster} />}
               {tab === "grades" && <GradesManager isMaster={isMaster} />}
-              {tab === "submissions" && <SubmissionsTab assessments={assessments} allSubmissions={submissions} questions={questions} onRefresh={refresh} isMaster={isMaster} />}
+              {tab === "submissions" && <SubmissionsTab isMaster={isMaster} />}
               {tab === "questions" && <QuestionBank isMaster={isMaster} />}
-              {tab === "assessments" && <AssessmentsTab assessments={assessments} submissions={submissions} questions={questions} disciplines={disciplines} onRefresh={refresh} isMaster={isMaster} />}
-              {tab === "challenges" && <ChallengeManager />}
+              {tab === "assessments" && <AssessmentsTab isMaster={isMaster} />}
+              {tab === "settings" && <SettingsTab onLogout={handleLogout} />}
               {tab === "materials" && <StudyMaterialManager />}
               {tab === "semesters" && <SemesterManager isMaster={isMaster} />}
               {tab === "class_schedules" && isMaster && <ClassScheduleManager />}
               {tab === "attendance" && <AttendanceManager />}
               {tab === "classes" && isMaster && <ClassManager />}
+              {tab === "challenges" && <ChallengeManager />}
               {tab === "chat" && <ProfessorChatView />}
               {tab === "financial" && <FinancialDashboard />}
               {tab === "professors" && isMaster && <ProfessorManager />}
               {tab === "institutional" && <InstitutionalManager />}
               {tab === "grade_config" && isMaster && <GradeConfig />}
-              {tab === "settings" && <SettingsTab assessments={assessments} onRefresh={refresh} onLogout={onLogout} />}
             </div>
           )}
         </main>

@@ -288,8 +288,76 @@ export function FinancialStudentView({ studentId }: Props) {
                                                     onClick={() => {
                                                         const win = window.open('', '', 'width=600,height=600')
                                                         if (win) {
-                                                            win.document.write(`<html><body style="font-family:sans-serif;padding:40px"><h2>IETEO - COMPROVANTE</h2><hr/><p>Descrição: ${c.description}</p><p>Valor: R$ ${c.amount.toFixed(2)}</p><p>Data: ${new Date(c.paymentDate!).toLocaleString()}</p><button onclick="window.print()">Imprimir</button></body></html>`)
-                                                        }
+                                                            win.document.write(`
+                                                                <html>
+                                                                <head>
+                                                                    <meta charset="utf-8" />
+                                                                    <title>Comprovante - IETEO</title>
+                                                                    <style>
+                                                                        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
+                                                                        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; display: flex; justify-content: center; padding: 40px; margin: 0; }
+                                                                        .receipt { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); max-width: 450px; width: 100%; position: relative; overflow: hidden; }
+                                                                        .receipt::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 6px; background: linear-gradient(to right, #0ea5e9, #2563eb); }
+                                                                        .header { text-align: center; margin-bottom: 30px; }
+                                                                        .logo { max-width: 140px; margin-bottom: 15px; }
+                                                                        .title { font-size: 22px; font-weight: 900; color: #1e293b; margin: 0 0 5px 0; text-transform: uppercase; letter-spacing: 0.5px; }
+                                                                        .subtitle { font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; }
+                                                                        .details { background: #f8fafc; padding: 25px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 30px; }
+                                                                        .detail-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 14px; align-items: center; }
+                                                                        .detail-label { color: #64748b; font-weight: 600; }
+                                                                        .detail-value { color: #0f172a; font-weight: 700; text-align: right; max-width: 60%; word-break: break-word; }
+                                                                        .badge { background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800; text-transform: uppercase; }
+                                                                        .total-row { display: flex; justify-content: space-between; margin-top: 20px; padding-top: 20px; border-top: 2px dashed #cbd5e1; font-size: 18px; font-weight: 900; color: #0f172a; align-items: center; }
+                                                                        .total-value { color: #2563eb; font-size: 24px; }
+                                                                        .footer { text-align: center; font-size: 12px; color: #94a3b8; margin-bottom: 25px; line-height: 1.5; }
+                                                                        .print-btn { display: block; width: 100%; background: #2563eb; color: white; border: none; padding: 14px 24px; font-size: 14px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: 0.2s; text-transform: uppercase; letter-spacing: 1px; }
+                                                                        .print-btn:hover { background: #1d4ed8; }
+                                                                        @media print { 
+                                                                            .print-btn { display: none; } 
+                                                                            body { background: white; padding: 0; justify-content: flex-start; } 
+                                                                            .receipt { box-shadow: none; max-width: 100%; padding: 20px; border-radius: 0; } 
+                                                                        }
+                                                                    </style>
+                                                                </head>
+                                                                <body>
+                                                                    <div class="receipt">
+                                                                        <div class="header">
+                                                                            <img src="/logo.png" alt="IETEO" class="logo" onerror="this.style.display='none'" />
+                                                                            <h1 class="title">IETEO</h1>
+                                                                            <div class="subtitle">Comprovante de Pagamento</div>
+                                                                        </div>
+                                                                        <div class="details">
+                                                                            <div class="detail-row">
+                                                                                <span class="detail-label">Descrição</span> 
+                                                                                <span class="detail-value">${c.description}</span>
+                                                                            </div>
+                                                                            <div class="detail-row">
+                                                                                <span class="detail-label">Data do Pagamento</span> 
+                                                                                <span class="detail-value">${new Date(c.paymentDate!).toLocaleString('pt-BR')}</span>
+                                                                            </div>
+                                                                            ${c.paymentMethod ? \`
+                                                                            <div class="detail-row">
+                                                                                <span class="detail-label">Método</span> 
+                                                                                <span class="detail-value" style="text-transform: capitalize;">\${c.paymentMethod}</span>
+                                                                            </div>\` : ''}
+                                                                            <div class="detail-row">
+                                                                                <span class="detail-label">Status</span> 
+                                                                                <span class="badge">PAGO</span>
+                                                                            </div>
+                                                                            <div class="total-row">
+                                                                                <span class="detail-label">Valor Pago</span> 
+                                                                                <span class="total-value">R$ ${c.actualPaidAmount ? c.actualPaidAmount.toFixed(2) : c.amount.toFixed(2)}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div class="footer">
+                                                                            <strong>Instituto Educacional de Teologia</strong><br/>
+                                                                            Este documento comprova o recebimento do valor especificado referente aos serviços educacionais.
+                                                                        </div>
+                                                                        <button class="print-btn" onclick="window.print()">Imprimir Comprovante</button>
+                                                                    </div>
+                                                                </body>
+                                                                </html>
+                                                            `)
                                                     }}
                                                     className="text-[10px] font-bold bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
                                                 >
@@ -307,7 +375,7 @@ export function FinancialStudentView({ studentId }: Props) {
 
             {/* Sticky Action Footer */}
             {selectedChargeIds.length > 0 && (
-                <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-[0_-10px_40px_rgba(0,0,0,0.15)] p-4 flex flex-col sm:flex-row items-center justify-between gap-4 z-40 animate-in slide-in-from-bottom-10 backdrop-blur-md bg-white/90">
+                <div className="sticky bottom-0 -mx-4 md:-mx-8 w-[calc(100%+2rem)] md:w-[calc(100%+4rem)] bg-card border-t border-border shadow-[0_-10px_40px_rgba(0,0,0,0.15)] p-4 flex flex-col sm:flex-row items-center justify-between gap-4 z-40 animate-in slide-in-from-bottom-5 backdrop-blur-md bg-white/90">
                     <div className="flex items-center gap-4">
                         <div className="bg-accent/10 px-4 py-2 rounded-full border border-accent/20">
                             <span className="font-black text-accent">{selectedChargeIds.length}</span> <span className="text-xs font-bold text-accent-foreground">ITEM(S)</span>
@@ -335,6 +403,9 @@ export function FinancialStudentView({ studentId }: Props) {
                     </div>
                 </div>
             )}
+            
+            {/* Bottom padding to avoid bar overlap when not sticking */}
+            <div className="h-20" />
         </div>
     )
 }

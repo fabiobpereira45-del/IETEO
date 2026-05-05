@@ -1,23 +1,22 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Download, Loader2, Save, UserCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
-import { type Assessment, getProfessorSession, saveProfessorSession, updateProfessorAccount } from "@/lib/store"
+import { type Assessment, getProfessorSession, saveProfessorSession, updateProfessorAccount, getAssessments } from "@/lib/store"
 import { FinancialConfig } from "@/components/financial-config"
 import { AvatarUpload } from "@/components/avatar-upload"
 
 interface Props {
-  assessments: Assessment[]
-  onRefresh: (showLoading?: boolean) => void
   onLogout: () => void
 }
 
-export function SettingsTab({ assessments, onRefresh, onLogout }: Props) {
-  const active = assessments[0]
+export function SettingsTab({ onLogout }: Props) {
+  const [assessments, setAssessments] = useState<Assessment[]>([])
+  const [loading, setLoading] = useState(true)
   const supabase = createClient()
   const [migrating, setMigrating] = useState(false)
   const session = typeof window !== "undefined" ? getProfessorSession() : null
@@ -29,7 +28,20 @@ export function SettingsTab({ assessments, onRefresh, onLogout }: Props) {
   const [bio, setBio] = useState("")
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false)
 
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    try {
+        const a = await getAssessments()
+        setAssessments(a)
+    } catch (err) {
+        console.error("Error loading settings data:", err)
+    } finally {
+        setLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
+    loadData()
     async function fetchUserInfo() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
@@ -76,7 +88,7 @@ export function SettingsTab({ assessments, onRefresh, onLogout }: Props) {
 
       alert("Perfil atualizado com sucesso!")
       setPassword("") 
-      onRefresh()
+      loadData()
     } catch (err: any) {
       alert("Erro ao atualizar perfil: " + err.message)
     } finally {
@@ -119,12 +131,21 @@ export function SettingsTab({ assessments, onRefresh, onLogout }: Props) {
         })))
       }
 
-      onRefresh()
+      loadData()
       alert("Migração Concluída com Sucesso!")
     } catch (err: any) {
       alert("Erro ao migrar dados: " + err.message)
     }
     setMigrating(false)
+  }
+
+  if (loading) {
+      return (
+          <div className="flex flex-col items-center justify-center p-20 min-h-[40vh]">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="mt-4 text-sm text-muted-foreground">Carregando configurações...</p>
+          </div>
+      )
   }
 
   return (
@@ -153,7 +174,7 @@ export function SettingsTab({ assessments, onRefresh, onLogout }: Props) {
                     type="professor"
                     onUploadSuccess={(url) => {
                         if (session) saveProfessorSession(session.professorId, session.role, url)
-                        onRefresh(false)
+                        loadData()
                     }}
                 />
                 <p className="text-xs text-muted-foreground">Clique na câmera para alterar sua foto de perfil</p>
@@ -261,3 +282,4 @@ export function SettingsTab({ assessments, onRefresh, onLogout }: Props) {
     </div>
   )
 }
+

@@ -79,18 +79,16 @@ export function StudentJourneyView({ studentId, studentName, disciplineId }: Pro
 
       let filtered = [];
       if (disciplineId) {
+        const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
         const selectedDisc = allDiscs.find(d => d.id === disciplineId);
+        const selectedDiscName = selectedDisc ? normalize(selectedDisc.name) : "";
+
         filtered = (allChs || []).filter(c => {
           if (c.disciplineId === disciplineId) return true;
           const challengeDisc = allDiscs.find(d => d.id === c.disciplineId);
-          return challengeDisc && selectedDisc && 
-                 challengeDisc.name.trim().toLowerCase() === selectedDisc.name.trim().toLowerCase();
+          return challengeDisc && selectedDiscName && 
+                 normalize(challengeDisc.name) === selectedDiscName;
         });
-      }
-
-      // GLOBAL FALLBACK: If the filter resulted in 0 but there ARE challenges in the database, show them.
-      if (filtered.length === 0 && (allChs || []).length > 0) {
-        filtered = allChs;
       }
 
       setChallenges(filtered || [])

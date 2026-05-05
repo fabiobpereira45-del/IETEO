@@ -16,7 +16,8 @@ import {
   Scroll,
   Dna, 
   MessageSquare,
-  Wand2
+  Wand2,
+  Loader2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,9 +37,15 @@ import {
   updateChallenge, 
   deleteChallenge, 
   getDisciplines,
+  getStudents,
+  getChallengeSubmissionsByChallenge,
+  deleteChallengeSubmission,
+  deleteAllChallengeSubmissions,
   type Challenge, 
   type ChallengeType, 
-  type Discipline 
+  type Discipline,
+  type StudentProfile,
+  type ChallengeSubmission
 } from "@/lib/store"
 
 const CHALLENGE_TYPES: { value: ChallengeType; label: string; icon: any }[] = [
@@ -59,7 +66,12 @@ export function ChallengeManager() {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isAIModalOpen, setIsAIModalOpen] = useState(false)
+  const [isResponsesModalOpen, setIsResponsesModalOpen] = useState(false)
   const [editingChallenge, setEditingChallenge] = useState<Challenge | null>(null)
+  const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null)
+  const [submissions, setSubmissions] = useState<ChallengeSubmission[]>([])
+  const [allStudents, setAllStudents] = useState<StudentProfile[]>([])
+  const [loadingSubs, setLoadingSubs] = useState(false)
   
   // Form State
   const [form, setForm] = useState({
@@ -76,12 +88,14 @@ export function ChallengeManager() {
 
   useEffect(() => {
     async function load() {
-      const [allChs, allDs] = await Promise.all([
+      const [allChs, allDs, students] = await Promise.all([
         getChallenges(),
-        getDisciplines()
+        getDisciplines(),
+        getStudents()
       ])
       setChallenges(allChs)
       setDisciplines(allDs)
+      setAllStudents(students)
       setLoading(false)
     }
     load()
@@ -156,12 +170,59 @@ export function ChallengeManager() {
     const text = form.content
     if (!text) return
 
-    // Regex patterns for AI output
+    const updates: Partial<typeof form> = {}
+
+    // 1. Try to parse as JSON first (Smart JSON Parser)
+    try {
+      const data = JSON.parse(text)
+      
+      // Case A: Structured object with Title/Questions (Common AI output)
+      if (typeof data === 'object' && !Array.isArray(data)) {
+        const title = data.Título || data.title || data.Title
+        if (title) updates.title = title
+
+        const questionsRaw = data.Perguntas || data.questions || data.Questions
+        if (Array.isArray(questionsRaw)) {
+          updates.type = "quiz"
+          const transformed = questionsRaw.map((q: any) => {
+            // Standard format
+            if (q.question && q.options && (q.answer !== undefined)) return q
+
+            // Non-standard format (User structure)
+            const questionKey = Object.keys(q).find(k => k !== 'Gabarito' && k !== 'answer' && k !== 'options')
+            if (questionKey && Array.isArray(q[questionKey])) {
+              const options = q[questionKey]
+              const g = q.Gabarito || q.answer || ""
+              const fullAnswer = options.find((o: string) => o.trim().startsWith(g + ")") || o.trim().startsWith(g + " ")) || g
+              return { question: questionKey, options, answer: fullAnswer }
+            }
+            return null
+          }).filter(Boolean)
+
+          if (transformed.length > 0) {
+            updates.content = JSON.stringify(transformed, null, 2)
+            if (!updates.description) updates.description = `Responda ao ${updates.title || "quiz"} para ganhar XP.`
+          }
+        }
+      } 
+      // Case B: Raw Array (Already in system format)
+      else if (Array.isArray(data)) {
+        updates.type = "quiz"
+        // Title might be missing here, try to extract from description if available
+      }
+
+      if (Object.keys(updates).length > 0) {
+        setForm(prev => ({ ...prev, ...updates }))
+        return
+      }
+    } catch (e) {
+      // Not JSON, continue to legacy regex
+    }
+
+    // 2. Legacy Regex Parser for plain text output
     const titleMatch = text.match(/Título:\s*(.*)/i)
     const enigmaMatch = text.match(/(?:Enigma|Desafio|Versículo):\s*([\s\S]*?)(?=\nResposta:|$)/i)
     const answerMatch = text.match(/Resposta:\s*(.*)/i)
-
-    const updates: Partial<typeof form> = {}
 
     if (titleMatch?.[1]) updates.title = titleMatch[1].trim()
     if (enigmaMatch?.[1]) updates.description = enigmaMatch[1].trim()
@@ -170,7 +231,7 @@ export function ChallengeManager() {
     if (Object.keys(updates).length > 0) {
       setForm(prev => ({ ...prev, ...updates }))
     } else {
-      alert("Não foi possível identificar os campos. Certifique-se de que o texto segue o formato da IA (Título:, Enigma:, Resposta:).")
+      alert("Não foi possível identificar os campos. Certifique-se de que o texto segue o formato da IA (Título:, Enigma:, Resposta:) ou é um JSON válido.")
     }
   }
 
@@ -182,6 +243,41 @@ export function ChallengeManager() {
     } catch (error: any) {
       console.error("Erro ao excluir missão:", error)
       alert("Erro ao excluir missão: " + (error.message || "Verifique as dependências (submissões de alunos) ou o console."))
+    }
+  }
+
+  async function openResponses(challenge: Challenge) {
+    setSelectedChallenge(challenge)
+    setIsResponsesModalOpen(true)
+    setLoadingSubs(true)
+    try {
+      const subs = await getChallengeSubmissionsByChallenge(challenge.id)
+      setSubmissions(subs)
+    } catch (error) {
+      console.error("Erro ao carregar respostas:", error)
+    } finally {
+      setLoadingSubs(false)
+    }
+  }
+
+  async function handleDeleteSubmission(subId: string) {
+    if (!confirm("Excluir esta resposta permanentemente?")) return
+    try {
+      await deleteChallengeSubmission(subId)
+      setSubmissions(prev => prev.filter(s => s.id !== subId))
+    } catch (error: any) {
+      alert("Erro ao excluir: " + error.message)
+    }
+  }
+
+  async function handleDeleteAllSubmissions(challengeId: string) {
+    if (!confirm("ATENÇÃO: Isso excluirá TODAS as respostas deste desafio. Esta ação não pode ser desfeita. Continuar?")) return
+    try {
+      await deleteAllChallengeSubmissions(challengeId)
+      setSubmissions([])
+      alert("Todas as respostas foram removidas.")
+    } catch (error: any) {
+      alert("Erro ao limpar respostas: " + error.message)
     }
   }
 
@@ -239,10 +335,13 @@ export function ChallengeManager() {
                   <TypeIcon className="h-6 w-6" />
                 </div>
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => openEdit(challenge)} className="h-8 w-8 rounded-full hover:bg-primary/10 hover:text-primary">
+                  <Button variant="ghost" size="icon" onClick={() => openResponses(challenge)} title="Ver Respostas" className="h-8 w-8 rounded-full hover:bg-primary/10 hover:text-primary">
+                    <MessageSquare className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => openEdit(challenge)} title="Editar" className="h-8 w-8 rounded-full hover:bg-primary/10 hover:text-primary">
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(challenge.id)} className="h-8 w-8 rounded-full hover:bg-destructive/10 hover:text-destructive">
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(challenge.id)} title="Excluir" className="h-8 w-8 rounded-full hover:bg-destructive/10 hover:text-destructive">
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -451,6 +550,74 @@ export function ChallengeManager() {
         </DialogContent>
       </Dialog>
 
+      {/* Responses Modal */}
+      <Dialog open={isResponsesModalOpen} onOpenChange={setIsResponsesModalOpen}>
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden flex flex-col rounded-[2rem]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-serif">Respostas dos Alunos</DialogTitle>
+            <p className="text-sm text-muted-foreground">{selectedChallenge?.title}</p>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto py-4">
+            {loadingSubs ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : submissions.length === 0 ? (
+              <div className="text-center py-20 space-y-2">
+                <MessageSquare className="h-12 w-12 mx-auto opacity-20" />
+                <p className="text-muted-foreground">Nenhuma resposta registrada para este desafio.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex justify-between items-center mb-4">
+                  <p className="text-sm font-medium">{submissions.length} resposta(s) encontrada(s)</p>
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={() => selectedChallenge && handleDeleteAllSubmissions(selectedChallenge.id)}
+                    className="h-8 text-xs rounded-lg"
+                  >
+                    Excluir Todas
+                  </Button>
+                </div>
+                {submissions.map(sub => {
+                  const student = allStudents.find(s => s.id === sub.studentId)
+                  return (
+                    <div key={sub.id} className="p-4 rounded-2xl border border-border bg-muted/30 flex justify-between items-start gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm">{student?.name || "Aluno desconhecido"}</span>
+                          <span className={cn(
+                            "text-[10px] font-bold px-1.5 py-0.5 rounded uppercase",
+                            sub.isCorrect ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                          )}>
+                            {sub.isCorrect ? "Correto" : "Incorreto"}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">Resposta: <span className="text-foreground italic">"{sub.answer}"</span></p>
+                        <p className="text-[10px] text-muted-foreground/60">{new Date(sub.submittedAt).toLocaleString('pt-BR')}</p>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleDeleteSubmission(sub.id)}
+                        className="h-8 w-8 rounded-full text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button onClick={() => setIsResponsesModalOpen(false)} className="rounded-xl px-8">Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {/* AI Assistant Modal */}
       <Dialog open={isAIModalOpen} onOpenChange={setIsAIModalOpen}>
         <DialogContent className="sm:max-w-2xl rounded-[2.5rem] border-none shadow-2xl p-6">

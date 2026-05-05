@@ -1,33 +1,62 @@
 "use client"
 
-import { useState } from "react"
-import { BarChart3, CheckCircle2, Download, FileText, Pencil, Trophy, Trash2, Users, XCircle } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
+import { BarChart3, CheckCircle2, Download, FileText, Pencil, Trophy, Trash2, Users, XCircle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { type Assessment, type StudentSubmission, type Question, deleteSubmission, updateSubmissionScore } from "@/lib/store"
+import { 
+    type Assessment, type StudentSubmission, type Question, deleteSubmission, updateSubmissionScore,
+    getAssessments, getSubmissions, getQuestions
+} from "@/lib/store"
 import { printStudentPDF, printCompiledSubmissionsPDF, printSubmissionsTablePDF } from "@/lib/pdf"
 import { formatDate, formatTime } from "../admin-utils"
 import { cn } from "@/lib/utils"
 
 interface Props {
-  assessments: Assessment[]
-  allSubmissions: StudentSubmission[]
-  questions: Question[]
-  onRefresh: () => void
   isMaster: boolean
 }
 
-export function SubmissionsTab({ assessments, allSubmissions, questions, onRefresh, isMaster }: Props) {
-  const [selectedAssessmentId, setSelectedAssessmentId] = useState(assessments[0]?.id ?? "")
+export function SubmissionsTab({ isMaster }: Props) {
+  const [assessments, setAssessments] = useState<Assessment[]>([])
+  const [allSubmissions, setAllSubmissions] = useState<StudentSubmission[]>([])
+  const [questions, setQuestions] = useState<Question[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const [selectedAssessmentId, setSelectedAssessmentId] = useState("")
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
   const [editingSubId, setEditingSubId] = useState<string | null>(null)
   const [editScore, setEditScore] = useState<number>(0)
   const [isSavingScore, setIsSavingScore] = useState(false)
+
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    try {
+        const [a, s, q] = await Promise.all([
+            getAssessments(),
+            getSubmissions(),
+            getQuestions()
+        ])
+        setAssessments(a)
+        setAllSubmissions(s)
+        setQuestions(q)
+        if (a.length > 0 && !selectedAssessmentId) {
+            setSelectedAssessmentId(a[0].id)
+        }
+    } catch (err) {
+        console.error("Error loading submissions data:", err)
+    } finally {
+        setLoading(false)
+    }
+  }, [selectedAssessmentId])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   const submissions = allSubmissions
     .filter((s) => s.assessmentId === selectedAssessmentId)
@@ -38,6 +67,15 @@ export function SubmissionsTab({ assessments, allSubmissions, questions, onRefre
   const averageScore = submissions.length > 0
     ? submissions.reduce((acc, curr) => acc + curr.score, 0) / submissions.length
     : 0
+
+  if (loading) {
+      return (
+          <div className="flex flex-col items-center justify-center p-20 min-h-[40vh]">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="mt-4 text-sm text-muted-foreground">Carregando envios...</p>
+          </div>
+      )
+  }
 
   function handlePDF(sub: StudentSubmission) {
     if (!selectedAssessment) return
@@ -50,7 +88,7 @@ export function SubmissionsTab({ assessments, allSubmissions, questions, onRefre
   async function handleDelete() {
     if (deleteId) {
       await deleteSubmission(deleteId)
-      onRefresh()
+      loadData()
       setDeleteId(null)
     }
   }
@@ -68,7 +106,7 @@ export function SubmissionsTab({ assessments, allSubmissions, questions, onRefre
     try {
       await updateSubmissionScore(sub.id, editScore, sub.totalPoints)
       setEditingSubId(null)
-      onRefresh()
+      loadData()
     } catch (err: any) {
       alert("Erro ao salvar nota: " + err.message)
     } finally {
@@ -244,7 +282,7 @@ export function SubmissionsTab({ assessments, allSubmissions, questions, onRefre
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir envio</AlertDialogTitle>
-            <AlertDialogDescription>Tem certeza que deseja apagar a resposta deste aluno? Esta ação não pode ser desfeita.</AlertDialogDescription>
+            <AlertDialogHeader>Tem certeza que deseja apagar a resposta deste aluno? Esta ação não pode ser desfeita.</AlertDialogHeader>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -255,3 +293,4 @@ export function SubmissionsTab({ assessments, allSubmissions, questions, onRefre
     </div>
   )
 }
+
