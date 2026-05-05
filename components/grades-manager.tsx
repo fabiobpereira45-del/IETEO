@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import {
     StudentGrade, getStudentGrades, saveStudentGrade, deleteStudentGrade, releaseAllGrades, blockAllGrades,
-    StudentProfile, getStudents, Discipline, getDisciplines, bulkSyncGrades, getClasses, ClassRoom,
+    StudentProfile, getStudents, Discipline, getDisciplines, bulkSyncGrades, syncAllAttendanceScores, getClasses, ClassRoom,
     getGradeSettings, calculateGlobalAverage, type GradeSettings
 } from "@/lib/store"
 import { printGradesReportPDF } from "@/lib/pdf"
@@ -290,8 +290,9 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
     const handleSync = useCallback(async () => {
         try {
             setSyncLoading(true)
-            const { totalAffected } = await bulkSyncGrades()
-            alert(`Sincronização concluída! ${totalAffected} registros foram vinculados com sucesso.`)
+            await bulkSyncGrades()
+            await syncAllAttendanceScores()
+            alert(`Sincronização concluída! As notas de presença foram recalculadas com base no registro de frequência.`)
             loadData()
         } catch (err: any) {
             alert("Erro na sincronização: " + err.message)

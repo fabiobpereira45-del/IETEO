@@ -2065,18 +2065,7 @@ export async function saveAttendance(studentId: string, disciplineId: string, da
 
   // --- AUTOMATIC ATTENDANCE SCORE UPDATE ---
   try {
-    // 1. Get total lessons count for this discipline to calculate dynamic weight
-    const { data: schedule } = await supabase.from('class_schedules')
-      .select('lessons_count')
-      .eq('discipline_id', disciplineId)
-      .maybeSingle();
-
-    // 1.5 Get Grade Settings for presence value
-    const gSettings = await getGradeSettings();
-    const weightPerPresence = gSettings?.presenceValue || 0.5;
-    const maxAttendanceScore = 10.0;
-
-    // 2. Count all presences for this student in this discipline
+    // 1. Count all presences for this student in this discipline
     const { data: allAtt } = await supabase.from('attendances')
       .select('is_present')
       .match({ student_id: studentId, discipline_id: disciplineId });
@@ -2084,13 +2073,13 @@ export async function saveAttendance(studentId: string, disciplineId: string, da
     const presenceCount = (allAtt || []).filter((a: any) => a.is_present).length;
     const attendanceScore = Math.min(presenceCount * 2.5, 10.0);
 
-    // 3. Get student info for the grade record
+    // 2. Get student info for the grade record
     const { data: student } = await supabase.from('students').select('id, name, email').eq('id', studentId).single();
 
     if (student) {
-      // 4. Find/Update student_grade using student_id
+      // 3. Find/Update student_grade using student_id
       const { data: existingGrade } = await supabase.from('student_grades')
-        .select('id, exam_grade')
+        .select('id')
         .match({ student_id: studentId, discipline_id: disciplineId })
         .maybeSingle();
 
@@ -2405,15 +2394,12 @@ export async function blockAllGrades(classId?: string): Promise<void> {
   }
 }
 
-/**
- * Standardized average calculation using global settings.
- * formula: (Grade/10 * Weight) for each category + AttendanceScore (already in points)
- */
 export function calculateGlobalAverage(grade: StudentGrade, settings: GradeSettings): string {
+  // Institutional Rule: (Attendance Score + Exam Grade) / 2
+  // Attendance Score is already calculated as (Presences * 2.5) capped at 10.0
   const exam = (grade.examGrade || 0)
   const presence = (grade.attendanceScore || 0)
   
-  // Rule: (Presence Total + Exam Grade) / 2
   const avg = (presence + exam) / 2
   return Math.min(avg, 10.0).toFixed(2)
 }
@@ -2424,10 +2410,8 @@ export function calculateGlobalAverage(grade: StudentGrade, settings: GradeSetti
  */
 export async function syncAllAttendanceScores(): Promise<void> {
   const supabase = createClient()
-  const settings = await getGradeSettings()
-  if (!settings) throw new Error("Configurações não encontradas.")
   
-  console.log("DEBUG: Iniciando sincronização retrospectiva...");
+  console.log("DEBUG: Iniciando sincronização retrospectiva de presença...");
   
   // 1. Get all presences
   const { data: allAtt, error: attError } = await supabase
