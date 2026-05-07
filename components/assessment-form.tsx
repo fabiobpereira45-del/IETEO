@@ -12,7 +12,8 @@ import {
   Send,
   HelpCircle,
   Hash,
-  LayoutGrid
+  LayoutGrid,
+  ArrowLeft
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -240,6 +241,19 @@ export function AssessmentForm({ session, onSubmit }: Props) {
           {/* Top Info Bar */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  if (confirm("Deseja sair da prova? Seu progresso atual será mantido, mas você voltará para o início.")) {
+                    window.location.href = "/";
+                  }
+                }}
+                className="h-10 w-10 rounded-xl hover:bg-slate-100 -ml-2"
+                title="Sair e voltar ao início"
+              >
+                <ArrowLeft className="h-5 w-5 text-muted-foreground" />
+              </Button>
               <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shadow-inner">
                 <BookOpenCheck className="h-5 w-5" />
               </div>

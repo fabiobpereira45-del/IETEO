@@ -104,6 +104,17 @@ export interface ChallengeSubmission {
   submittedAt: string
 }
 
+export interface UserLog {
+  id?: string;
+  user_id?: string;
+  user_email?: string;
+  user_name?: string;
+  role?: string;
+  action: string;
+  metadata?: any;
+  created_at?: string;
+}
+
 export function hashPassword(plain: string): string {
   if (typeof window !== "undefined") return btoa(unescape(encodeURIComponent(plain)))
   return Buffer.from(plain).toString("base64")
@@ -460,6 +471,35 @@ function mapChallengeSubmission(row: any): ChallengeSubmission {
     earnedPoints: row.earned_points,
     submittedAt: row.submitted_at
   }
+}
+
+export async function logUserActivity(log: UserLog): Promise<void> {
+  const supabase = createClient()
+  try {
+    // Ensure we don't send undefined ID
+    const cleanLog = { ...log }
+    if (!cleanLog.id) delete cleanLog.id
+    
+    const { error } = await supabase.from('user_logs').insert(cleanLog)
+    if (error) {
+      console.error("Supabase Log Error:", error)
+      throw error
+    }
+  } catch (err) {
+    console.warn("Failed to log user activity:", err)
+  }
+}
+
+export async function getUserLogs(limit = 100): Promise<UserLog[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('user_logs')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  
+  if (error) throw error
+  return data || []
 }
 
 // ─── Async Supabase Operations ───────────────────────────────────────────────
@@ -2270,6 +2310,7 @@ export async function saveStudentGrade(grade: Omit<StudentGrade, 'id' | 'created
   }
 
   const dbData: any = {
+    student_id: student_id,
     student_identifier: grade.studentIdentifier,
     student_name: grade.studentName,
     discipline_id: grade.disciplineId || null,
@@ -2452,7 +2493,9 @@ export async function syncAllAttendanceScores(): Promise<void> {
     const cleanCpf = student.cpf ? student.cpf.replace(/\D/g, '') : null
 
     const { data: existingGrades } = await supabase.from('student_grades').select('id, student_identifier, student_id').eq('discipline_id', disciplineId)
-    if (existingGrades) {
+    
+    let updatedAny = false
+    if (existingGrades && existingGrades.length > 0) {
       for (const grade of existingGrades) {
         let isMatch = false
         if (grade.student_id === studentId) isMatch = true
@@ -2464,8 +2507,27 @@ export async function syncAllAttendanceScores(): Promise<void> {
         }
         if (isMatch) {
           await supabase.from('student_grades').update({ attendance_score: score, student_id: studentId }).eq('id', grade.id)
+          updatedAny = true
         }
       }
+    }
+
+    if (!updatedAny) {
+      // Create missing grade record
+      await supabase.from('student_grades').insert({
+        student_id: studentId,
+        student_name: student.name,
+        student_identifier: student.email || student.cpf || studentId,
+        discipline_id: disciplineId,
+        attendance_score: score,
+        exam_grade: 0,
+        works_grade: 0,
+        seminar_grade: 0,
+        participation_bonus: 0,
+        custom_divisor: 2,
+        is_public: false,
+        created_at: new Date().toISOString()
+      })
     }
   }
   console.log("✅ [Sync] Sincronização concluída.");

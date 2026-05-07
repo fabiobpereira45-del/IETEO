@@ -137,6 +137,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
     async function handlePortalLogout() {
         await logoutStudentAuth()
         setProfile(null)
+        onLogout()
     }
 
     if (loading) {

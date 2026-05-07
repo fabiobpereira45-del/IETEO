@@ -38,6 +38,9 @@ export const metadata: Metadata = {
   },
 }
 
+import { ActivityTracker } from "@/components/activity-tracker"
+import { Suspense } from "react"
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -46,6 +49,9 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className={`${inter.variable} ${merriweather.variable}`}>
       <body className="font-sans antialiased bg-background text-foreground" suppressHydrationWarning>
+        <Suspense fallback={null}>
+          <ActivityTracker />
+        </Suspense>
         {children}
       </body>
     </html>

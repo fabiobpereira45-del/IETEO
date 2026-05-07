@@ -5,7 +5,7 @@ import {
   Users, FileText, BookOpen, Settings, BarChart3, Download, LogOut,
   Plus, Pencil, Trash2, Eye, EyeOff, Trophy, CheckCircle2, Link2, FileCheck,
   ShieldCheck, Loader2, DollarSign, MessageSquare, CalendarCheck, GraduationCap, XCircle, ArrowLeft, Building2, UserCircle, Briefcase, Send, PlaySquare, CalendarDays, KeyRound, Save,
-  Menu, ChevronRight, Archive, ArchiveRestore, Sparkles, Calculator
+  Menu, ChevronRight, Archive, ArchiveRestore, Sparkles, Calculator, Activity
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -67,6 +67,7 @@ const OverviewTab = dynamic(() => import("./admin/tabs/OverviewTab").then(m => m
 const SubmissionsTab = dynamic(() => import("./admin/tabs/SubmissionsTab").then(m => m.SubmissionsTab), { loading: LoadingFallback })
 const AssessmentsTab = dynamic(() => import("./admin/tabs/AssessmentsTab").then(m => m.AssessmentsTab), { loading: LoadingFallback })
 const SettingsTab = dynamic(() => import("./admin/tabs/SettingsTab").then(m => m.SettingsTab), { loading: LoadingFallback })
+const UsageDashboard = dynamic(() => import("@/components/usage-dashboard").then(m => m.UsageDashboard), { loading: LoadingFallback })
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -83,7 +84,7 @@ function formatTime(s: number) {
   return `${m}m${sec.toString().padStart(2, "0")}s`
 }
 
-type Tab = "overview" | "students" | "grades" | "submissions" | "questions" | "assessments" | "challenges" | "professors" | "semesters" | "class_schedules" | "materials" | "financial" | "settings" | "chat" | "attendance" | "classes" | "institutional" | "grade_config"
+type Tab = "overview" | "students" | "grades" | "submissions" | "questions" | "assessments" | "challenges" | "professors" | "semesters" | "class_schedules" | "materials" | "financial" | "settings" | "chat" | "attendance" | "classes" | "institutional" | "grade_config" | "usage_logs"
 
 interface Props {
   onLogout: () => void
@@ -143,6 +144,7 @@ export function AdminDashboard({ onLogout }: Props) {
         { id: "financial", label: "Financeiro", icon: <DollarSign className="h-4 w-4" />, masterOnly: true },
         { id: "grade_config", label: "Configuração de Notas", icon: <Calculator className="h-4 w-4" />, masterOnly: true },
         { id: "professors", label: "Professores", icon: <ShieldCheck className="h-4 w-4" />, masterOnly: true },
+        { id: "usage_logs", label: "Logs de Uso", icon: <Activity className="h-4 w-4" />, masterOnly: true },
         { id: "settings", label: "Configurações", icon: <Settings className="h-4 w-4" /> },
       ]
     },
@@ -370,6 +372,7 @@ export function AdminDashboard({ onLogout }: Props) {
               {tab === "professors" && isMaster && <ProfessorManager />}
               {tab === "institutional" && <InstitutionalManager />}
               {tab === "grade_config" && isMaster && <GradeConfig />}
+              {tab === "usage_logs" && isMaster && <UsageDashboard />}
             </div>
           )}
         </main>

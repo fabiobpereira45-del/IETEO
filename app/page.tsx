@@ -52,10 +52,10 @@ export default function HomePage() {
         if (existing) {
           setSession(studentSession)
           setSubmission(existing)
-          setView(existing.submittedAt ? "student-result" : "student-assessment")
+          // NO AUTO-REDIRECT: Let the user choose to resume from the landing page
         } else {
           setSession(studentSession)
-          setView("student-assessment")
+          // NO AUTO-REDIRECT: Let the user choose to resume from the landing page
         }
       }
     }
@@ -106,6 +106,8 @@ export default function HomePage() {
     setView("landing")
     setSession(null)
     setSubmission(null)
+    // IMPORTANT: Clear storage to prevent auto-redirect on next visit
+    import("@/lib/store").then(m => m.clearStudentSession())
   }, [])
 
   if (!mounted) return null
@@ -241,6 +243,23 @@ export default function HomePage() {
                 <h2 className="text-xl font-extrabold mb-1 text-foreground">Prova Pública</h2>
                 <p className="text-sm text-muted-foreground">Acesso aberto para avaliações públicas sem matrícula.</p>
               </button>
+
+              {/* RETOMAR AVALIAÇÃO (Sessão Ativa) */}
+              {session && session.assessmentId && session.assessmentId !== "portal" && (
+                <button
+                  onClick={() => setView(submission?.submittedAt ? "student-result" : "student-assessment")}
+                  className="group relative overflow-hidden bg-primary text-primary-foreground rounded-2xl p-6 text-left shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all border-2 border-accent animate-pulse col-span-1 sm:col-span-2"
+                >
+                  <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-extrabold mb-1">Retomar Avaliação</h2>
+                      <p className="text-sm opacity-90">Você tem uma sessão ativa: <strong>{session.name}</strong></p>
+                    </div>
+                    <BookOpen className="h-10 w-10 opacity-50" />
+                  </div>
+                </button>
+              )}
             </div>
 
             {/* Inclusão Institucional */}
