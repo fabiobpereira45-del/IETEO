@@ -724,8 +724,13 @@ export async function updateFinancialChargeStatus(id: string, status: FinancialC
   const supabase = createClient()
   const dbData: any = { status }
   if (status === 'paid') dbData.payment_date = new Date().toISOString()
-  if (status === 'pending') dbData.payment_date = null
-  await supabase.from('financial_charges').update(dbData).eq('id', id)
+  if (status === 'pending') {
+    dbData.payment_date = null
+    dbData.payment_method = null
+    dbData.actual_paid_amount = null
+  }
+  const { error } = await supabase.from('financial_charges').update(dbData).eq('id', id)
+  if (error) throw new Error(error.message)
 
   // Trigger actions on payment
   if (status === 'paid') {
@@ -2829,7 +2834,9 @@ export async function reverseFinancialCharge(id: string): Promise<void> {
     status: 'pending',
     actual_paid_amount: null,
     payment_method: null,
-    payment_date: null
+    payment_date: null,
+    pix_qrcode: null,
+    pix_copy_paste: null
   }
   const { error } = await supabase.from('financial_charges').update(dbData).eq('id', id)
   if (error) throw new Error(error.message)

@@ -76,6 +76,7 @@ export function FinancialManager({ onRefresh, month, year, scope }: {
 
     // Edit Charge State
     const [editingCharge, setEditingCharge] = useState<FinancialCharge | null>(null)
+    const [reverseId, setReverseId] = useState<string | null>(null)
     const [editAmount, setEditAmount] = useState("")
     const [editDescription, setEditDescription] = useState("")
     const [editDueDate, setEditDueDate] = useState("")
@@ -310,14 +311,17 @@ export function FinancialManager({ onRefresh, month, year, scope }: {
     }
 
     async function handleReverse(id: string) {
-        if (!confirm("Deseja estornar este pagamento? O status voltará para Pendente.")) return
+        setSaving(true)
         try {
             await reverseFinancialCharge(id)
-            load()
+            await load()
             onRefresh?.()
-            toast.success("Pagamento estornado.")
+            setReverseId(null)
+            toast.success("Pagamento estornado com sucesso.")
         } catch (e: any) {
             toast.error("Erro ao estornar: " + e.message)
+        } finally {
+            setSaving(false)
         }
     }
 
@@ -719,7 +723,7 @@ export function FinancialManager({ onRefresh, month, year, scope }: {
                                                             }} title="Dar Baixa"><CheckCircle2 className="h-4 w-4" /></Button>
                                                         </>
                                                     ) : (
-                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-amber-600 hover:bg-amber-50" onClick={() => handleReverse(c.id)} title="Estornar/Remover Baixa"><Clock className="h-4 w-4" /></Button>
+                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-amber-600 hover:bg-amber-50" onClick={() => setReverseId(c.id)} title="Estornar/Remover Baixa"><Clock className="h-4 w-4" /></Button>
                                                     )}
                                                     <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 hover:bg-blue-50" onClick={() => {
                                                         setEditingCharge(c)
@@ -929,6 +933,31 @@ export function FinancialManager({ onRefresh, month, year, scope }: {
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction className="bg-destructive" onClick={handleDelete}>Excluir</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={!!reverseId} onOpenChange={(o) => !o && setReverseId(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Estornar Pagamento</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Deseja estornar este pagamento? O status da cobrança voltará para "Pendente" e a data/método de pagamento serão removidos.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={saving}>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction 
+                            className="bg-amber-600 hover:bg-amber-700" 
+                            onClick={(e) => {
+                                e.preventDefault()
+                                if (reverseId) handleReverse(reverseId)
+                            }}
+                            disabled={saving}
+                        >
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                            Confirmar Estorno
+                        </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
