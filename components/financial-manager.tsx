@@ -200,8 +200,8 @@ export function FinancialManager({ onRefresh, month, year, scope }: {
                 }
             }
 
-            load()
-            onRefresh?.()
+            await load()
+            await onRefresh?.()
             toast.success("Status atualizado com sucesso!")
         } catch (e: any) {
             toast.error("Erro ao atualizar status: " + e.message)
@@ -315,7 +315,7 @@ export function FinancialManager({ onRefresh, month, year, scope }: {
         try {
             await reverseFinancialCharge(id)
             await load()
-            onRefresh?.()
+            await onRefresh?.()
             setReverseId(null)
             toast.success("Pagamento estornado com sucesso.")
         } catch (e: any) {

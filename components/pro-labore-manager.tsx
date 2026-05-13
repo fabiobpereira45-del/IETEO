@@ -157,8 +157,8 @@ export function ProLaboreManager({ onRefresh }: { onRefresh?: () => void } = {})
         try {
             await deleteFinancialCharge(reverseItem.chargeId)
             toast.success("Pagamento estornado com sucesso!")
-            load()
-            onRefresh?.()
+            await load()
+            await onRefresh?.()
         } catch (e: any) {
             toast.error("Erro ao estornar: " + e.message)
         } finally {
