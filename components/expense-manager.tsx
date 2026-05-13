@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Plus, Trash2, CheckCircle2, Clock, Loader2, DollarSign, Calculator, CalendarDays, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -11,6 +12,10 @@ import {
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
     type Expense, type FinancialCharge,
     getExpenses, addExpense, addExpenseBatch, updateExpense, deleteExpense,
@@ -42,6 +47,7 @@ export function ExpenseManager({
     const [editingExpense, setEditingExpense] = useState<any | null>(null)
     const [status, setStatus] = useState<any>("pending")
     const [filterStatus, setFilterStatus] = useState<string>("all")
+    const [reverseId, setReverseId] = useState<{id: string, isCharge: boolean} | null>(null)
 
     // Installment Form State
     const [installmentModalOpen, setInstallmentModalOpen] = useState(false)
@@ -113,8 +119,9 @@ export function ExpenseManager({
             setCategory("Alimento")
             setStatus("pending")
             onRefresh?.()
+            toast.success("Alterações salvas com sucesso.")
         } catch (e: any) {
-            alert("Erro ao salvar despesa: " + e.message)
+            toast.error("Erro ao salvar: " + e.message)
         } finally {
             setSaving(false)
         }
@@ -184,16 +191,21 @@ export function ExpenseManager({
     }
 
     async function handleStatusChange(id: string, status: Expense["status"], isCharge: boolean) {
+        setSaving(true)
         try {
             if (isCharge) {
                 await updateFinancialChargeStatus(id, status)
             } else {
                 await updateExpense(id, { status })
             }
-            load()
+            await load()
             onRefresh?.()
+            setReverseId(null)
+            toast.success("Status atualizado.")
         } catch (e: any) {
-            alert("Erro ao atualizar status: " + e.message)
+            toast.error("Erro ao atualizar: " + e.message)
+        } finally {
+            setSaving(false)
         }
     }
 
@@ -340,7 +352,7 @@ export function ExpenseManager({
                                                 </>
                                             )}
                                             {e.status === 'paid' && (
-                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-amber-600 hover:bg-amber-50" onClick={() => handleStatusChange(e.id, 'pending', e.isCharge as boolean)} title="Estornar Pagamento">
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-amber-600 hover:bg-amber-50" onClick={() => setReverseId({id: e.id, isCharge: e.isCharge as boolean})} title="Estornar Pagamento">
                                                     <Clock className="h-4 w-4" />
                                                 </Button>
                                             )}
@@ -524,6 +536,31 @@ export function ExpenseManager({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={!!reverseId} onOpenChange={(o) => !o && setReverseId(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Estornar Pagamento</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Deseja estornar este pagamento? O status voltará para "Pendente" e a data de pagamento será removida.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={saving}>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction 
+                            className="bg-amber-600 hover:bg-amber-700" 
+                            onClick={(e) => {
+                                e.preventDefault()
+                                if (reverseId) handleStatusChange(reverseId.id, 'pending', reverseId.isCharge)
+                            }}
+                            disabled={saving}
+                        >
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                            Confirmar Estorno
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

@@ -724,10 +724,12 @@ export async function updateFinancialChargeStatus(id: string, status: FinancialC
   const supabase = createClient()
   const dbData: any = { status }
   if (status === 'paid') dbData.payment_date = new Date().toISOString()
-  if (status === 'pending') {
+  if (status === 'pending' || status === 'cancelled' || status === 'isento' || status === 'bolsa100') {
     dbData.payment_date = null
     dbData.payment_method = null
     dbData.actual_paid_amount = null
+    dbData.pix_qrcode = null
+    dbData.pix_copy_paste = null
   }
   const { error } = await supabase.from('financial_charges').update(dbData).eq('id', id)
   if (error) throw new Error(error.message)
@@ -2853,7 +2855,16 @@ export async function updateFinancialCharge(id: string, data: {
   if (data.amount !== undefined) dbData.amount = data.amount
   if (data.description !== undefined) dbData.description = data.description
   if (data.dueDate !== undefined) dbData.due_date = data.dueDate
-  if (data.status !== undefined) dbData.status = data.status
+  if (data.status !== undefined) {
+    dbData.status = data.status
+    if (data.status === 'pending' || data.status === 'cancelled' || data.status === 'isento' || data.status === 'bolsa100') {
+      dbData.payment_date = null
+      dbData.payment_method = null
+      dbData.actual_paid_amount = null
+      dbData.pix_qrcode = null
+      dbData.pix_copy_paste = null
+    }
+  }
 
   const { error } = await supabase.from('financial_charges').update(dbData).eq('id', id)
   if (error) throw new Error(error.message)
