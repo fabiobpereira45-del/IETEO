@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import { Inter, Merriweather } from "next/font/google"
 import "./globals.css"
+import Script from 'next/script'
 
 const inter = Inter({
   subsets: ["latin"],
@@ -20,7 +21,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  userScalable: false, // Prevents zooming and helps PWA feel native
+  userScalable: false,
 }
 
 export const metadata: Metadata = {
@@ -53,6 +54,17 @@ export default function RootLayout({
           <ActivityTracker />
         </Suspense>
         {children}
+        <Script
+          id="clarity"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `(function(c,l,a,r,i,t,y){
+              c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+              t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+              y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+            })(window, document, "clarity", "script", "w5fvsw89jw");`,
+          }}
+        />
       </body>
     </html>
   )
