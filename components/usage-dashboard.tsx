@@ -53,6 +53,7 @@ export function UsageDashboard() {
     switch (role) {
       case 'master': return <Badge className="bg-purple-500">Master</Badge>
       case 'professor': return <Badge className="bg-blue-500">Professor</Badge>
+      case 'secretary': return <Badge className="bg-cyan-600">Secretária</Badge>
       case 'student': return <Badge className="bg-orange">Aluno</Badge>
       default: return <Badge variant="outline">Visitante</Badge>
     }

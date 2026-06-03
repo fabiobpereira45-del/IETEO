@@ -100,9 +100,9 @@ export function ProfessorLogin({ onLogin, onBack }: Props) {
             }
           }
 
-          if (finalRole !== "master" && finalRole !== "professor") {
+          if (finalRole !== "master" && finalRole !== "professor" && finalRole !== "secretary") {
             await supabase.auth.signOut()
-            throw new Error("Acesso negado. Esta área é restrita a professores.")
+            throw new Error("Acesso negado. Esta área é restrita a professores e secretários.")
           }
 
           saveProfessorSession(finalId, finalRole, finalAvatar)

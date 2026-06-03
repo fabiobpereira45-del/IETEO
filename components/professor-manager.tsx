@@ -29,7 +29,7 @@ interface FormState {
   name: string
   email: string
   password: string
-  role: "master" | "professor"
+  role: "master" | "professor" | "secretary"
   active?: boolean
 }
 
@@ -111,11 +111,12 @@ function ProfessorForm({
           <Label>Função</Label>
           <select
             value={form.role}
-            onChange={(e) => set("role", e.target.value as "master" | "professor")}
+            onChange={(e) => set("role", e.target.value as "master" | "professor" | "secretary")}
             className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground"
           >
             <option value="professor">Professor</option>
             <option value="master">Administrador (Master)</option>
+            <option value="secretary">Secretário(a)</option>
           </select>
         </div>
       </div>
@@ -321,9 +322,11 @@ export function ProfessorManager() {
                       </span>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${account.role === "master"
                         ? "bg-primary/15 text-primary"
+                        : account.role === "secretary"
+                        ? "bg-blue-100 text-blue-700"
                         : "bg-muted text-muted-foreground"
                         }`}>
-                        {account.role === "master" ? "Master" : "Professor"}
+                        {account.role === "master" ? "Master" : account.role === "secretary" ? "Secretário(a)" : "Professor"}
                       </span>
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">

@@ -23,7 +23,7 @@ export function ActivityTracker() {
         if (prof) {
           userId = prof.professorId
           role = prof.role
-          userName = prof.role === 'master' ? 'Fábio Barreto' : 'Professor' // Simplification
+          userName = prof.role === 'master' ? 'Fábio Barreto' : prof.role === 'secretary' ? 'Secretário' : 'Professor' // Simplification
         } else {
           // Check Student Session
           const student = await getStudentProfileAuth()

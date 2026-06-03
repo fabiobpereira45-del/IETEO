@@ -93,15 +93,19 @@ interface Props {
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 
 export function AdminDashboard({ onLogout }: Props) {
-  const [tab, setTab] = useState<Tab>("overview")
+  const session = typeof window !== "undefined" ? getProfessorSession() : null
+  const isMaster = session?.role === "master"
+  const isSecretary = session?.role === "secretary"
+
+  const [tab, setTab] = useState<Tab>(() => {
+    if (session?.role === "secretary") return "students"
+    return "overview"
+  })
   const [loading, setLoading] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const [username, setUsername] = useState("")
   const [userEmail, setUserEmail] = useState("")
-
-  const session = typeof window !== "undefined" ? getProfessorSession() : null
-  const isMaster = session?.role === "master"
   const supabase = createClient()
 
   // Improved refresh mechanism: individual tabs now manage their own fetching.
@@ -130,57 +134,77 @@ export function AdminDashboard({ onLogout }: Props) {
     fetchUser()
   }, [supabase.auth, session?.professorId])
 
-  const menuGroups = useMemo(() => [
-    {
-      title: "Principal",
-      items: [
-        { id: "overview", label: "Visão Geral", icon: <BarChart3 className="h-4 w-4" /> },
-        { id: "chat", label: "Chat Alunos", icon: <MessageSquare className="h-4 w-4" /> },
-      ]
-    },
-    {
-      title: "Administração",
-      items: [
-        { id: "financial", label: "Financeiro", icon: <DollarSign className="h-4 w-4" />, masterOnly: true },
-        { id: "grade_config", label: "Configuração de Notas", icon: <Calculator className="h-4 w-4" />, masterOnly: true },
-        { id: "professors", label: "Professores", icon: <ShieldCheck className="h-4 w-4" />, masterOnly: true },
-        { id: "usage_logs", label: "Logs de Uso", icon: <Activity className="h-4 w-4" />, masterOnly: true },
-        { id: "settings", label: "Configurações", icon: <Settings className="h-4 w-4" /> },
-      ]
-    },
-    {
-      title: "Institucional",
-      items: [
-        { id: "institutional", label: "Quem Somos / Missão", icon: <Building2 className="h-4 w-4" /> },
-      ]
-    },
-    {
-      title: "Acadêmico",
-      items: [
-        { id: "students", label: "Alunos", icon: <Users className="h-4 w-4" /> },
-        { id: "grades", label: "Notas e Diários", icon: <GraduationCap className="h-4 w-4" /> },
-        { id: "attendance", label: "Frequência", icon: <CalendarCheck className="h-4 w-4" /> },
-        { id: "classes", label: "Turmas", icon: <Briefcase className="h-4 w-4" />, masterOnly: true },
-      ]
-    },
-    {
-      title: "Avaliações",
-      items: [
-        { id: "questions", label: "Banco de Questões", icon: <BookOpen className="h-4 w-4" />, masterOnly: true },
-        { id: "assessments", label: "Provas", icon: <FileText className="h-4 w-4" /> },
-        { id: "challenges", label: "Missões Semanais", icon: <Sparkles className="h-4 w-4" /> },
-        { id: "submissions", label: "Respostas de Provas", icon: <CheckCircle2 className="h-4 w-4" /> },
-      ]
-    },
-    {
-      title: "Recursos",
-      items: [
-        { id: "materials", label: "Biblioteca (PDFs)", icon: <BookOpen className="h-4 w-4" /> },
-        { id: "semesters", label: "Grade Curricular", icon: <GraduationCap className="h-4 w-4" /> },
-        { id: "class_schedules", label: "Quadro de Horários", icon: <CalendarDays className="h-4 w-4" />, masterOnly: true },
+  const menuGroups = useMemo(() => {
+    if (isSecretary) {
+      return [
+        {
+          title: "Principal",
+          items: [
+            { id: "students", label: "Matricular Alunos", icon: <Users className="h-4 w-4" /> },
+            { id: "attendance", label: "Frequência (Chamadas)", icon: <CalendarCheck className="h-4 w-4" /> },
+          ]
+        },
+        {
+          title: "Administração",
+          items: [
+            { id: "settings", label: "Configurações", icon: <Settings className="h-4 w-4" /> },
+          ]
+        }
       ]
     }
-  ], [isMaster])
+
+    return [
+      {
+        title: "Principal",
+        items: [
+          { id: "overview", label: "Visão Geral", icon: <BarChart3 className="h-4 w-4" /> },
+          { id: "chat", label: "Chat Alunos", icon: <MessageSquare className="h-4 w-4" /> },
+        ]
+      },
+      {
+        title: "Administração",
+        items: [
+          { id: "financial", label: "Financeiro", icon: <DollarSign className="h-4 w-4" />, masterOnly: true },
+          { id: "grade_config", label: "Configuração de Notas", icon: <Calculator className="h-4 w-4" />, masterOnly: true },
+          { id: "professors", label: "Professores", icon: <ShieldCheck className="h-4 w-4" />, masterOnly: true },
+          { id: "usage_logs", label: "Logs de Uso", icon: <Activity className="h-4 w-4" />, masterOnly: true },
+          { id: "settings", label: "Configurações", icon: <Settings className="h-4 w-4" /> },
+        ]
+      },
+      {
+        title: "Institucional",
+        items: [
+          { id: "institutional", label: "Quem Somos / Missão", icon: <Building2 className="h-4 w-4" /> },
+        ]
+      },
+      {
+        title: "Acadêmico",
+        items: [
+          { id: "students", label: "Alunos", icon: <Users className="h-4 w-4" /> },
+          { id: "grades", label: "Notas e Diários", icon: <GraduationCap className="h-4 w-4" /> },
+          { id: "attendance", label: "Frequência", icon: <CalendarCheck className="h-4 w-4" /> },
+          { id: "classes", label: "Turmas", icon: <Briefcase className="h-4 w-4" />, masterOnly: true },
+        ]
+      },
+      {
+        title: "Avaliações",
+        items: [
+          { id: "questions", label: "Banco de Questões", icon: <BookOpen className="h-4 w-4" />, masterOnly: true },
+          { id: "assessments", label: "Provas", icon: <FileText className="h-4 w-4" /> },
+          { id: "challenges", label: "Missões Semanais", icon: <Sparkles className="h-4 w-4" /> },
+          { id: "submissions", label: "Respostas de Provas", icon: <CheckCircle2 className="h-4 w-4" /> },
+        ]
+      },
+      {
+        title: "Recursos",
+        items: [
+          { id: "materials", label: "Biblioteca (PDFs)", icon: <BookOpen className="h-4 w-4" /> },
+          { id: "semesters", label: "Grade Curricular", icon: <GraduationCap className="h-4 w-4" /> },
+          { id: "class_schedules", label: "Quadro de Horários", icon: <CalendarDays className="h-4 w-4" />, masterOnly: true },
+        ]
+      }
+    ]
+  }, [isMaster, isSecretary])
 
 
   const renderNavItem = (item: any) => (
@@ -228,7 +252,7 @@ export function AdminDashboard({ onLogout }: Props) {
             </div>
             <div>
               <h2 className="text-sm font-bold tracking-tight text-white leading-tight truncate w-32">{username || "Professor"}</h2>
-              <p className="text-[9px] text-slate-400 uppercase tracking-widest font-bold">IETEO • {isMaster ? "Painel Master" : "Painel Docente"}</p>
+              <p className="text-[9px] text-slate-400 uppercase tracking-widest font-bold">IETEO • {isMaster ? "Painel Master" : isSecretary ? "Painel Secretaria" : "Painel Docente"}</p>
             </div>
           </div>
         </div>
@@ -332,6 +356,11 @@ export function AdminDashboard({ onLogout }: Props) {
             {isMaster && (
               <span className="text-[10px] bg-primary/10 text-primary px-2 py-1 rounded-full font-bold uppercase tracking-wider">
                 Acesso Master
+              </span>
+            )}
+            {isSecretary && (
+              <span className="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-1 rounded-full font-bold uppercase tracking-wider">
+                Acesso Secretaria
               </span>
             )}
             <div className="flex items-center gap-3 pl-4 border-l border-border/50">

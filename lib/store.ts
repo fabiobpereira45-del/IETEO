@@ -11,6 +11,7 @@ export interface Semester { id: string; name: string; order: number; shift?: str
 export interface Discipline { id: string; name: string; description?: string | null; semesterId?: string | null; semesterOrder?: number; semesterName?: string; professorName?: string | null; dayOfWeek?: string | null; shift?: string | null; order: number; applicationMonth?: string | null; applicationYear?: string | null; isConcluded?: boolean; createdAt: string }
 export interface StudyMaterial { id: string; disciplineId: string; title: string; description?: string; fileUrl: string; createdAt: string }
 export interface FinancialSettings { id: string; enrollmentFee: number; monthlyFee: number; secondCallFee: number; finalExamFee: number; totalMonths: number; proLaboreFeePerLesson: number; creditCardUrl?: string; pixKey?: string; updatedAt: string; }
+export interface AsaasConfig { id: string; apiKey: string; mode: "sandbox" | "production"; pixKey?: string; updatedAt: string; }
 export interface FinancialCharge {
   id: string;
   studentId?: string;
@@ -25,6 +26,7 @@ export interface FinancialCharge {
   disciplineId?: string;
   professorId?: string;
   classId?: string;
+  asaasPaymentId?: string;
   pixQrcode?: string;
   pixCopyPaste?: string;
   createdAt: string;
@@ -34,8 +36,8 @@ export interface Question { id: string; disciplineId: string; type: QuestionType
 export interface Assessment { id: string; title: string; disciplineId: string; professor: string; institution: string; questionIds: string[]; pointsPerQuestion: number; totalPoints: number; openAt: string | null; closeAt: string | null; isPublished: boolean; archived: boolean; shuffleVariants?: boolean; timeLimitMinutes?: number | null; logoBase64?: string; rules?: string; releaseResults?: boolean; modality?: "public" | "private"; createdAt: string }
 export interface StudentAnswer { questionId: string; answer: string }
 export interface StudentSubmission { id: string; assessmentId: string; studentId: string; studentName: string; studentEmail: string; answers: StudentAnswer[]; score: number; totalPoints: number; percentage: number; submittedAt: string; timeElapsedSeconds: number; focusLostCount?: number }
-export interface ProfessorAccount { id: string; name: string; email: string; passwordHash: string; role: "master" | "professor"; avatar_url?: string | null; bio?: string | null; createdAt: string; active?: boolean }
-export interface ProfessorSession { loggedIn: boolean; professorId: string; role: "master" | "professor"; avatar_url?: string | null; expiresAt: string }
+export interface ProfessorAccount { id: string; name: string; email: string; passwordHash: string; role: "master" | "professor" | "secretary"; avatar_url?: string | null; bio?: string | null; createdAt: string; active?: boolean }
+export interface ProfessorSession { loggedIn: boolean; professorId: string; role: "master" | "professor" | "secretary"; avatar_url?: string | null; expiresAt: string }
 export interface StudentSession { studentId: string; name: string; email: string; assessmentId: string; startedAt: string }
 export interface StudentProfile { id: string; auth_user_id: string; name: string; email: string; cpf: string; enrollment_number: string; phone?: string; address?: string; church?: string; pastor_name?: string; class_id?: string; payment_status?: string; avatar_url?: string | null; bio?: string | null; status: "pending" | "active" | "inactive"; created_at: string; }
 export interface ChatMessage { id: string; studentId: string; disciplineId: string; message: string; isFromStudent: boolean; read: boolean; createdAt: string; }
@@ -163,7 +165,7 @@ export function getProfessorSession(): ProfessorSession | null {
   if (new Date(s.expiresAt) < new Date()) { clearProfessorSession(); return null }
   return s
 }
-export function saveProfessorSession(professorId: string, role: "master" | "professor", avatar_url?: string | null): void {
+export function saveProfessorSession(professorId: string, role: "master" | "professor" | "secretary", avatar_url?: string | null): void {
   try {
     const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString()
     writeLocal<ProfessorSession>(KEYS.PROFESSOR_SESSION, { loggedIn: true, professorId, role, avatar_url, expiresAt })
@@ -408,11 +410,13 @@ function mapFinancialCharge(row: any): FinancialCharge {
     disciplineId: row.discipline_id || undefined,
     professorId: row.professor_id || undefined,
     classId: row.class_id || undefined,
+    asaasPaymentId: row.asaas_payment_id || undefined,
     pixQrcode: row.pix_qrcode || undefined,
     pixCopyPaste: row.pix_copy_paste || undefined,
     createdAt: row.created_at
   }
 }
+function mapAsaasConfig(row: any): AsaasConfig { return { id: row.id, apiKey: row.api_key, mode: row.mode as "sandbox" | "production", pixKey: row.pix_key || undefined, updatedAt: row.updated_at } }
 function mapExpense(row: any): Expense { return { id: row.id, description: row.description, amount: Number(row.amount), category: row.category, dueDate: row.due_date, status: row.status, paidAt: row.paid_at || undefined, createdAt: row.created_at } }
 function mapStudentProfile(row: any): StudentProfile { return { id: row.id, auth_user_id: row.auth_user_id, name: row.name, email: row.email, cpf: row.cpf, enrollment_number: row.enrollment_number, phone: row.phone || undefined, address: row.address || undefined, church: row.church || undefined, pastor_name: row.pastor_name || undefined, class_id: row.class_id || undefined, payment_status: row.payment_status || undefined, avatar_url: row.avatar_url || null, bio: row.bio || null, status: (row.status || 'pending') as StudentProfile['status'], created_at: row.created_at } }
 function mapChatMessage(row: any): ChatMessage { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, message: row.message, isFromStudent: row.is_from_student, read: row.read, createdAt: row.created_at } }
@@ -510,46 +514,33 @@ export async function getFinancialSettings(): Promise<FinancialSettings | null> 
   return data ? mapFinancialSettings(data) : null
 }
 export async function updateFinancialSettings(settings: Omit<FinancialSettings, "id" | "updatedAt">): Promise<void> {
+  const res = await fetch("/api/admin/config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "financial", config: settings })
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.error || "Erro ao atualizar configurações financeiras")
+  }
+}
+
+export async function getAsaasConfig(): Promise<AsaasConfig | null> {
   const supabase = createClient()
-  const dbData = {
-    enrollment_fee: settings.enrollmentFee,
-    monthly_fee: settings.monthlyFee,
-    second_call_fee: settings.secondCallFee,
-    final_exam_fee: settings.finalExamFee,
-    total_months: settings.totalMonths,
-    pro_labore_fee_per_lesson: settings.proLaboreFeePerLesson,
-    credit_card_url: settings.creditCardUrl || null,
-    pix_key: settings.pixKey || null,
-    updated_at: new Date().toISOString()
+  const { data } = await supabase.from('asaas_config').select('*').limit(1).maybeSingle()
+  return data ? mapAsaasConfig(data) : null
+}
+
+export async function updateAsaasConfig(config: Omit<AsaasConfig, "id" | "updatedAt">): Promise<void> {
+  const res = await fetch("/api/admin/config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "asaas", config })
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.error || "Erro ao atualizar configurações do Asaas")
   }
-  const { data: existing } = await supabase.from('financial_settings').select('id').limit(1).maybeSingle()
-  if (existing) {
-    await supabase.from('financial_settings').update(dbData).eq('id', existing.id)
-  } else {
-    await supabase.from('financial_settings').insert(dbData)
-  }
-
-  // --- RE-CALCULATE PENDING CHARGES GLOBALLY ---
-  // 1. Update Pending Enrollment Fees
-  await supabase.from('financial_charges')
-    .update({ amount: settings.enrollmentFee })
-    .match({ type: 'enrollment', status: 'pending' })
-
-  // 2. Update Pending/Late Monthly Fees
-  await supabase.from('financial_charges')
-    .update({ amount: settings.monthlyFee })
-    .eq('type', 'monthly')
-    .in('status', ['pending', 'late'])
-
-  // 3. Update Bolsa 50%
-  await supabase.from('financial_charges')
-    .update({ amount: settings.monthlyFee / 2 })
-    .match({ type: 'monthly', status: 'bolsa50' })
-
-  // 4. Update Bolsa 100%
-  await supabase.from('financial_charges')
-    .update({ amount: 0 })
-    .match({ type: 'monthly', status: 'bolsa100' })
 }
 
 export async function getGradeSettings(): Promise<GradeSettings> {
@@ -728,6 +719,7 @@ export async function updateFinancialChargeStatus(id: string, status: FinancialC
     dbData.payment_date = null
     dbData.payment_method = null
     dbData.actual_paid_amount = null
+    dbData.asaas_payment_id = null
     dbData.pix_qrcode = null
     dbData.pix_copy_paste = null
   }

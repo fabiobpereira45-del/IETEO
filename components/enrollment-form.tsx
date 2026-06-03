@@ -49,6 +49,7 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
     const [pixCopied, setPixCopied] = useState(false)
     const [enrollmentDetails, setEnrollmentDetails] = useState<{ enrollmentNumber: string, name: string } | null>(null)
     const [enrolledChargeId, setEnrolledChargeId] = useState<string | null>(null)
+    const [dynamicPix, setDynamicPix] = useState<{ qrcode?: string; copyPaste?: string } | null>(null)
 
     // Success
     const [success, setSuccess] = useState(false)
@@ -86,6 +87,25 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
             if (!res.ok) throw new Error(body.error || "Erro ao criar matrícula")
             setEnrollmentDetails({ enrollmentNumber: body.enrollmentNumber, name: form.name })
             setEnrolledChargeId(body.chargeId)
+
+            // Try to generate Asaas PIX immediately for the newly created charge
+            try {
+                const asaasRes = await fetch("/api/asaas/create-pix", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ chargeIds: [body.chargeId] })
+                })
+                if (asaasRes.ok) {
+                    const asaasData = await asaasRes.json()
+                    if (asaasData.pixQrcode) {
+                        setDynamicPix({ qrcode: asaasData.pixQrcode, copyPaste: asaasData.pixCopyPaste })
+                    }
+                }
+            } catch (e) {
+                // Silently fallback to static PIX if Asaas fails during enrollment
+                console.error("Asaas PIX generation failed:", e)
+            }
+
             return body
         } catch (e: any) {
             setEnrollError(e.message)
@@ -359,7 +379,7 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                                         </div>
                                         <div className="text-left flex-1">
                                             <p className="font-bold text-green-700">Pagar com Pix</p>
-                                            <p className="text-xs text-green-600 font-medium">Chave para transferência manual</p>
+                                            <p className="text-xs text-green-600 font-medium">Pix Automático ou Copia e Cola</p>
                                         </div>
                                         <ChevronRight className="h-5 w-5 text-green-400" />
                                     </button>
@@ -412,25 +432,50 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                                             </div>
                                         </div>
                                         <div className="bg-muted/30 rounded-xl p-3 border border-border">
-                                            <p className="text-xs font-semibold text-muted-foreground mb-1">Chave Pix da Instituição:</p>
-                                            <div className="flex gap-2 items-center">
-                                                <p className="text-sm font-mono flex-1 break-all">{settings?.pixKey || "Chave PIX não configurada"}</p>
-                                                <button
-                                                    onClick={async () => {
-                                                        const key = settings?.pixKey || ""
-                                                        if (!key) {
-                                                            alert("Chave PIX não configurada!")
-                                                            return
-                                                        }
-                                                        await navigator.clipboard.writeText(key)
-                                                        setPixCopied(true)
-                                                        setTimeout(() => setPixCopied(false), 2000)
-                                                    }}
-                                                    className="shrink-0 bg-green-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1"
-                                                >
-                                                    <Copy className="h-3 w-3" />{pixCopied ? "Copiado!" : "Copiar"}
-                                                </button>
-                                            </div>
+                                            {dynamicPix ? (
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <p className="text-xs font-semibold text-green-700 mb-1">Escaneie o QR Code ou copie a chave Pix Automática:</p>
+                                                    {dynamicPix.qrcode && (
+                                                        <img src={`data:image/png;base64,${dynamicPix.qrcode}`} alt="QR Code Pix" className="w-48 h-48 border rounded-lg p-2 bg-white shadow-sm" />
+                                                    )}
+                                                    <div className="flex gap-2 items-center w-full mt-2">
+                                                        <p className="text-xs font-mono flex-1 break-all bg-white p-2 rounded border text-center text-muted-foreground">{dynamicPix.copyPaste}</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (!dynamicPix.copyPaste) return
+                                                            await navigator.clipboard.writeText(dynamicPix.copyPaste)
+                                                            setPixCopied(true)
+                                                            setTimeout(() => setPixCopied(false), 2000)
+                                                        }}
+                                                        className="w-full bg-green-600 text-white text-xs font-bold px-3 py-2.5 rounded-lg flex items-center justify-center gap-1 mt-1 active:scale-95 transition-transform"
+                                                    >
+                                                        <Copy className="h-4 w-4" />{pixCopied ? "Copiado!" : "Copiar Chave"}
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <p className="text-xs font-semibold text-muted-foreground mb-1">Chave Pix da Instituição (Transferência Manual):</p>
+                                                    <div className="flex gap-2 items-center">
+                                                        <p className="text-sm font-mono flex-1 break-all">{settings?.pixKey || "Chave PIX não configurada"}</p>
+                                                        <button
+                                                            onClick={async () => {
+                                                                const key = settings?.pixKey || ""
+                                                                if (!key) {
+                                                                    alert("Chave PIX não configurada!")
+                                                                    return
+                                                                }
+                                                                await navigator.clipboard.writeText(key)
+                                                                setPixCopied(true)
+                                                                setTimeout(() => setPixCopied(false), 2000)
+                                                            }}
+                                                            className="shrink-0 bg-green-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 active:scale-95 transition-transform"
+                                                        >
+                                                            <Copy className="h-3 w-3" />{pixCopied ? "Copiado!" : "Copiar"}
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
                                         <div className="flex flex-col gap-2 pt-2">
                                             {!enrollmentDetails ? (

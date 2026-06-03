@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
     type FinancialSettings,
+    getAsaasConfig, updateAsaasConfig,
     getFinancialSettings, updateFinancialSettings
 } from "@/lib/store"
 
@@ -26,10 +27,15 @@ export function FinancialConfig() {
     const [creditCardUrl, setCreditCardUrl] = useState("")
     const [pixKey, setPixKey] = useState("")
 
+    // Asaas states
+    const [asaasApiKey, setAsaasApiKey] = useState("")
+    const [asaasMode, setAsaasMode] = useState<"sandbox" | "production">("sandbox")
+
     async function load() {
         setLoading(true)
-        const [data] = await Promise.all([
-            getFinancialSettings()
+        const [data, asaas] = await Promise.all([
+            getFinancialSettings(),
+            getAsaasConfig()
         ])
 
         if (data) {
@@ -44,6 +50,10 @@ export function FinancialConfig() {
             setPixKey(data.pixKey || "")
         }
 
+        if (asaas) {
+            setAsaasApiKey(asaas.apiKey || "")
+            setAsaasMode(asaas.mode || "sandbox")
+        }
 
         setLoading(false)
     }
@@ -63,6 +73,10 @@ export function FinancialConfig() {
                     proLaboreFeePerLesson: parseFloat(proLaboreFee) || 0,
                     creditCardUrl: creditCardUrl,
                     pixKey: pixKey
+                }),
+                updateAsaasConfig({
+                    apiKey: asaasApiKey,
+                    mode: asaasMode
                 })
             ])
             alert("Configurações salvas com sucesso!")
@@ -179,7 +193,40 @@ export function FinancialConfig() {
                 </div>
             </div>
 
+            <div className="mt-8 border-t border-border pt-6">
+                <div className="flex items-center gap-2 mb-6">
+                    <div className="h-8 w-8 bg-green-100 text-green-700 rounded-full flex items-center justify-center font-bold text-sm">Pix</div>
+                    <div>
+                        <h3 className="text-lg font-semibold text-foreground">Integração Pix Automático (Asaas)</h3>
+                        <p className="text-xs text-muted-foreground">Insira a API Key do Asaas para gerar e receber pagamentos via Pix Dinâmico.</p>
+                    </div>
+                </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="flex flex-col gap-1.5 md:col-span-2">
+                        <Label>Ambiente (Modo)</Label>
+                        <Select value={asaasMode} onValueChange={(val: "sandbox" | "production") => setAsaasMode(val)}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Selecione o ambiente" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="sandbox">Sandbox (Testes)</SelectItem>
+                                <SelectItem value="production">Produção (Real)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="flex flex-col gap-1.5 md:col-span-2">
+                        <Label>API Key do Asaas</Label>
+                        <Input
+                            type="password"
+                            value={asaasApiKey}
+                            onChange={(e) => setAsaasApiKey(e.target.value)}
+                            placeholder="$aact_... (cole sua chave aqui)"
+                        />
+                        <span className="text-xs text-muted-foreground">Encontre em: asaas.com → Configurações → Integrações → API Key</span>
+                    </div>
+                </div>
+            </div>
 
             <div className="mt-6 flex justify-end">
                 <Button onClick={handleSave} disabled={saving}>

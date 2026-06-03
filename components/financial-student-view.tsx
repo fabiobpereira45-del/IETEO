@@ -22,6 +22,10 @@ export function FinancialStudentView({ studentId }: Props) {
     const [showPayModal, setShowPayModal] = useState(false)
     const [pixCopied, setPixCopied] = useState(false)
 
+    // Asaas Pix State
+    const [isGeneratingPix, setIsGeneratingPix] = useState(false)
+    const [dynamicPix, setDynamicPix] = useState<{ qrcode?: string; copyPaste?: string } | null>(null)
+
     async function load() {
         setLoading(true)
         const [allCharges, finSettings] = await Promise.all([
@@ -64,8 +68,31 @@ export function FinancialStudentView({ studentId }: Props) {
 
 
     function closeModal() {
-
         setShowPayModal(false)
+        setDynamicPix(null)
+    }
+
+    async function handleGenerateAsaasPix() {
+        setIsGeneratingPix(true)
+        try {
+            const res = await fetch("/api/asaas/create-pix", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chargeIds: selectedChargeIds })
+            })
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.error || "Erro ao gerar Pix automático.")
+            setDynamicPix({
+                qrcode: data.pixQrcode,
+                copyPaste: data.pixCopyPaste
+            })
+            // Reload charges to reflect saved PIX data
+            load()
+        } catch (error: any) {
+            alert(error.message)
+        } finally {
+            setIsGeneratingPix(false)
+        }
     }
 
     function handleWhatsAppConfirm() {
@@ -117,34 +144,60 @@ export function FinancialStudentView({ studentId }: Props) {
                         </div>
 
                         <div className="space-y-4">
-                            {/* Option 1: Pix */}
+                            {/* Option 1: Pix Dinâmico (Asaas) ou Estático */}
                             <div className="border-2 border-green-500 bg-green-50/50 rounded-xl p-5 space-y-3 shadow-sm">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <QrCode className="h-6 w-6 text-green-600" />
-                                        <p className="font-black text-green-700 text-base">Opção 1: Pix (Imediato)</p>
+                                        <p className="font-black text-green-700 text-base">Opção 1: Pix Automático (Asaas)</p>
                                     </div>
                                     <span className="text-[10px] font-bold bg-green-600 text-white px-2 py-0.5 rounded-full uppercase">Melhor Opção</span>
                                 </div>
                                 <div className="bg-white border border-green-200 rounded-lg p-4 shadow-inner">
-                                    <p className="text-[10px] uppercase font-black text-muted-foreground mb-1 tracking-widest">Chave Pix para Pagamento:</p>
-                                    <div className="flex items-center gap-3">
-                                        <code className="text-sm font-mono font-black text-foreground flex-1 break-all">{settings?.pixKey || "Chave PIX não configurada"}</code>
-                                        <button
-                                            onClick={async () => {
-                                                if (!settings?.pixKey) {
-                                                    alert("Chave PIX não configurada!")
-                                                    return
-                                                }
-                                                await navigator.clipboard.writeText(settings.pixKey)
-                                                setPixCopied(true)
-                                                setTimeout(() => setPixCopied(false), 2000)
-                                            }}
-                                            className="bg-green-600 hover:bg-green-700 text-white text-xs font-black px-4 py-2 rounded-lg flex items-center gap-2 transition-all active:scale-95"
-                                        >
-                                            <Copy className="h-4 w-4" /> {pixCopied ? "Copiado!" : "Copiar Chave"}
-                                        </button>
-                                    </div>
+                                    {dynamicPix ? (
+                                        <div className="flex flex-col items-center gap-3">
+                                            {dynamicPix.qrcode && (
+                                                <img src={`data:image/png;base64,${dynamicPix.qrcode}`} alt="QR Code Pix" className="w-48 h-48 border rounded-lg p-2" />
+                                            )}
+                                            <p className="text-[10px] uppercase font-black text-muted-foreground mb-1 tracking-widest text-center">Pix Copia e Cola:</p>
+                                            <div className="flex flex-col gap-2 w-full">
+                                                <code className="text-xs font-mono text-muted-foreground bg-muted/50 p-2 rounded block break-all text-center">{dynamicPix.copyPaste}</code>
+                                                <Button
+                                                    onClick={async () => {
+                                                        if (!dynamicPix.copyPaste) return
+                                                        await navigator.clipboard.writeText(dynamicPix.copyPaste)
+                                                        setPixCopied(true)
+                                                        setTimeout(() => setPixCopied(false), 2000)
+                                                    }}
+                                                    className="w-full bg-green-600 hover:bg-green-700 text-white font-bold"
+                                                >
+                                                    <Copy className="h-4 w-4 mr-2" /> {pixCopied ? "Copiado!" : "Copiar Chave"}
+                                                </Button>
+                                            </div>
+                                            <p className="text-xs text-green-700 text-center mt-2 font-medium">A liberação no sistema ocorrerá automaticamente após o pagamento.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col gap-3">
+                                            <p className="text-xs text-green-800 text-center font-medium">Gere seu QR Code único para baixa automática da mensalidade.</p>
+                                            <Button 
+                                                onClick={handleGenerateAsaasPix}
+                                                disabled={isGeneratingPix}
+                                                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-10"
+                                            >
+                                                {isGeneratingPix ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <QrCode className="h-4 w-4 mr-2" />}
+                                                {isGeneratingPix ? "Gerando Pix..." : "Gerar Pix Automático"}
+                                            </Button>
+                                            
+                                            {settings?.pixKey && (
+                                                <div className="mt-4 pt-4 border-t border-green-100 flex flex-col items-center">
+                                                    <p className="text-[10px] uppercase font-bold text-muted-foreground mb-2">Pix Manual Alternativo (Aprovação Demorada)</p>
+                                                    <div className="flex items-center gap-2 w-full">
+                                                        <code className="text-xs font-mono font-black text-foreground flex-1 break-all bg-green-50 p-2 rounded text-center">{settings.pixKey}</code>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 <p className="text-[10px] text-green-700/70 font-medium italic">* O desconto de 5% já está aplicado no valor total acima para 2+ meses.</p>
                             </div>

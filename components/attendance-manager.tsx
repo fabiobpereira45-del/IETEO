@@ -52,7 +52,7 @@ export function AttendanceManager() {
             setSession(s)
             let d: Discipline[] = []
             
-            if (s?.role === 'master') {
+            if (s?.role === 'master' || s?.role === 'secretary') {
                 d = await getDisciplines()
             } else if (s?.professorId) {
                 d = await getDisciplinesByProfessor(s.professorId)

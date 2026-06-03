@@ -178,22 +178,31 @@ export function ChallengeManager() {
       
       // Case A: Structured object with Title/Questions (Common AI output)
       if (typeof data === 'object' && !Array.isArray(data)) {
-        const title = data.Título || data.title || data.Title
+        const title = data.Título || data.title || data.Title || data.titulo
         if (title) updates.title = title
 
-        const questionsRaw = data.Perguntas || data.questions || data.Questions
+        const questionsRaw = data.Perguntas || data.questions || data.Questions || data.perguntas
         if (Array.isArray(questionsRaw)) {
           updates.type = "quiz"
           const transformed = questionsRaw.map((q: any) => {
             // Standard format
             if (q.question && q.options && (q.answer !== undefined)) return q
 
+            // User format 2 (A, B, C, D keys and "texto")
+            if (q.texto && q.A && q.B && q.C && q.D) {
+              const options = [q.A, q.B, q.C, q.D]
+              const g = q.gabarito || q.Gabarito || ""
+              const answerKey = g as "A" | "B" | "C" | "D"
+              const fullAnswer = q[answerKey] || g
+              return { question: q.texto, options, answer: fullAnswer }
+            }
+
             // Non-standard format (User structure)
-            const questionKey = Object.keys(q).find(k => k !== 'Gabarito' && k !== 'answer' && k !== 'options')
+            const questionKey = Object.keys(q).find(k => k !== 'Gabarito' && k !== 'gabarito' && k !== 'answer' && k !== 'options' && k !== 'numero' && k !== 'texto')
             if (questionKey && Array.isArray(q[questionKey])) {
               const options = q[questionKey]
-              const g = q.Gabarito || q.answer || ""
-              const fullAnswer = options.find((o: string) => o.trim().startsWith(g + ")") || o.trim().startsWith(g + " ")) || g
+              const g = q.Gabarito || q.gabarito || q.answer || ""
+              const fullAnswer = options.find((o: string) => o.trim().startsWith(g + ")") || o.trim().startsWith(g + " ") || o.trim().startsWith(g + ".")) || g
               return { question: questionKey, options, answer: fullAnswer }
             }
             return null

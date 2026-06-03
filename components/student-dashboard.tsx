@@ -163,7 +163,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
         )
     }
 
-    const isLocked = profile.payment_status !== 'paid' && charges.some(c => c.type === 'enrollment' && c.status !== 'paid')
+    const isLocked = profile.payment_status !== 'paid' && profile.payment_status !== 'bolsa100' && profile.payment_status !== 'bolsa50' && charges.some(c => c.type === 'enrollment' && c.status !== 'paid' && c.status !== 'bolsa100' && c.status !== 'bolsa50')
 
     const navItems: { id: Tab; label: string; icon: any }[] = [
         { id: "overview", label: "Visão Geral", icon: Home },
