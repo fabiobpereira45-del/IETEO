@@ -42,20 +42,22 @@ export function StudentGradesView({ studentId, studentEmail, studentDoc }: Props
                 console.log("--- AUDIT NOTAS ---")
                 console.log("Student Profile:", { studentId, studentEmail, studentDoc })
 
-                // Filter official grades by student ID OR Email/CPF for backward compatibility
+                // Filter official grades by student ID OR Email/CPF/Enrollment for backward compatibility
                 const myGrades = allGrades.filter(g => {
-                    const idMatch = (g.studentId === studentId || g.student_id === studentId);
+                    const idMatch = !!(studentId && (g.studentId === studentId || g.student_id === studentId));
                     
                     const cleanDoc = studentDoc?.replace(/\D/g, '') || "";
                     const cleanIdentifier = g.studentIdentifier?.replace(/\D/g, '') || "";
-                    const docMatch = (cleanDoc && cleanDoc === cleanIdentifier);
+                    const docMatch = !!(cleanDoc && cleanIdentifier && cleanDoc === cleanIdentifier);
                     
-                    const emailMatch = (g.studentIdentifier?.toLowerCase().trim() === studentEmail.toLowerCase().trim());
+                    const emailMatch = !!(g.studentIdentifier && studentEmail && g.studentIdentifier.toLowerCase().trim() === studentEmail.toLowerCase().trim());
+                    
+                    const rawIdentMatch = !!(g.studentIdentifier && (g.studentIdentifier === studentDoc || g.studentIdentifier === studentId));
 
-                    const matched = idMatch || docMatch || emailMatch;
+                    const matched = idMatch || docMatch || emailMatch || rawIdentMatch;
                     
                     if (matched) {
-                         console.log("MATCH FOUND for discipline:", g.disciplineId, { idMatch, docMatch, emailMatch });
+                         console.log("MATCH FOUND for discipline:", g.disciplineId, { idMatch, docMatch, emailMatch, rawIdentMatch });
                     }
                     
                     return matched;

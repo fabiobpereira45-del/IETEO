@@ -118,12 +118,21 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                 ])
                 setClassmates(members.filter(m => m.id !== p.id))
 
-                // Robust matching: ID or CPF/Email
-                const myGrades = grades.filter(g =>
-                    g.studentId === p.id ||
-                    g.student_id === p.id ||
-                    (g.studentIdentifier && (g.studentIdentifier === p.cpf || g.studentIdentifier === p.email))
-                )
+                // Robust matching: ID, CPF, Email, or Enrollment Number
+                const cleanCpf = p.cpf?.replace(/\D/g, '') || ""
+                const myGrades = grades.filter(g => {
+                    const cleanIdent = g.studentIdentifier?.replace(/\D/g, '') || ""
+                    return (
+                        (g.studentId && g.studentId === p.id) ||
+                        (g.student_id && g.student_id === p.id) ||
+                        (cleanCpf && cleanIdent && cleanCpf === cleanIdent) ||
+                        (g.studentIdentifier && (
+                            g.studentIdentifier === p.cpf ||
+                            g.studentIdentifier === p.enrollment_number ||
+                            g.studentIdentifier.toLowerCase().trim() === p.email?.toLowerCase().trim()
+                        ))
+                    )
+                })
                 setOfficialGrades(myGrades)
             }
             setDataLoading(false)

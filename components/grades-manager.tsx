@@ -224,17 +224,25 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
         const publicos: StudentGrade[] = [];
 
         allFiltered.forEach(g => {
-            // Check if matches class filter (only for matriculados usually, but we check for all here)
+            const cleanId = g.studentIdentifier ? g.studentIdentifier.replace(/\D/g, '') : '';
+            const student = (g.studentId ? studentMap.get(g.studentId) : null) ||
+                            (g.student_id ? studentMap.get(g.student_id) : null) ||
+                            (cleanId ? studentMap.get(cleanId) : null) || 
+                            studentMap.get(g.studentIdentifier) ||
+                            (g.studentIdentifier ? studentMap.get(g.studentIdentifier.toLowerCase().trim()) : null);
+
             let matchesClass = true;
             if (selectedClassId !== "all") {
-                const student = studentMap.get(g.studentIdentifier.replace(/\D/g, '')) || 
-                                studentMap.get(g.studentIdentifier);
                 matchesClass = student?.class_id === selectedClassId;
             }
 
             if (matchesClass) {
-                if (g.isPublic) publicos.push(g);
-                else matriculados.push(g);
+                // If linked to an enrolled student, put in matriculados, else publicos
+                if (student || g.studentId || g.student_id) {
+                    matriculados.push(g);
+                } else {
+                    publicos.push(g);
+                }
             }
         });
 
@@ -265,7 +273,7 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                 studentId: formData.studentId,
                 studentName: formData.studentName,
                 disciplineId: formData.disciplineId,
-                isPublic: formData.isPublic || false,
+                isPublic: formData.isPublic !== undefined ? formData.isPublic : true,
                 examGrade: parseFloat(formData.examGrade) || 0,
                 worksGrade: parseFloat(formData.worksGrade) || 0,
                 seminarGrade: parseFloat(formData.seminarGrade) || 0,
@@ -483,7 +491,7 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                         <Button size="sm" className="h-9 bg-primary hover:bg-primary/90" onClick={() => {
                             ensureFormData()
                             setFormData({
-                                studentIdentifier: "", studentName: "", disciplineId: "", isPublic: false,
+                                studentIdentifier: "", studentName: "", disciplineId: "", isPublic: true,
                                 examGrade: "", worksGrade: "", seminarGrade: "", participationBonus: "", attendanceScore: "", customDivisor: "2"
                             })
                             setIsCreating(true)
@@ -512,27 +520,25 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
                                         placeholder="Nome"
                                         className="flex-1"
                                     />
-                                    {!formData.isPublic && (
-                                        <select
-                                            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                                            onChange={(e) => {
-                                                const std = students.find(s => s.id === e.target.value)
-                                                if (std) {
-                                                    setFormData({ 
-                                                        ...formData, 
-                                                        studentName: std.name, 
-                                                        studentId: std.id,
-                                                        studentIdentifier: std.cpf || std.enrollment_number || "" 
-                                                    })
-                                                }
-                                            }}
-                                        >
-                                            <option value="">Buscar Matriculado...</option>
-                                            {students
-                                                .filter(s => selectedClassId === "all" || s.class_id === selectedClassId)
-                                                .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                        </select>
-                                    )}
+                                    <select
+                                        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                        onChange={(e) => {
+                                            const std = students.find(s => s.id === e.target.value)
+                                            if (std) {
+                                                setFormData({ 
+                                                    ...formData, 
+                                                    studentName: std.name, 
+                                                    studentId: std.id,
+                                                    studentIdentifier: std.cpf || std.enrollment_number || "" 
+                                                })
+                                            }
+                                        }}
+                                    >
+                                        <option value="">Buscar Matriculado...</option>
+                                        {students
+                                            .filter(s => selectedClassId === "all" || s.class_id === selectedClassId)
+                                            .map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                    </select>
                                 </div>
                             </div>
 
@@ -559,8 +565,8 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
 
                             <div className="space-y-2 flex items-center justify-between border border-border bg-muted/30 rounded-lg p-4">
                                 <div>
-                                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Prova Pública?</Label>
-                                    <p className="text-[10px] text-muted-foreground mt-1">Marque se o aluno não estiver matriculado formalmente.</p>
+                                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Liberar no Portal do Aluno?</Label>
+                                    <p className="text-[10px] text-muted-foreground mt-1">Se ativado, o aluno poderá visualizar esta nota e média final no seu portal.</p>
                                 </div>
                                 <Switch
                                     checked={formData.isPublic}

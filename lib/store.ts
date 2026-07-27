@@ -435,6 +435,8 @@ function mapClassSchedule(row: any): ClassSchedule { return { id: row.id, classI
 function mapStudentGrade(row: any): StudentGrade {
   return {
     id: row.id,
+    studentId: row.student_id || undefined,
+    student_id: row.student_id || undefined,
     studentIdentifier: row.student_identifier,
     studentName: row.student_name,
     disciplineId: row.discipline_id || undefined,
@@ -2231,11 +2233,11 @@ export async function getStudentGrades(): Promise<StudentGrade[]> {
  * Robustly links student_grades records to the correct student_id (UUID)
  * based on the identifier (CPF/Email).
  */
-export async function syncStudentGrades(studentId: string, cpf?: string, email?: string): Promise<{ affected: number }> {
+export async function syncStudentGrades(studentId: string, cpf?: string, email?: string, enrollmentNumber?: string): Promise<{ affected: number }> {
   const supabase = createClient()
   const cleanCpf = cpf?.replace(/\D/g, '') || ""
 
-  // Find records that don't have student_id but match CPF or Email
+  // Find records that don't have student_id but match CPF, Email, or Enrollment Number
   let query = supabase.from('student_grades')
     .select('id')
     .is('student_id', null)
@@ -2243,6 +2245,7 @@ export async function syncStudentGrades(studentId: string, cpf?: string, email?:
   const conditions = []
   if (cleanCpf) conditions.push(`student_identifier.eq.${cleanCpf}`)
   if (email) conditions.push(`student_identifier.eq.${email.toLowerCase().trim()}`)
+  if (enrollmentNumber) conditions.push(`student_identifier.eq.${enrollmentNumber}`)
 
   if (conditions.length === 0) return { affected: 0 }
 
@@ -2270,7 +2273,7 @@ export async function bulkSyncGrades(): Promise<{ totalAffected: number }> {
   const students = await getStudents()
   let totalAffected = 0
   for (const student of students) {
-    const { affected } = await syncStudentGrades(student.id, student.cpf, student.email)
+    const { affected } = await syncStudentGrades(student.id, student.cpf, student.email, student.enrollment_number)
     totalAffected += affected
   }
   return { totalAffected }
@@ -2303,7 +2306,7 @@ export async function saveStudentGrade(grade: Omit<StudentGrade, 'id' | 'created
     const cleanId = grade.studentIdentifier.replace(/\D/g, '')
     const { data: std } = await supabase.from('students')
       .select('id')
-      .or(`cpf.eq.${cleanId},email.eq.${grade.studentIdentifier}`)
+      .or(`cpf.eq.${cleanId},email.eq.${grade.studentIdentifier},enrollment_number.eq.${grade.studentIdentifier}`)
       .maybeSingle()
     if (std) student_id = std.id
   }
