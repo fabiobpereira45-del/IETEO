@@ -5,6 +5,24 @@ import {
   calculateGlobalAverage
 } from "./store"
 
+export function openAndPrintHTML(html: string, width = 900, height = 700): void {
+  const win = window.open("", "_blank", `width=${width},height=${height}`)
+  if (!win) {
+    alert("Permita janelas pop-up no seu navegador para visualizar/imprimir o documento PDF.")
+    return
+  }
+  win.document.write(html)
+  win.document.close()
+  setTimeout(() => {
+    try {
+      win.focus()
+      win.print()
+    } catch (e) {
+      console.error("Erro ao disparar impressão:", e)
+    }
+  }, 300)
+}
+
 interface PDFData {
   submission: StudentSubmission
   assessment: Assessment
@@ -220,11 +238,7 @@ export function printStudentPDF({ submission, assessment, questions }: PDFData):
 </body>
 </html>`
 
-  const win = window.open("", "_blank", "width=900,height=700")
-  if (!win) return
-  win.document.write(html)
-  win.document.close()
-  win.onload = () => win.print()
+  openAndPrintHTML(html, 900, 700)
 }
 
 export function printBlankAssessmentPDF({ assessment, questions }: Omit<PDFData, "submission">): void {
@@ -352,11 +366,7 @@ export function printBlankAssessmentPDF({ assessment, questions }: Omit<PDFData,
 </body>
 </html>`
 
-  const win = window.open("", "_blank", "width=900,height=700")
-  if (!win) return
-  win.document.write(html)
-  win.document.close()
-  win.onload = () => win.print()
+  openAndPrintHTML(html, 900, 700)
 }
 
 export function printCompiledSubmissionsPDF({ submissions, assessment, questions }: { submissions: StudentSubmission[], assessment: Assessment, questions: Question[] }): void {
@@ -486,11 +496,7 @@ export function printCompiledSubmissionsPDF({ submissions, assessment, questions
 </body>
 </html>`
 
-  const win = window.open("", "_blank", "width=900,height=700")
-  if (!win) return
-  win.document.write(html)
-  win.document.close()
-  win.onload = () => win.print()
+  openAndPrintHTML(html, 900, 700)
 }
 
 export function printOverviewPDF({ assessments, submissions, questions }: { assessments: Assessment[], submissions: StudentSubmission[], questions: Question[] }): void {
@@ -587,11 +593,7 @@ export function printOverviewPDF({ assessments, submissions, questions }: { asse
 </body>
 </html>`
 
-  const win = window.open("", "_blank", "width=1000,height=800")
-  if (!win) return
-  win.document.write(html)
-  win.document.close()
-  win.onload = () => win.print()
+  openAndPrintHTML(html, 1000, 800)
 }
 
 export function printAnswerKeyPDF({ assessment, questions }: { assessment: Assessment, questions: Question[] }): void {
@@ -684,11 +686,7 @@ export function printAnswerKeyPDF({ assessment, questions }: { assessment: Asses
 </body>
 </html>`
 
-  const win = window.open("", "_blank", "width=900,height=800")
-  if (!win) return
-  win.document.write(html)
-  win.document.close()
-  win.onload = () => win.print()
+  openAndPrintHTML(html, 900, 800)
 }
 export function printSubmissionsTablePDF({ submissions, assessment }: { submissions: StudentSubmission[], assessment: Assessment }): void {
   const rows = submissions.map((s, i) => `
@@ -755,11 +753,7 @@ export function printSubmissionsTablePDF({ submissions, assessment }: { submissi
 </body>
 </html>`
 
-  const win = window.open("", "_blank", "width=1000,height=800")
-  if (!win) return
-  win.document.write(html)
-  win.document.close()
-  win.onload = () => win.print()
+  openAndPrintHTML(html, 1000, 800)
 }
 
 export function printCurriculumPDF(semesters: Semester[], disciplines: Discipline[]): void {
@@ -798,8 +792,7 @@ export function printCurriculumPDF(semesters: Semester[], disciplines: Disciplin
     <div style="margin-top: 40px; text-align: center; font-size: 11px; color: #94a3b8;">Gerado em ${new Date().toLocaleDateString('pt-BR')}</div>
   </body></html>`
 
-  const win = window.open("", "_blank")
-  if (!win) return; win.document.write(html); win.document.close(); win.onload = () => win.print()
+  openAndPrintHTML(html, 900, 700)
 }
 
 export function printProfessorsPDF(professors: ProfessorAccount[], assignments: ProfessorDiscipline[], disciplines: Discipline[]): void {
@@ -836,7 +829,7 @@ export function printProfessorsPDF(professors: ProfessorAccount[], assignments: 
     </table>
   </body></html>`
 
-  const win = window.open("", "_blank"); if (!win) return; win.document.write(html); win.document.close(); win.onload = () => win.print()
+  openAndPrintHTML(html, 900, 700)
 }
 
 export function printFinancialReportPDF(charges: FinancialCharge[], students: StudentProfile[]): void {
@@ -907,7 +900,7 @@ export function printFinancialReportPDF(charges: FinancialCharge[], students: St
     </div>
   </body></html>`
 
-  const win = window.open("", "_blank"); if (!win) return; win.document.write(html); win.document.close(); win.onload = () => win.print()
+  openAndPrintHTML(html, 1000, 800)
 }
 
 export function printGradesReportPDF(grades: StudentGrade[], disciplineName: string, settings: GradeSettings): void {
@@ -947,7 +940,7 @@ export function printGradesReportPDF(grades: StudentGrade[], disciplineName: str
     </table>
   </body></html>`
 
-  const win = window.open("", "_blank"); if (!win) return; win.document.write(html); win.document.close(); win.onload = () => win.print()
+  openAndPrintHTML(html, 1000, 800)
 }
 
 export function printAttendanceReportPDF(attendances: Attendance[], students: StudentProfile[], disciplineName: string): void {
@@ -1031,7 +1024,7 @@ export function printAttendanceReportPDF(attendances: Attendance[], students: St
     </div>
   </body></html>`
 
-  const win = window.open("", "_blank"); if (!win) return; win.document.write(html); win.document.close(); win.onload = () => win.print()
+  openAndPrintHTML(html, 1000, 800)
 }
 
 export function printAttendanceAnalysisPDF(analysis: any, disciplineName: string): void {
@@ -1109,7 +1102,7 @@ export function printAttendanceAnalysisPDF(analysis: any, disciplineName: string
     </div>
   </body></html>`
 
-  const win = window.open("", "_blank"); if (!win) return; win.document.write(html); win.document.close(); win.onload = () => win.print()
+  openAndPrintHTML(html, 1000, 800)
 }
 
 export function printDailyAttendancePDF(date: string, disciplineName: string, students: StudentProfile[], attendanceMap: Record<string, boolean>): void {
@@ -1170,7 +1163,7 @@ export function printDailyAttendancePDF(date: string, disciplineName: string, st
     </div>
   </body></html>`
 
-  const win = window.open("", "_blank"); if (!win) return; win.document.write(html); win.document.close(); win.onload = () => win.print()
+  openAndPrintHTML(html, 1000, 800)
 }
 export function printProLaboreReceipt(data: {
   professorName: string,
@@ -1315,11 +1308,7 @@ export function printProLaboreReceipt(data: {
 </body>
 </html>`;
 
-  const win = window.open("", "_blank", "width=800,height=600");
-  if (!win) return;
-  win.document.write(html);
-  win.document.close();
-  win.onload = () => win.print();
+  openAndPrintHTML(html, 800, 600)
 }
 
 export function printEnrollmentCertificatePDF(student: StudentProfile, className: string): void {
@@ -1548,9 +1537,5 @@ export function printEnrollmentCertificatePDF(student: StudentProfile, className
 </body>
 </html>`
 
-  const win = window.open("", "_blank")
-  if (!win) return
-  win.document.write(html)
-  win.document.close()
-  win.onload = () => win.print()
+  openAndPrintHTML(html, 900, 700)
 }

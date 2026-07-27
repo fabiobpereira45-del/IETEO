@@ -8,7 +8,7 @@ import {
 } from "lucide-react"
 import { printEnrollmentCertificatePDF } from "@/lib/pdf"
 import jsPDF from "jspdf"
-import "jspdf-autotable"
+import autoTable from "jspdf-autotable"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -307,7 +307,7 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
             ]
         })
 
-        ;(doc as any).autoTable({
+        autoTable(doc, {
             startY: 40,
             head: [['#', 'Nome', 'Matrícula', 'Turma', 'Financeiro', 'Telefone']],
             body: tableData,

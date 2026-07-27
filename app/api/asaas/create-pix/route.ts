@@ -29,10 +29,16 @@ export async function POST(req: Request) {
 
         // 2. If single charge and there's already a Pix generated, return it
         if (ids.length === 1 && charges[0].asaas_payment_id && charges[0].pix_qrcode) {
+            const idPart = charges[0].asaas_payment_id.replace("pay_", "")
+            const invoiceUrl = config.mode === "production"
+                ? `https://www.asaas.com/i/${idPart}`
+                : `https://sandbox.asaas.com/i/${idPart}`
+
             return NextResponse.json({
                 asaasPaymentId: charges[0].asaas_payment_id,
                 pixQrcode: charges[0].pix_qrcode,
-                pixCopyPaste: charges[0].pix_copy_paste
+                pixCopyPaste: charges[0].pix_copy_paste,
+                invoiceUrl
             })
         }
 
@@ -121,6 +127,7 @@ export async function POST(req: Request) {
         }
 
         const asaasPaymentId = paymentBody.id
+        const invoiceUrl = paymentBody.invoiceUrl
 
         // 7. Get QR Code
         const qrRes = await fetch(`${baseUrl}/payments/${asaasPaymentId}/pixQrCode`, {
@@ -137,7 +144,7 @@ export async function POST(req: Request) {
             pix_copy_paste: pixCopyPaste
         }).in('id', ids)
 
-        return NextResponse.json({ asaasPaymentId, pixQrcode, pixCopyPaste })
+        return NextResponse.json({ asaasPaymentId, pixQrcode, pixCopyPaste, invoiceUrl })
     } catch (error: any) {
         console.error("Create Pix Exception:", error)
         return NextResponse.json({ error: error.message || "Erro interno do servidor." }, { status: 500 })

@@ -17,6 +17,7 @@ import {
 } from "@/lib/store"
 import {
     printFinancialReportPDF,
+    openAndPrintHTML,
 } from "@/lib/pdf"
 import { createClient } from "@/lib/supabase/client"
 
@@ -658,11 +659,7 @@ function printExpensesPDF(expenses: any[], scope: string, month: string, year: s
     </div>
     </body></html>`
 
-    const win = window.open("", "_blank", "width=1000,height=800")
-    if (!win) return
-    win.document.write(html)
-    win.document.close()
-    win.onload = () => win.print()
+    openAndPrintHTML(html, 1000, 800)
 }
 
 function printDREReportPDF(
@@ -807,11 +804,7 @@ function printDREReportPDF(
     </div>
     </body></html>`
 
-    const win = window.open("", "_blank", "width=1000,height=900")
-    if (!win) return
-    win.document.write(html)
-    win.document.close()
-    win.onload = () => win.print()
+    openAndPrintHTML(html, 1000, 900)
 }
 
 function printProLaboreReportPDF(proLabore: any[], month: string, year: string) {
@@ -858,9 +851,5 @@ function printProLaboreReportPDF(proLabore: any[], month: string, year: string) 
     </div>
     </body></html>`
 
-    const win = window.open("", "_blank", "width=1000,height=800")
-    if (!win) return
-    win.document.write(html)
-    win.document.close()
-    win.onload = () => win.print()
+    openAndPrintHTML(html, 1000, 800)
 }
