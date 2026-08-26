@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import {
-  Plus, Pencil, Trash2, ChevronRight, BookOpen, CheckSquare, AlignLeft, X, Check, Sparkles, Upload, ListChecks
+  Plus, Pencil, Trash2, ChevronRight, BookOpen, CheckSquare, AlignLeft, X, Check, Sparkles, Upload, ListChecks, FileDown
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,6 +25,7 @@ import {
   getDisciplines, addDiscipline, updateDiscipline, deleteDiscipline,
   getQuestionsByDiscipline, addQuestion, addQuestionsBatch, updateQuestion, deleteQuestion, uid, getDisciplineQuestionCounts,
 } from "@/lib/store"
+import { printDisciplineQuestionsPDF } from "@/lib/pdf"
 import { AIQuestionGenerator } from "./ai-question-generator"
 
 // ─── Type Labels ──────────────────────────────────────────────────────────────
@@ -723,7 +724,7 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
             )}
           </div>
           {selectedDiscipline && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
               {selectedQuestions.size > 0 && (
                 <Button
                   size="sm"
@@ -733,6 +734,27 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
                   <Trash2 className="h-4 w-4 mr-1.5" /> Excluir ({selectedQuestions.size})
                 </Button>
               )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-slate-300 hover:bg-slate-50 text-slate-800 font-semibold shadow-sm"
+                onClick={() => {
+                  if (!selectedDiscipline) return
+                  const targetQuestions = selectedQuestions.size > 0
+                    ? questions.filter(q => selectedQuestions.has(q.id))
+                    : questions
+                  printDisciplineQuestionsPDF({
+                    discipline: selectedDiscipline,
+                    questions: targetQuestions,
+                    includeAnswerKey: true
+                  })
+                }}
+                disabled={questions.length === 0}
+                title="Baixar questões da disciplina em formato PDF oficial com gabarito"
+              >
+                <FileDown className="h-4 w-4 mr-1.5 text-blue-600" />
+                {selectedQuestions.size > 0 ? `Baixar PDF (${selectedQuestions.size})` : "Baixar PDF"}
+              </Button>
               <Button
                 size="sm"
                 variant="outline"

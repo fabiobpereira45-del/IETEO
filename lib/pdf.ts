@@ -1539,3 +1539,560 @@ export function printEnrollmentCertificatePDF(student: StudentProfile, className
 
   openAndPrintHTML(html, 900, 700)
 }
+
+export function printDisciplineQuestionsPDF({
+  discipline,
+  questions,
+  includeAnswerKey = true,
+}: {
+  discipline: Discipline
+  questions: Question[]
+  includeAnswerKey?: boolean
+}): void {
+  const issueDate = new Date().toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  })
+
+  const typeLabels: Record<string, string> = {
+    "multiple-choice": "Múltipla Escolha",
+    "true-false": "Verdadeiro ou Falso",
+    "incorrect-alternative": "Alternativa Incorreta",
+    "fill-in-the-blank": "Completar Lacunas",
+    "matching": "Relacionar Colunas",
+    "discursive": "Dissertativa / Subjetiva",
+  }
+
+  const questionsHTML = questions
+    .map((q, idx) => {
+      const qNum = idx + 1
+      const qType = typeLabels[q.type] || "Questão"
+      const pts = q.points || 1
+
+      const choicesList: { id: string; text: string }[] = Array.isArray(q.choices)
+        ? q.choices
+        : (q.choices as any)?.options || []
+
+      const pairsList: { id: string; left: string; right: string }[] =
+        q.pairs || (q.choices as any)?.matchingPairs || []
+
+      let bodyHTML = ""
+
+      if (q.type === "multiple-choice" || q.type === "incorrect-alternative") {
+        bodyHTML = `
+          <div class="choices-container">
+            ${choicesList
+              .map((c, cIdx) => {
+                const letter = String.fromCharCode(65 + cIdx)
+                return `
+                  <div class="choice-item">
+                    <span class="choice-marker">(${letter})</span>
+                    <span class="choice-text">${c.text}</span>
+                  </div>
+                `
+              })
+              .join("")}
+          </div>
+        `
+      } else if (q.type === "true-false") {
+        bodyHTML = `
+          <div class="tf-container">
+            <div class="tf-option"><span class="tf-box">( &nbsp; )</span> Verdadeiro</div>
+            <div class="tf-option"><span class="tf-box">( &nbsp; )</span> Falso</div>
+          </div>
+        `
+      } else if (q.type === "matching" && pairsList.length > 0) {
+        bodyHTML = `
+          <div class="matching-container">
+            <div class="matching-col">
+              <div class="matching-col-title">Coluna A</div>
+              ${pairsList
+                .map((p, pIdx) => `
+                  <div class="matching-item">
+                    <strong>(${pIdx + 1})</strong> ${p.left}
+                  </div>
+                `)
+                .join("")}
+            </div>
+            <div class="matching-col">
+              <div class="matching-col-title">Coluna B</div>
+              ${pairsList
+                .map(() => `
+                  <div class="matching-item">
+                    <span class="matching-slot">( &nbsp; )</span> Definição correspondente
+                  </div>
+                `)
+                .join("")}
+            </div>
+          </div>
+        `
+      } else if (q.type === "fill-in-the-blank") {
+        bodyHTML = `
+          <div class="fill-container">
+            <div class="fill-line">Preenchimento: ____________________________________________________________________</div>
+          </div>
+        `
+      } else if (q.type === "discursive") {
+        bodyHTML = `
+          <div class="discursive-lines">
+            <div class="line"></div>
+            <div class="line"></div>
+            <div class="line"></div>
+            <div class="line"></div>
+          </div>
+        `
+      }
+
+      return `
+        <div class="question-card">
+          <div class="question-header">
+            <span class="question-badge">Questão ${qNum}</span>
+            <span class="question-type-badge">${qType}</span>
+            <span class="question-points">${pts} pt${pts > 1 ? "s" : ""}</span>
+          </div>
+          <div class="question-text">${q.text}</div>
+          ${bodyHTML}
+        </div>
+      `
+    })
+    .join("")
+
+  const answerKeyHTML = includeAnswerKey
+    ? `
+      <div class="answer-key-section">
+        <div class="page-break"></div>
+        <div class="answer-key-header">
+          <div class="answer-key-title">GABARITO OFICIAL — USO EXCLUSIVO DO PROFESSOR</div>
+          <div class="answer-key-subtitle">Disciplina: ${discipline.name} · ${questions.length} Questões Registradas</div>
+        </div>
+
+        <table class="answer-key-table">
+          <thead>
+            <tr>
+              <th style="width: 8%;">Nº</th>
+              <th style="width: 22%;">Tipo</th>
+              <th style="width: 25%;">Gabarito / Resposta Correta</th>
+              <th style="width: 45%;">Fundamentação Bíblica / Observações</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${questions
+              .map((q, idx) => {
+                const choicesList: { id: string; text: string }[] = Array.isArray(q.choices)
+                  ? q.choices
+                  : (q.choices as any)?.options || []
+
+                let answerDisplay = q.correctAnswer || "—"
+                if (q.type === "multiple-choice" || q.type === "incorrect-alternative") {
+                  const foundChoice = choicesList.find((c) => c.id === q.correctAnswer)
+                  const choiceIndex = choicesList.findIndex((c) => c.id === q.correctAnswer)
+                  const letter = choiceIndex !== -1 ? String.fromCharCode(65 + choiceIndex) : q.correctAnswer
+                  answerDisplay = foundChoice ? `(${letter}) ${foundChoice.text}` : `(${letter})`
+                } else if (q.type === "true-false") {
+                  answerDisplay =
+                    q.correctAnswer === "true" || q.correctAnswer === "V"
+                      ? "Verdadeiro (V)"
+                      : "Falso (F)"
+                }
+
+                return `
+                  <tr>
+                    <td style="text-align: center; font-weight: bold;">${idx + 1}</td>
+                    <td>${typeLabels[q.type] || q.type}</td>
+                    <td class="correct-text">${answerDisplay}</td>
+                    <td class="explanation-text">${(q as any).explanation || "Gabarito canônico acadêmico IETEO"}</td>
+                  </tr>
+                `
+              })
+              .join("")}
+          </tbody>
+        </table>
+      </div>
+    `
+    : ""
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Caderno de Questões — ${discipline.name}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+      color: #1e293b;
+      background: #f8fafc;
+      padding: 30px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .document-container {
+      max-width: 820px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+
+    .doc-header {
+      border-bottom: 3px solid #0f172a;
+      padding-bottom: 18px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .inst-badge {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #d97706;
+      margin-bottom: 4px;
+    }
+
+    .doc-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: #0f172a;
+      font-family: Georgia, serif;
+      margin-bottom: 4px;
+    }
+
+    .doc-subtitle {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .header-meta {
+      text-align: right;
+      font-size: 11px;
+      color: #64748b;
+      line-height: 1.4;
+    }
+
+    .header-meta strong {
+      color: #0f172a;
+    }
+
+    .header-info-box {
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      font-size: 11px;
+    }
+
+    .info-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #64748b;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .info-val {
+      font-size: 12px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .question-card {
+      margin-bottom: 20px;
+      padding: 18px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      background: #ffffff;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .question-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .question-badge {
+      background: #0f172a;
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .question-type-badge {
+      background: #e2e8f0;
+      color: #334155;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+
+    .question-points {
+      margin-left: auto;
+      font-size: 11px;
+      font-weight: 700;
+      color: #64748b;
+    }
+
+    .question-text {
+      font-size: 13px;
+      font-weight: 600;
+      color: #0f172a;
+      margin-bottom: 12px;
+      line-height: 1.6;
+    }
+
+    .choices-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .choice-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 12px;
+      color: #334155;
+      padding: 6px 10px;
+      background: #f8fafc;
+      border: 1px solid #edf2f7;
+      border-radius: 6px;
+    }
+
+    .choice-marker {
+      font-weight: 800;
+      color: #0f172a;
+      min-width: 22px;
+    }
+
+    .choice-text {
+      flex: 1;
+    }
+
+    .tf-container {
+      display: flex;
+      gap: 20px;
+      padding: 8px 12px;
+      background: #f8fafc;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .tf-box {
+      font-family: monospace;
+      font-weight: bold;
+      color: #475569;
+    }
+
+    .matching-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      background: #f8fafc;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .matching-col-title {
+      font-weight: 800;
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #64748b;
+      margin-bottom: 6px;
+    }
+
+    .matching-item {
+      padding: 4px 0;
+      border-bottom: 1px dashed #e2e8f0;
+    }
+
+    .discursive-lines {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 8px 0;
+    }
+
+    .discursive-lines .line {
+      border-bottom: 1px solid #cbd5e1;
+      height: 1px;
+      width: 100%;
+    }
+
+    .fill-container {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    /* ─── Answer Key Styles ─── */
+    .answer-key-section {
+      margin-top: 30px;
+    }
+
+    .page-break {
+      page-break-before: always;
+      break-before: always;
+      height: 1px;
+      margin: 30px 0;
+    }
+
+    .answer-key-header {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 16px 20px;
+      border-radius: 8px 8px 0 0;
+    }
+
+    .answer-key-title {
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .answer-key-subtitle {
+      font-size: 11px;
+      opacity: 0.8;
+      margin-top: 2px;
+    }
+
+    .answer-key-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-top: none;
+    }
+
+    .answer-key-table th {
+      background: #f1f5f9;
+      color: #334155;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 10px;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      text-align: left;
+    }
+
+    .answer-key-table td {
+      padding: 8px 10px;
+      border: 1px solid #e2e8f0;
+      vertical-align: top;
+      line-height: 1.4;
+    }
+
+    .answer-key-table tr:nth-child(even) {
+      background: #f8fafc;
+    }
+
+    .correct-text {
+      color: #166534;
+      font-weight: 700;
+    }
+
+    .explanation-text {
+      color: #475569;
+      font-style: italic;
+    }
+
+    .footer-stamp {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 10px;
+      color: #94a3b8;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 12px;
+    }
+
+    @media print {
+      body {
+        background: #ffffff;
+        padding: 0;
+      }
+      .document-container {
+        box-shadow: none;
+        padding: 0;
+        max-width: 100%;
+      }
+      .page-break {
+        display: block;
+        page-break-before: always;
+        break-before: always;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="document-container">
+    <!-- Header -->
+    <div class="doc-header">
+      <div>
+        <div class="inst-badge">Instituto de Ensino Teológico — IETEO</div>
+        <h1 class="doc-title">${discipline.name}</h1>
+        <div class="doc-subtitle">Caderno Acadêmico de Questões e Avaliações</div>
+      </div>
+      <div class="header-meta">
+        <div><strong>Emissão:</strong> ${issueDate}</div>
+        <div><strong>Total de Itens:</strong> ${questions.length}</div>
+        <div><strong>Autenticação:</strong> IETEO-${discipline.id.substring(0, 6).toUpperCase()}</div>
+      </div>
+    </div>
+
+    <!-- Info Box -->
+    <div class="header-info-box">
+      <div>
+        <span class="info-label">Disciplina</span>
+        <span class="info-val">${discipline.name}</span>
+      </div>
+      <div>
+        <span class="info-label">Semestre / Módulo</span>
+        <span class="info-val">${discipline.semesterName || "Semestre Regular"}</span>
+      </div>
+      <div>
+        <span class="info-label">Professor(a)</span>
+        <span class="info-val">${discipline.professorName || "Coordenação Teológica"}</span>
+      </div>
+    </div>
+
+    <!-- Questões -->
+    <div class="questions-list">
+      ${questionsHTML}
+    </div>
+
+    <!-- Gabarito Oficial -->
+    ${answerKeyHTML}
+
+    <!-- Rodapé -->
+    <div class="footer-stamp">
+      Instituto de Ensino Teológico (IETEO) · Sistema de Gestão Acadêmica Integrada · Documento emitido para fins pedagógicos.
+    </div>
+  </div>
+</body>
+</html>`
+
+  openAndPrintHTML(html, 900, 700)
+}
