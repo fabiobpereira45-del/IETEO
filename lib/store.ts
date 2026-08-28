@@ -2952,55 +2952,54 @@ export async function updateFinancialCharge(id: string, data: {
 // Build timestamp: 2026-03-13 10:59
 
 
- / /    % % %  E A D   L e s s o n s    % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %
- 
- f u n c t i o n   m a p E a d L e s s o n ( r o w :   a n y ) :   E a d L e s s o n   { 
-     r e t u r n   { 
-         i d :   r o w . i d , 
-         d i s c i p l i n e I d :   r o w . d i s c i p l i n e _ i d , 
-         t i t l e :   r o w . t i t l e , 
-         d e s c r i p t i o n :   r o w . d e s c r i p t i o n , 
-         v i d e o U r l :   r o w . v i d e o _ u r l , 
-         o r d e r I n d e x :   r o w . o r d e r _ i n d e x , 
-         c r e a t e d A t :   r o w . c r e a t e d _ a t 
-     } 
- } 
- 
- e x p o r t   a s y n c   f u n c t i o n   g e t E a d L e s s o n s ( d i s c i p l i n e I d :   s t r i n g ) :   P r o m i s e < E a d L e s s o n [ ] >   { 
-     c o n s t   s u p a b a s e   =   c r e a t e C l i e n t ( ) 
-     c o n s t   {   d a t a   }   =   a w a i t   s u p a b a s e . f r o m ( ' e a d _ l e s s o n s ' ) . s e l e c t ( ' * ' ) . e q ( ' d i s c i p l i n e _ i d ' ,   d i s c i p l i n e I d ) . o r d e r ( ' o r d e r _ i n d e x ' ,   {   a s c e n d i n g :   t r u e   } ) 
-     r e t u r n   ( d a t a   | |   [ ] ) . m a p ( m a p E a d L e s s o n ) 
- } 
- 
- e x p o r t   a s y n c   f u n c t i o n   a d d E a d L e s s o n ( l e s s o n :   O m i t < E a d L e s s o n ,   ' i d '   |   ' c r e a t e d A t ' > ) :   P r o m i s e < v o i d >   { 
-     c o n s t   s u p a b a s e   =   c r e a t e C l i e n t ( ) 
-     c o n s t   {   e r r o r   }   =   a w a i t   s u p a b a s e . f r o m ( ' e a d _ l e s s o n s ' ) . i n s e r t ( { 
-         d i s c i p l i n e _ i d :   l e s s o n . d i s c i p l i n e I d , 
-         t i t l e :   l e s s o n . t i t l e , 
-         d e s c r i p t i o n :   l e s s o n . d e s c r i p t i o n , 
-         v i d e o _ u r l :   l e s s o n . v i d e o U r l , 
-         o r d e r _ i n d e x :   l e s s o n . o r d e r I n d e x 
-     } ) 
-     i f   ( e r r o r )   t h r o w   n e w   E r r o r ( e r r o r . m e s s a g e ) 
- } 
- 
- e x p o r t   a s y n c   f u n c t i o n   u p d a t e E a d L e s s o n ( i d :   s t r i n g ,   l e s s o n :   P a r t i a l < E a d L e s s o n > ) :   P r o m i s e < v o i d >   { 
-     c o n s t   s u p a b a s e   =   c r e a t e C l i e n t ( ) 
-     c o n s t   p a y l o a d :   a n y   =   { } 
-     i f   ( l e s s o n . t i t l e   ! = =   u n d e f i n e d )   p a y l o a d . t i t l e   =   l e s s o n . t i t l e 
-     i f   ( l e s s o n . d e s c r i p t i o n   ! = =   u n d e f i n e d )   p a y l o a d . d e s c r i p t i o n   =   l e s s o n . d e s c r i p t i o n 
-     i f   ( l e s s o n . v i d e o U r l   ! = =   u n d e f i n e d )   p a y l o a d . v i d e o _ u r l   =   l e s s o n . v i d e o U r l 
-     i f   ( l e s s o n . o r d e r I n d e x   ! = =   u n d e f i n e d )   p a y l o a d . o r d e r _ i n d e x   =   l e s s o n . o r d e r I n d e x 
-     i f   ( l e s s o n . d i s c i p l i n e I d   ! = =   u n d e f i n e d )   p a y l o a d . d i s c i p l i n e _ i d   =   l e s s o n . d i s c i p l i n e I d 
-     
-     c o n s t   {   e r r o r   }   =   a w a i t   s u p a b a s e . f r o m ( ' e a d _ l e s s o n s ' ) . u p d a t e ( p a y l o a d ) . e q ( ' i d ' ,   i d ) 
-     i f   ( e r r o r )   t h r o w   n e w   E r r o r ( e r r o r . m e s s a g e ) 
- } 
- 
- e x p o r t   a s y n c   f u n c t i o n   d e l e t e E a d L e s s o n ( i d :   s t r i n g ) :   P r o m i s e < v o i d >   { 
-     c o n s t   s u p a b a s e   =   c r e a t e C l i e n t ( ) 
-     c o n s t   {   e r r o r   }   =   a w a i t   s u p a b a s e . f r o m ( ' e a d _ l e s s o n s ' ) . d e l e t e ( ) . e q ( ' i d ' ,   i d ) 
-     i f   ( e r r o r )   t h r o w   n e w   E r r o r ( e r r o r . m e s s a g e ) 
- } 
-  
- 
+// %%% EAD Lessons %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function mapEadLesson(row: any): EadLesson {
+  return {
+    id: row.id,
+    disciplineId: row.discipline_id,
+    title: row.title,
+    description: row.description,
+    videoUrl: row.video_url,
+    orderIndex: row.order_index,
+    createdAt: row.created_at
+  }
+}
+
+export async function getEadLessons(disciplineId: string): Promise<EadLesson[]> {
+  const supabase = createClient()
+  const { data } = await supabase.from('ead_lessons').select('*').eq('discipline_id', disciplineId).order('order_index', { ascending: true })
+  return (data || []).map(mapEadLesson)
+}
+
+export async function addEadLesson(lesson: Omit<EadLesson, 'id' | 'createdAt'>): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase.from('ead_lessons').insert({
+    discipline_id: lesson.disciplineId,
+    title: lesson.title,
+    description: lesson.description,
+    video_url: lesson.videoUrl,
+    order_index: lesson.orderIndex
+  })
+  if (error) throw new Error(error.message)
+}
+
+export async function updateEadLesson(id: string, lesson: Partial<EadLesson>): Promise<void> {
+  const supabase = createClient()
+  const payload: any = {}
+  if (lesson.title !== undefined) payload.title = lesson.title
+  if (lesson.description !== undefined) payload.description = lesson.description
+  if (lesson.videoUrl !== undefined) payload.video_url = lesson.videoUrl
+  if (lesson.orderIndex !== undefined) payload.order_index = lesson.orderIndex
+  if (lesson.disciplineId !== undefined) payload.discipline_id = lesson.disciplineId
+  
+  const { error } = await supabase.from('ead_lessons').update(payload).eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+export async function deleteEadLesson(id: string): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase.from('ead_lessons').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
