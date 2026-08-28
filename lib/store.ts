@@ -37,9 +37,9 @@ export interface Assessment { id: string; title: string; disciplineId: string; p
 export interface StudentAnswer { questionId: string; answer: string }
 export interface StudentSubmission { id: string; assessmentId: string; studentId: string; studentName: string; studentEmail: string; answers: StudentAnswer[]; score: number; totalPoints: number; percentage: number; submittedAt: string; timeElapsedSeconds: number; focusLostCount?: number }
 export interface ProfessorAccount { id: string; name: string; email: string; passwordHash: string; role: "master" | "professor" | "secretary"; avatar_url?: string | null; bio?: string | null; createdAt: string; active?: boolean }
-export interface ProfessorSession { loggedIn: boolean; professorId: string; role: "master" | "professor" | "secretary"; avatar_url?: string | null; expiresAt: string }
+export interface ProfessorSession { loggedIn: boolean; professorId: string; role: "master" | "professor" | "secretary"; avatar_url?: string | null; expiresAt: string; polo_id?: string | null }
 export interface StudentSession { studentId: string; name: string; email: string; assessmentId: string; startedAt: string }
-export interface StudentProfile { id: string; auth_user_id: string; name: string; email: string; cpf: string; enrollment_number: string; phone?: string; address?: string; church?: string; pastor_name?: string; class_id?: string; payment_status?: string; avatar_url?: string | null; bio?: string | null; status: "pending" | "active" | "inactive"; created_at: string; }
+export interface StudentProfile { id: string; auth_user_id: string; name: string; email: string; cpf: string; enrollment_number: string; phone?: string; address?: string; church?: string; pastor_name?: string; class_id?: string; payment_status?: string; avatar_url?: string | null; bio?: string | null; status: "pending" | "active" | "inactive"; created_at: string; polo_id?: string | null; modality?: "presencial" | "semi_presencial" | "online"; }
 export interface ChatMessage { id: string; studentId: string; disciplineId: string; message: string; isFromStudent: boolean; read: boolean; createdAt: string; }
 export interface Attendance { id: string; studentId: string; disciplineId: string; date: string; isPresent: boolean; createdAt: string; }
 export interface AttendanceLock {
@@ -51,7 +51,7 @@ export interface AttendanceLock {
 }
 export interface BoardMember { id: string; name: string; role: string; category: string; avatar_url?: string | null; createdAt: string; }
 export interface ProfessorDiscipline { id: string; professorId: string; disciplineId: string; createdAt: string; }
-export interface ClassRoom { id: string; name: string; shift: "morning" | "afternoon" | "evening" | "ead"; dayOfWeek?: string; maxStudents: number; studentCount?: number; createdAt: string; }
+export interface ClassRoom { id: string; name: string; shift: "morning" | "afternoon" | "evening" | "ead"; dayOfWeek?: string; maxStudents: number; studentCount?: number; createdAt: string; modality?: "presencial" | "semi_presencial" | "online"; }
 export interface ClassSchedule { id: string; classId: string; disciplineId: string; professorName: string; dayOfWeek: string; timeStart: string; timeEnd: string; lessonsCount: number; workload: number; startDate?: string; endDate?: string; createdAt: string; }
 export interface StudentGrade {
   id: string;
@@ -117,6 +117,49 @@ export interface UserLog {
   created_at?: string;
 }
 
+export interface EadLesson {
+  id: string;
+  disciplineId: string;
+  title: string;
+  description?: string;
+  videoUrl: string;
+  orderIndex: number;
+  createdAt: string;
+}
+
+// ─── Multi-Polo ───────────────────────────────────────────────────────────────
+export interface Polo {
+  id: string
+  name: string
+  city: string
+  color: string        // primary brand color hex
+  colorSecondary: string
+  isActive: boolean
+  description?: string
+}
+
+/** Polos cadastrados no sistema */
+export const POLOS: Polo[] = [
+  {
+    id: "polo-tancredo-neves",
+    name: "Polo Tancredo Neves",
+    city: "Salvador - BA",
+    color: "#7f1d1d",
+    colorSecondary: "#991b1b",
+    isActive: true,
+    description: "Sede principal do IETEO",
+  },
+  {
+    id: "polo-chapada",
+    name: "Polo Chapada",
+    city: "Chapada Diamantina - BA",
+    color: "#1e3a5f",
+    colorSecondary: "#1e40af",
+    isActive: true,
+    description: "Polo regional da Chapada Diamantina",
+  },
+]
+
 export function hashPassword(plain: string): string {
   if (typeof window !== "undefined") return btoa(unescape(encodeURIComponent(plain)))
   return Buffer.from(plain).toString("base64")
@@ -127,7 +170,32 @@ const KEYS = {
   PROFESSOR_SESSION: "ibad_professor_session",
   STUDENT_SESSION: "ibad_current_session",
   DRAFT_ANSWERS: "ibad_draft_answers",
+  SELECTED_POLO: "ieteo_selected_polo",
 } as const
+
+// ─── Polo Selection (Local Storage) ──────────────────────────────────────────
+export function getSelectedPolo(): Polo | null {
+  if (typeof window === "undefined") return null
+  try {
+    const id = localStorage.getItem(KEYS.SELECTED_POLO)
+    if (!id) return null
+    return POLOS.find(p => p.id === id) ?? null
+  } catch { return null }
+}
+
+export function saveSelectedPolo(poloId: string): void {
+  if (typeof window === "undefined") return
+  try {
+    localStorage.setItem(KEYS.SELECTED_POLO, poloId)
+  } catch { /* silent */ }
+}
+
+export function clearSelectedPolo(): void {
+  if (typeof window === "undefined") return
+  try {
+    localStorage.removeItem(KEYS.SELECTED_POLO)
+  } catch { /* silent */ }
+}
 
 export const MASTER_CREDENTIALS = {
   email: "professor@ibad.com",
@@ -589,33 +657,37 @@ export async function saveGradeSettings(settings: GradeSettings): Promise<void> 
 }
 
 
-export async function getClasses(): Promise<ClassRoom[]> {
+export async function getClasses(poloId?: string): Promise<ClassRoom[]> {
   const supabase = createClient()
-  const { data: classes } = await supabase.from('classes').select('*').order('created_at', { ascending: false })
+  let query = supabase.from('classes').select('*').order('created_at', { ascending: false })
+  if (poloId && poloId !== 'all') query = query.eq('polo_id', poloId)
+  const { data: classes } = await query
   const { data: counts } = await supabase.from('students').select('class_id')
 
   const studentCounts: Record<string, number> = {}
-  counts?.forEach(s => {
+  counts?.forEach((s: any) => {
     if (s.class_id) studentCounts[s.class_id] = (studentCounts[s.class_id] || 0) + 1
   })
 
-  return (classes || []).map(c => ({
+  return (classes || []).map((c: any) => ({
     ...mapClassRoom(c),
     studentCount: studentCounts[c.id] || 0
   }))
 }
 
-export async function getPublicClasses(): Promise<ClassRoom[]> {
+export async function getPublicClasses(poloId?: string): Promise<ClassRoom[]> {
   const supabase = createClient()
-  const { data: classes } = await supabase.from('classes').select('*').order('name', { ascending: true })
+  let query = supabase.from('classes').select('*').order('name', { ascending: true })
+  if (poloId && poloId !== 'all') query = query.eq('polo_id', poloId)
+  const { data: classes } = await query
   const { data: counts } = await supabase.from('students').select('class_id')
 
   const studentCounts: Record<string, number> = {}
-  counts?.forEach(s => {
+  counts?.forEach((s: any) => {
     if (s.class_id) studentCounts[s.class_id] = (studentCounts[s.class_id] || 0) + 1
   })
 
-  return (classes || []).map(c => ({
+  return (classes || []).map((c: any) => ({
     ...mapClassRoom(c),
     studentCount: studentCounts[c.id] || 0
   }))
@@ -642,7 +714,7 @@ export async function deleteClass(id: string): Promise<void> {
   await supabase.from('classes').delete().eq('id', id)
 }
 
-export async function getFinancialCharges(studentId?: string): Promise<FinancialCharge[]> {
+export async function getFinancialCharges(studentId?: string, poloId?: string): Promise<FinancialCharge[]> {
   const supabase = createClient()
   let allData: any[] = []
   let hasMore = true
@@ -652,6 +724,7 @@ export async function getFinancialCharges(studentId?: string): Promise<Financial
   while (hasMore) {
     let query = supabase.from('financial_charges').select('*').order('due_date', { ascending: false }).range(page * limitSize, (page + 1) * limitSize - 1)
     if (studentId) query = query.eq('student_id', studentId)
+    if (poloId && poloId !== 'all') query = query.eq('polo_id', poloId)
 
     const { data, error } = await query
     if (error) break
@@ -764,9 +837,11 @@ export async function deleteFinancialCharge(id: string): Promise<void> {
 
 // ─── Expenses CRUD ───────────────────────────────────────────────────────────
 
-export async function getExpenses(): Promise<Expense[]> {
+export async function getExpenses(poloId?: string): Promise<Expense[]> {
   const supabase = createClient()
-  const { data } = await supabase.from('expenses').select('*').order('due_date', { ascending: false })
+  let query = supabase.from('expenses').select('*').order('due_date', { ascending: false })
+  if (poloId && poloId !== 'all') query = query.eq('polo_id', poloId)
+  const { data } = await query
   return (data || []).map(mapExpense)
 }
 
@@ -1412,12 +1487,13 @@ export async function deleteQuestion(id: string): Promise<void> {
   await supabase.from('questions').delete().eq('id', id)
 }
 
-export async function getAssessments(): Promise<Assessment[]> {
+export async function getAssessments(poloId?: string): Promise<Assessment[]> {
   const supabase = createClient()
-  const { data, error } = await supabase.from('assessments')
-    .select('id, title, discipline_id, professor, institution, question_ids, points_per_question, total_points, open_at, close_at, is_published, shuffle_variants, rules, release_results, modality, created_at, time_limit_minutes')
+  let query = supabase.from('assessments')
+    .select('id, title, discipline_id, professor, institution, question_ids, points_per_question, total_points, open_at, close_at, is_published, shuffle_variants, rules, release_results, modality, created_at, time_limit_minutes, polo_id')
     .order('created_at', { ascending: false })
-  
+  if (poloId && poloId !== 'all') query = query.eq('polo_id', poloId)
+  const { data, error } = await query
   if (error) {
     console.error("Error fetching assessments:", error)
     return []
@@ -1810,9 +1886,11 @@ export function calculateScore(answers: StudentAnswer[], questions: Question[], 
   return { score, totalPoints, percentage }
 }
 
-export async function getClassSchedules(): Promise<ClassSchedule[]> {
+export async function getClassSchedules(poloId?: string): Promise<ClassSchedule[]> {
   const supabase = createClient()
-  const { data } = await supabase.from('class_schedules').select('*').order('day_of_week', { ascending: true })
+  let query = supabase.from('class_schedules').select('*').order('day_of_week', { ascending: true })
+  if (poloId && poloId !== 'all') query = query.eq('polo_id', poloId)
+  const { data } = await query
   return (data || []).map(mapClassSchedule)
 }
 
@@ -1859,12 +1937,14 @@ export async function deleteClassSchedule(id: string): Promise<void> {
   await supabase.from('class_schedules').delete().eq('id', id)
 }
 
-export async function getStudents(): Promise<StudentProfile[]> {
+export async function getStudents(poloId?: string): Promise<StudentProfile[]> {
   const supabase = createClient()
-  const { data } = await supabase
+  let query = supabase
     .from('students')
     .select('*')
     .order('name', { ascending: true })
+  if (poloId && poloId !== 'all') query = query.eq('polo_id', poloId)
+  const { data } = await query
   return (data || []).map(mapStudentProfile)
 }
 
@@ -1967,9 +2047,11 @@ export async function markChatAsRead(id: string): Promise<void> {
   await supabase.from('chats').update({ read: true }).eq('id', id)
 }
 
-export async function getAttendances(disciplineId: string): Promise<Attendance[]> {
+export async function getAttendances(disciplineId: string, poloId?: string): Promise<Attendance[]> {
   const supabase = createClient()
-  const { data } = await supabase.from('attendances').select('*').eq('discipline_id', disciplineId).order('date', { ascending: false })
+  let query = supabase.from('attendances').select('*').eq('discipline_id', disciplineId).order('date', { ascending: false })
+  if (poloId && poloId !== 'all') query = query.eq('polo_id', poloId)
+  const { data } = await query
   return (data || []).map(mapAttendance)
 }
 
@@ -2218,13 +2300,15 @@ export async function unlockAttendance(id: string): Promise<void> {
 
 // ─── Notas (Student Grades) ───────────────────────────────────────────
 
-export async function getStudentGrades(): Promise<StudentGrade[]> {
+export async function getStudentGrades(poloId?: string): Promise<StudentGrade[]> {
   const supabase = createClient()
-  const { data, error } = await supabase
+  let query = supabase
     .from('student_grades')
-    .select('id, student_identifier, student_name, discipline_id, is_public, exam_grade, works_grade, seminar_grade, participation_bonus, attendance_score, custom_divisor, created_at, student_id')
+    .select('id, student_identifier, student_name, discipline_id, is_public, exam_grade, works_grade, seminar_grade, participation_bonus, attendance_score, custom_divisor, created_at, student_id, polo_id')
     .order('created_at', { ascending: false })
-    .limit(500) // Safety cap - prevents unbounded queries
+    .limit(500)
+  if (poloId && poloId !== 'all') query = query.eq('polo_id', poloId)
+  const { data, error } = await query
   if (error) throw new Error(error.message)
   return (data || []).map(mapStudentGrade)
 }
@@ -2867,3 +2951,56 @@ export async function updateFinancialCharge(id: string, data: {
 
 // Build timestamp: 2026-03-13 10:59
 
+
+ / /    % % %  E A D   L e s s o n s    % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %
+ 
+ f u n c t i o n   m a p E a d L e s s o n ( r o w :   a n y ) :   E a d L e s s o n   { 
+     r e t u r n   { 
+         i d :   r o w . i d , 
+         d i s c i p l i n e I d :   r o w . d i s c i p l i n e _ i d , 
+         t i t l e :   r o w . t i t l e , 
+         d e s c r i p t i o n :   r o w . d e s c r i p t i o n , 
+         v i d e o U r l :   r o w . v i d e o _ u r l , 
+         o r d e r I n d e x :   r o w . o r d e r _ i n d e x , 
+         c r e a t e d A t :   r o w . c r e a t e d _ a t 
+     } 
+ } 
+ 
+ e x p o r t   a s y n c   f u n c t i o n   g e t E a d L e s s o n s ( d i s c i p l i n e I d :   s t r i n g ) :   P r o m i s e < E a d L e s s o n [ ] >   { 
+     c o n s t   s u p a b a s e   =   c r e a t e C l i e n t ( ) 
+     c o n s t   {   d a t a   }   =   a w a i t   s u p a b a s e . f r o m ( ' e a d _ l e s s o n s ' ) . s e l e c t ( ' * ' ) . e q ( ' d i s c i p l i n e _ i d ' ,   d i s c i p l i n e I d ) . o r d e r ( ' o r d e r _ i n d e x ' ,   {   a s c e n d i n g :   t r u e   } ) 
+     r e t u r n   ( d a t a   | |   [ ] ) . m a p ( m a p E a d L e s s o n ) 
+ } 
+ 
+ e x p o r t   a s y n c   f u n c t i o n   a d d E a d L e s s o n ( l e s s o n :   O m i t < E a d L e s s o n ,   ' i d '   |   ' c r e a t e d A t ' > ) :   P r o m i s e < v o i d >   { 
+     c o n s t   s u p a b a s e   =   c r e a t e C l i e n t ( ) 
+     c o n s t   {   e r r o r   }   =   a w a i t   s u p a b a s e . f r o m ( ' e a d _ l e s s o n s ' ) . i n s e r t ( { 
+         d i s c i p l i n e _ i d :   l e s s o n . d i s c i p l i n e I d , 
+         t i t l e :   l e s s o n . t i t l e , 
+         d e s c r i p t i o n :   l e s s o n . d e s c r i p t i o n , 
+         v i d e o _ u r l :   l e s s o n . v i d e o U r l , 
+         o r d e r _ i n d e x :   l e s s o n . o r d e r I n d e x 
+     } ) 
+     i f   ( e r r o r )   t h r o w   n e w   E r r o r ( e r r o r . m e s s a g e ) 
+ } 
+ 
+ e x p o r t   a s y n c   f u n c t i o n   u p d a t e E a d L e s s o n ( i d :   s t r i n g ,   l e s s o n :   P a r t i a l < E a d L e s s o n > ) :   P r o m i s e < v o i d >   { 
+     c o n s t   s u p a b a s e   =   c r e a t e C l i e n t ( ) 
+     c o n s t   p a y l o a d :   a n y   =   { } 
+     i f   ( l e s s o n . t i t l e   ! = =   u n d e f i n e d )   p a y l o a d . t i t l e   =   l e s s o n . t i t l e 
+     i f   ( l e s s o n . d e s c r i p t i o n   ! = =   u n d e f i n e d )   p a y l o a d . d e s c r i p t i o n   =   l e s s o n . d e s c r i p t i o n 
+     i f   ( l e s s o n . v i d e o U r l   ! = =   u n d e f i n e d )   p a y l o a d . v i d e o _ u r l   =   l e s s o n . v i d e o U r l 
+     i f   ( l e s s o n . o r d e r I n d e x   ! = =   u n d e f i n e d )   p a y l o a d . o r d e r _ i n d e x   =   l e s s o n . o r d e r I n d e x 
+     i f   ( l e s s o n . d i s c i p l i n e I d   ! = =   u n d e f i n e d )   p a y l o a d . d i s c i p l i n e _ i d   =   l e s s o n . d i s c i p l i n e I d 
+     
+     c o n s t   {   e r r o r   }   =   a w a i t   s u p a b a s e . f r o m ( ' e a d _ l e s s o n s ' ) . u p d a t e ( p a y l o a d ) . e q ( ' i d ' ,   i d ) 
+     i f   ( e r r o r )   t h r o w   n e w   E r r o r ( e r r o r . m e s s a g e ) 
+ } 
+ 
+ e x p o r t   a s y n c   f u n c t i o n   d e l e t e E a d L e s s o n ( i d :   s t r i n g ) :   P r o m i s e < v o i d >   { 
+     c o n s t   s u p a b a s e   =   c r e a t e C l i e n t ( ) 
+     c o n s t   {   e r r o r   }   =   a w a i t   s u p a b a s e . f r o m ( ' e a d _ l e s s o n s ' ) . d e l e t e ( ) . e q ( ' i d ' ,   i d ) 
+     i f   ( e r r o r )   t h r o w   n e w   E r r o r ( e r r o r . m e s s a g e ) 
+ } 
+  
+ 

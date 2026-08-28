@@ -27,11 +27,12 @@ import { printFinancialReportPDF } from "@/lib/pdf"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { createClient } from "@/lib/supabase/client"
 
-export function FinancialManager({ onRefresh, month, year, scope }: { 
+export function FinancialManager({ onRefresh, month, year, scope, poloFilter }: { 
     onRefresh?: () => void,
     month?: string,
     year?: string,
-    scope?: "month" | "year" | "all"
+    scope?: "month" | "year" | "all",
+    poloFilter?: string
 } = {}) {
     const [charges, setCharges] = useState<FinancialCharge[]>([])
     const [students, setStudents] = useState<StudentProfile[]>([])
@@ -126,7 +127,7 @@ export function FinancialManager({ onRefresh, month, year, scope }: {
     async function load() {
         setLoading(true)
         const [c, s, config, { data: classesData }] = await Promise.all([
-            getFinancialCharges(),
+            getFinancialCharges(undefined, poloFilter),
             fetchAllStudents(),
             getFinancialSettings(),
             supabase.from('classes').select('*').order('name')
@@ -138,7 +139,7 @@ export function FinancialManager({ onRefresh, month, year, scope }: {
         setLoading(false)
     }
 
-    useEffect(() => { load() }, [])
+    useEffect(() => { load() }, [poloFilter])
 
     // Auto-fill amount based on type and settings
     useEffect(() => {

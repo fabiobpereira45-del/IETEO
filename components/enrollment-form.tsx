@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { X, ChevronRight, ChevronLeft, User, Phone, MapPin, Church, BookOpen, CreditCard, QrCode, Loader2, CheckCircle2, AlertCircle, Copy, MessageCircle, Clock } from "lucide-react"
 import { getClasses, getFinancialSettings, getClassSchedules, type ClassRoom, type FinancialSettings, type ClassSchedule } from "@/lib/store"
+import { usePolo } from "@/lib/polo-context"
 import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -36,6 +37,7 @@ function formatPhone(v: string) {
 }
 
 export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
+    const { polo } = usePolo()
     const [step, setStep] = useState<Step>("personal")
     const [form, setForm] = useState<FormData>(EMPTY_FORM)
     const [classes, setClasses] = useState<ClassRoom[]>([])
@@ -57,11 +59,12 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
     const [creating, setCreating] = useState(false)
     const [exitConfirmOpen, setExitConfirmOpen] = useState(false)
     const [isPaidLater, setIsPaidLater] = useState(false)
+    const [selectedModality, setSelectedModality] = useState<"presencial" | "semi_presencial" | "online" | "">("")
 
     useEffect(() => {
         async function load() {
             const [cls, fin, scheds] = await Promise.all([
-                getClasses(), getFinancialSettings(), getClassSchedules()
+                getClasses(polo?.id), getFinancialSettings(), getClassSchedules(polo?.id)
             ])
             setClasses(cls)
             setSchedules(scheds)
@@ -69,7 +72,7 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
             setLoading(false)
         }
         load()
-    }, [])
+    }, [polo?.id])
 
     const isPersonalValid = form.name.trim() && form.cpf.length >= 14 && form.phone.length >= 14 && form.address.trim() && form.church.trim() && form.pastor.trim()
     const isClassValid = !!form.classId
@@ -81,7 +84,7 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
             const res = await fetch("/api/enrollment/create", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...form, amount: settings?.enrollmentFee || 0 })
+                body: JSON.stringify({ ...form, amount: settings?.enrollmentFee, poloId: polo?.id, modality: selectedModality || "presencial" })
             })
             const body = await res.json()
             if (!res.ok) throw new Error(body.error || "Erro ao criar matrícula")
@@ -286,13 +289,37 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                     ) : step === "class" ? (
                         <div className="space-y-4">
                             <h3 className="font-semibold text-foreground flex items-center gap-2"><BookOpen className="h-4 w-4 text-accent" /> Escolha sua Turma</h3>
-                            {classes.length === 0 ? (
+                            
+                            <div className="mb-4">
+                                <label className="text-xs font-semibold text-muted-foreground block mb-2">Selecione a Modalidade Desejada</label>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                    {[
+                                        { id: "presencial", label: "Presencial" },
+                                        { id: "semi_presencial", label: "Semi Presencial" },
+                                        { id: "online", label: "100% Online" }
+                                    ].map(mod => (
+                                        <button
+                                            key={mod.id}
+                                            onClick={() => { setSelectedModality(mod.id as any); setForm(f => ({ ...f, classId: "" })) }}
+                                            className={`py-2 px-3 rounded-xl border text-sm font-medium transition-all ${selectedModality === mod.id ? 'border-accent bg-accent text-accent-foreground shadow-sm' : 'border-border bg-background hover:border-accent/50 text-foreground'}`}
+                                        >
+                                            {mod.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {selectedModality && classes.filter(c => (c.modality || "presencial") === selectedModality).length === 0 ? (
                                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
-                                    <AlertCircle className="h-4 w-4 inline mr-2" />Nenhuma turma disponível no momento.
+                                    <AlertCircle className="h-4 w-4 inline mr-2" />Nenhuma turma disponível nesta modalidade.
+                                </div>
+                            ) : !selectedModality ? (
+                                <div className="bg-muted border border-border rounded-xl p-4 text-sm text-muted-foreground text-center">
+                                    Selecione uma modalidade acima para ver as turmas disponíveis.
                                 </div>
                             ) : (
                                 <div className="space-y-3">
-                                    {classes.map(c => (
+                                    {classes.filter(c => (c.modality || "presencial") === selectedModality).map(c => (
                                         <button
                                             key={c.id}
                                             onClick={() => setForm(f => ({ ...f, classId: c.id }))}

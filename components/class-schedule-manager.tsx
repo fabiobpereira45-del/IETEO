@@ -32,7 +32,7 @@ const DAYS_OF_WEEK = [
     { value: "sabado", label: "Sábado", short: "SÁB" },
 ]
 
-export function ClassScheduleManager() {
+export function ClassScheduleManager({ poloFilter }: { poloFilter?: string }) {
     const [schedules, setSchedules] = useState<ClassSchedule[]>([])
     const [classes, setClasses] = useState<ClassRoom[]>([])
     const [disciplines, setDisciplines] = useState<Discipline[]>([])
@@ -61,8 +61,8 @@ export function ClassScheduleManager() {
     async function loadData() {
         setLoading(true)
         const [scheds, cls, discs, profs] = await Promise.all([
-            getClassSchedules(),
-            getClasses(),
+            getClassSchedules(poloFilter),
+            getClasses(poloFilter),
             getDisciplines(),
             getProfessorAccounts()
         ])
@@ -75,7 +75,7 @@ export function ClassScheduleManager() {
 
     useEffect(() => {
         loadData()
-    }, [])
+    }, [poloFilter])
 
     function openNewSchedule(day?: string) {
         setFormClassId(activeClassId !== "all" ? activeClassId : (classes[0]?.id || ""))

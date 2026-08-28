@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Plus, Trash2, Pencil, Save, X, Users, Clock, GraduationCap, Loader2, Calendar, Link, Check, Copy } from "lucide-react"
 import { getClasses, addClass, updateClass, deleteClass, getStudents, type ClassRoom, type StudentProfile } from "@/lib/store"
 import jsPDF from "jspdf"
@@ -10,7 +10,12 @@ const SHIFTS = [
     { value: "morning", label: "Manhã" },
     { value: "afternoon", label: "Tarde" },
     { value: "evening", label: "Noite" },
-    { value: "ead", label: "EAD/Online" },
+]
+
+const MODALITIES = [
+    { value: "presencial", label: "Presencial" },
+    { value: "semi_presencial", label: "Semi Presencial (3 remotas, 1 presencial)" },
+    { value: "online", label: "100% Online" },
 ]
 
 const DAYS = [
@@ -49,8 +54,8 @@ const DAY_ORDER: Record<string, number> = {
     sunday: 7,
 }
 
-type FormState = { name: string; shift: ClassRoom["shift"]; dayOfWeek: string; maxStudents: number }
-const EMPTY_FORM: FormState = { name: "", shift: "ead", dayOfWeek: "", maxStudents: 30 }
+type FormState = { name: string; shift: ClassRoom["shift"]; dayOfWeek: string; maxStudents: number; modality: ClassRoom["modality"] }
+const EMPTY_FORM: FormState = { name: "", shift: "evening", dayOfWeek: "", maxStudents: 30, modality: "presencial" }
 
 interface ClassFormProps {
     val: FormState
@@ -90,6 +95,16 @@ function ClassForm({ val, onChange }: ClassFormProps) {
                 </select>
             </div>
             <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Modalidade</label>
+                <select
+                    className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent"
+                    value={val.modality}
+                    onChange={e => onChange("modality", e.target.value)}
+                >
+                    {MODALITIES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                </select>
+            </div>
+            <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Máx. de Alunos</label>
                 <input
                     type="number" min={1} max={500}
@@ -102,7 +117,7 @@ function ClassForm({ val, onChange }: ClassFormProps) {
     )
 }
 
-export function ClassManager() {
+export function ClassManager({ poloFilter }: { poloFilter?: string }) {
     const [classes, setClasses] = useState<ClassRoom[]>([])
     const [students, setStudents] = useState<StudentProfile[]>([])
     const [loading, setLoading] = useState(true)
@@ -112,9 +127,9 @@ export function ClassManager() {
     const [form, setForm] = useState<FormState>(EMPTY_FORM)
     const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM)
 
-    async function load() {
+    const load = useCallback(async () => {
         setLoading(true)
-        const [cls, stds] = await Promise.all([getClasses(), getStudents()])
+        const [cls, stds] = await Promise.all([getClasses(poloFilter), getStudents()])
         const sortedCls = [...cls].sort((a, b) => {
             const orderA = a.dayOfWeek ? (DAY_ORDER[a.dayOfWeek] || 99) : 100
             const orderB = b.dayOfWeek ? (DAY_ORDER[b.dayOfWeek] || 99) : 100
@@ -124,15 +139,15 @@ export function ClassManager() {
         setClasses(sortedCls)
         setStudents(stds)
         setLoading(false)
-    }
+    }, [poloFilter])
 
-    useEffect(() => { load() }, [])
+    useEffect(() => { load() }, [load])
 
     async function handleAdd() {
         if (!form.name.trim()) return
         setSaving(true)
         try {
-            await addClass({ name: form.name.trim(), shift: form.shift, dayOfWeek: form.dayOfWeek || undefined, maxStudents: form.maxStudents })
+            await addClass({ name: form.name.trim(), shift: form.shift, dayOfWeek: form.dayOfWeek || undefined, maxStudents: form.maxStudents, modality: form.modality })
             setForm(EMPTY_FORM); setShowNew(false); await load()
         } finally { setSaving(false) }
     }
@@ -140,7 +155,7 @@ export function ClassManager() {
     async function handleUpdate(id: string) {
         setSaving(true)
         try {
-            await updateClass(id, { name: editForm.name.trim(), shift: editForm.shift, dayOfWeek: editForm.dayOfWeek || undefined, maxStudents: editForm.maxStudents })
+            await updateClass(id, { name: editForm.name.trim(), shift: editForm.shift, dayOfWeek: editForm.dayOfWeek || null, maxStudents: editForm.maxStudents, modality: editForm.modality })
             setEditingId(null); await load()
         } finally { setSaving(false) }
     }
@@ -152,7 +167,7 @@ export function ClassManager() {
 
     function startEdit(c: ClassRoom) {
         setEditingId(c.id)
-        setEditForm({ name: c.name, shift: c.shift, dayOfWeek: c.dayOfWeek || "", maxStudents: c.maxStudents })
+        setEditForm({ name: c.name, shift: c.shift, dayOfWeek: c.dayOfWeek || "", maxStudents: c.maxStudents, modality: c.modality || "presencial" })
         setShowNew(false)
     }
 
@@ -269,6 +284,10 @@ export function ClassManager() {
                                             )}
                                             <span className="flex items-center gap-1 text-xs text-muted-foreground">
                                                 <Clock className="h-3 w-3" />{SHIFT_LABEL[c.shift] || c.shift}
+                                            </span>
+                                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                                                {MODALITIES.find(m => m.value === c.modality)?.label || "Presencial"}
                                             </span>
                                             <span className="flex items-center gap-1 text-xs font-bold text-primary">
                                                 <Users className="h-3 w-3" />

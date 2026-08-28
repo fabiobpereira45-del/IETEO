@@ -22,7 +22,7 @@ import {
 } from "@/lib/store"
 import { printAttendanceReportPDF, printDailyAttendancePDF, printAttendanceAnalysisPDF } from "@/lib/pdf"
 
-export function AttendanceManager() {
+export function AttendanceManager({ poloFilter }: { poloFilter?: string }) {
     const [disciplines, setDisciplines] = useState<Discipline[]>([])
     const [students, setStudents] = useState<StudentProfile[]>([])
 
@@ -58,15 +58,14 @@ export function AttendanceManager() {
                 d = await getDisciplinesByProfessor(s.professorId)
             }
             
-            const c = await getClasses()
-            const st = await getStudents()
-            setDisciplines(d)
-            setClasses(c)
+            const [st, cl] = await Promise.all([getStudents(poloFilter), getClasses(poloFilter)])
             setStudents(st)
+            setClasses(cl)
+            setDisciplines(d)
             setLoading(false)
         }
         loadData()
-    }, [])
+    }, [poloFilter])
 
     // Load attendances and lock status when discipline or date changes
     useEffect(() => {
@@ -75,7 +74,7 @@ export function AttendanceManager() {
             setLoading(true)
             
             const [data, lock] = await Promise.all([
-                getAttendances(selectedDisciplineId),
+                getAttendances(selectedDisciplineId, poloFilter),
                 getAttendanceLock(selectedDisciplineId, selectedDate)
             ])
 
@@ -92,7 +91,7 @@ export function AttendanceManager() {
             setLoading(false)
         }
         fetchAttendances()
-    }, [selectedDisciplineId, selectedDate])
+    }, [selectedDisciplineId, selectedDate, poloFilter])
 
     async function handleSave() {
         if (selectedDisciplineId === "none" || !selectedDate) return
@@ -194,7 +193,7 @@ export function AttendanceManager() {
                                     if (selectedDisciplineId === "none") return alert("Selecione uma disciplina.")
                                     setLoading(true)
                                     try {
-                                        const att = await getAttendances(selectedDisciplineId)
+                                        const att = await getAttendances(selectedDisciplineId, poloFilter)
                                         const discName = disciplines.find(d => d.id === selectedDisciplineId)?.name || ""
                                         printAttendanceReportPDF(att, students, discName)
                                     } catch (e: any) { alert("Erro ao gerar PDF: " + e.message) }

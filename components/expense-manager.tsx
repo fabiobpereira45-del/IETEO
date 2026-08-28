@@ -26,12 +26,14 @@ export function ExpenseManager({
     onRefresh,
     scope = 'month',
     month = new Date().getMonth().toString(),
-    year = new Date().getFullYear().toString()
+    year = new Date().getFullYear().toString(),
+    poloFilter
 }: { 
     onRefresh?: () => void,
     scope?: 'month' | 'year' | 'all',
     month?: string,
-    year?: string
+    year?: string,
+    poloFilter?: string
 } = {}) {
     const [expenses, setExpenses] = useState<Expense[]>([])
     const [expenseCharges, setExpenseCharges] = useState<FinancialCharge[]>([])
@@ -61,8 +63,8 @@ export function ExpenseManager({
         setLoading(true)
         try {
             const [data, charges] = await Promise.all([
-                getExpenses(),
-                getFinancialCharges()
+                getExpenses(poloFilter),
+                getFinancialCharges(undefined, poloFilter)
             ])
             setExpenses(data)
             setExpenseCharges(charges.filter(c => c.type === 'expense'))
@@ -73,7 +75,7 @@ export function ExpenseManager({
         }
     }
 
-    useEffect(() => { load() }, [])
+    useEffect(() => { load() }, [poloFilter])
 
     async function handleSave() {
         if (!description || !amount || !dueDate) {

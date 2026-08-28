@@ -11,6 +11,8 @@ import { StudentDashboard } from "@/components/student-dashboard"
 import { EnrollmentForm } from "@/components/enrollment-form"
 import { GradeViewer } from "@/components/grade-viewer"
 import { InstitutionalManager } from "@/components/institutional-manager"
+import { PoloSelector } from "@/components/polo-selector"
+import { usePolo } from "@/lib/polo-context"
 import {
   getStudentSession,
   getSubmissionByEmailAndAssessment,
@@ -22,10 +24,11 @@ import {
 } from "@/lib/store"
 import { BookOpen, GraduationCap, ClipboardList, User } from "lucide-react"
 
-type View = "landing" | "public-exam-login" | "student-portal-login" | "student-assessment" | "student-result" | "professor-login" | "admin" | "student-dashboard"
+type View = "polo-select" | "landing" | "public-exam-login" | "student-portal-login" | "student-assessment" | "student-result" | "professor-login" | "admin" | "student-dashboard"
 
 export default function HomePage() {
-  const [view, setView] = useState<View>("landing")
+  const { polo, selectPolo, resetPolo, isLoaded } = usePolo()
+  const [view, setView] = useState<View>("polo-select")
   const [session, setSession] = useState<StudentSession | null>(null)
   const [submission, setSubmission] = useState<StudentSubmission | null>(null)
   const [mounted, setMounted] = useState(false)
@@ -69,6 +72,15 @@ export default function HomePage() {
     fetchSlots()
   }, [])
 
+  // Once polo context is loaded for the FIRST time, auto-skip selector if polo was already saved.
+  // We do NOT re-run this when view changes (user explicitly navigating to polo-select must be allowed).
+  useEffect(() => {
+    if (!isLoaded) return
+    // Only auto-advance on initial load (when still on polo-select and no explicit user action)
+    setView(prev => (prev === "polo-select" && polo) ? "landing" : prev)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded])
+
   // Hash routing for admin panel: /admin
   useEffect(() => {
     const { hash } = window.location
@@ -103,14 +115,26 @@ export default function HomePage() {
   }, [])
 
   const handleLogout = useCallback(() => {
-    setView("landing")
+    setView(polo ? "landing" : "polo-select")
     setSession(null)
     setSubmission(null)
     // IMPORTANT: Clear storage to prevent auto-redirect on next visit
     import("@/lib/store").then(m => m.clearStudentSession())
-  }, [])
+  }, [polo])
 
   if (!mounted) return null
+
+  // ─── Polo selector (first screen) ─────────────────────────────────────────
+  if (view === "polo-select" || !polo) {
+    return (
+      <PoloSelector
+        onSelect={(selectedPolo) => {
+          selectPolo(selectedPolo)
+          setView("landing")
+        }}
+      />
+    )
+  }
 
   // Admin views
   if (view === "professor-login") {
@@ -134,6 +158,8 @@ export default function HomePage() {
           onAdminClick={() => setView("professor-login")}
           onStudentAreaClick={session ? () => setView("student-dashboard") : undefined}
           onEnrollClick={() => setShowEnroll(true)}
+          polo={polo}
+          onPoloChange={() => { resetPolo(); setView("polo-select") }}
         />
       )}
 

@@ -5,7 +5,7 @@ import {
   Users, FileText, BookOpen, Settings, BarChart3, Download, LogOut,
   Plus, Pencil, Trash2, Eye, EyeOff, Trophy, CheckCircle2, Link2, FileCheck,
   ShieldCheck, Loader2, DollarSign, MessageSquare, CalendarCheck, GraduationCap, XCircle, ArrowLeft, Building2, UserCircle, Briefcase, Send, PlaySquare, CalendarDays, KeyRound, Save,
-  Menu, ChevronRight, Archive, ArchiveRestore, Sparkles, Calculator, Activity
+  Menu, ChevronRight, Archive, ArchiveRestore, Sparkles, Calculator, Activity, MonitorPlay
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,11 +25,11 @@ import {
   getProfessorSession, getStudentGrades, saveStudentGrade, deleteStudentGrade, getStudents, updateProfessorAccount,
   saveProfessorSession,
   type Semester, type StudyMaterial, type FinancialCharge, type ClassRoom, type ClassSchedule,
+  POLOS, type Polo,
 } from "@/lib/store"
 import { printStudentPDF, printBlankAssessmentPDF, printCompiledSubmissionsPDF, printOverviewPDF, printAnswerKeyPDF, printSubmissionsTablePDF } from "@/lib/pdf"
 import { ErrorBoundary } from "@/components/error-boundary"
 import dynamic from "next/dynamic"
-import { createClient } from "@/lib/supabase/client"
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
@@ -63,6 +63,7 @@ const GradesManager = dynamic(() => import("@/components/grades-manager").then(m
 const GradeConfig = dynamic(() => import("@/components/grade-config").then(m => m.GradeConfig), { loading: LoadingFallback })
 const ChallengeManager = dynamic(() => import("@/components/admin/challenge-manager").then(m => m.ChallengeManager), { loading: LoadingFallback })
 const InstitutionalManager = dynamic(() => import("@/components/institutional-manager").then(m => m.InstitutionalManager), { loading: LoadingFallback })
+const EadManager = dynamic(() => import("./admin/ead-manager").then(m => m.EadManager), { loading: LoadingFallback })
 const OverviewTab = dynamic(() => import("./admin/tabs/OverviewTab").then(m => m.OverviewTab), { loading: LoadingFallback })
 const SubmissionsTab = dynamic(() => import("./admin/tabs/SubmissionsTab").then(m => m.SubmissionsTab), { loading: LoadingFallback })
 const AssessmentsTab = dynamic(() => import("./admin/tabs/AssessmentsTab").then(m => m.AssessmentsTab), { loading: LoadingFallback })
@@ -84,7 +85,7 @@ function formatTime(s: number) {
   return `${m}m${sec.toString().padStart(2, "0")}s`
 }
 
-type Tab = "overview" | "students" | "grades" | "submissions" | "questions" | "assessments" | "challenges" | "professors" | "semesters" | "class_schedules" | "materials" | "financial" | "settings" | "chat" | "attendance" | "classes" | "institutional" | "grade_config" | "usage_logs"
+type Tab = "overview" | "students" | "grades" | "submissions" | "questions" | "assessments" | "challenges" | "professors" | "semesters" | "class_schedules" | "materials" | "financial" | "settings" | "chat" | "attendance" | "classes" | "institutional" | "grade_config" | "usage_logs" | "ead"
 
 interface Props {
   onLogout: () => void
@@ -103,6 +104,10 @@ export function AdminDashboard({ onLogout }: Props) {
   })
   const [loading, setLoading] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  // Polo filter: master can switch between polos, others see only theirs
+  const [selectedPoloId, setSelectedPoloId] = useState<string>("all")
+  const activePolo = selectedPoloId === "all" ? null : POLOS.find(p => p.id === selectedPoloId) ?? null
 
   const [username, setUsername] = useState("")
   const [userEmail, setUserEmail] = useState("")
@@ -184,6 +189,7 @@ export function AdminDashboard({ onLogout }: Props) {
           { id: "grades", label: "Notas e Diários", icon: <GraduationCap className="h-4 w-4" /> },
           { id: "attendance", label: "Frequência", icon: <CalendarCheck className="h-4 w-4" /> },
           { id: "classes", label: "Turmas", icon: <Briefcase className="h-4 w-4" />, masterOnly: true },
+          { id: "ead", label: "EAD / Vídeos", icon: <MonitorPlay className="h-4 w-4" /> },
         ]
       },
       {
@@ -255,6 +261,42 @@ export function AdminDashboard({ onLogout }: Props) {
               <p className="text-[9px] text-slate-400 uppercase tracking-widest font-bold">IETEO • {isMaster ? "Painel Master" : isSecretary ? "Painel Secretaria" : "Painel Docente"}</p>
             </div>
           </div>
+
+          {/* Polo filter for master */}
+          {isMaster && (
+            <div className="mt-4 px-1">
+              <p className="text-[9px] uppercase tracking-widest text-slate-500 font-bold mb-1.5 px-1">Filtrar polo</p>
+              <div className="flex flex-col gap-1">
+                <button
+                  onClick={() => setSelectedPoloId("all")}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    selectedPoloId === "all"
+                      ? "bg-white/20 text-white"
+                      : "text-slate-400 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  🌐 Todos os Polos
+                </button>
+                {POLOS.map(polo => (
+                  <button
+                    key={polo.id}
+                    onClick={() => setSelectedPoloId(polo.id)}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 ${
+                      selectedPoloId === polo.id
+                        ? "bg-white/20 text-white"
+                        : "text-slate-400 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ background: polo.color }}
+                    />
+                    {polo.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <ScrollArea className="flex-1 min-h-0 px-4">
@@ -358,6 +400,18 @@ export function AdminDashboard({ onLogout }: Props) {
                 Acesso Master
               </span>
             )}
+            {isMaster && selectedPoloId !== "all" && activePolo && (
+              <span
+                className="text-[10px] px-2 py-1 rounded-full font-bold uppercase tracking-wider border"
+                style={{
+                  backgroundColor: `${activePolo.color}20`,
+                  color: activePolo.color,
+                  borderColor: `${activePolo.color}40`,
+                }}
+              >
+                📍 {activePolo.name}
+              </span>
+            )}
             {isSecretary && (
               <span className="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-1 rounded-full font-bold uppercase tracking-wider">
                 Acesso Secretaria
@@ -383,21 +437,22 @@ export function AdminDashboard({ onLogout }: Props) {
             <LoadingFallback />
           ) : (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-              {tab === "overview" && <OverviewTab />}
-              {tab === "students" && <StudentManager isMaster={isMaster} />}
-              {tab === "grades" && <GradesManager isMaster={isMaster} />}
-              {tab === "submissions" && <SubmissionsTab isMaster={isMaster} />}
+              {tab === "overview" && <OverviewTab poloFilter={isMaster ? selectedPoloId : undefined} />}
+              {tab === "students" && <StudentManager isMaster={isMaster} poloFilter={isMaster ? selectedPoloId : undefined} />}
+              {tab === "grades" && <GradesManager isMaster={isMaster} poloFilter={isMaster ? selectedPoloId : undefined} />}
+              {tab === "submissions" && <SubmissionsTab isMaster={isMaster} poloFilter={isMaster ? selectedPoloId : undefined} />}
               {tab === "questions" && <QuestionBank isMaster={isMaster} />}
-              {tab === "assessments" && <AssessmentsTab isMaster={isMaster} />}
+              {tab === "assessments" && <AssessmentsTab isMaster={isMaster} poloFilter={isMaster ? selectedPoloId : undefined} />}
               {tab === "settings" && <SettingsTab onLogout={handleLogout} />}
               {tab === "materials" && <StudyMaterialManager />}
               {tab === "semesters" && <SemesterManager isMaster={isMaster} />}
-              {tab === "class_schedules" && isMaster && <ClassScheduleManager />}
-              {tab === "attendance" && <AttendanceManager />}
-              {tab === "classes" && isMaster && <ClassManager />}
+              {tab === "class_schedules" && isMaster && <ClassScheduleManager poloFilter={isMaster ? selectedPoloId : undefined} />}
+              {tab === "attendance" && <AttendanceManager poloFilter={isMaster ? selectedPoloId : undefined} />}
+              {tab === "classes" && isMaster && <ClassManager poloFilter={isMaster ? selectedPoloId : undefined} />}
+              {tab === "ead" && <EadManager />}
               {tab === "challenges" && <ChallengeManager />}
               {tab === "chat" && <ProfessorChatView />}
-              {tab === "financial" && <FinancialDashboard />}
+              {tab === "financial" && <FinancialDashboard poloFilter={isMaster ? selectedPoloId : undefined} />}
               {tab === "professors" && isMaster && <ProfessorManager />}
               {tab === "institutional" && <InstitutionalManager />}
               {tab === "grade_config" && isMaster && <GradeConfig />}

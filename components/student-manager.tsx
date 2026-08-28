@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import {
     getStudents, registerStudentByAdmin, getClasses, updateStudent, deleteStudent, getClassSchedules,
-    type StudentProfile, type ClassRoom, type ClassSchedule, triggerN8nWebhook
+    type StudentProfile, type ClassRoom, type ClassSchedule, triggerN8nWebhook, POLOS
 } from "@/lib/store"
 import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -42,7 +42,7 @@ const DAY_ORDER: Record<string, number> = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function StudentManager({ isMaster }: { isMaster?: boolean }) {
+export function StudentManager({ isMaster, poloFilter }: { isMaster?: boolean; poloFilter?: string }) {
     const [students, setStudents] = useState<StudentProfile[]>([])
     const [classes, setClasses] = useState<ClassRoom[]>([])
     const [schedules, setSchedules] = useState<ClassSchedule[]>([])
@@ -50,6 +50,7 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
     const [search, setSearch] = useState("")
     const [filterClass, setFilterClass] = useState("all")
     const [filterPayment, setFilterPayment] = useState("all")
+    const [filterPolo, setFilterPolo] = useState<string>(poloFilter ?? "all")
 
     // Dialogs
     const [isAddOpen, setIsAddOpen] = useState(false)
@@ -122,6 +123,12 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
     const filtered = useMemo(() => {
         let list = students;
         
+        // Filter by Polo
+        const effectivePolo = poloFilter && poloFilter !== "all" ? poloFilter : (filterPolo !== "all" ? filterPolo : null)
+        if (effectivePolo) {
+            list = list.filter(s => (s.polo_id || 'polo-tancredo-neves') === effectivePolo)
+        }
+
         // Filter by Search
         const q = search.toLowerCase()
         if (q) {
@@ -144,7 +151,7 @@ export function StudentManager({ isMaster }: { isMaster?: boolean }) {
         }
 
         return list
-    }, [students, search, filterClass, filterPayment])
+    }, [students, search, filterClass, filterPayment, filterPolo, poloFilter])
 
     // ─── Create ───────────────────────────────────────────────────────────────
 

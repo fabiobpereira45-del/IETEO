@@ -18,9 +18,10 @@ import { cn } from "@/lib/utils"
 
 interface Props {
   isMaster: boolean
+  poloFilter?: string
 }
 
-export function SubmissionsTab({ isMaster }: Props) {
+export function SubmissionsTab({ isMaster, poloFilter }: Props) {
   const [assessments, setAssessments] = useState<Assessment[]>([])
   const [allSubmissions, setAllSubmissions] = useState<StudentSubmission[]>([])
   const [questions, setQuestions] = useState<Question[]>([])
@@ -37,7 +38,7 @@ export function SubmissionsTab({ isMaster }: Props) {
     setLoading(true)
     try {
         const [a, s, q] = await Promise.all([
-            getAssessments(),
+            getAssessments(poloFilter),
             getSubmissions(),
             getQuestions()
         ])
@@ -52,7 +53,7 @@ export function SubmissionsTab({ isMaster }: Props) {
     } finally {
         setLoading(false)
     }
-  }, [selectedAssessmentId])
+  }, [selectedAssessmentId, poloFilter])
 
   useEffect(() => {
     loadData()

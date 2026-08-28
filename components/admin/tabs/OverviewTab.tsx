@@ -12,7 +12,7 @@ import {
 } from "@/lib/store"
 import { printOverviewPDF } from "@/lib/pdf"
 
-export function OverviewTab() {
+export function OverviewTab({ poloFilter }: { poloFilter?: string }) {
   const [assessments, setAssessments] = useState<Assessment[]>([])
   const [submissions, setSubmissions] = useState<StudentSubmission[]>([])
   const [questions, setQuestions] = useState<Question[]>([])
@@ -25,7 +25,7 @@ export function OverviewTab() {
         setLoading(true)
         try {
             const [a, s, q, d] = await Promise.all([
-                getAssessments(),
+                getAssessments(poloFilter),
                 getSubmissions(),
                 getQuestions(),
                 getDisciplines()
@@ -41,7 +41,7 @@ export function OverviewTab() {
         }
     }
     loadData()
-  }, [])
+  }, [poloFilter])
 
   if (loading) {
       return (

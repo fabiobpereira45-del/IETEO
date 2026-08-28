@@ -7,7 +7,7 @@ export async function POST(request: Request) {
         const { 
             name, email, password, cpf, phone, 
             address, church, pastor_name, class_id, 
-            payment_status, enrollment_number 
+            payment_status, enrollment_number, polo_id
         } = body
 
         if (!email || !name) {
@@ -59,7 +59,8 @@ export async function POST(request: Request) {
             pastor_name: pastor_name || null,
             class_id: class_id || null,
             payment_status: payment_status || 'paid',
-            status: 'active'
+            status: 'active',
+            polo_id: polo_id || 'polo-tancredo-neves',
         }
 
         if (existingStudent) {

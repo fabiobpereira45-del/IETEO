@@ -40,6 +40,7 @@ export const metadata: Metadata = {
 }
 
 import { ActivityTracker } from "@/components/activity-tracker"
+import { PoloProvider } from "@/lib/polo-context"
 import { Suspense } from "react"
 
 export default function RootLayout({
@@ -53,7 +54,9 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <ActivityTracker />
         </Suspense>
-        {children}
+        <PoloProvider>
+          {children}
+        </PoloProvider>
         <Script
           id="clarity"
           strategy="afterInteractive"

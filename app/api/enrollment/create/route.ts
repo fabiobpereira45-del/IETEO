@@ -5,7 +5,7 @@ import { triggerN8nWebhook } from "@/lib/n8n"
 export async function POST(req: Request) {
     try {
         const body = await req.json()
-        const { name, cpf, phone, address, church, pastor, classId, amount } = body
+        const { name, cpf, phone, address, church, pastor, classId, amount, poloId, modality } = body
 
         if (!name || !cpf || !phone || !address || !church || !pastor) {
             return NextResponse.json({ error: "Todos os campos são obrigatórios." }, { status: 400 })
@@ -88,6 +88,8 @@ export async function POST(req: Request) {
                 church: church.trim(),
                 pastor_name: pastor.trim(),
                 class_id: classId || null,
+                polo_id: poloId || 'polo-tancredo-neves',
+                modality: modality || 'presencial',
                 status: 'pending'
             })
             .select()

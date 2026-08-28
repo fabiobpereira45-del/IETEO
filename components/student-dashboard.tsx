@@ -3,7 +3,7 @@ import {
     LogOut, BookOpen, Clock, FileText, Loader2, ArrowLeft,
     CalendarDays, MessageSquare, CheckCircle2,
     Users, Menu, GraduationCap, Home, AlertCircle,
-    Library, BookOpenCheck, ChevronRight, User, X, Sparkles
+    Library, BookOpenCheck, ChevronRight, User, X, Sparkles, MonitorPlay
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -33,6 +33,7 @@ const StudentChatView = dynamic(() => import("@/components/student-chat-view").t
 const StudentGradesView = dynamic(() => import("@/components/student-grades-view").then(m => m.StudentGradesView), { loading: LoadingFallback })
 const StudentAssessmentView = dynamic(() => import("@/components/student-assessment-view").then(m => m.StudentAssessmentView), { loading: LoadingFallback })
 const StudentJourneyView = dynamic(() => import("@/components/student/student-journey-view").then(m => m.StudentJourneyView), { loading: LoadingFallback })
+const EadPlayer = dynamic(() => import("@/components/student/ead-player").then(m => m.EadPlayer), { loading: LoadingFallback })
 const OverviewTab = dynamic(() => import("./student/tabs/OverviewTab").then(m => m.OverviewTab), { loading: LoadingFallback })
 const ClassInfoTab = dynamic(() => import("./student/tabs/ClassInfoTab").then(m => m.ClassInfoTab), { loading: LoadingFallback })
 const CurriculumTab = dynamic(() => import("./student/tabs/CurriculumTab").then(m => m.CurriculumTab), { loading: LoadingFallback })
@@ -53,7 +54,7 @@ interface Props {
     onLogout: () => void
 }
 
-type Tab = "overview" | "class-info" | "curriculum" | "materials" | "grades" | "exams" | "journey" | "financial" | "chat" | "perfil"
+type Tab = "overview" | "class-info" | "curriculum" | "materials" | "grades" | "exams" | "journey" | "financial" | "chat" | "perfil" | "ead"
 
 export function StudentDashboard({ session, onBack, onLogout }: Props) {
     const [profile, setProfile] = useState<StudentProfile | null>(null)
@@ -179,6 +180,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
         { id: "journey", label: "Minha Jornada", icon: Sparkles },
         { id: "class-info", label: "Minha Turma", icon: Users },
         { id: "curriculum", label: "Grade Curricular", icon: CalendarDays },
+        { id: "ead", label: "Aulas Online", icon: MonitorPlay },
         { id: "materials", label: "Materiais EAD", icon: Library },
         { id: "exams", label: "Avaliações", icon: BookOpenCheck },
         { id: "grades", label: "Boletim e Notas", icon: FileText },
@@ -394,6 +396,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                             )}
                             {tab === "class-info" && <ClassInfoTab myClass={myClass} classmates={classmates} mySchedules={mySchedules} disciplines={disciplines} officialGrades={officialGrades} />}
                             {tab === "curriculum" && <CurriculumTab semesters={semesters} disciplines={disciplines} />}
+                            {tab === "ead" && <EadPlayer myDisciplineIds={myDisciplineIds} />}
                             {tab === "materials" && <MaterialsTab filteredMaterials={filteredMaterials} disciplines={disciplines} />}
                             {tab === "exams" && <StudentAssessmentView studentId={profile.id} studentName={profile.name} studentEmail={session?.email || ""} studentDoc={profile.cpf} />}
                             {tab === "grades" && <StudentGradesView studentId={profile.id} studentEmail={session?.email || ""} studentDoc={profile.cpf} />}

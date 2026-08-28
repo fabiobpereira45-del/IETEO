@@ -109,7 +109,7 @@ GradeRow.displayName = "GradeRow";
 
 // --- Main Component ---
 
-export function GradesManager({ isMaster }: { isMaster: boolean }) {
+export function GradesManager({ isMaster, poloFilter }: { isMaster: boolean, poloFilter?: string }) {
     const [grades, setGrades] = useState<StudentGrade[]>([])
     const [students, setStudents] = useState<StudentProfile[]>([])
     const [disciplines, setDisciplines] = useState<Discipline[]>([])
@@ -147,23 +147,25 @@ export function GradesManager({ isMaster }: { isMaster: boolean }) {
     const loadData = useCallback(async () => {
         try {
             setLoading(true)
-            const [fetchedGrades, fetchedSettings, fetchedClasses, fetchedDisciplines] = await Promise.all([
-                getStudentGrades(),
-                getGradeSettings(),
+            const [gradesData, studentsData, disciplinesData, classesData, settingsData] = await Promise.all([
+                getStudentGrades(poloFilter),
+                getStudents(),
+                getDisciplines(),
                 getClasses(),
-                getDisciplines()
+                getGradeSettings()
             ])
-            setGrades(fetchedGrades)
-            setGradeSettings(fetchedSettings)
-            setClasses(fetchedClasses)
-            setDisciplines(fetchedDisciplines)
+            setGrades(gradesData)
+            setStudents(studentsData)
+            setDisciplines(disciplinesData)
+            setClasses(classesData)
+            setGradeSettings(settingsData)
             setError(null)
         } catch (err: any) {
             setError(err.message)
         } finally {
             setLoading(false)
         }
-    }, [])
+    }, [poloFilter])
 
     // Lazy load student & discipline lists for forms
     const ensureFormData = useCallback(async () => {

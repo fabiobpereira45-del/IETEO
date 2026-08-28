@@ -10,7 +10,8 @@ import {
     Settings,
     Calendar,
     Filter,
-    Loader2
+    Loader2,
+    MapPin
 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -27,10 +28,15 @@ import {
     getExpenses, 
     getProLaboreCalculations,
     type FinancialCharge, 
-    type Expense 
+    type Expense,
+    POLOS
 } from "@/lib/store"
 
-export function FinancialDashboard() {
+interface FinancialDashboardProps {
+    poloFilter?: string
+}
+
+export function FinancialDashboard({ poloFilter }: FinancialDashboardProps) {
     const [tab, setTab] = useState("dashboard")
     const [loading, setLoading] = useState(true)
     const [charges, setCharges] = useState<FinancialCharge[]>([])
@@ -42,15 +48,24 @@ export function FinancialDashboard() {
     const [year, setYear] = useState(new Date().getFullYear().toString())
     const [filterScope, setFilterScope] = useState<"month" | "year" | "all">("month")
 
+    // Resolve active polo label for banner
+    const activePolo = poloFilter && poloFilter !== "all"
+        ? POLOS.find(p => p.id === poloFilter)
+        : null
+
     async function load() {
         setLoading(true)
         try {
             const [c, e, pl] = await Promise.all([
-                getFinancialCharges(),
-                getExpenses(),
+                getFinancialCharges(undefined, poloFilter),
+                getExpenses(poloFilter),
                 getProLaboreCalculations()
             ])
-            setCharges(c)
+            // Apply polo filter client-side (polo_id on charges)
+            const filteredCharges = activePolo
+                ? c.filter((ch: FinancialCharge) => (ch as any).polo_id === activePolo.id || !(ch as any).polo_id)
+                : c
+            setCharges(filteredCharges)
             setExpenses(e)
             setProLaboreCalcs(pl)
         } catch (err) {
@@ -152,6 +167,21 @@ export function FinancialDashboard() {
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-700">
+            {/* Polo Filter Banner */}
+            {activePolo && (
+                <div
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold"
+                    style={{
+                        backgroundColor: `${activePolo.color}15`,
+                        borderColor: `${activePolo.color}40`,
+                        color: activePolo.color
+                    }}
+                >
+                    <MapPin className="h-4 w-4 shrink-0" />
+                    Exibindo dados financeiros do <strong>{activePolo.name}</strong> — {activePolo.city}
+                </div>
+            )}
+
             {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div className="space-y-1">
@@ -267,6 +297,7 @@ export function FinancialDashboard() {
                             scope={filterScope}
                             month={month}
                             year={year}
+                            poloFilter={poloFilter}
                         />
                     </TabsContent>
 
@@ -276,6 +307,7 @@ export function FinancialDashboard() {
                             scope={filterScope}
                             month={month}
                             year={year}
+                            poloFilter={poloFilter}
                         />
                     </TabsContent>
 
