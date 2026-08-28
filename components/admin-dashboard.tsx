@@ -34,6 +34,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/co
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import { AvatarUpload } from "@/components/avatar-upload"
+import { createClient } from "@/lib/supabase/client"
 
 const LoadingFallback = () => (
   <div className="flex flex-col items-center justify-center p-20 min-h-[60vh]">

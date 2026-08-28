@@ -124,6 +124,8 @@ export interface EadLesson {
   description?: string;
   videoUrl: string;
   orderIndex: number;
+  availableFrom?: string | null;
+  availableUntil?: string | null;
   createdAt: string;
 }
 
@@ -2962,6 +2964,8 @@ function mapEadLesson(row: any): EadLesson {
     description: row.description,
     videoUrl: row.video_url,
     orderIndex: row.order_index,
+    availableFrom: row.available_from,
+    availableUntil: row.available_until,
     createdAt: row.created_at
   }
 }
@@ -2974,13 +2978,17 @@ export async function getEadLessons(disciplineId: string): Promise<EadLesson[]> 
 
 export async function addEadLesson(lesson: Omit<EadLesson, 'id' | 'createdAt'>): Promise<void> {
   const supabase = createClient()
-  const { error } = await supabase.from('ead_lessons').insert({
+  const payload: any = {
     discipline_id: lesson.disciplineId,
     title: lesson.title,
     description: lesson.description,
     video_url: lesson.videoUrl,
     order_index: lesson.orderIndex
-  })
+  }
+  if (lesson.availableFrom !== undefined) payload.available_from = lesson.availableFrom || null
+  if (lesson.availableUntil !== undefined) payload.available_until = lesson.availableUntil || null
+
+  const { error } = await supabase.from('ead_lessons').insert(payload)
   if (error) throw new Error(error.message)
 }
 
@@ -2992,6 +3000,8 @@ export async function updateEadLesson(id: string, lesson: Partial<EadLesson>): P
   if (lesson.videoUrl !== undefined) payload.video_url = lesson.videoUrl
   if (lesson.orderIndex !== undefined) payload.order_index = lesson.orderIndex
   if (lesson.disciplineId !== undefined) payload.discipline_id = lesson.disciplineId
+  if (lesson.availableFrom !== undefined) payload.available_from = lesson.availableFrom || null
+  if (lesson.availableUntil !== undefined) payload.available_until = lesson.availableUntil || null
   
   const { error } = await supabase.from('ead_lessons').update(payload).eq('id', id)
   if (error) throw new Error(error.message)
