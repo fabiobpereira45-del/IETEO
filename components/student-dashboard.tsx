@@ -396,7 +396,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                             )}
                             {tab === "class-info" && <ClassInfoTab myClass={myClass} classmates={classmates} mySchedules={mySchedules} disciplines={disciplines} officialGrades={officialGrades} />}
                             {tab === "curriculum" && <CurriculumTab semesters={semesters} disciplines={disciplines} />}
-                            {tab === "ead" && <EadPlayer myDisciplineIds={myDisciplineIds} />}
+                            {tab === "ead" && <EadPlayer myDisciplineIds={myDisciplineIds} studentId={profile.id} studentName={profile.name} />}
                             {tab === "materials" && <MaterialsTab filteredMaterials={filteredMaterials} disciplines={disciplines} />}
                             {tab === "exams" && <StudentAssessmentView studentId={profile.id} studentName={profile.name} studentEmail={session?.email || ""} studentDoc={profile.cpf} />}
                             {tab === "grades" && <StudentGradesView studentId={profile.id} studentEmail={session?.email || ""} studentDoc={profile.cpf} />}

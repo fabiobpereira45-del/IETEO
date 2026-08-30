@@ -126,7 +126,25 @@ export interface EadLesson {
   orderIndex: number;
   availableFrom?: string | null;
   availableUntil?: string | null;
+  lessonType?: 'recorded' | 'live_meet';
+  meetUrl?: string;
+  liveDate?: string;
+  minMinutesForPresence?: number;
   createdAt: string;
+}
+
+export interface EadLiveTracking {
+  id: string;
+  lessonId: string;
+  studentId: string;
+  studentName: string;
+  disciplineId: string;
+  date: string;
+  joinedAt: string;
+  lastPingAt: string;
+  totalSeconds: number;
+  isValidated: boolean;
+  status: 'online' | 'offline';
 }
 
 // ─── Multi-Polo ───────────────────────────────────────────────────────────────
@@ -2954,18 +2972,46 @@ export async function updateFinancialCharge(id: string, data: {
 // Build timestamp: 2026-03-13 10:59
 
 
-// %%% EAD Lessons %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+// %%% EAD Lessons & Live Classroom Hub %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function parseEadMetadata(rawDescription?: string | null): { cleanDescription: string; meta: any } {
+  if (!rawDescription) return { cleanDescription: '', meta: {} }
+  const metaRegex = /<!--EAD_META:([\s\S]*?)-->/
+  const match = rawDescription.match(metaRegex)
+  if (match && match[1]) {
+    try {
+      const meta = JSON.parse(match[1])
+      const cleanDescription = rawDescription.replace(metaRegex, '').trim()
+      return { cleanDescription, meta }
+    } catch {
+      return { cleanDescription: rawDescription, meta: {} }
+    }
+  }
+  return { cleanDescription: rawDescription, meta: {} }
+}
+
+function buildEadDescription(description?: string, meta?: any): string {
+  const base = description ? description.trim() : ''
+  if (!meta || Object.keys(meta).length === 0) return base
+  return `${base}\n\n<!--EAD_META:${JSON.stringify(meta)}-->`.trim()
+}
 
 function mapEadLesson(row: any): EadLesson {
+  const { cleanDescription, meta } = parseEadMetadata(row.description)
+  
   return {
     id: row.id,
     disciplineId: row.discipline_id,
     title: row.title,
-    description: row.description,
-    videoUrl: row.video_url,
+    description: cleanDescription,
+    videoUrl: row.video_url || row.meet_url || meta.meetUrl || '',
     orderIndex: row.order_index,
     availableFrom: row.available_from,
     availableUntil: row.available_until,
+    lessonType: row.lesson_type || meta.lessonType || (row.video_url?.includes('meet.google.com') ? 'live_meet' : 'recorded'),
+    meetUrl: row.meet_url || meta.meetUrl || (row.video_url?.includes('meet.google.com') ? row.video_url : undefined),
+    liveDate: row.live_date || meta.liveDate || (row.available_from ? row.available_from.substring(0, 10) : undefined),
+    minMinutesForPresence: row.min_minutes !== undefined ? row.min_minutes : (meta.minMinutesForPresence !== undefined ? meta.minMinutesForPresence : 0),
     createdAt: row.created_at
   }
 }
@@ -2978,10 +3024,17 @@ export async function getEadLessons(disciplineId: string): Promise<EadLesson[]> 
 
 export async function addEadLesson(lesson: Omit<EadLesson, 'id' | 'createdAt'>): Promise<void> {
   const supabase = createClient()
+  const meta: any = {
+    lessonType: lesson.lessonType || 'recorded',
+    meetUrl: lesson.meetUrl || (lesson.lessonType === 'live_meet' ? lesson.videoUrl : undefined),
+    liveDate: lesson.liveDate || (lesson.availableFrom ? lesson.availableFrom.substring(0, 10) : undefined),
+    minMinutesForPresence: lesson.minMinutesForPresence !== undefined ? lesson.minMinutesForPresence : 0
+  }
+
   const payload: any = {
     discipline_id: lesson.disciplineId,
     title: lesson.title,
-    description: lesson.description,
+    description: buildEadDescription(lesson.description, meta),
     video_url: lesson.videoUrl,
     order_index: lesson.orderIndex
   }
@@ -2994,9 +3047,30 @@ export async function addEadLesson(lesson: Omit<EadLesson, 'id' | 'createdAt'>):
 
 export async function updateEadLesson(id: string, lesson: Partial<EadLesson>): Promise<void> {
   const supabase = createClient()
+  
+  // Fetch existing description if we need to merge meta
+  let cleanDesc = lesson.description
+  let existingMeta: any = {}
+  if (lesson.description !== undefined || lesson.lessonType !== undefined || lesson.meetUrl !== undefined || lesson.minMinutesForPresence !== undefined) {
+    const { data: current } = await supabase.from('ead_lessons').select('description').eq('id', id).single()
+    if (current) {
+      const parsed = parseEadMetadata(current.description)
+      existingMeta = parsed.meta
+      if (cleanDesc === undefined) cleanDesc = parsed.cleanDescription
+    }
+  }
+
+  const mergedMeta = {
+    ...existingMeta,
+    ...(lesson.lessonType !== undefined ? { lessonType: lesson.lessonType } : {}),
+    ...(lesson.meetUrl !== undefined ? { meetUrl: lesson.meetUrl } : {}),
+    ...(lesson.liveDate !== undefined ? { liveDate: lesson.liveDate } : {}),
+    ...(lesson.minMinutesForPresence !== undefined ? { minMinutesForPresence: lesson.minMinutesForPresence } : {})
+  }
+
   const payload: any = {}
   if (lesson.title !== undefined) payload.title = lesson.title
-  if (lesson.description !== undefined) payload.description = lesson.description
+  if (cleanDesc !== undefined) payload.description = buildEadDescription(cleanDesc, mergedMeta)
   if (lesson.videoUrl !== undefined) payload.video_url = lesson.videoUrl
   if (lesson.orderIndex !== undefined) payload.order_index = lesson.orderIndex
   if (lesson.disciplineId !== undefined) payload.discipline_id = lesson.disciplineId
@@ -3012,4 +3086,217 @@ export async function deleteEadLesson(id: string): Promise<void> {
   const { error } = await supabase.from('ead_lessons').delete().eq('id', id)
   if (error) throw new Error(error.message)
 }
+
+// ─── EAD Live Class Heartbeat & Attendance Tracking ───────────────────────────
+
+const LOCAL_LIVE_TRACKING_KEY = 'ieteo_ead_live_tracking_v1'
+
+function getLocalLiveTracking(): EadLiveTracking[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem(LOCAL_LIVE_TRACKING_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function saveLocalLiveTracking(list: EadLiveTracking[]) {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(LOCAL_LIVE_TRACKING_KEY, JSON.stringify(list))
+  } catch (err) {
+    console.error('Error saving local live tracking:', err)
+  }
+}
+
+export async function recordLiveSessionJoin(
+  lessonId: string,
+  studentId: string,
+  studentName: string,
+  disciplineId: string,
+  lessonDate?: string,
+  minMinutes: number = 0
+): Promise<{ trackingId: string; isValidated: boolean; totalSeconds: number }> {
+  const now = new Date().toISOString()
+  const targetDate = lessonDate || now.substring(0, 10)
+  const isInstant = minMinutes <= 0
+
+  // 1. Try Supabase tracking or Local fallback
+  const supabase = createClient()
+  let trackingId = `trk_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+  let currentSeconds = 0
+  let validated = isInstant
+
+  try {
+    // Check if table ead_live_tracking exists in supabase
+    const { data: existing } = await supabase
+      .from('ead_live_tracking')
+      .select('*')
+      .eq('lesson_id', lessonId)
+      .eq('student_id', studentId)
+      .maybeSingle()
+
+    if (existing) {
+      trackingId = existing.id
+      currentSeconds = existing.total_seconds || 0
+      validated = existing.is_validated || isInstant
+      await supabase.from('ead_live_tracking').update({
+        last_ping_at: now,
+        status: 'online',
+        is_validated: validated
+      }).eq('id', trackingId)
+    } else {
+      await supabase.from('ead_live_tracking').insert({
+        id: trackingId,
+        lesson_id: lessonId,
+        student_id: studentId,
+        student_name: studentName,
+        discipline_id: disciplineId,
+        date: targetDate,
+        joined_at: now,
+        last_ping_at: now,
+        total_seconds: 0,
+        is_validated: validated,
+        status: 'online'
+      })
+    }
+  } catch (err) {
+    // Fallback to local storage
+    const all = getLocalLiveTracking()
+    let found = all.find(t => t.lessonId === lessonId && t.studentId === studentId)
+    if (found) {
+      trackingId = found.id
+      found.lastPingAt = now
+      found.status = 'online'
+      if (isInstant) found.isValidated = true
+      currentSeconds = found.totalSeconds
+      validated = found.isValidated
+    } else {
+      const newItem: EadLiveTracking = {
+        id: trackingId,
+        lessonId,
+        studentId,
+        studentName,
+        disciplineId,
+        date: targetDate,
+        joinedAt: now,
+        lastPingAt: now,
+        totalSeconds: 0,
+        isValidated: validated,
+        status: 'online'
+      }
+      all.push(newItem)
+      saveLocalLiveTracking(all)
+    }
+  }
+
+  // 2. If validated immediately (0 min requirement), save attendance right away!
+  if (validated && studentId && disciplineId) {
+    try {
+      await saveAttendance(studentId, disciplineId, targetDate, true)
+    } catch (attErr) {
+      console.warn('Auto-attendance on join warning:', attErr)
+    }
+  }
+
+  return { trackingId, isValidated: validated, totalSeconds: currentSeconds }
+}
+
+export async function pingLiveSessionHeartbeat(
+  trackingId: string,
+  secondsToAdd: number,
+  studentId: string,
+  disciplineId: string,
+  date: string,
+  minMinutes: number = 0
+): Promise<{ totalSeconds: number; isValidated: boolean }> {
+  const now = new Date().toISOString()
+  let totalSec = secondsToAdd
+  let isValidated = false
+  const targetDate = date || now.substring(0, 10)
+
+  const supabase = createClient()
+  try {
+    const { data: current } = await supabase
+      .from('ead_live_tracking')
+      .select('*')
+      .eq('id', trackingId)
+      .maybeSingle()
+
+    if (current) {
+      totalSec = (current.total_seconds || 0) + secondsToAdd
+      isValidated = current.is_validated || (totalSec >= minMinutes * 60)
+      await supabase.from('ead_live_tracking').update({
+        total_seconds: totalSec,
+        last_ping_at: now,
+        status: 'online',
+        is_validated: isValidated
+      }).eq('id', trackingId)
+    }
+  } catch {
+    // Local fallback
+    const all = getLocalLiveTracking()
+    const found = all.find(t => t.id === trackingId)
+    if (found) {
+      found.totalSeconds += secondsToAdd
+      found.lastPingAt = now
+      found.status = 'online'
+      if (!found.isValidated && (found.totalSeconds >= minMinutes * 60)) {
+        found.isValidated = true
+      }
+      totalSec = found.totalSeconds
+      isValidated = found.isValidated
+      saveLocalLiveTracking(all)
+    }
+  }
+
+  // If newly validated, sync to official attendances
+  if (isValidated && studentId && disciplineId) {
+    try {
+      await saveAttendance(studentId, disciplineId, targetDate, true)
+    } catch (attErr) {
+      console.warn('Heartbeat auto-attendance sync warning:', attErr)
+    }
+  }
+
+  return { totalSeconds: totalSec, isValidated }
+}
+
+export async function getLiveLessonTracking(lessonId: string): Promise<EadLiveTracking[]> {
+  const supabase = createClient()
+  try {
+    const { data, error } = await supabase
+      .from('ead_live_tracking')
+      .select('*')
+      .eq('lesson_id', lessonId)
+      .order('joined_at', { ascending: false })
+    
+    if (!error && data && data.length > 0) {
+      return data.map((r: any) => ({
+        id: r.id,
+        lessonId: r.lesson_id,
+        studentId: r.student_id,
+        studentName: r.student_name || 'Aluno',
+        disciplineId: r.discipline_id,
+        date: r.date,
+        joinedAt: r.joined_at,
+        lastPingAt: r.last_ping_at,
+        totalSeconds: r.total_seconds || 0,
+        isValidated: r.is_validated || false,
+        status: (new Date().getTime() - new Date(r.last_ping_at || r.joined_at).getTime() < 120000) ? 'online' : 'offline'
+      }))
+    }
+  } catch (err) {
+    console.warn('Supabase live tracking fetch fallback:', err)
+  }
+
+  // Local fallback
+  const local = getLocalLiveTracking().filter(t => t.lessonId === lessonId)
+  return local.map(t => ({
+    ...t,
+    status: (new Date().getTime() - new Date(t.lastPingAt || t.joinedAt).getTime() < 120000) ? 'online' : 'offline'
+  }))
+}
+
 
