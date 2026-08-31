@@ -44,7 +44,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { disciplineId, title, description, videoUrl, meetUrl, lessonType, minMinutesForPresence, availableFrom, availableUntil, orderIndex } = body
+    const { disciplineId, title, description, videoUrl, meetUrl, coverUrl, lessonType, minMinutesForPresence, availableFrom, availableUntil, orderIndex } = body
 
     if (!disciplineId || !title || !videoUrl) {
       return NextResponse.json({ error: "Campos obrigatórios ausentes (disciplineId, title, videoUrl)" }, { status: 400 })
@@ -53,6 +53,7 @@ export async function POST(request: Request) {
     const meta: any = {
       lessonType: lessonType || 'recorded',
       meetUrl: meetUrl || (lessonType === 'live_meet' ? videoUrl : undefined),
+      coverUrl: coverUrl || undefined,
       liveDate: availableFrom ? availableFrom.substring(0, 10) : undefined,
       minMinutesForPresence: minMinutesForPresence !== undefined ? Number(minMinutesForPresence) : 0
     }
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const body = await request.json()
-    const { id, disciplineId, title, description, videoUrl, meetUrl, lessonType, minMinutesForPresence, availableFrom, availableUntil, orderIndex } = body
+    const { id, disciplineId, title, description, videoUrl, meetUrl, coverUrl, lessonType, minMinutesForPresence, availableFrom, availableUntil, orderIndex } = body
 
     if (!id) {
       return NextResponse.json({ error: "ID da aula é obrigatório" }, { status: 400 })
@@ -103,13 +104,14 @@ export async function PATCH(request: Request) {
       ...existingMeta,
       ...(lessonType !== undefined ? { lessonType } : {}),
       ...(meetUrl !== undefined ? { meetUrl } : {}),
+      ...(coverUrl !== undefined ? { coverUrl: coverUrl || undefined } : {}),
       ...(minMinutesForPresence !== undefined ? { minMinutesForPresence: Number(minMinutesForPresence) } : {}),
       ...(availableFrom ? { liveDate: availableFrom.substring(0, 10) } : {})
     }
 
     const payload: any = {}
     if (title !== undefined) payload.title = title.trim()
-    if (cleanDesc !== undefined || lessonType !== undefined || meetUrl !== undefined || minMinutesForPresence !== undefined) {
+    if (cleanDesc !== undefined || lessonType !== undefined || meetUrl !== undefined || coverUrl !== undefined || minMinutesForPresence !== undefined) {
       payload.description = buildEadDescription(cleanDesc, mergedMeta)
     }
     if (videoUrl !== undefined) payload.video_url = videoUrl.trim()

@@ -1,18 +1,29 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { 
     getDisciplines, type Discipline, getEadLessons, type EadLesson, 
     addEadLesson, updateEadLesson, deleteEadLesson,
-    getLiveLessonTracking, type EadLiveTracking
+    getLiveLessonTracking, type EadLiveTracking, uploadEadCover
 } from "@/lib/store"
 import { 
     PlaySquare, Plus, Trash2, Pencil, Save, X, Loader2, Video, 
     Calendar, Clock, Lock, CheckCircle2, AlertCircle, Radio, 
-    Users, ExternalLink, RefreshCw, Printer, Timer, FileText
+    Users, ExternalLink, RefreshCw, Printer, Timer, FileText,
+    Image as ImageIcon, Upload, Sparkles, Wand2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { toast } from "sonner"
+
+// Sugestões de capas com estética teológica e acadêmica de alta resolução
+const PRESET_COVERS = [
+    { name: "Meet Ao Vivo (Oficial)", url: "https://images.unsplash.com/photo-1588702547919-26089e690ecc?auto=format&fit=crop&w=1200&q=80" },
+    { name: "Teologia & Bíblia Sagrada", url: "https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&w=1200&q=80" },
+    { name: "Hermenêutica & Estudos", url: "https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=1200&q=80" },
+    { name: "História da Igreja", url: "https://images.unsplash.com/photo-1548625361-19597237000d?auto=format&fit=crop&w=1200&q=80" },
+    { name: "Liderança & Ministério", url: "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1200&q=80" },
+]
 
 function formatDateTimeForInput(dateStr?: string | null): string {
     if (!dateStr) return ""
@@ -102,6 +113,9 @@ export function EadManager() {
     const [formTitle, setFormTitle] = useState("")
     const [formUrl, setFormUrl] = useState("")
     const [formMeetUrl, setFormMeetUrl] = useState("")
+    const [formCoverUrl, setFormCoverUrl] = useState("")
+    const [uploadingCover, setUploadingCover] = useState(false)
+    const coverFileInputRef = useRef<HTMLInputElement>(null)
     const [formMinMinutes, setFormMinMinutes] = useState("0")
     const [formDescription, setFormDescription] = useState("")
     const [formAvailableFrom, setFormAvailableFrom] = useState("")
@@ -156,6 +170,52 @@ export function EadManager() {
         }
     }
 
+    const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        if (!file.type.startsWith('image/')) {
+            toast.error("Por favor, selecione um arquivo de imagem válido.")
+            return
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error("A imagem deve ter no máximo 5MB.")
+            return
+        }
+
+        try {
+            setUploadingCover(true)
+            const publicUrl = await uploadEadCover(file)
+            setFormCoverUrl(publicUrl)
+            toast.success("Capa da aula carregada com sucesso!")
+        } catch (err: any) {
+            console.error("Erro no upload da capa:", err)
+            toast.error("Erro ao enviar imagem: " + (err.message || "Tente novamente"))
+        } finally {
+            setUploadingCover(false)
+        }
+    }
+
+    // Extract Video ID to show a small thumbnail if it's youtube
+    function getYoutubeThumb(url: string) {
+        const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/)
+        if (match && match[1]) {
+            return `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg`
+        }
+        return null
+    }
+
+    function handleCaptureYoutubeThumb() {
+        const thumb = getYoutubeThumb(formUrl)
+        if (thumb) {
+            setFormCoverUrl(thumb)
+            toast.success("Thumbnail do YouTube aplicada como capa!")
+        } else {
+            toast.error("Não foi possível extrair a thumbnail do link do YouTube informado.")
+        }
+    }
+
     async function handleSave() {
         const finalUrl = formLessonType === 'live_meet' ? formMeetUrl.trim() : formUrl.trim()
         if (!formTitle.trim()) {
@@ -177,6 +237,7 @@ export function EadManager() {
                 title: formTitle.trim(),
                 videoUrl: finalUrl,
                 meetUrl: formLessonType === 'live_meet' ? finalUrl : undefined,
+                coverUrl: formCoverUrl.trim() || undefined,
                 lessonType: formLessonType,
                 minMinutesForPresence: parseInt(formMinMinutes, 10) || 0,
                 description: formDescription.trim(),
@@ -225,6 +286,7 @@ export function EadManager() {
             setFormUrl(lesson.videoUrl)
             setFormMeetUrl("")
         }
+        setFormCoverUrl(lesson.coverUrl || "")
         setFormMinMinutes(String(lesson.minMinutesForPresence || 0))
         setFormDescription(lesson.description || "")
         setFormAvailableFrom(formatDateTimeForInput(lesson.availableFrom))
@@ -238,20 +300,12 @@ export function EadManager() {
         setFormTitle("")
         setFormUrl("")
         setFormMeetUrl("")
+        setFormCoverUrl("")
         setFormMinMinutes("0")
         setFormDescription("")
         setFormAvailableFrom("")
         setFormAvailableUntil("")
         setShowForm(false)
-    }
-
-    // Extract Video ID to show a small thumbnail if it's youtube
-    function getYoutubeThumb(url: string) {
-        const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/)
-        if (match && match[1]) {
-            return `https://img.youtube.com/vi/${match[1]}/mqdefault.jpg`
-        }
-        return null
     }
 
     return (
@@ -399,6 +453,117 @@ export function EadManager() {
                                         </div>
                                     )}
 
+                                    {/* Capa Personalizada da Aula (Thumbnail) */}
+                                    <div className="md:col-span-2 bg-gradient-to-r from-amber-500/5 via-primary/5 to-transparent border border-amber-500/20 dark:border-amber-500/10 rounded-2xl p-4 space-y-3">
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <label className="text-xs font-bold text-foreground flex items-center gap-2">
+                                                <ImageIcon className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                                                Capa Personalizada / Banner da Aula (Thumbnail)
+                                            </label>
+                                            {formCoverUrl && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormCoverUrl("")}
+                                                    className="text-[11px] text-destructive hover:underline font-semibold flex items-center gap-1"
+                                                >
+                                                    <X className="h-3 w-3" /> Remover Capa
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
+                                            {/* Preview da Capa */}
+                                            <div className="sm:col-span-4 aspect-video bg-black/40 rounded-xl overflow-hidden relative border border-border/80 flex items-center justify-center group shadow-sm">
+                                                {formCoverUrl ? (
+                                                    <>
+                                                        <img src={formCoverUrl} alt="Capa da Aula" className="w-full h-full object-cover" />
+                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-2">
+                                                            <span className="text-[10px] font-bold text-white truncate max-w-full">
+                                                                {formTitle || "Pré-visualização"}
+                                                            </span>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <div className="text-center p-3">
+                                                        <ImageIcon className="h-6 w-6 text-muted-foreground/40 mx-auto mb-1" />
+                                                        <p className="text-[10px] text-muted-foreground font-medium">Sem capa vinculada</p>
+                                                        <p className="text-[9px] text-muted-foreground/70">(Usará padrão do vídeo/meet)</p>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Controles de Capa */}
+                                            <div className="sm:col-span-8 space-y-2.5">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <input
+                                                        type="file"
+                                                        ref={coverFileInputRef}
+                                                        onChange={handleCoverUpload}
+                                                        accept="image/*"
+                                                        className="hidden"
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => coverFileInputRef.current?.click()}
+                                                        disabled={uploadingCover}
+                                                        className="h-8 text-xs font-semibold gap-1.5 rounded-xl border-amber-500/30 hover:bg-amber-500/10 text-foreground"
+                                                    >
+                                                        {uploadingCover ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5 text-amber-600" />}
+                                                        {uploadingCover ? "Enviando Imagem..." : "Upload de Imagem"}
+                                                    </Button>
+
+                                                    {formUrl && getYoutubeThumb(formUrl) && (
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={handleCaptureYoutubeThumb}
+                                                            className="h-8 text-xs font-semibold gap-1.5 rounded-xl border-red-500/30 hover:bg-red-500/10 text-red-600 dark:text-red-400"
+                                                        >
+                                                            <Wand2 className="h-3.5 w-3.5" />
+                                                            Usar Thumbnail do YouTube
+                                                        </Button>
+                                                    )}
+                                                </div>
+
+                                                <div>
+                                                    <input
+                                                        type="url"
+                                                        placeholder="Ou cole a URL direta de uma imagem (https://...)"
+                                                        value={formCoverUrl}
+                                                        onChange={e => setFormCoverUrl(e.target.value)}
+                                                        className="w-full border border-input rounded-xl px-3 py-1.5 text-xs bg-background focus:ring-2 focus:ring-accent focus:outline-none"
+                                                    />
+                                                </div>
+
+                                                {/* Sugestões Rápidas de Capas */}
+                                                <div>
+                                                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1 flex items-center gap-1">
+                                                        <Sparkles className="h-3 w-3 text-amber-500" /> Banners Teológicos Sugeridos:
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {PRESET_COVERS.map(preset => (
+                                                            <button
+                                                                key={preset.name}
+                                                                type="button"
+                                                                onClick={() => setFormCoverUrl(preset.url)}
+                                                                className={`text-[10px] px-2 py-0.5 rounded-lg border font-medium transition-all ${
+                                                                    formCoverUrl === preset.url
+                                                                        ? 'bg-amber-500 text-white border-amber-600 shadow-xs font-bold'
+                                                                        : 'bg-background hover:bg-muted text-muted-foreground border-border'
+                                                                }`}
+                                                            >
+                                                                {preset.name}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     {/* Data e Horário de Abertura */}
                                     <div className="bg-background border border-border/80 rounded-xl p-3 space-y-1.5">
                                         <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
@@ -485,30 +650,44 @@ export function EadManager() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                                 {lessons.map(lesson => {
                                     const isLiveMeet = lesson.lessonType === 'live_meet' || (lesson.videoUrl && lesson.videoUrl.includes('meet.google.com'))
-                                    const thumb = !isLiveMeet ? getYoutubeThumb(lesson.videoUrl) : null
+                                    const thumb = lesson.coverUrl || (!isLiveMeet ? getYoutubeThumb(lesson.videoUrl) : null)
                                     const statusInfo = getLessonAvailabilityStatus(lesson)
 
                                     return (
                                         <div key={lesson.id} className={`flex flex-col sm:flex-row gap-4 border rounded-2xl p-4 bg-background shadow-sm hover:shadow-md transition-shadow group relative ${
                                             isLiveMeet ? 'border-rose-200 dark:border-rose-900/40 bg-gradient-to-r from-rose-500/[0.02] to-transparent' : 'border-border'
                                         }`}>
-                                            <div className={`w-full sm:w-36 h-24 rounded-xl overflow-hidden shrink-0 relative flex items-center justify-center border ${
-                                                isLiveMeet ? 'bg-gradient-to-br from-rose-900 to-slate-900 border-rose-500/30' : 'bg-muted border-border/60'
+                                            <div className={`w-full sm:w-36 h-24 rounded-xl overflow-hidden shrink-0 relative flex items-center justify-center border shadow-xs ${
+                                                thumb ? 'bg-black' : isLiveMeet ? 'bg-gradient-to-br from-rose-900 to-slate-900 border-rose-500/30' : 'bg-muted border-border/60'
                                             }`}>
-                                                {isLiveMeet ? (
+                                                {thumb ? (
+                                                    <>
+                                                        <img src={thumb} alt={lesson.title} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300" />
+                                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+                                                        {lesson.coverUrl && (
+                                                            <span className="absolute top-1.5 left-1.5 text-[8px] font-bold px-1.5 py-0.5 rounded bg-black/70 text-amber-300 backdrop-blur-xs border border-amber-500/30 flex items-center gap-1">
+                                                                <ImageIcon className="h-2.5 w-2.5" /> Capa
+                                                            </span>
+                                                        )}
+                                                        <div className="absolute inset-0 flex items-center justify-center">
+                                                            {isLiveMeet ? (
+                                                                <div className="h-8 w-8 rounded-full bg-rose-600/90 text-white flex items-center justify-center shadow-lg">
+                                                                    <Radio className="h-4 w-4 animate-pulse" />
+                                                                </div>
+                                                            ) : (
+                                                                <div className="h-8 w-8 rounded-full bg-black/60 group-hover:bg-primary text-white flex items-center justify-center transition-colors shadow-lg">
+                                                                    <PlaySquare className="h-4 w-4 drop-shadow-md" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </>
+                                                ) : isLiveMeet ? (
                                                     <div className="text-center p-2">
                                                         <Radio className="h-6 w-6 text-rose-400 mx-auto mb-1 animate-pulse" />
                                                         <span className="text-[10px] font-black uppercase tracking-wider text-rose-200">Meet Live</span>
                                                     </div>
-                                                ) : thumb ? (
-                                                    <img src={thumb} alt="Thumbnail" className="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-opacity" />
                                                 ) : (
                                                     <Video className="h-8 w-8 text-muted-foreground/40" />
-                                                )}
-                                                {!isLiveMeet && (
-                                                    <div className="absolute inset-0 flex items-center justify-center bg-black/25 group-hover:bg-black/10 transition-colors">
-                                                        <PlaySquare className="h-7 w-7 text-white drop-shadow-md" />
-                                                    </div>
                                                 )}
                                             </div>
                                             

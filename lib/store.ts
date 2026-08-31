@@ -136,6 +136,7 @@ export interface EadLesson {
   title: string;
   description?: string;
   videoUrl: string;
+  coverUrl?: string;
   orderIndex: number;
   availableFrom?: string | null;
   availableUntil?: string | null;
@@ -3089,6 +3090,7 @@ function mapEadLesson(row: any): EadLesson {
     title: row.title,
     description: cleanDescription,
     videoUrl: row.video_url || row.meet_url || meta.meetUrl || '',
+    coverUrl: row.cover_url || meta.coverUrl || undefined,
     orderIndex: row.order_index,
     availableFrom: row.available_from,
     availableUntil: row.available_until,
@@ -3097,6 +3099,42 @@ function mapEadLesson(row: any): EadLesson {
     liveDate: row.live_date || meta.liveDate || (row.available_from ? row.available_from.substring(0, 10) : undefined),
     minMinutesForPresence: row.min_minutes !== undefined ? row.min_minutes : (meta.minMinutesForPresence !== undefined ? meta.minMinutesForPresence : 0),
     createdAt: row.created_at
+  }
+}
+
+export async function uploadEadCover(file: File): Promise<string> {
+  const supabase = createClient()
+  const fileExt = file.name.split('.').pop() || 'jpg'
+  const fileName = `ead-cover-${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`
+  const filePath = `ead/${fileName}`
+
+  try {
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, file, { cacheControl: '3600', upsert: true })
+
+    if (uploadError) {
+      console.warn("Storage upload error in avatars, falling back to data URL:", uploadError.message)
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+    }
+
+    const { data } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath)
+
+    return data.publicUrl
+  } catch {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
   }
 }
 
