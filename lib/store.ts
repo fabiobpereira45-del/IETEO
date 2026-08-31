@@ -3102,39 +3102,119 @@ function mapEadLesson(row: any): EadLesson {
   }
 }
 
+// Helper function to compress images before upload to ensure fast loading and prevent payload size limits
+export async function compressImageFile(file: File, maxWidth = 1280, maxHeight = 720, quality = 0.85): Promise<File> {
+  if (typeof window === "undefined" || !file.type.startsWith("image/")) return file
+  return new Promise((resolve) => {
+    const img = new Image()
+    const reader = new FileReader()
+
+    reader.onload = (e) => {
+      img.onload = () => {
+        let { width, height } = img
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height)
+          width = Math.round(width * ratio)
+          height = Math.round(height * ratio)
+        }
+
+        const canvas = document.createElement("canvas")
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext("2d")
+        if (!ctx) {
+          resolve(file)
+          return
+        }
+
+        ctx.drawImage(img, 0, 0, width, height)
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file)
+              return
+            }
+            const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+              type: "image/jpeg",
+              lastModified: Date.now()
+            })
+            resolve(compressedFile)
+          },
+          "image/jpeg",
+          quality
+        )
+      }
+      img.onerror = () => resolve(file)
+      img.src = e.target?.result as string
+    }
+    reader.onerror = () => resolve(file)
+    reader.readAsDataURL(file)
+  })
+}
+
 export async function uploadEadCover(file: File): Promise<string> {
-  const supabase = createClient()
-  const fileExt = file.name.split('.').pop() || 'jpg'
-  const fileName = `ead-cover-${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`
-  const filePath = `ead/${fileName}`
-
   try {
-    const { error: uploadError } = await supabase.storage
-      .from('avatars')
-      .upload(filePath, file, { cacheControl: '3600', upsert: true })
+    // 1. Compress image to optimal size (~100KB-300KB)
+    const compressed = await compressImageFile(file, 1280, 720, 0.85)
 
-    if (uploadError) {
-      console.warn("Storage upload error in avatars, falling back to data URL:", uploadError.message)
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result as string)
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
+    // 2. Upload through server-side endpoint with Supabase Admin privileges
+    const formData = new FormData()
+    formData.append("file", compressed)
+
+    const res = await fetch("/api/admin/ead/upload", {
+      method: "POST",
+      body: formData
+    })
+
+    if (res.ok) {
+      const data = await res.json()
+      if (data.url) return data.url
     }
 
-    const { data } = supabase.storage
-      .from('avatars')
-      .getPublicUrl(filePath)
+    // 3. Fallback to direct client upload if API endpoint failed
+    const supabase = createClient()
+    const fileExt = compressed.name.split('.').pop() || 'jpg'
+    const fileName = `ead-cover-${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`
+    const filePath = `ead/${fileName}`
 
-    return data.publicUrl
-  } catch {
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, compressed, { cacheControl: '3600', upsert: true })
+
+    if (!uploadError) {
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath)
+      if (data?.publicUrl) return data.publicUrl
+    }
+
+    // 4. Final lightweight fallback (compressed base64 data URL)
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(compressed)
+    })
+  } catch (err) {
+    console.error("uploadEadCover error:", err)
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = () => resolve(reader.result as string)
       reader.onerror = reject
       reader.readAsDataURL(file)
     })
+  }
+}
+
+async function safeExtractErrorMessage(res: Response, fallbackMsg: string): Promise<string> {
+  try {
+    const text = await res.text()
+    try {
+      const json = JSON.parse(text)
+      return json.error || json.message || fallbackMsg
+    } catch {
+      return text && text.length < 200 ? text : fallbackMsg
+    }
+  } catch {
+    return fallbackMsg
   }
 }
 
@@ -3160,8 +3240,8 @@ export async function addEadLesson(lesson: Omit<EadLesson, 'id' | 'createdAt'>):
     body: JSON.stringify(lesson)
   })
   if (!res.ok) {
-    const err = await res.json()
-    throw new Error(err.error || 'Erro ao cadastrar aula EAD')
+    const errMsg = await safeExtractErrorMessage(res, 'Erro ao cadastrar aula EAD')
+    throw new Error(errMsg)
   }
 }
 
@@ -3172,8 +3252,8 @@ export async function updateEadLesson(id: string, lesson: Partial<EadLesson>): P
     body: JSON.stringify({ id, ...lesson })
   })
   if (!res.ok) {
-    const err = await res.json()
-    throw new Error(err.error || 'Erro ao atualizar aula EAD')
+    const errMsg = await safeExtractErrorMessage(res, 'Erro ao atualizar aula EAD')
+    throw new Error(errMsg)
   }
 }
 
@@ -3182,8 +3262,8 @@ export async function deleteEadLesson(id: string): Promise<void> {
     method: 'DELETE'
   })
   if (!res.ok) {
-    const err = await res.json()
-    throw new Error(err.error || 'Erro ao excluir aula EAD')
+    const errMsg = await safeExtractErrorMessage(res, 'Erro ao excluir aula EAD')
+    throw new Error(errMsg)
   }
 }
 

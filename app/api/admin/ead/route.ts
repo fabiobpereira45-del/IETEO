@@ -20,6 +20,37 @@ function buildEadDescription(cleanDescription?: string, meta?: any): string {
   return prefix + (cleanDescription || '')
 }
 
+async function processCoverUrl(coverUrl?: string): Promise<string | undefined> {
+  if (!coverUrl) return undefined
+  if (!coverUrl.startsWith('data:image/')) return coverUrl
+
+  try {
+    const match = coverUrl.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,(.+)$/)
+    if (!match) return coverUrl
+
+    let ext = match[1] === 'jpeg' ? 'jpg' : match[1]
+    if (ext.includes('+')) ext = 'png'
+    const base64Data = match[2]
+    const buffer = Buffer.from(base64Data, 'base64')
+    const fileName = `ead-cover-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`
+    const filePath = `ead/${fileName}`
+
+    const supabase = createAdminClient()
+    const { error } = await supabase.storage.from('avatars').upload(filePath, buffer, {
+      contentType: `image/${match[1]}`,
+      upsert: true
+    })
+
+    if (!error) {
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath)
+      return data.publicUrl
+    }
+  } catch (e) {
+    console.warn("processCoverUrl conversion error:", e)
+  }
+  return coverUrl
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -50,10 +81,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Campos obrigatórios ausentes (disciplineId, title, videoUrl)" }, { status: 400 })
     }
 
+    const finalCoverUrl = await processCoverUrl(coverUrl)
+
     const meta: any = {
       lessonType: lessonType || 'recorded',
       meetUrl: meetUrl || (lessonType === 'live_meet' ? videoUrl : undefined),
-      coverUrl: coverUrl || undefined,
+      coverUrl: finalCoverUrl || undefined,
       liveDate: availableFrom ? availableFrom.substring(0, 10) : undefined,
       minMinutesForPresence: minMinutesForPresence !== undefined ? Number(minMinutesForPresence) : 0
     }
@@ -88,6 +121,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "ID da aula é obrigatório" }, { status: 400 })
     }
 
+    const finalCoverUrl = coverUrl !== undefined ? await processCoverUrl(coverUrl) : undefined
     const supabase = createAdminClient()
 
     // Fetch existing description if needed to preserve or merge metadata
@@ -104,7 +138,7 @@ export async function PATCH(request: Request) {
       ...existingMeta,
       ...(lessonType !== undefined ? { lessonType } : {}),
       ...(meetUrl !== undefined ? { meetUrl } : {}),
-      ...(coverUrl !== undefined ? { coverUrl: coverUrl || undefined } : {}),
+      ...(coverUrl !== undefined ? { coverUrl: finalCoverUrl || undefined } : {}),
       ...(minMinutesForPresence !== undefined ? { minMinutesForPresence: Number(minMinutesForPresence) } : {}),
       ...(availableFrom ? { liveDate: availableFrom.substring(0, 10) } : {})
     }

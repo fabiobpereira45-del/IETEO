@@ -194,6 +194,9 @@ export function EadManager() {
             toast.error("Erro ao enviar imagem: " + (err.message || "Tente novamente"))
         } finally {
             setUploadingCover(false)
+            if (coverFileInputRef.current) {
+                coverFileInputRef.current.value = ""
+            }
         }
     }
 
