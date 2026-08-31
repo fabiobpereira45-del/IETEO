@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button"
 
 interface Props {
-    myDisciplineIds: Set<string>
+    myDisciplineIds?: Set<string>
     studentId?: string
     studentName?: string
 }
@@ -76,6 +76,7 @@ export function EadPlayer({ myDisciplineIds, studentId, studentName }: Props) {
     const [selectedDisciplineId, setSelectedDisciplineId] = useState<string>("none")
     const [lessons, setLessons] = useState<EadLesson[]>([])
     const [loading, setLoading] = useState(false)
+    const [initialLoading, setInitialLoading] = useState(true)
     const [activeLesson, setActiveLesson] = useState<EadLesson | null>(null)
 
     // Live Tracking State
@@ -87,9 +88,29 @@ export function EadPlayer({ myDisciplineIds, studentId, studentName }: Props) {
     const timerRef = useRef<NodeJS.Timeout | null>(null)
 
     useEffect(() => {
+        let isMounted = true
         getDisciplines().then(all => {
-            setDisciplines(all.filter(d => myDisciplineIds.has(d.id)))
+            if (!isMounted) return
+            const filtered = (myDisciplineIds && myDisciplineIds.size > 0)
+                ? all.filter(d => myDisciplineIds.has(d.id))
+                : all
+            const listToUse = filtered.length > 0 ? filtered : all
+            setDisciplines(listToUse)
+            setInitialLoading(false)
+
+            if (listToUse.length > 0) {
+                setSelectedDisciplineId(prev => {
+                    if (prev === "none" || !listToUse.some(d => d.id === prev)) {
+                        return listToUse[0].id
+                    }
+                    return prev
+                })
+            }
+        }).catch(err => {
+            console.error("Erro ao carregar disciplinas EAD:", err)
+            if (isMounted) setInitialLoading(false)
         })
+        return () => { isMounted = false }
     }, [myDisciplineIds])
 
     // Cleanup heartbeat & timer when changing lesson or unmounting
@@ -221,6 +242,15 @@ export function EadPlayer({ myDisciplineIds, studentId, studentName }: Props) {
         return url
     }
 
+    if (initialLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[350px] p-8 text-center bg-white border border-border rounded-3xl shadow-sm">
+                <Loader2 className="h-10 w-10 text-accent animate-spin mb-4" />
+                <p className="text-sm font-medium text-muted-foreground">Carregando ambiente de aulas online...</p>
+            </div>
+        )
+    }
+
     if (disciplines.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px] p-8 text-center bg-white border border-border rounded-3xl shadow-sm">
@@ -228,7 +258,7 @@ export function EadPlayer({ myDisciplineIds, studentId, studentName }: Props) {
                     <Video className="h-8 w-8 text-muted-foreground/50" />
                 </div>
                 <h3 className="text-xl font-bold text-foreground mb-2">Aulas EAD Indisponíveis</h3>
-                <p className="text-muted-foreground max-w-md">Você não possui disciplinas matriculadas no momento para acessar as aulas online.</p>
+                <p className="text-muted-foreground max-w-md">Nenhuma disciplina cadastrada encontrada para o seu curso no momento.</p>
             </div>
         )
     }

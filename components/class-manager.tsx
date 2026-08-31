@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { Plus, Trash2, Pencil, Save, X, Users, Clock, GraduationCap, Loader2, Calendar, Link, Check, Copy } from "lucide-react"
-import { getClasses, addClass, updateClass, deleteClass, getStudents, type ClassRoom, type StudentProfile } from "@/lib/store"
+import { getClasses, addClass, updateClass, deleteClass, getStudents, POLOS, type ClassRoom, type StudentProfile } from "@/lib/store"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 
@@ -54,15 +54,34 @@ const DAY_ORDER: Record<string, number> = {
     sunday: 7,
 }
 
-type FormState = { name: string; shift: ClassRoom["shift"]; dayOfWeek: string; maxStudents: number; modality: ClassRoom["modality"] }
-const EMPTY_FORM: FormState = { name: "", shift: "evening", dayOfWeek: "", maxStudents: 30, modality: "presencial" }
+type FormState = {
+    name: string
+    shift: ClassRoom["shift"]
+    dayOfWeek: string
+    maxStudents: number
+    modality: ClassRoom["modality"]
+    poloId: string
+}
+
+const EMPTY_FORM: FormState = {
+    name: "",
+    shift: "evening",
+    dayOfWeek: "",
+    maxStudents: 30,
+    modality: "presencial",
+    poloId: "polo-tancredo-neves"
+}
 
 interface ClassFormProps {
     val: FormState
     onChange: (field: keyof FormState, value: string | number) => void
+    poloFilter?: string
 }
 
-function ClassForm({ val, onChange }: ClassFormProps) {
+function ClassForm({ val, onChange, poloFilter }: ClassFormProps) {
+    const isPoloLocked = !!(poloFilter && poloFilter !== "all")
+    const currentPoloId = val.poloId || (isPoloLocked ? poloFilter! : "polo-tancredo-neves")
+
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
@@ -73,6 +92,19 @@ function ClassForm({ val, onChange }: ClassFormProps) {
                     value={val.name}
                     onChange={e => onChange("name", e.target.value)}
                 />
+            </div>
+            <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Polo *</label>
+                <select
+                    className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-70 disabled:bg-muted"
+                    value={currentPoloId}
+                    onChange={e => onChange("poloId", e.target.value)}
+                    disabled={isPoloLocked}
+                >
+                    {POLOS.map(p => (
+                        <option key={p.id} value={p.id}>{p.name} ({p.city})</option>
+                    ))}
+                </select>
             </div>
             <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Dia da Semana</label>
@@ -124,8 +156,9 @@ export function ClassManager({ poloFilter }: { poloFilter?: string }) {
     const [saving, setSaving] = useState(false)
     const [editingId, setEditingId] = useState<string | null>(null)
     const [showNew, setShowNew] = useState(false)
-    const [form, setForm] = useState<FormState>(EMPTY_FORM)
-    const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM)
+    const initialPolo = (poloFilter && poloFilter !== "all") ? poloFilter : "polo-tancredo-neves"
+    const [form, setForm] = useState<FormState>({ ...EMPTY_FORM, poloId: initialPolo })
+    const [editForm, setEditForm] = useState<FormState>({ ...EMPTY_FORM, poloId: initialPolo })
 
     const load = useCallback(async () => {
         setLoading(true)
@@ -141,33 +174,67 @@ export function ClassManager({ poloFilter }: { poloFilter?: string }) {
         setLoading(false)
     }, [poloFilter])
 
-    useEffect(() => { load() }, [load])
+    useEffect(() => {
+        load()
+        const defaultPolo = (poloFilter && poloFilter !== "all") ? poloFilter : "polo-tancredo-neves"
+        setForm(f => ({ ...f, poloId: defaultPolo }))
+    }, [load, poloFilter])
 
     async function handleAdd() {
         if (!form.name.trim()) return
         setSaving(true)
         try {
-            await addClass({ name: form.name.trim(), shift: form.shift, dayOfWeek: form.dayOfWeek || undefined, maxStudents: form.maxStudents, modality: form.modality })
-            setForm(EMPTY_FORM); setShowNew(false); await load()
-        } finally { setSaving(false) }
+            const targetPolo = form.poloId || (poloFilter && poloFilter !== "all" ? poloFilter : "polo-tancredo-neves")
+            await addClass({
+                name: form.name.trim(),
+                shift: form.shift,
+                dayOfWeek: form.dayOfWeek || undefined,
+                maxStudents: form.maxStudents,
+                modality: form.modality,
+                poloId: targetPolo
+            })
+            setForm({ ...EMPTY_FORM, poloId: targetPolo })
+            setShowNew(false)
+            await load()
+        } finally {
+            setSaving(false)
+        }
     }
 
     async function handleUpdate(id: string) {
         setSaving(true)
         try {
-            await updateClass(id, { name: editForm.name.trim(), shift: editForm.shift, dayOfWeek: editForm.dayOfWeek || null, maxStudents: editForm.maxStudents, modality: editForm.modality })
-            setEditingId(null); await load()
-        } finally { setSaving(false) }
+            await updateClass(id, {
+                name: editForm.name.trim(),
+                shift: editForm.shift,
+                dayOfWeek: editForm.dayOfWeek || undefined,
+                maxStudents: editForm.maxStudents,
+                modality: editForm.modality,
+                poloId: editForm.poloId || undefined
+            })
+            setEditingId(null)
+            await load()
+        } finally {
+            setSaving(false)
+        }
     }
 
     async function handleDelete(id: string) {
         if (!confirm("Excluir esta turma? Alunos vinculados perderão a associação.")) return
-        await deleteClass(id); await load()
+        await deleteClass(id)
+        await load()
     }
 
     function startEdit(c: ClassRoom) {
         setEditingId(c.id)
-        setEditForm({ name: c.name, shift: c.shift, dayOfWeek: c.dayOfWeek || "", maxStudents: c.maxStudents, modality: c.modality || "presencial" })
+        setEditForm({
+            name: c.name,
+            shift: c.shift,
+            dayOfWeek: c.dayOfWeek || "",
+            maxStudents: c.maxStudents,
+            modality: c.modality || "presencial",
+            poloId: c.poloId || (poloFilter && poloFilter !== "all" ? poloFilter : "polo-tancredo-neves")
+        })
         setShowNew(false)
     }
 
@@ -235,7 +302,7 @@ export function ClassManager({ poloFilter }: { poloFilter?: string }) {
             {showNew && (
                 <div className="bg-accent/5 border-2 border-accent/20 rounded-2xl p-5 space-y-4">
                     <h3 className="font-semibold text-sm flex items-center gap-2"><Plus className="h-4 w-4 text-accent" /> Nova Turma</h3>
-                    <ClassForm val={form} onChange={handleFormChange} />
+                    <ClassForm val={form} onChange={handleFormChange} poloFilter={poloFilter} />
                     <div className="flex gap-3">
                         <button onClick={handleAdd} disabled={saving || !form.name.trim()}
                             className="flex items-center gap-2 bg-green-600 text-white font-bold px-4 py-2 rounded-xl hover:bg-green-700 disabled:opacity-60 transition-colors text-sm">
@@ -257,11 +324,13 @@ export function ClassManager({ poloFilter }: { poloFilter?: string }) {
                 </div>
             ) : (
                 <div className="space-y-3">
-                    {classes.map(c => (
+                    {classes.map(c => {
+                        const classPolo = POLOS.find(p => p.id === c.poloId)
+                        return (
                         <div key={c.id} className="bg-card border border-border rounded-2xl p-4 shadow-sm">
                             {editingId === c.id ? (
                                 <div className="space-y-4">
-                                    <ClassForm val={editForm} onChange={handleEditFormChange} />
+                                    <ClassForm val={editForm} onChange={handleEditFormChange} poloFilter={poloFilter} />
                                     <div className="flex gap-3">
                                         <button onClick={() => handleUpdate(c.id)} disabled={saving}
                                             className="flex items-center gap-2 bg-green-600 text-white font-bold px-4 py-2 rounded-xl hover:bg-green-700 disabled:opacity-60 transition-colors text-sm">
@@ -275,8 +344,17 @@ export function ClassManager({ poloFilter }: { poloFilter?: string }) {
                             ) : (
                                 <div className="flex items-center justify-between gap-4">
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-semibold text-foreground truncate">{c.name}</p>
-                                        <div className="flex flex-wrap items-center gap-3 mt-1">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <p className="font-semibold text-foreground truncate">{c.name}</p>
+                                            <span className={`inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-md border ${
+                                                c.poloId === 'polo-chapada'
+                                                    ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30'
+                                                    : 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30'
+                                            }`}>
+                                                {classPolo ? classPolo.name : (c.poloId === 'polo-chapada' ? 'Polo Chapada' : 'Polo Tancredo Neves')}
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-3 mt-1.5">
                                             {c.dayOfWeek && (
                                                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                                                     <Calendar className="h-3 w-3" />{DAY_LABEL[c.dayOfWeek] || c.dayOfWeek}
@@ -340,7 +418,7 @@ export function ClassManager({ poloFilter }: { poloFilter?: string }) {
                                 </div>
                             </div>
                         </div>
-                    ))}
+                    )})}
                 </div>
             )}
         </div>

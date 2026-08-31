@@ -21,6 +21,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import dynamic from "next/dynamic"
 
+import { FirstAccessPasswordModal } from "@/components/student/first-access-password-modal"
+
 const LoadingFallback = () => (
   <div className="flex flex-col items-center justify-center p-20 min-h-[40vh]">
     <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
@@ -62,6 +64,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
     const [selectedJourneyDisc, setSelectedJourneyDisc] = useState<string>("")
     const [tab, setTab] = useState<Tab>("overview")
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+    const [showFirstAccessModal, setShowFirstAccessModal] = useState(false)
     const supabase = createClient()
 
     const [semesters, setSemesters] = useState<Semester[]>([])
@@ -88,6 +91,14 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
         setProfile(p)
         setLoading(false)
         if (p) {
+            // Check if first access password change modal should be presented
+            if (typeof window !== "undefined") {
+                const dismissed = localStorage.getItem(`ieteo_first_access_dismissed_${p.id}`)
+                if (!dismissed) {
+                    setShowFirstAccessModal(true)
+                }
+            }
+
             // Auto-Healing: Sync orphaned grades to UUID
             syncStudentGrades(p.id, p.cpf, p.email).catch(e => console.error("Sync Error:", e))
 
@@ -189,8 +200,12 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
         { id: "perfil", label: "Meu Perfil", icon: User },
     ]
 
-    const myDisciplineIds = new Set(mySchedules.map(s => s.disciplineId))
-    const filteredMaterials = materials.filter(m => !m.disciplineId || myDisciplineIds.has(m.disciplineId))
+    const myDisciplineIds = new Set(
+        mySchedules.length > 0 
+            ? mySchedules.map(s => s.disciplineId) 
+            : disciplines.map(d => d.id)
+    )
+    const filteredMaterials = materials.filter(m => !m.disciplineId || myDisciplineIds.size === 0 || myDisciplineIds.has(m.disciplineId))
 
     const renderSidebar = () => (
         <div className="flex flex-col h-[100dvh] text-slate-100 pt-[env(safe-area-inset-top,0px)]" style={{ backgroundColor: '#0f172a' }}>
@@ -407,6 +422,15 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                     )}
                 </main>
             </div>
+
+            {profile && (
+                <FirstAccessPasswordModal
+                    isOpen={showFirstAccessModal}
+                    profile={profile}
+                    onClose={() => setShowFirstAccessModal(false)}
+                    onPasswordChanged={checkAuth}
+                />
+            )}
         </div >
     )
 }

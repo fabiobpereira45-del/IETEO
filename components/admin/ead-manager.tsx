@@ -158,7 +158,19 @@ export function EadManager() {
 
     async function handleSave() {
         const finalUrl = formLessonType === 'live_meet' ? formMeetUrl.trim() : formUrl.trim()
-        if (!formTitle.trim() || !finalUrl || selectedDisciplineId === "none") return
+        if (!formTitle.trim()) {
+            alert("Por favor, preencha o título da aula.")
+            return
+        }
+        if (!finalUrl) {
+            alert(formLessonType === 'live_meet' ? "Por favor, insira o link da sala Google Meet." : "Por favor, insira o link do vídeo.")
+            return
+        }
+        if (selectedDisciplineId === "none") {
+            alert("Por favor, selecione uma disciplina primeiro.")
+            return
+        }
+
         setSaving(true)
         try {
             const payload = {
@@ -183,6 +195,9 @@ export function EadManager() {
             }
             closeForm()
             await loadLessons()
+        } catch (err: any) {
+            console.error("Erro ao salvar aula EAD:", err)
+            alert("Erro ao salvar aula: " + (err.message || "Erro desconhecido"))
         } finally {
             setSaving(false)
         }

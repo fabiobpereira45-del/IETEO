@@ -116,7 +116,34 @@ export function StudentManager({ isMaster, poloFilter }: { isMaster?: boolean; p
         setLoading(false)
     }
 
+    useEffect(() => {
+        if (poloFilter !== undefined) {
+            setFilterPolo(poloFilter)
+        }
+    }, [poloFilter])
+
     useEffect(() => { load() }, [])
+
+    async function handleValidateEnrollment(stu: StudentProfile) {
+        if (!confirm(`Deseja validar e confirmar a matrícula do aluno ${stu.name}?`)) return
+        try {
+            await updateStudent(stu.id, {
+                status: "active",
+                payment_status: "paid"
+            })
+            try {
+                await fetch("/api/student/activate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ studentId: stu.id })
+                })
+            } catch { /* silent */ }
+            await load()
+            alert(`Matrícula de ${stu.name} validada com sucesso!`)
+        } catch (err: any) {
+            alert("Erro ao validar matrícula: " + (err.message || err))
+        }
+    }
 
     // ─── Filtered list ────────────────────────────────────────────────────────
 
@@ -480,7 +507,18 @@ export function StudentManager({ isMaster, poloFilter }: { isMaster?: boolean; p
                                 return (
                                     <tr key={stu.id} className="border-b border-border/50 last:border-0 hover:bg-muted/10 transition-colors group">
                                         <td className="px-6 py-4">
-                                            <div className="font-bold text-foreground group-hover:text-primary transition-colors">{stu.name}</div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="font-bold text-foreground group-hover:text-primary transition-colors">{stu.name}</div>
+                                                {stu.polo_id === "polo-chapada" ? (
+                                                    <span className="text-[9px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded border border-blue-200">
+                                                        Polo Chapada
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-[9px] font-bold uppercase tracking-wider bg-red-50 text-red-700 px-1.5 py-0.5 rounded border border-red-200">
+                                                        Tancredo Neves
+                                                    </span>
+                                                )}
+                                            </div>
                                             {stu.phone && <div className="text-xs text-muted-foreground">{stu.phone}</div>}
                                         </td>
                                         <td className="px-4 py-3 text-muted-foreground text-xs hidden sm:table-cell font-mono">
@@ -528,6 +566,16 @@ export function StudentManager({ isMaster, poloFilter }: { isMaster?: boolean; p
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             <div className="flex items-center justify-end gap-1">
+                                                {(stu.payment_status === "pending" || stu.status === "pending") && (
+                                                    <Button
+                                                        size="sm"
+                                                        className="h-8 px-2.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 shadow-sm rounded-lg"
+                                                        title="Validar e Ativar Matrícula"
+                                                        onClick={() => handleValidateEnrollment(stu)}
+                                                    >
+                                                        <CheckCircle2 className="h-3.5 w-3.5" /> Validar
+                                                    </Button>
+                                                )}
                                                 {/* View */}
                                                 <Button
                                                     size="sm" variant="ghost"

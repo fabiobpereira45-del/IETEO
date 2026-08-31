@@ -51,7 +51,7 @@ export interface AttendanceLock {
 }
 export interface BoardMember { id: string; name: string; role: string; category: string; avatar_url?: string | null; createdAt: string; }
 export interface ProfessorDiscipline { id: string; professorId: string; disciplineId: string; createdAt: string; }
-export interface ClassRoom { id: string; name: string; shift: "morning" | "afternoon" | "evening" | "ead"; dayOfWeek?: string; maxStudents: number; studentCount?: number; createdAt: string; modality?: "presencial" | "semi_presencial" | "online"; }
+export interface ClassRoom { id: string; name: string; shift: "morning" | "afternoon" | "evening" | "ead"; dayOfWeek?: string; maxStudents: number; studentCount?: number; createdAt: string; modality?: "presencial" | "semi_presencial" | "online"; poloId?: string | null; }
 export interface ClassSchedule { id: string; classId: string; disciplineId: string; professorName: string; dayOfWeek: string; timeStart: string; timeEnd: string; lessonsCount: number; workload: number; startDate?: string; endDate?: string; createdAt: string; }
 export interface StudentGrade {
   id: string;
@@ -193,7 +193,6 @@ const KEYS = {
   SELECTED_POLO: "ieteo_selected_polo",
 } as const
 
-// ─── Polo Selection (Local Storage) ──────────────────────────────────────────
 export function getSelectedPolo(): Polo | null {
   if (typeof window === "undefined") return null
   try {
@@ -244,8 +243,6 @@ function writeLocal<T>(key: string, value: T): void {
 export function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
 }
-
-// ─── Auth / Session (Local Storage) ──────────────────────────────────────────
 
 export function getProfessorSession(): ProfessorSession | null {
   const s = readLocal<ProfessorSession | null>(KEYS.PROFESSOR_SESSION, null)
@@ -321,49 +318,45 @@ export async function registerStudentByAdmin(data: any): Promise<void> {
     const error = await res.json()
     throw new Error(error.error || "Erro ao matricular aluno")
   }
-
-  // Trigger n8n WhatsApp
-  try {
-    const matricula = `2026${Math.floor(1000 + Math.random() * 9000)}` // This is just for the notification fallback
-    triggerN8nWebhook('matricula_confirmada', {
-      type: 'enrollment',
-      name: data.name,
-      phone: data.phone,
-      matricula
-    });
-  } catch (err) {
-    console.error("Erro ao disparar WhatsApp n8n de boas-vindas:", err);
-  }
 }
 
 export async function loginStudentAuth(identifier: string, password: string) {
   const supabase = createClient()
-  let email = ''
+  let targetEmail = ''
 
-  // Se for um e-mail, usa diretamente
-  if (identifier.includes('@')) {
-    email = identifier.trim().toLowerCase()
-  } else {
-    const cleanId = identifier.replace(/\D/g, '')
-    if (cleanId.length === 11) {
-      const { data: studentData } = await supabase.from('students').select('email').eq('cpf', cleanId).maybeSingle()
-      email = studentData?.email || `${cleanId}@student.ieteo.com`
+  // 1. Call login API endpoint to auto-provision and sync account
+  try {
+    const res = await fetch('/api/student/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier, password })
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      throw new Error(err.error || 'Identificador ou senha inválidos.')
+    }
+    const apiData = await res.json()
+    targetEmail = apiData.email
+  } catch (err: any) {
+    if (err.message && !err.message.includes('fetch')) {
+      throw err
+    }
+    // Fallback if offline
+    if (identifier.includes('@')) {
+      targetEmail = identifier.trim().toLowerCase()
     } else {
-      const { data } = await supabase.from('students').select('email').eq('enrollment_number', cleanId).maybeSingle()
-      if (!data) throw new Error("Identificador não encontrado (CPF, Matrícula ou E-mail).")
-      email = data.email
+      const cleanId = identifier.replace(/\D/g, '')
+      targetEmail = `${cleanId}@student.ieteo.com`
     }
   }
 
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-  if (error) throw new Error("Credenciais inválidas.")
-
-  // Auto-healing: se logou mas o vínculo no DB está quebrado, conserta agora
-  if (data.user) {
-    const { data: profile } = await supabase.from('students').select('id, auth_user_id').eq('email', email).maybeSingle()
-    if (profile && !profile.auth_user_id) {
-      await supabase.from('students').update({ auth_user_id: data.user.id }).eq('id', profile.id)
-    }
+  // 2. Authenticate client session in Supabase Auth
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: targetEmail,
+    password: password.trim()
+  })
+  if (error) {
+    throw new Error("Senha incorreta. Sua senha inicial padrão é o seu CPF (apenas números) ou 123456.")
   }
 
   return data
@@ -372,9 +365,22 @@ export async function loginStudentAuth(identifier: string, password: string) {
 export async function getStudentProfileAuth(): Promise<StudentProfile | null> {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user || user.user_metadata?.type !== 'student') return null
+  if (!user) return null
 
-  const { data } = await supabase.from('students').select('*').eq('auth_user_id', user.id).maybeSingle()
+  // 1. First attempt by auth_user_id
+  let { data } = await supabase.from('students').select('*').eq('auth_user_id', user.id).maybeSingle()
+
+  // 2. Fallback: try by email or CPF
+  if (!data && user.email) {
+    const cleanCpf = user.email.replace('@student.ieteo.com', '').replace(/\D/g, '')
+    const { data: byEmail } = await supabase.from('students').select('*').or(`email.eq.${user.email.toLowerCase()},cpf.eq.${cleanCpf}`).maybeSingle()
+    if (byEmail) {
+      data = byEmail
+      // Auto-heal link in background
+      supabase.from('students').update({ auth_user_id: user.id }).eq('id', byEmail.id).then(() => {})
+    }
+  }
+
   if (!data) return null
   return {
     ...data,
@@ -506,7 +512,7 @@ function mapFinancialCharge(row: any): FinancialCharge {
 }
 function mapAsaasConfig(row: any): AsaasConfig { return { id: row.id, apiKey: row.api_key, mode: row.mode as "sandbox" | "production", pixKey: row.pix_key || undefined, updatedAt: row.updated_at } }
 function mapExpense(row: any): Expense { return { id: row.id, description: row.description, amount: Number(row.amount), category: row.category, dueDate: row.due_date, status: row.status, paidAt: row.paid_at || undefined, createdAt: row.created_at } }
-function mapStudentProfile(row: any): StudentProfile { return { id: row.id, auth_user_id: row.auth_user_id, name: row.name, email: row.email, cpf: row.cpf, enrollment_number: row.enrollment_number, phone: row.phone || undefined, address: row.address || undefined, church: row.church || undefined, pastor_name: row.pastor_name || undefined, class_id: row.class_id || undefined, payment_status: row.payment_status || undefined, avatar_url: row.avatar_url || null, bio: row.bio || null, status: (row.status || 'pending') as StudentProfile['status'], created_at: row.created_at } }
+function mapStudentProfile(row: any): StudentProfile { return { id: row.id, auth_user_id: row.auth_user_id, name: row.name, email: row.email, cpf: row.cpf, enrollment_number: row.enrollment_number, phone: row.phone || undefined, address: row.address || undefined, church: row.church || undefined, pastor_name: row.pastor_name || undefined, class_id: row.class_id || undefined, payment_status: row.payment_status || undefined, avatar_url: row.avatar_url || null, bio: row.bio || null, status: (row.status || 'pending') as StudentProfile['status'], created_at: row.created_at, polo_id: row.polo_id || null, modality: row.modality || null } }
 function mapChatMessage(row: any): ChatMessage { return { id: row.id, studentId: row.student_id, disciplineId: row.discipline_id, message: row.message, isFromStudent: row.is_from_student, read: row.read, createdAt: row.created_at } }
 function mapAttendance(row: any): Attendance {
   return {
@@ -518,7 +524,6 @@ function mapAttendance(row: any): Attendance {
     createdAt: row.created_at
   }
 }
-function mapClassRoom(row: any): ClassRoom { return { id: row.id, name: row.name, shift: row.shift as ClassRoom['shift'], dayOfWeek: row.day_of_week || undefined, maxStudents: Number(row.max_students), studentCount: row.student_count !== undefined ? Number(row.student_count) : undefined, createdAt: row.created_at } }
 function mapClassSchedule(row: any): ClassSchedule { return { id: row.id, classId: row.class_id, disciplineId: row.discipline_id, professorName: row.professor_name, dayOfWeek: row.day_of_week, timeStart: row.time_start, timeEnd: row.time_end, lessonsCount: Number(row.lessons_count || 1), workload: Number(row.workload || 0), startDate: row.start_date || undefined, endDate: row.end_date || undefined, createdAt: row.created_at } }
 function mapStudentGrade(row: any): StudentGrade {
   return {
@@ -570,7 +575,6 @@ function mapChallengeSubmission(row: any): ChallengeSubmission {
 export async function logUserActivity(log: UserLog): Promise<void> {
   const supabase = createClient()
   try {
-    // Ensure we don't send undefined ID
     const cleanLog = { ...log }
     if (!cleanLog.id) delete cleanLog.id
     
@@ -603,6 +607,7 @@ export async function getFinancialSettings(): Promise<FinancialSettings | null> 
   const { data } = await supabase.from('financial_settings').select('*').limit(1).maybeSingle()
   return data ? mapFinancialSettings(data) : null
 }
+
 export async function updateFinancialSettings(settings: Omit<FinancialSettings, "id" | "updatedAt">): Promise<void> {
   const res = await fetch("/api/admin/config", {
     method: "POST",
@@ -676,7 +681,6 @@ export async function saveGradeSettings(settings: GradeSettings): Promise<void> 
   if (error) throw new Error(error.message)
 }
 
-
 export async function getClasses(poloId?: string): Promise<ClassRoom[]> {
   const supabase = createClient()
   let query = supabase.from('classes').select('*').order('created_at', { ascending: false })
@@ -712,14 +716,23 @@ export async function getPublicClasses(poloId?: string): Promise<ClassRoom[]> {
     studentCount: studentCounts[c.id] || 0
   }))
 }
+
 export async function addClass(cls: Omit<ClassRoom, 'id' | 'createdAt' | 'studentCount'>): Promise<ClassRoom> {
   const supabase = createClient()
-  const { data, error } = await supabase.from('classes').insert({
-    name: cls.name, shift: cls.shift, day_of_week: cls.dayOfWeek || null, max_students: cls.maxStudents
-  }).select().single()
+  const payload: any = {
+    name: cls.name,
+    shift: cls.shift,
+    day_of_week: cls.dayOfWeek || null,
+    max_students: cls.maxStudents
+  }
+  if (cls.poloId !== undefined && cls.poloId !== null) payload.polo_id = cls.poloId
+  if (cls.modality !== undefined && cls.modality !== null) payload.modality = cls.modality
+
+  const { data, error } = await supabase.from('classes').insert(payload).select().single()
   if (error) throw error
   return mapClassRoom(data)
 }
+
 export async function updateClass(id: string, cls: Partial<Omit<ClassRoom, 'id' | 'createdAt'>>): Promise<void> {
   const supabase = createClient()
   const dbData: any = {}
@@ -727,11 +740,31 @@ export async function updateClass(id: string, cls: Partial<Omit<ClassRoom, 'id' 
   if (cls.shift !== undefined) dbData.shift = cls.shift
   if (cls.maxStudents !== undefined) dbData.max_students = cls.maxStudents
   if (cls.dayOfWeek !== undefined) dbData.day_of_week = cls.dayOfWeek || null
-  await supabase.from('classes').update(dbData).eq('id', id)
+  if (cls.poloId !== undefined) dbData.polo_id = cls.poloId || null
+  if (cls.modality !== undefined) dbData.modality = cls.modality || null
+
+  const { error } = await supabase.from('classes').update(dbData).eq('id', id)
+  if (error) throw error
 }
+
 export async function deleteClass(id: string): Promise<void> {
   const supabase = createClient()
-  await supabase.from('classes').delete().eq('id', id)
+  const { error } = await supabase.from('classes').delete().eq('id', id)
+  if (error) throw error
+}
+
+function mapClassRoom(row: any): ClassRoom {
+  return {
+    id: row.id,
+    name: row.name,
+    shift: row.shift as ClassRoom['shift'],
+    dayOfWeek: row.day_of_week || undefined,
+    maxStudents: Number(row.max_students),
+    studentCount: row.student_count !== undefined ? Number(row.student_count) : undefined,
+    createdAt: row.created_at,
+    poloId: row.polo_id || undefined,
+    modality: row.modality || undefined
+  }
 }
 
 export async function getFinancialCharges(studentId?: string, poloId?: string): Promise<FinancialCharge[]> {
@@ -3017,74 +3050,52 @@ function mapEadLesson(row: any): EadLesson {
 }
 
 export async function getEadLessons(disciplineId: string): Promise<EadLesson[]> {
+  try {
+    const res = await fetch(`/api/admin/ead?disciplineId=${encodeURIComponent(disciplineId)}`)
+    if (res.ok) {
+      const json = await res.json()
+      if (json.data) return json.data.map(mapEadLesson)
+    }
+  } catch (err) {
+    console.warn("API GET /api/admin/ead failed, falling back to direct client", err)
+  }
   const supabase = createClient()
   const { data } = await supabase.from('ead_lessons').select('*').eq('discipline_id', disciplineId).order('order_index', { ascending: true })
   return (data || []).map(mapEadLesson)
 }
 
 export async function addEadLesson(lesson: Omit<EadLesson, 'id' | 'createdAt'>): Promise<void> {
-  const supabase = createClient()
-  const meta: any = {
-    lessonType: lesson.lessonType || 'recorded',
-    meetUrl: lesson.meetUrl || (lesson.lessonType === 'live_meet' ? lesson.videoUrl : undefined),
-    liveDate: lesson.liveDate || (lesson.availableFrom ? lesson.availableFrom.substring(0, 10) : undefined),
-    minMinutesForPresence: lesson.minMinutesForPresence !== undefined ? lesson.minMinutesForPresence : 0
+  const res = await fetch('/api/admin/ead', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(lesson)
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.error || 'Erro ao cadastrar aula EAD')
   }
-
-  const payload: any = {
-    discipline_id: lesson.disciplineId,
-    title: lesson.title,
-    description: buildEadDescription(lesson.description, meta),
-    video_url: lesson.videoUrl,
-    order_index: lesson.orderIndex
-  }
-  if (lesson.availableFrom !== undefined) payload.available_from = lesson.availableFrom || null
-  if (lesson.availableUntil !== undefined) payload.available_until = lesson.availableUntil || null
-
-  const { error } = await supabase.from('ead_lessons').insert(payload)
-  if (error) throw new Error(error.message)
 }
 
 export async function updateEadLesson(id: string, lesson: Partial<EadLesson>): Promise<void> {
-  const supabase = createClient()
-  
-  // Fetch existing description if we need to merge meta
-  let cleanDesc = lesson.description
-  let existingMeta: any = {}
-  if (lesson.description !== undefined || lesson.lessonType !== undefined || lesson.meetUrl !== undefined || lesson.minMinutesForPresence !== undefined) {
-    const { data: current } = await supabase.from('ead_lessons').select('description').eq('id', id).single()
-    if (current) {
-      const parsed = parseEadMetadata(current.description)
-      existingMeta = parsed.meta
-      if (cleanDesc === undefined) cleanDesc = parsed.cleanDescription
-    }
+  const res = await fetch('/api/admin/ead', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, ...lesson })
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.error || 'Erro ao atualizar aula EAD')
   }
-
-  const mergedMeta = {
-    ...existingMeta,
-    ...(lesson.lessonType !== undefined ? { lessonType: lesson.lessonType } : {}),
-    ...(lesson.meetUrl !== undefined ? { meetUrl: lesson.meetUrl } : {}),
-    ...(lesson.liveDate !== undefined ? { liveDate: lesson.liveDate } : {}),
-    ...(lesson.minMinutesForPresence !== undefined ? { minMinutesForPresence: lesson.minMinutesForPresence } : {})
-  }
-
-  const payload: any = {}
-  if (lesson.title !== undefined) payload.title = lesson.title
-  if (cleanDesc !== undefined) payload.description = buildEadDescription(cleanDesc, mergedMeta)
-  if (lesson.videoUrl !== undefined) payload.video_url = lesson.videoUrl
-  if (lesson.orderIndex !== undefined) payload.order_index = lesson.orderIndex
-  if (lesson.disciplineId !== undefined) payload.discipline_id = lesson.disciplineId
-  if (lesson.availableFrom !== undefined) payload.available_from = lesson.availableFrom || null
-  if (lesson.availableUntil !== undefined) payload.available_until = lesson.availableUntil || null
-  
-  const { error } = await supabase.from('ead_lessons').update(payload).eq('id', id)
-  if (error) throw new Error(error.message)
 }
 
 export async function deleteEadLesson(id: string): Promise<void> {
-  const supabase = createClient()
-  const { error } = await supabase.from('ead_lessons').delete().eq('id', id)
-  if (error) throw new Error(error.message)
+  const res = await fetch(`/api/admin/ead?id=${encodeURIComponent(id)}`, {
+    method: 'DELETE'
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.error || 'Erro ao excluir aula EAD')
+  }
 }
 
 // ─── EAD Live Class Heartbeat & Attendance Tracking ───────────────────────────
