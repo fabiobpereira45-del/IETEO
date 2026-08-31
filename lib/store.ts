@@ -10,7 +10,20 @@ export interface MatchingPair { id: string; left: string; right: string }
 export interface Semester { id: string; name: string; order: number; shift?: string; isConcluded?: boolean; createdAt: string }
 export interface Discipline { id: string; name: string; description?: string | null; semesterId?: string | null; semesterOrder?: number; semesterName?: string; professorName?: string | null; dayOfWeek?: string | null; shift?: string | null; order: number; applicationMonth?: string | null; applicationYear?: string | null; isConcluded?: boolean; createdAt: string }
 export interface StudyMaterial { id: string; disciplineId: string; title: string; description?: string; fileUrl: string; createdAt: string }
-export interface FinancialSettings { id: string; enrollmentFee: number; monthlyFee: number; secondCallFee: number; finalExamFee: number; totalMonths: number; proLaboreFeePerLesson: number; creditCardUrl?: string; pixKey?: string; updatedAt: string; }
+export interface FinancialSettings { 
+  id: string; 
+  enrollmentFee: number; 
+  monthlyFee: number; 
+  enrollmentFeeOnline?: number;
+  monthlyFeeOnline?: number;
+  secondCallFee: number; 
+  finalExamFee: number; 
+  totalMonths: number; 
+  proLaboreFeePerLesson: number; 
+  creditCardUrl?: string; 
+  pixKey?: string; 
+  updatedAt: string; 
+}
 export interface AsaasConfig { id: string; apiKey: string; mode: "sandbox" | "production"; pixKey?: string; updatedAt: string; }
 export interface FinancialCharge {
   id: string;
@@ -162,12 +175,12 @@ export interface Polo {
 export const POLOS: Polo[] = [
   {
     id: "polo-tancredo-neves",
-    name: "Polo Tancredo Neves",
+    name: "Polo Salvador",
     city: "Salvador - BA",
     color: "#7f1d1d",
     colorSecondary: "#991b1b",
     isActive: true,
-    description: "Sede principal do IETEO",
+    description: "Sede principal do IETEO - Salvador",
   },
   {
     id: "polo-chapada",
@@ -488,7 +501,41 @@ function mapProfessor(p: any): ProfessorAccount {
     active: p.active !== false // Default to true if null/undefined
   }
 }
-function mapFinancialSettings(row: any): FinancialSettings { return { id: row.id, enrollmentFee: Number(row.enrollment_fee), monthlyFee: Number(row.monthly_fee), secondCallFee: Number(row.second_call_fee), finalExamFee: Number(row.final_exam_fee), totalMonths: Number(row.total_months), proLaboreFeePerLesson: Number(row.pro_labore_fee_per_lesson || 0), creditCardUrl: row.credit_card_url || undefined, pixKey: row.pix_key || undefined, updatedAt: row.updated_at } }
+function parseFinancialMeta(raw?: string | null): { cleanUrl?: string; meta: any } {
+  if (!raw) return { cleanUrl: undefined, meta: {} }
+  const match = raw.match(/<!--FIN_META:(.*?)-->/)
+  if (!match) return { cleanUrl: raw, meta: {} }
+  try {
+    const meta = JSON.parse(match[1])
+    const clean = raw.replace(/<!--FIN_META:(.*?)-->\n?/, '').trim()
+    return { cleanUrl: clean || undefined, meta }
+  } catch {
+    return { cleanUrl: raw, meta: {} }
+  }
+}
+
+function mapFinancialSettings(row: any): FinancialSettings { 
+  const { cleanUrl, meta } = parseFinancialMeta(row.credit_card_url)
+  const enrollmentFee = Number(row.enrollment_fee || 0)
+  const monthlyFee = Number(row.monthly_fee || 0)
+  const enrollmentFeeOnline = meta.enrollmentFeeOnline !== undefined ? Number(meta.enrollmentFeeOnline) : enrollmentFee
+  const monthlyFeeOnline = meta.monthlyFeeOnline !== undefined ? Number(meta.monthlyFeeOnline) : monthlyFee
+
+  return { 
+    id: row.id, 
+    enrollmentFee, 
+    monthlyFee, 
+    enrollmentFeeOnline,
+    monthlyFeeOnline,
+    secondCallFee: Number(row.second_call_fee || 0), 
+    finalExamFee: Number(row.final_exam_fee || 0), 
+    totalMonths: Number(row.total_months || 18), 
+    proLaboreFeePerLesson: Number(row.pro_labore_fee_per_lesson || 0), 
+    creditCardUrl: cleanUrl, 
+    pixKey: row.pix_key || undefined, 
+    updatedAt: row.updated_at 
+  } 
+}
 function mapFinancialCharge(row: any): FinancialCharge {
   return {
     id: row.id,
@@ -993,16 +1040,16 @@ export async function getDisciplines(): Promise<Discipline[]> {
   const semesters = sRes.data || []
 
   return (dRes.data || [])
-    .map(d => {
+    .map((d: any) => {
       const disc = mapDiscipline(d)
-      const sem = semesters.find(s => s.id === disc.semesterId)
+      const sem = semesters.find((s: any) => s.id === disc.semesterId)
       return {
         ...disc,
         semesterOrder: sem?.order ?? 999,
         semesterName: sem?.name || ''
       }
     })
-    .sort((a, b) => {
+    .sort((a: any, b: any) => {
       if (a.semesterOrder !== b.semesterOrder) return (a.semesterOrder ?? 999) - (b.semesterOrder ?? 999)
       if (a.order !== b.order) return a.order - b.order
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
@@ -1220,7 +1267,7 @@ export async function getProLaboreCalculations() {
     getClassSchedules(),
     getFinancialSettings(),
     getFinancialCharges(), // This includes expenses
-    supabase.from('classes').select('id, name').then(r => r.data || []),
+    supabase.from('classes').select('id, name').then((r: any) => r.data || []),
     getDisciplines() // Fetch full discipline objects
   ])
 
@@ -2524,7 +2571,7 @@ export async function releaseAllGrades(classId?: string): Promise<void> {
     if (students && students.length > 0) {
       // 2. Extract all possible identifiers (CPF, enrollment, email)
       const identifiers = Array.from(new Set(
-        students.flatMap(s => [
+        students.flatMap((s: any) => [
           s.cpf?.replace(/\D/g, ''), 
           s.enrollment_number, 
           s.email?.toLowerCase().trim()
@@ -2564,7 +2611,7 @@ export async function blockAllGrades(classId?: string): Promise<void> {
     
     if (students && students.length > 0) {
       const identifiers = Array.from(new Set(
-        students.flatMap(s => [
+        students.flatMap((s: any) => [
           s.cpf?.replace(/\D/g, ''), 
           s.enrollment_number, 
           s.email?.toLowerCase().trim()
@@ -2611,13 +2658,13 @@ export async function syncAllAttendanceScores(): Promise<void> {
   const { data: students } = await supabase.from('students').select('id, name, email, cpf')
   if (!students) return
   const studentById: Record<string, any> = {}
-  students.forEach(s => { studentById[s.id] = s })
+  students.forEach((s: any) => { studentById[s.id] = s })
 
   const { data: allAtt } = await supabase.from('attendances').select('student_id, discipline_id').eq('is_present', true)
   if (!allAtt) return
 
   const counts: Record<string, number> = {}
-  allAtt.forEach(a => {
+  allAtt.forEach((a: any) => {
     if (!a.student_id || !a.discipline_id) return
     const key = `${a.student_id}:${a.discipline_id}`
     counts[key] = (counts[key] || 0) + 1
@@ -2868,6 +2915,10 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
   const settings = await getFinancialSettings()
   if (!settings) return
 
+  const isOnline = student.modality === 'online'
+  const activeEnrollmentFee = isOnline ? (settings.enrollmentFeeOnline ?? settings.enrollmentFee) : settings.enrollmentFee
+  const activeMonthlyFee = isOnline ? (settings.monthlyFeeOnline ?? settings.monthlyFee) : settings.monthlyFee
+
   const charges = []
 
   // 4. Add Enrollment Fee (Taxa de Matrícula) - ALWAYS FIRST
@@ -2878,8 +2929,8 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
   charges.push({
     student_id: studentId,
     type: 'enrollment',
-    description: 'Taxa de Matrícula',
-    amount: settings.enrollmentFee,
+    description: isOnline ? 'Taxa de Matrícula (Online)' : 'Taxa de Matrícula (Presencial)',
+    amount: activeEnrollmentFee,
     due_date: enrollmentDate.toISOString().split('T')[0],
     status: 'pending',
     created_at: new Date().toISOString()
@@ -2909,7 +2960,7 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
       type: 'monthly',
       description: `Mensalidade: ${disp.name}`,
       discipline_id: disp.id,
-      amount: settings.monthlyFee,
+      amount: activeMonthlyFee,
       due_date: dueDate.toISOString().split('T')[0],
       status: 'pending',
       created_at: new Date().toISOString()

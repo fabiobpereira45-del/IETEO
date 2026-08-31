@@ -17,6 +17,7 @@ import {
   getStudentSession,
   getSubmissionByEmailAndAssessment,
   getProfessorSession,
+  getFinancialSettings,
   type StudentSession,
   type StudentSubmission,
   type FinancialSettings,
@@ -31,6 +32,7 @@ export default function HomePage() {
   const [view, setView] = useState<View>("polo-select")
   const [session, setSession] = useState<StudentSession | null>(null)
   const [submission, setSubmission] = useState<StudentSubmission | null>(null)
+  const [finSettings, setFinSettings] = useState<FinancialSettings | null>(null)
   const [mounted, setMounted] = useState(false)
   const [showEnroll, setShowEnroll] = useState(false)
   const [showGrade, setShowGrade] = useState(false)
@@ -70,6 +72,7 @@ export default function HomePage() {
 
     checkStudentSession()
     fetchSlots()
+    getFinancialSettings().then(setFinSettings)
   }, [])
 
   // Once polo context is loaded for the FIRST time, auto-skip selector if polo was already saved.
@@ -182,28 +185,38 @@ export default function HomePage() {
                 <p className="text-white/80 text-lg font-serif italic max-w-lg">
                   "Veritas • Sapientia • Fides"
                 </p>
-                <div className="pt-4 flex flex-col sm:flex-row gap-6 items-start sm:items-center">
-                  <div className="flex gap-4">
+                <div className="pt-4 flex flex-col lg:flex-row gap-6 items-start lg:items-center">
+                  <div className="flex gap-4 items-center">
                     <div className="flex flex-col">
-                      <span className="text-[10px] uppercase text-white/40 font-bold tracking-tighter">Campus</span>
-                      <span className="text-sm font-bold">Tancredo Neves</span>
+                      <span className="text-[10px] uppercase text-white/50 font-bold tracking-wider">Polo de Acesso</span>
+                      <span className="text-sm font-bold text-accent">{polo?.name || "IETEO Oficial"}</span>
                     </div>
-                    <div className="w-px h-8 bg-white/10" />
+                    <div className="w-px h-8 bg-white/20" />
                     <div className="flex flex-col">
-                      <span className="text-[10px] uppercase text-white/40 font-bold tracking-tighter">Fundação</span>
+                      <span className="text-[10px] uppercase text-white/50 font-bold tracking-wider">Fundação</span>
                       <span className="text-sm font-bold">2026</span>
                     </div>
                   </div>
 
                   {/* Promo Banner */}
-                  <div className="bg-maroon/40 border border-accent/40 rounded-2xl p-4 backdrop-blur-md animate-pulse shadow-[0_0_25px_rgba(180,83,9,0.3)]">
-                    <p className="text-[10px] font-black uppercase tracking-[2px] text-accent mb-1 flex items-center gap-1.5">
+                  <div className="bg-black/30 border border-accent/40 rounded-2xl p-4 backdrop-blur-md shadow-[0_0_25px_rgba(180,83,9,0.25)] w-full sm:w-auto">
+                    <p className="text-[10px] font-black uppercase tracking-[2px] text-accent mb-2 flex items-center gap-1.5">
                        <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-ping"></span> 
                        Corra! Vagas Limitadas
                     </p>
-                    <div className="flex flex-col gap-0.5">
-                      <p className="text-xs font-bold text-white">Matrícula + 1ª Mensalidade: <span className="text-accent-foreground bg-accent px-1.5 rounded ml-1">R$ 120,00</span></p>
-                      <p className="text-xs font-bold text-white mt-1">Mensalidade fixa após a matrícula: <span className="text-accent-foreground bg-accent px-1.5 rounded ml-1">R$ 60,00</span></p>
+                    <div className="flex flex-col gap-1.5 text-xs">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-slate-200 font-medium">🏫 Presencial:</span>
+                        <span className="text-white font-bold bg-white/10 px-2 py-0.5 rounded-lg border border-white/10">
+                          Matrícula: R$ {(finSettings?.enrollmentFee ?? 60).toFixed(2)} • Mensal: R$ {(finSettings?.monthlyFee ?? 60).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-amber-300 font-medium">🌐 Online (EAD):</span>
+                        <span className="text-amber-950 font-bold bg-accent px-2 py-0.5 rounded-lg">
+                          Matrícula: R$ {(finSettings?.enrollmentFeeOnline ?? finSettings?.enrollmentFee ?? 60).toFixed(2)} • Mensal: R$ {(finSettings?.monthlyFeeOnline ?? finSettings?.monthlyFee ?? 60).toFixed(2)}
+                        </span>
+                      </div>
                     </div>
                     <p className="text-[9px] font-black text-accent mt-2 tracking-widest uppercase">
                       • {availableSlots !== null ? `${availableSlots} Vagas Restantes` : "Matrículas Abertas"} •

@@ -310,7 +310,7 @@ export function FinancialStudentView({ studentId }: Props) {
                                         <td className="px-4 py-3">
                                             <div className="font-bold text-foreground text-[13px]">{c.description}</div>
                                             <div className="text-[10px] text-muted-foreground uppercase font-medium tracking-tight">
-                                                {{ enrollment: "Matrícula", monthly: "Mensalidade", second_call: "2ª Chamada", final_exam: "Taxa de Prova", other: "Outros" }[c.type] || c.type}
+                                                {({ enrollment: "Matrícula", monthly: "Mensalidade", second_call: "2ª Chamada", final_exam: "Taxa de Prova", expense: "Despesa", other: "Outros" } as Record<string, string>)[c.type] || c.type}
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 text-muted-foreground">

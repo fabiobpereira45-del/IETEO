@@ -842,6 +842,7 @@ export function printFinancialReportPDF(charges: FinancialCharge[], students: St
   const statsMap: Record<string, StudentStat> = {}
   
   charges.forEach(c => {
+    if (!c.studentId) return
     if (!statsMap[c.studentId]) {
       const student = students.find(s => s.id === c.studentId)
       statsMap[c.studentId] = {

@@ -486,7 +486,7 @@ export function ChallengeManager() {
                 {form.content && !form.content.startsWith('[') && (
                   <Button 
                     variant="ghost" 
-                    size="xs" 
+                    size="sm" 
                     onClick={handleAutoFill}
                     className="h-6 text-[10px] font-bold text-primary hover:bg-primary/10 flex items-center gap-1 px-2 rounded-lg"
                   >

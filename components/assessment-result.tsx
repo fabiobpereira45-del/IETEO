@@ -14,7 +14,8 @@ import {
   Share2,
   Trophy,
   History,
-  FileText
+  FileText,
+  LayoutGrid
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {

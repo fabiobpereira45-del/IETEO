@@ -27,7 +27,18 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Uma ou mais faturas já estão pagas." }, { status: 400 })
         }
 
-        // 2. If single charge and there's already a Pix generated, return it
+        // 2. Fetch Asaas config
+        const { data: config, error: configErr } = await supabase
+            .from('asaas_config')
+            .select('*')
+            .limit(1)
+            .single()
+
+        if (configErr || !config || !config.api_key) {
+            return NextResponse.json({ error: "API Key do Asaas não configurada pelo administrador." }, { status: 500 })
+        }
+
+        // 3. If single charge and there's already a Pix generated, return it
         if (ids.length === 1 && charges[0].asaas_payment_id && charges[0].pix_qrcode) {
             const idPart = charges[0].asaas_payment_id.replace("pay_", "")
             const invoiceUrl = config.mode === "production"
@@ -40,17 +51,6 @@ export async function POST(req: Request) {
                 pixCopyPaste: charges[0].pix_copy_paste,
                 invoiceUrl
             })
-        }
-
-        // 3. Fetch Asaas config
-        const { data: config, error: configErr } = await supabase
-            .from('asaas_config')
-            .select('*')
-            .limit(1)
-            .single()
-
-        if (configErr || !config || !config.api_key) {
-            return NextResponse.json({ error: "API Key do Asaas não configurada pelo administrador." }, { status: 500 })
         }
 
         // 4. Fetch student info to get CPF/name

@@ -81,10 +81,15 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
         if (creating) return
         setCreating(true)
         try {
+            const isOnline = selectedModality === "online"
+            const currentEnrollmentFee = isOnline 
+                ? (settings?.enrollmentFeeOnline ?? settings?.enrollmentFee ?? 60) 
+                : (settings?.enrollmentFee ?? 60)
+
             const res = await fetch("/api/enrollment/create", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...form, amount: settings?.enrollmentFee, poloId: polo?.id, modality: selectedModality || "presencial" })
+                body: JSON.stringify({ ...form, amount: currentEnrollmentFee, poloId: polo?.id, modality: selectedModality || "presencial" })
             })
             const body = await res.json()
             if (!res.ok) throw new Error(body.error || "Erro ao criar matrícula")
@@ -372,9 +377,12 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                         <div className="space-y-4">
                             <h3 className="font-semibold text-foreground flex items-center gap-2"><CreditCard className="h-4 w-4 text-accent" /> Pagamento da Matrícula</h3>
                             <div className="bg-muted/40 rounded-xl p-4 flex items-center justify-between">
-                                <span className="text-sm text-muted-foreground">Taxa de Matrícula</span>
+                                <div>
+                                    <span className="text-sm font-semibold text-foreground">Taxa de Matrícula</span>
+                                    <p className="text-xs text-muted-foreground">{selectedModality === "online" ? "Modalidade Online (EAD)" : "Modalidade Presencial"}</p>
+                                </div>
                                 <span className="text-xl font-bold text-foreground">
-                                    R$ {(settings?.enrollmentFee || 0).toFixed(2)}
+                                    R$ {((selectedModality === "online" ? (settings?.enrollmentFeeOnline ?? settings?.enrollmentFee) : settings?.enrollmentFee) || 60).toFixed(2)}
                                 </span>
                             </div>
 

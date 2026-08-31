@@ -123,7 +123,7 @@ export function StudentLogin({ onLogin, onResult, onBack, preloadedAssessmentId 
     }
 
     // ── Normal login: start assessment ────────────────────────────────────────
-    const session: StudentSession = { name: trimName, email: trimEmail, assessmentId: assessment.id, startedAt: new Date().toISOString() }
+    const session: StudentSession = { studentId: trimEmail, name: trimName, email: trimEmail, assessmentId: assessment.id, startedAt: new Date().toISOString() }
     saveStudentSession(session)
     onLogin(session)
     setLoading(false)

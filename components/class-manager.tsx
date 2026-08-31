@@ -351,7 +351,7 @@ export function ClassManager({ poloFilter }: { poloFilter?: string }) {
                                                     ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30'
                                                     : 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30'
                                             }`}>
-                                                {classPolo ? classPolo.name : (c.poloId === 'polo-chapada' ? 'Polo Chapada' : 'Polo Tancredo Neves')}
+                                                {classPolo ? classPolo.name : (c.poloId === 'polo-chapada' ? 'Polo Chapada' : 'Polo Salvador')}
                                             </span>
                                         </div>
                                         <div className="flex flex-wrap items-center gap-3 mt-1.5">

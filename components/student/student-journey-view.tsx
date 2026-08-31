@@ -77,7 +77,7 @@ export function StudentJourneyView({ studentId, studentName, disciplineId }: Pro
 
       const [allChs, allDiscs, subs] = await Promise.all([chsPromise, discsPromise, subsPromise]);
 
-      let filtered = [];
+      let filtered: any[] = [];
       if (disciplineId) {
         const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
         const selectedDisc = allDiscs.find(d => d.id === disciplineId);

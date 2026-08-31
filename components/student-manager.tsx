@@ -515,7 +515,7 @@ export function StudentManager({ isMaster, poloFilter }: { isMaster?: boolean; p
                                                     </span>
                                                 ) : (
                                                     <span className="text-[9px] font-bold uppercase tracking-wider bg-red-50 text-red-700 px-1.5 py-0.5 rounded border border-red-200">
-                                                        Tancredo Neves
+                                                        Polo Salvador
                                                     </span>
                                                 )}
                                             </div>

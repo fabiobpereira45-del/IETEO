@@ -209,21 +209,24 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
 
     const renderSidebar = () => (
         <div className="flex flex-col h-[100dvh] text-slate-100 pt-[env(safe-area-inset-top,0px)]" style={{ backgroundColor: '#0f172a' }}>
-            <div className="p-6 border-b border-white/20 mb-4 bg-black/40 backdrop-blur-md">
-                <div className="relative mb-4 group inline-block">
+            <div className="p-4 border-b border-white/10 mb-2 bg-black/40 backdrop-blur-md shrink-0">
+                <div className="flex items-center gap-3">
                     <AvatarUpload
                         currentUrl={profile.avatar_url}
                         userId={profile.id}
                         userName={profile.name}
                         type="student"
+                        size="sm"
                         onUploadSuccess={(url) => setProfile(prev => prev ? { ...prev, avatar_url: url } : null)}
                     />
+                    <div className="min-w-0 flex-1">
+                        <h2 className="text-sm font-bold tracking-tight text-white leading-tight truncate">{profile.name}</h2>
+                        <p className="text-[9px] text-amber-400 uppercase tracking-widest font-bold truncate mt-0.5">Portal do Aluno</p>
+                    </div>
                 </div>
-                <h2 className="text-base font-bold tracking-tight text-white">{profile.name}</h2>
-                <p className="text-[10px] text-slate-300 uppercase tracking-[2px] font-bold">Portal do Aluno</p>
             </div>
 
-            <ScrollArea className="flex-1 px-3">
+            <ScrollArea className="flex-1 min-h-0 px-3">
                 <div className="flex flex-col gap-1.5 mb-8">
                     {!isLocked && navItems.map((item) => (
                         <button

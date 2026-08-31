@@ -97,7 +97,7 @@ export function FinancialManager({ onRefresh, month, year, scope, poloFilter }: 
         const classStudentsList = students.filter(s => s.class_id === searchClass);
         const classStudentIds = new Set(classStudentsList.map(s => s.id));
         
-        const relevantCharges = charges.filter(c => c.type !== 'expense' && classStudentIds.has(c.studentId));
+        const relevantCharges = charges.filter(c => c.type !== 'expense' && c.studentId && classStudentIds.has(c.studentId));
         
         const projected = relevantCharges
             .filter(c => isInScope(c.dueDate))
@@ -695,7 +695,7 @@ export function FinancialManager({ onRefresh, month, year, scope, poloFilter }: 
                                         <tr key={c.id} className="hover:bg-muted/30 transition-colors">
                                             <td className="px-4 py-4">
                                                 <div className="font-medium text-foreground leading-tight">{c.description}</div>
-                                                <div className="text-[10px] text-muted-foreground mt-1 uppercase tracking-tighter">{{ enrollment: "Matrícula", monthly: "Mensalidade", second_call: "2ª Chamada", final_exam: "Prova Final", other: "Outros" }[c.type] || c.type}</div>
+                                                <div className="text-[10px] text-muted-foreground mt-1 uppercase tracking-tighter">{({ enrollment: "Matrícula", monthly: "Mensalidade", second_call: "2ª Chamada", final_exam: "Prova Final", expense: "Despesa", other: "Outros" } as Record<string, string>)[c.type] || c.type}</div>
                                             </td>
                                             <td className="px-4 py-4 text-muted-foreground text-center tabular-nums whitespace-nowrap">
                                                 {new Date(c.dueDate).toLocaleDateString("pt-BR")}

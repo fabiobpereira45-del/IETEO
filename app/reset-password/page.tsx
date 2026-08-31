@@ -18,7 +18,7 @@ function ResetPasswordContent() {
 
     useEffect(() => {
         // Supabase adds the token to the URL hash, exchange it for a session
-        const { data: listener } = supabase.auth.onAuthStateChange(async (event) => {
+        const { data: listener } = supabase.auth.onAuthStateChange(async (event: any) => {
             if (event === "PASSWORD_RECOVERY") {
                 // Session established by Supabase after clicking the email link
             }

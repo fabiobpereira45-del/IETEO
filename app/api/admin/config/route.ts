@@ -23,6 +23,16 @@ export async function POST(req: Request) {
                 if (error) throw error
             }
         } else if (type === "financial") {
+            const meta: any = {}
+            if (config.enrollmentFeeOnline !== undefined) meta.enrollmentFeeOnline = Number(config.enrollmentFeeOnline)
+            if (config.monthlyFeeOnline !== undefined) meta.monthlyFeeOnline = Number(config.monthlyFeeOnline)
+
+            let fullCreditCardUrl = config.creditCardUrl || null
+            if (Object.keys(meta).length > 0) {
+                const prefix = `<!--FIN_META:${JSON.stringify(meta)}-->\n`
+                fullCreditCardUrl = prefix + (config.creditCardUrl || '')
+            }
+
             const dbData = {
                 enrollment_fee: config.enrollmentFee,
                 monthly_fee: config.monthlyFee,
@@ -30,7 +40,7 @@ export async function POST(req: Request) {
                 final_exam_fee: config.finalExamFee,
                 total_months: config.totalMonths,
                 pro_labore_fee_per_lesson: config.proLaboreFeePerLesson,
-                credit_card_url: config.creditCardUrl || null,
+                credit_card_url: fullCreditCardUrl,
                 pix_key: config.pixKey || null,
                 updated_at: new Date().toISOString()
             }

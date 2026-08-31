@@ -222,20 +222,20 @@ export function AdminDashboard({ onLogout }: Props) {
         setIsMobileMenuOpen(false)
       }}
       className={cn(
-        "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group w-full",
+        "flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all group w-full",
         tab === item.id
-          ? "accent-gradient text-white shadow-lg shadow-orange/20"
-          : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+          ? "accent-gradient text-white shadow-md shadow-orange-500/20 font-semibold"
+          : "text-slate-400 hover:text-slate-100 hover:bg-white/10"
       )}
     >
       <div className={cn(
-        "p-1.5 rounded-lg transition-colors",
-        tab === item.id ? "bg-white/20" : "bg-muted group-hover:bg-background"
+        "p-1.5 rounded-lg transition-colors shrink-0",
+        tab === item.id ? "bg-white/20 text-white" : "bg-white/5 text-slate-400 group-hover:bg-white/15 group-hover:text-white"
       )}>
         {item.icon}
       </div>
-      <span className="flex-1 text-left">{item.label}</span>
-      {tab === item.id && <ChevronRight className="h-4 w-4" />}
+      <span className="flex-1 text-left truncate">{item.label}</span>
+      {tab === item.id && <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-80" />}
     </button>
   )
 
@@ -243,74 +243,73 @@ export function AdminDashboard({ onLogout }: Props) {
     <div className="flex flex-col h-full bg-card border-r border-border/50 overflow-hidden">
       <div className="flex flex-col h-full text-slate-100 bg-navy">
         {/* Perfil Header na Sidebar */}
-        <div className="p-6 border-b border-white/10 mb-2 bg-black/20 overflow-hidden relative">
-          <div className="flex items-center gap-4">
-            <div className="shrink-0 relative group">
-              <AvatarUpload 
-                currentUrl={session?.avatar_url}
-                userId={session?.professorId || ""}
-                userName={username || "Professor"}
-                type="professor"
-                onUploadSuccess={(url) => {
-                  if (session) saveProfessorSession(session.professorId, session.role, url)
-                  refresh(false)
-                }}
-              />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold tracking-tight text-white leading-tight truncate w-32">{username || "Professor"}</h2>
-              <p className="text-[9px] text-slate-400 uppercase tracking-widest font-bold">IETEO • {isMaster ? "Painel Master" : isSecretary ? "Painel Secretaria" : "Painel Docente"}</p>
+        <div className="p-3.5 border-b border-white/10 bg-black/25 shrink-0">
+          <div className="flex items-center gap-3">
+            <AvatarUpload 
+              currentUrl={session?.avatar_url}
+              userId={session?.professorId || ""}
+              userName={username || "Professor"}
+              type="professor"
+              size="sm"
+              onUploadSuccess={(url) => {
+                if (session) saveProfessorSession(session.professorId, session.role, url)
+                refresh(false)
+              }}
+            />
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xs font-bold tracking-tight text-white leading-tight truncate">{username || "Professor"}</h2>
+              <p className="text-[9px] text-slate-400 uppercase tracking-wider font-semibold truncate mt-0.5">
+                IETEO • {isMaster ? "Painel Master" : isSecretary ? "Secretaria" : "Docente"}
+              </p>
             </div>
           </div>
 
           {/* Polo filter for master */}
           {isMaster && (
-            <div className="mt-4 px-1">
-              <p className="text-[9px] uppercase tracking-widest text-slate-500 font-bold mb-1.5 px-1">Filtrar polo</p>
-              <div className="flex flex-col gap-1">
-                <button
-                  onClick={() => setSelectedPoloId("all")}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                    selectedPoloId === "all"
-                      ? "bg-white/20 text-white"
-                      : "text-slate-400 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  🌐 Todos os Polos
-                </button>
-                {POLOS.map(polo => (
+            <div className="mt-2.5 pt-2.5 border-t border-white/10">
+              <div className="flex items-center justify-between mb-1 px-0.5">
+                <span className="text-[9px] uppercase tracking-widest text-slate-400 font-bold">Filtrar Polo</span>
+                {selectedPoloId !== "all" && (
                   <button
-                    key={polo.id}
-                    onClick={() => setSelectedPoloId(polo.id)}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 ${
-                      selectedPoloId === polo.id
-                        ? "bg-white/20 text-white"
-                        : "text-slate-400 hover:bg-white/10 hover:text-white"
-                    }`}
+                    onClick={() => setSelectedPoloId("all")}
+                    className="text-[9px] text-amber-400 hover:text-amber-300 font-semibold transition-colors"
                   >
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ background: polo.color }}
-                    />
-                    {polo.name}
+                    Ver Todos
                   </button>
-                ))}
+                )}
+              </div>
+              <div className="relative">
+                <select
+                  value={selectedPoloId}
+                  onChange={(e) => setSelectedPoloId(e.target.value)}
+                  className="w-full appearance-none bg-black/40 hover:bg-black/60 border border-white/15 focus:border-amber-500 text-white text-xs font-medium rounded-lg px-2.5 py-1.5 pr-7 transition-colors cursor-pointer outline-none shadow-sm"
+                >
+                  <option value="all" className="bg-slate-900 text-white">🌐 Todos os Polos</option>
+                  {POLOS.map(polo => (
+                    <option key={polo.id} value={polo.id} className="bg-slate-900 text-white">
+                      📍 {polo.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                  <ChevronRight className="h-3.5 w-3.5 rotate-90" />
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        <ScrollArea className="flex-1 min-h-0 px-4">
-          <div className="space-y-6 pb-6 pt-2">
+        <ScrollArea className="flex-1 min-h-0 px-3">
+          <div className="space-y-4 pb-4 pt-2">
             {menuGroups.map((group) => {
               const visibleItems = group.items.filter(i => !i.masterOnly || isMaster)
               if (visibleItems.length === 0) return null
               return (
                 <div key={group.title} className="space-y-1">
-                  <h3 className="px-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-2">
+                  <h3 className="px-2 text-[9px] font-bold uppercase tracking-wider text-slate-400/80 mb-1">
                     {group.title}
                   </h3>
-                  <div className="grid gap-1">
+                  <div className="grid gap-0.5">
                     {visibleItems.map(item => renderNavItem(item))}
                   </div>
                 </div>
@@ -319,26 +318,21 @@ export function AdminDashboard({ onLogout }: Props) {
           </div>
         </ScrollArea>
 
-        <div className="p-4 pb-8 mt-auto border-t border-white/10 bg-black/20 space-y-3">
-          <div className="flex items-center gap-3 px-3 py-2">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold truncate text-white">{username}</p>
-              <p className="text-[10px] text-slate-400 truncate">{userEmail}</p>
-            </div>
-          </div>
+        {/* Footer compacto */}
+        <div className="p-2.5 mt-auto border-t border-white/10 bg-black/25 shrink-0 flex flex-col gap-1">
           <Button
             variant="ghost"
             size="sm"
-            className="w-full justify-start text-slate-400 hover:text-white hover:bg-white/10 h-9"
+            className="w-full justify-start text-xs font-medium text-slate-300 hover:text-red-400 hover:bg-red-500/10 h-8 px-2.5 rounded-lg transition-colors"
             onClick={handleLogout}
           >
-            <LogOut className="h-4 w-4 mr-2" /> Sair do Sistema
+            <LogOut className="h-3.5 w-3.5 mr-2 text-red-400" /> Sair do Sistema
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={onLogout}
-            className="w-full justify-start text-[10px] text-slate-500 hover:text-slate-300 h-8"
+            className="w-full justify-start text-[11px] font-medium text-slate-400 hover:text-slate-200 hover:bg-white/5 h-7 px-2.5 rounded-lg transition-colors"
           >
             <ArrowLeft className="h-3 w-3 mr-2" /> Voltar ao Portal
           </Button>
