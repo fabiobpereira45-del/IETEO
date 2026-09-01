@@ -80,7 +80,7 @@ export default function PagarPage() {
             }
             setStudent(data.student)
             setCharges(data.charges)
-            setSelectedIds(data.charges.map((c: Charge) => c.id))
+            setSelectedIds([])
             setStep("charges")
         } catch {
             setError("Erro de conexão. Tente novamente.")

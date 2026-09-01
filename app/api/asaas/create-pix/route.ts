@@ -38,19 +38,46 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "API Key do Asaas não configurada pelo administrador." }, { status: 500 })
         }
 
-        // 3. If single charge and there's already a Pix generated, return it
-        if (ids.length === 1 && charges[0].asaas_payment_id && charges[0].pix_qrcode) {
-            const idPart = charges[0].asaas_payment_id.replace("pay_", "")
-            const invoiceUrl = config.mode === "production"
-                ? `https://www.asaas.com/i/${idPart}`
-                : `https://sandbox.asaas.com/i/${idPart}`
+        const baseUrl = config.mode === "production"
+            ? "https://api.asaas.com/v3"
+            : "https://api-sandbox.asaas.com/v3"
 
-            return NextResponse.json({
-                asaasPaymentId: charges[0].asaas_payment_id,
-                pixQrcode: charges[0].pix_qrcode,
-                pixCopyPaste: charges[0].pix_copy_paste,
-                invoiceUrl
-            })
+        // Calculate expected amount
+        const monthlyCount = charges.filter((c: any) => c.type === 'monthly').length
+        const totalAmount = charges.reduce((acc: number, curr: any) => acc + Number(curr.amount), 0)
+        let finalAmount = totalAmount
+
+        // Apply 5% discount if 2 or more monthly fees
+        if (monthlyCount >= 2) {
+            finalAmount = totalAmount * 0.95
+        }
+
+        // 3. If single charge and there's already a Pix generated, verify amount to avoid bulk cache bug
+        if (ids.length === 1 && charges[0].asaas_payment_id && charges[0].pix_qrcode) {
+            try {
+                const verifyRes = await fetch(`${baseUrl}/payments/${charges[0].asaas_payment_id}`, {
+                    headers: { "access_token": config.api_key }
+                })
+                if (verifyRes.ok) {
+                    const verifyData = await verifyRes.json()
+                    // Only return cached if the value on Asaas exactly matches the requested value
+                    if (Number(verifyData.value) === Number(finalAmount.toFixed(2))) {
+                        const idPart = charges[0].asaas_payment_id.replace("pay_", "")
+                        const invoiceUrl = config.mode === "production"
+                            ? `https://www.asaas.com/i/${idPart}`
+                            : `https://sandbox.asaas.com/i/${idPart}`
+
+                        return NextResponse.json({
+                            asaasPaymentId: charges[0].asaas_payment_id,
+                            pixQrcode: charges[0].pix_qrcode,
+                            pixCopyPaste: charges[0].pix_copy_paste,
+                            invoiceUrl
+                        })
+                    }
+                }
+            } catch (e) {
+                console.error("Error verifying cached pix", e)
+            }
         }
 
         // 4. Fetch student info to get CPF/name
@@ -59,10 +86,6 @@ export async function POST(req: Request) {
             .select('*')
             .eq('id', charges[0].student_id)
             .single()
-
-        const baseUrl = config.mode === "production"
-            ? "https://api.asaas.com/v3"
-            : "https://api-sandbox.asaas.com/v3"
 
         // 5. Find or create an Asaas Customer
         let asaasCustomerId: string | null = null
@@ -91,14 +114,7 @@ export async function POST(req: Request) {
         }
 
         // 6. Create a Pix charge
-        const monthlyCount = charges.filter((c: any) => c.type === 'monthly').length
-        const totalAmount = charges.reduce((acc: number, curr: any) => acc + Number(curr.amount), 0)
-        let finalAmount = totalAmount
-
-        // Apply 5% discount if 2 or more monthly fees
-        if (monthlyCount >= 2) {
-            finalAmount = totalAmount * 0.95
-        }
+        // finalAmount is already calculated above
 
         let dueDate = charges[0].due_date || new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
         
