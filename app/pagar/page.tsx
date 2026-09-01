@@ -183,7 +183,33 @@ export default function PagarPage() {
                                     <Smartphone className="h-3.5 w-3.5" /> Auto-Atendimento Pix
                                 </div>
                                 <h2 className="text-xl font-bold text-white">Pagar Fatura</h2>
-                                <p className="text-slate-400 text-sm mt-1">Informe seu CPF ou número de matrícula para localizar suas faturas em aberto.</p>
+                                <p className="text-slate-400 text-sm mt-1">Informe seu CPF ou matrícula para localizar suas faturas em aberto.</p>
+                            </div>
+
+                            {/* How-to instructions */}
+                            <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4">
+                                <p className="text-amber-300 text-xs font-bold uppercase tracking-widest mb-3 text-center">📋 Como funciona</p>
+                                <div className="flex items-start gap-3 mb-3">
+                                    <div className="shrink-0 w-7 h-7 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 font-black text-xs">1</div>
+                                    <div>
+                                        <p className="text-white text-sm font-semibold">Câmera do celular</p>
+                                        <p className="text-slate-400 text-xs">Use a câmera (não o banco) para ler o QR Code na parede e abrir este site.</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-3 mb-3">
+                                    <div className="shrink-0 w-7 h-7 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-300 font-black text-xs">2</div>
+                                    <div>
+                                        <p className="text-white text-sm font-semibold">Informe seu CPF</p>
+                                        <p className="text-slate-400 text-xs">Digite seu CPF ou matrícula abaixo para ver suas mensalidades.</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-3">
+                                    <div className="shrink-0 w-7 h-7 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center text-green-300 font-black text-xs">3</div>
+                                    <div>
+                                        <p className="text-white text-sm font-semibold">Pague com o app do banco</p>
+                                        <p className="text-slate-400 text-xs">Selecione a fatura, gere o Pix e leia o QR Code gerado com seu banco.</p>
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Toggle CPF / Matrícula */}
