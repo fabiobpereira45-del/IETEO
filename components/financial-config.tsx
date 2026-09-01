@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { DollarSign, Save, Loader2, CreditCard, QrCode } from "lucide-react"
+import { DollarSign, Save, Loader2, CreditCard, QrCode, Eye, EyeOff, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -35,6 +35,7 @@ export function FinancialConfig() {
     // Asaas states
     const [asaasApiKey, setAsaasApiKey] = useState("")
     const [asaasMode, setAsaasMode] = useState<"sandbox" | "production">("sandbox")
+    const [showAsaasKey, setShowAsaasKey] = useState(false)
 
     async function load() {
         setLoading(true)
@@ -84,14 +85,15 @@ export function FinancialConfig() {
                     pixKey: pixKey
                 }),
                 updateAsaasConfig({
-                    apiKey: asaasApiKey,
+                    apiKey: asaasApiKey.trim(),
                     mode: asaasMode
                 })
             ])
-            alert("Configurações financeiras salvas com sucesso!")
+            alert("Configurações financeiras e do Asaas salvas com sucesso!")
             await load()
-        } catch (error) {
-            alert("Erro ao salvar configurações financeiras.")
+        } catch (error: any) {
+            console.error("Erro ao salvar:", error)
+            alert("Erro ao salvar: " + (error.message || "Tente novamente."))
         } finally {
             setSaving(false)
         }
@@ -260,12 +262,19 @@ export function FinancialConfig() {
             </div>
 
             <div className="mt-8 border-t border-border pt-6">
-                <div className="flex items-center gap-2 mb-6">
-                    <div className="h-8 w-8 bg-green-100 text-green-700 rounded-full flex items-center justify-center font-bold text-sm">Pix</div>
-                    <div>
-                        <h3 className="text-lg font-semibold text-foreground">Integração Pix Automático (Asaas)</h3>
-                        <p className="text-xs text-muted-foreground">Insira a API Key do Asaas para gerar e receber pagamentos via Pix Dinâmico.</p>
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 bg-green-100 text-green-700 rounded-full flex items-center justify-center font-bold text-sm">Pix</div>
+                        <div>
+                            <h3 className="text-lg font-semibold text-foreground">Integração Pix Automático (Asaas)</h3>
+                            <p className="text-xs text-muted-foreground">Insira a API Key do Asaas para gerar e receber pagamentos via Pix Dinâmico.</p>
+                        </div>
                     </div>
+                    {asaasApiKey && (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> Chave Configurada ({asaasApiKey.length} caracteres)
+                        </span>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -282,14 +291,39 @@ export function FinancialConfig() {
                         </Select>
                     </div>
                     <div className="flex flex-col gap-1.5 md:col-span-2">
-                        <Label>API Key do Asaas</Label>
-                        <Input
-                            type="password"
-                            value={asaasApiKey}
-                            onChange={(e) => setAsaasApiKey(e.target.value)}
-                            placeholder="$aact_... (cole sua chave aqui)"
-                        />
-                        <span className="text-xs text-muted-foreground">Encontre em: asaas.com → Configurações → Integrações → API Key</span>
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="asaas-api-key-input">API Key do Asaas</Label>
+                            <button
+                                type="button"
+                                onClick={() => setShowAsaasKey(!showAsaasKey)}
+                                className="text-xs text-primary hover:underline flex items-center gap-1"
+                            >
+                                {showAsaasKey ? (
+                                    <>
+                                        <EyeOff className="h-3.5 w-3.5" /> Ocultar chave
+                                    </>
+                                ) : (
+                                    <>
+                                        <Eye className="h-3.5 w-3.5" /> Ver chave
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                        <div className="relative">
+                            <Input
+                                id="asaas-api-key-input"
+                                name="asaas_api_token"
+                                autoComplete="off"
+                                data-lpignore="true"
+                                data-form-type="other"
+                                type={showAsaasKey ? "text" : "password"}
+                                value={asaasApiKey}
+                                onChange={(e) => setAsaasApiKey(e.target.value)}
+                                placeholder="$aact_... (cole sua chave aqui)"
+                                className="font-mono text-xs pr-10"
+                            />
+                        </div>
+                        <span className="text-xs text-muted-foreground">Encontre em: asaas.com → Configurações → Integrações → Chaves de API</span>
                     </div>
                 </div>
             </div>

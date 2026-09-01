@@ -651,6 +651,15 @@ export async function getUserLogs(limit = 100): Promise<UserLog[]> {
 // ─── Async Supabase Operations ───────────────────────────────────────────────
 
 export async function getFinancialSettings(): Promise<FinancialSettings | null> {
+  try {
+    const res = await fetch("/api/admin/config?type=financial", { cache: "no-store" })
+    if (res.ok) {
+      const json = await res.json()
+      if (json?.data) return mapFinancialSettings(json.data)
+    }
+  } catch (e) {
+    console.warn("Fallback to client supabase for financial settings", e)
+  }
   const supabase = createClient()
   const { data } = await supabase.from('financial_settings').select('*').limit(1).maybeSingle()
   return data ? mapFinancialSettings(data) : null
@@ -669,6 +678,15 @@ export async function updateFinancialSettings(settings: Omit<FinancialSettings, 
 }
 
 export async function getAsaasConfig(): Promise<AsaasConfig | null> {
+  try {
+    const res = await fetch("/api/admin/config?type=asaas", { cache: "no-store" })
+    if (res.ok) {
+      const json = await res.json()
+      if (json?.data) return mapAsaasConfig(json.data)
+    }
+  } catch (e) {
+    console.warn("Fallback to client supabase for asaas config", e)
+  }
   const supabase = createClient()
   const { data } = await supabase.from('asaas_config').select('*').limit(1).maybeSingle()
   return data ? mapAsaasConfig(data) : null

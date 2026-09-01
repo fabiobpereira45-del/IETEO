@@ -1,6 +1,37 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 
+export async function GET(req: Request) {
+    try {
+        const { searchParams } = new URL(req.url)
+        const type = searchParams.get('type')
+        const supabase = createAdminClient()
+
+        if (type === 'asaas') {
+            const { data, error } = await supabase.from('asaas_config').select('*').limit(1).maybeSingle()
+            if (error) throw error
+            return NextResponse.json({ data })
+        } else if (type === 'financial') {
+            const { data, error } = await supabase.from('financial_settings').select('*').limit(1).maybeSingle()
+            if (error) throw error
+            return NextResponse.json({ data })
+        }
+
+        const [financialRes, asaasRes] = await Promise.all([
+            supabase.from('financial_settings').select('*').limit(1).maybeSingle(),
+            supabase.from('asaas_config').select('*').limit(1).maybeSingle()
+        ])
+
+        return NextResponse.json({
+            financial: financialRes.data,
+            asaas: asaasRes.data
+        })
+    } catch (err: any) {
+        console.error("Config GET Error:", err)
+        return NextResponse.json({ error: err.message }, { status: 500 })
+    }
+}
+
 export async function POST(req: Request) {
     try {
         const { type, config } = await req.json()
@@ -8,7 +39,7 @@ export async function POST(req: Request) {
 
         if (type === "asaas") {
             const dbData: any = {
-                api_key: config.apiKey,
+                api_key: (config.apiKey || '').trim(),
                 mode: config.mode,
                 updated_at: new Date().toISOString()
             }
