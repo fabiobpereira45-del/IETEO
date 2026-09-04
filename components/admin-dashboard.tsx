@@ -457,7 +457,7 @@ export function AdminDashboard({ onLogout }: Props) {
               {tab === "financial" && <FinancialDashboard poloFilter={isMaster ? selectedPoloId : undefined} />}
               {tab === "professors" && isMaster && <ProfessorManager />}
               {tab === "institutional" && <InstitutionalManager />}
-              {tab === "book_loans" && <BookManager isMaster={isMaster} poloFilter={isMaster ? selectedPoloId : undefined} />}
+              {tab === "book_loans" && <BookManager isMaster={isMaster} poloFilter={isMaster ? selectedPoloId : undefined} professorInfo={{ id: session?.professorId || "prof-0", name: username || "Professor", email: userEmail }} />}
               {tab === "grade_config" && isMaster && <GradeConfig />}
               {tab === "usage_logs" && isMaster && <UsageDashboard />}
             </div>

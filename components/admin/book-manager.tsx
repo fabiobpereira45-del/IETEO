@@ -63,14 +63,16 @@ import {
 } from "@/lib/books"
 import { getStudents, type StudentProfile } from "@/lib/store"
 import { AIBookGenerator } from "@/components/ai-book-generator"
+import { StudentBooksView } from "@/components/student/student-books-view"
 
 interface Props {
   isMaster?: boolean
   poloFilter?: string
+  professorInfo?: { id: string; name: string; email: string }
 }
 
-export function BookManager({ isMaster, poloFilter }: Props) {
-  const [activeTab, setActiveTab] = useState<"loans" | "catalog">("loans")
+export function BookManager({ isMaster, poloFilter, professorInfo }: Props) {
+  const [activeTab, setActiveTab] = useState<"loans" | "catalog" | "my_loans">("loans")
   const [books, setBooks] = useState<Book[]>([])
   const [loans, setLoans] = useState<BookLoan[]>([])
   const [students, setStudents] = useState<StudentProfile[]>([])
@@ -451,14 +453,16 @@ export function BookManager({ isMaster, poloFilter }: Props) {
         </div>
       </div>
 
-      {/* Abas Principais: Empréstimos x Acervo */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
-        <TabsList className="grid grid-cols-2 max-w-md">
+        <TabsList className="grid grid-cols-2 md:grid-cols-3 max-w-2xl">
           <TabsTrigger value="loans" className="flex items-center gap-2 text-xs font-semibold">
             <Clock className="h-3.5 w-3.5" /> Controle de Empréstimos ({loans.length})
           </TabsTrigger>
           <TabsTrigger value="catalog" className="flex items-center gap-2 text-xs font-semibold">
             <Library className="h-3.5 w-3.5" /> Acervo da Biblioteca ({books.length})
+          </TabsTrigger>
+          <TabsTrigger value="my_loans" className="flex items-center gap-2 text-xs font-semibold">
+            <User className="h-3.5 w-3.5" /> Minhas Locações
           </TabsTrigger>
         </TabsList>
 
@@ -783,6 +787,28 @@ export function BookManager({ isMaster, poloFilter }: Props) {
                   </div>
                 )
               })}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ─── ABA 3: MINHAS LOCAÇÕES (PROFESSOR) ───────────────────────────── */}
+        <TabsContent value="my_loans" className="space-y-4">
+          {professorInfo ? (
+            <StudentBooksView 
+              isProfessor={true}
+              profile={{
+                id: professorInfo.id,
+                name: professorInfo.name,
+                email: professorInfo.email,
+                phone: "",
+                cpf: "",
+                polo_id: poloFilter === "all" ? null : poloFilter || null,
+                created_at: new Date().toISOString()
+              }} 
+            />
+          ) : (
+            <div className="p-12 text-center bg-card rounded-2xl border border-border/40">
+              <p className="text-muted-foreground">Informações do usuário não disponíveis.</p>
             </div>
           )}
         </TabsContent>

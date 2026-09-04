@@ -40,9 +40,10 @@ import { type StudentProfile } from "@/lib/store"
 
 interface Props {
   profile: StudentProfile
+  isProfessor?: boolean
 }
 
-export function StudentBooksView({ profile }: Props) {
+export function StudentBooksView({ profile, isProfessor }: Props) {
   const [books, setBooks] = useState<Book[]>([])
   const [myLoans, setMyLoans] = useState<BookLoan[]>([])
   const [loading, setLoading] = useState(true)
@@ -136,10 +137,10 @@ export function StudentBooksView({ profile }: Props) {
             <Library className="h-3.5 w-3.5" /> Biblioteca Física do Instituto
           </div>
           <h2 className="text-2xl md:text-3xl font-extrabold font-serif tracking-tight">
-            Locação Gratuita de Livros para Alunos
+            Locação Gratuita de Livros para {isProfessor ? "Professores" : "Alunos"}
           </h2>
           <p className="text-sm text-slate-300 leading-relaxed">
-            Aprofunde seus estudos teológicos com o acervo impresso do IETEO. Você pode retirar livros gratuitamente por até <strong>7 dias corridos</strong> para estudar na sua casa. Solicite a reserva aqui e retire com o professor no seu polo.
+            Aprofunde seus estudos teológicos com o acervo impresso do IETEO. Você pode retirar livros gratuitamente por até <strong>7 dias corridos</strong> para estudar na sua casa. Solicite a reserva aqui e retire com o coordenador no seu polo.
           </p>
         </div>
       </div>
