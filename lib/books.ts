@@ -40,6 +40,7 @@ export interface BookLoan {
   status: LoanStatus
   notes?: string
   registeredBy?: string
+  renewed?: boolean
 }
 
 // ─── Default Theological Categories ──────────────────────────────────────────
@@ -388,7 +389,8 @@ export async function getBookLoans(filter?: {
         returnedAt: l.returned_at,
         status: l.status,
         notes: l.notes,
-        registeredBy: l.registered_by
+        registeredBy: l.registered_by,
+        renewed: l.renewed
       }))
     } else {
       loans = getLocalLoans()
@@ -428,6 +430,9 @@ export async function requestBookLoan(book: Book, student: {
     throw new Error("Não há exemplares deste livro disponíveis para empréstimo no momento.")
   }
 
+  // Check if they are trying to borrow the exact same book they just returned
+  await checkBorrowEligibility(student.id, book.id)
+
   const id = `loan-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
   const newLoan: BookLoan = {
     id,
@@ -442,7 +447,8 @@ export async function requestBookLoan(book: Book, student: {
     studentCpf: student.cpf,
     poloId: student.poloId || book.poloId || null,
     requestedAt: new Date().toISOString(),
-    status: "reserved"
+    status: "reserved",
+    renewed: false
   }
 
   const supabase = createClient()
@@ -460,7 +466,8 @@ export async function requestBookLoan(book: Book, student: {
       student_cpf: newLoan.studentCpf,
       polo_id: newLoan.poloId,
       requested_at: newLoan.requestedAt,
-      status: newLoan.status
+      status: newLoan.status,
+      renewed: newLoan.renewed
     })
   } catch {
     // local fallback
@@ -579,6 +586,64 @@ export async function cancelBookLoan(loanId: string): Promise<void> {
   }
 }
 
+export async function renewBookLoan(loanId: string): Promise<BookLoan> {
+  const localLoans = getLocalLoans()
+  const loan = localLoans.find(l => l.id === loanId)
+
+  if (!loan) {
+    throw new Error("Empréstimo não encontrado.")
+  }
+
+  if (loan.renewed) {
+    throw new Error("Este empréstimo já foi renovado anteriormente. Só é permitida uma renovação por locação.")
+  }
+
+  if (!loan.dueDate) {
+    throw new Error("Não é possível renovar um empréstimo sem data de vencimento estabelecida.")
+  }
+
+  const currentDueDate = new Date(loan.dueDate)
+  // Adiciona 5 dias (5 * 24 horas * 60 min * 60 seg * 1000 ms)
+  const newDueDate = new Date(currentDueDate.getTime() + 5 * 24 * 60 * 60 * 1000)
+
+  loan.dueDate = newDueDate.toISOString()
+  loan.renewed = true
+  // Re-avalia o status localmente para garantir consistência visual imediata
+  const { status } = evaluateLoanStatus(loan)
+  loan.status = status
+
+  saveLocalLoans(localLoans)
+
+  try {
+    const supabase = createClient()
+    await supabase.from("book_loans").update({
+      due_date: loan.dueDate,
+      renewed: true
+    }).eq("id", loanId)
+  } catch {
+    // ignore
+  }
+
+  return { ...loan }
+}
+
+async function checkBorrowEligibility(studentId: string, bookId: string): Promise<void> {
+  // Regra: "o aluno não poderá locar o mesmo material na proxima vez, antes deverá locar outro material para depois retornar ao anterior"
+  // Obtém o histórico do aluno (já vem de local + supabase em caso de query real, mas podemos usar getBookLoans)
+  const loans = await getBookLoans({ studentId })
+  
+  // Pegar apenas os livros devolvidos, ordenados do mais recente para o mais antigo (getBookLoans já ordena decrescente, mas vamos garantir usando returnedAt se existir)
+  const returnedLoans = loans.filter(l => l.status === "returned" && l.returnedAt)
+  returnedLoans.sort((a, b) => new Date(b.returnedAt!).getTime() - new Date(a.returnedAt!).getTime())
+
+  if (returnedLoans.length > 0) {
+    const lastReturned = returnedLoans[0]
+    if (lastReturned.bookId === bookId) {
+      throw new Error("Você deve locar um material diferente antes de poder pegar este mesmo livro novamente.")
+    }
+  }
+}
+
 // ─── Direct Admin Borrow (without student reservation) ────────────────────────
 export async function directAdminBorrow(data: {
   book: Book
@@ -609,8 +674,12 @@ export async function directAdminBorrow(data: {
     borrowedAt: now.toISOString(),
     dueDate: due.toISOString(),
     status: "active",
-    registeredBy: data.registeredBy || "Administrador / Docente"
+    registeredBy: data.registeredBy || "Administrador / Docente",
+    renewed: false
   }
+
+  // Check eligibility
+  await checkBorrowEligibility(data.student.id, data.book.id)
 
   // Salvar no local
   const loans = getLocalLoans()
@@ -643,7 +712,8 @@ export async function directAdminBorrow(data: {
       borrowed_at: newLoan.borrowedAt,
       due_date: newLoan.dueDate,
       status: "active",
-      registered_by: newLoan.registeredBy
+      registered_by: newLoan.registeredBy,
+      renewed: newLoan.renewed
     })
     if (b) {
       await supabase.from("books").update({ available_copies: b.availableCopies }).eq("id", b.id)

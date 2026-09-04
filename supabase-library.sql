@@ -41,8 +41,12 @@ CREATE TABLE IF NOT EXISTS public.book_loans (
     returned_at TIMESTAMPTZ,
     status TEXT NOT NULL DEFAULT 'reserved', -- 'reserved', 'active', 'returned', 'late'
     notes TEXT,
-    registered_by TEXT
+    registered_by TEXT,
+    renewed BOOLEAN DEFAULT false
 );
+
+-- Note: Se você já rodou o script, execute:
+-- ALTER TABLE public.book_loans ADD COLUMN IF NOT EXISTS renewed BOOLEAN DEFAULT false;
 
 -- Índices para consultas rápidas
 CREATE INDEX IF NOT EXISTS idx_books_category ON public.books (category);

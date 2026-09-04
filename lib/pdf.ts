@@ -904,6 +904,69 @@ export function printFinancialReportPDF(charges: FinancialCharge[], students: St
   openAndPrintHTML(html, 1000, 800)
 }
 
+export function printStudentFinancialReportPDF(student: StudentProfile, charges: FinancialCharge[]): void {
+  const studentCharges = charges.filter(c => c.studentId === student.id).sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+  const total = studentCharges.reduce((acc, c) => acc + c.amount, 0)
+  const paid = studentCharges.filter(c => c.status === 'paid').reduce((acc, c) => acc + c.amount, 0)
+  const pending = studentCharges.filter(c => c.status !== 'paid' && c.status !== 'cancelled' && c.status !== 'bolsa100' && c.status !== 'isento').reduce((acc, c) => acc + c.amount, 0)
+
+  const rows = studentCharges.map(c => {
+    let statusText = "Pendente"
+    let statusColor = "#d97706"
+    if (c.status === "paid") { statusText = "Pago"; statusColor = "green" }
+    else if (c.status === "late") { statusText = "Atrasado"; statusColor = "red" }
+    else if (c.status === "cancelled") { statusText = "Cancelado"; statusColor = "gray" }
+    else if (c.status === "bolsa100") { statusText = "Bolsa 100%"; statusColor = "#2563eb" }
+    else if (c.status === "bolsa50") { statusText = "Bolsa 50%"; statusColor = "#2563eb" }
+    else if (c.status === "isento") { statusText = "Isento"; statusColor = "#9333ea" }
+
+    const typeLabel = ({"enrollment": "Matrícula", "monthly": "Mensalidade", "second_call": "2ª Chamada", "final_exam": "Prova Final", "expense": "Despesa", "other": "Outros" } as Record<string, string>)[c.type] || c.type
+
+    return `
+      <tr style="border-bottom: 1px solid #eee;">
+        <td style="padding: 10px; font-size: 13px;">${c.description}</td>
+        <td style="padding: 10px; font-size: 13px; text-align: center;">${typeLabel}</td>
+        <td style="padding: 10px; font-size: 13px; text-align: center;">${new Date(c.dueDate).toLocaleDateString("pt-BR")}</td>
+        <td style="padding: 10px; font-size: 13px; text-align: center; font-weight: bold;">R$ ${c.amount.toFixed(2)}</td>
+        <td style="padding: 10px; font-size: 11px; text-align: center; text-transform: uppercase; font-weight: bold; color: ${statusColor}">${statusText}</td>
+      </tr>
+    `
+  }).join('')
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Extrato Financeiro - ${student.name}</title><style>body{font-family: Arial, sans-serif; padding: 30px;} @media print { body { padding: 0; } }</style></head>
+  <body>
+    <div style="border-bottom: 5px solid #1e3a5f; padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: flex-end;">
+      <div>
+        <div style="font-size: 12px; font-weight: bold; color: #f97316; text-transform: uppercase; margin-bottom: 4px;">Instituto de Ensino Teológico — IETEO</div>
+        <h1 style="margin: 0; color: #1e3a5f; font-size: 26px;">Extrato Financeiro Individual</h1>
+        <div style="margin-top: 8px; font-size: 16px; color: #334155;"><strong>Aluno:</strong> ${student.name} (${student.enrollment_number})</div>
+      </div>
+      <div style="text-align: right; font-size: 14px; background: #f8fafc; padding: 10px 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <div style="margin-bottom: 4px; color: #334155;">Total de Lançamentos: <strong>${studentCharges.length}</strong></div>
+        <div style="color: green; margin-bottom: 4px;">Valor Pago: <strong>R$ ${paid.toFixed(2)}</strong></div>
+        <div style="color: red; font-size: 16px;">Pendente: <strong>R$ ${pending.toFixed(2)}</strong></div>
+      </div>
+    </div>
+    
+    <table style="width: 100%; border-collapse: collapse;">
+      <thead><tr style="text-align: left; background: #f1f5f9; border-bottom: 3px solid #1e3a5f;">
+        <th style="padding: 12px; font-size: 11px; text-transform: uppercase;">DESCRIÇÃO</th>
+        <th style="padding: 12px; font-size: 11px; text-transform: uppercase; text-align: center;">TIPO</th>
+        <th style="padding: 12px; font-size: 11px; text-transform: uppercase; text-align: center;">VENCIMENTO</th>
+        <th style="padding: 12px; font-size: 11px; text-transform: uppercase; text-align: center;">VALOR</th>
+        <th style="padding: 12px; font-size: 11px; text-transform: uppercase; text-align: center;">STATUS</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    
+    <div style="margin-top: 40px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #eee; padding-top: 20px;">
+      Documento gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')} pelo Sistema IETEO.
+    </div>
+  </body></html>`
+
+  openAndPrintHTML(html, 1000, 800)
+}
+
 export function printGradesReportPDF(grades: StudentGrade[], disciplineName: string, settings: GradeSettings): void {
   const rows = grades.map(g => {
     const final = calculateGlobalAverage(g, settings)

@@ -23,7 +23,7 @@ import {
     getFinancialSettings, updateFinancialSettings, getAssessments, triggerN8nWebhook,
     syncStudentTuitionByDisciplines, settleFinancialCharge, reverseFinancialCharge
 } from "@/lib/store"
-import { printFinancialReportPDF } from "@/lib/pdf"
+import { printFinancialReportPDF, printStudentFinancialReportPDF } from "@/lib/pdf"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { createClient } from "@/lib/supabase/client"
 
@@ -635,6 +635,15 @@ export function FinancialManager({ onRefresh, month, year, scope, poloFilter }: 
                                 <p className="text-sm text-muted-foreground">{selectedStudent?.name} ({selectedStudent?.enrollment_number})</p>
                             </div>
                             <div className="flex gap-2">
+                                <Button size="sm" variant="outline" className="h-9 text-xs font-bold border-emerald-500 text-emerald-600 hover:bg-emerald-50"
+                                    onClick={() => {
+                                        if (selectedStudent) {
+                                            const studentCharges = charges.filter(c => c.studentId === selectedStudent.id)
+                                            printStudentFinancialReportPDF(selectedStudent, studentCharges)
+                                        }
+                                    }}>
+                                    <Download className="h-3 w-3 mr-2" /> Baixar PDF
+                                </Button>
                                 <Button size="sm" variant="outline" onClick={() => setSelectedStudent(null)}>
                                     Fechar
                                 </Button>

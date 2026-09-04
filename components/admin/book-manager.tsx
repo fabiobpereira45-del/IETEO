@@ -58,7 +58,8 @@ import {
   cancelBookLoan,
   directAdminBorrow,
   evaluateLoanStatus,
-  getWhatsAppOverdueLink
+  getWhatsAppOverdueLink,
+  renewBookLoan
 } from "@/lib/books"
 import { getStudents, type StudentProfile } from "@/lib/store"
 import { AIBookGenerator } from "@/components/ai-book-generator"
@@ -215,6 +216,17 @@ export function BookManager({ isMaster, poloFilter }: Props) {
       await loadData()
     } catch (err: any) {
       alert(`Erro ao cancelar: ${err.message}`)
+    }
+  }
+
+  async function handleRenew(loanId: string) {
+    if (!confirm("Tem certeza que deseja renovar este empréstimo por mais 5 dias? A renovação só pode ser feita uma vez.")) return
+    try {
+      await renewBookLoan(loanId)
+      await loadData()
+      alert("Empréstimo renovado com sucesso!")
+    } catch (err: any) {
+      alert(`Erro ao renovar: ${err.message}`)
     }
   }
 
@@ -583,14 +595,27 @@ export function BookManager({ isMaster, poloFilter }: Props) {
                       )}
 
                       {(status === "active" || status === "late") && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleReturn(loan.id)}
-                          className="h-8 text-xs font-semibold gap-1.5 border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" /> Registrar Devolução
-                        </Button>
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleReturn(loan.id)}
+                            className="h-8 text-xs font-semibold gap-1.5 border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Registrar Devolução
+                          </Button>
+                          
+                          {!loan.renewed && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleRenew(loan.id)}
+                              className="h-8 text-xs font-semibold gap-1.5 border-blue-500/40 text-blue-600 hover:bg-blue-500/10"
+                            >
+                              <Calendar className="h-3.5 w-3.5" /> Renovar (5 Dias)
+                            </Button>
+                          )}
+                        </>
                       )}
 
                       {isOverdue && whatsappUrl && (

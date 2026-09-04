@@ -33,7 +33,8 @@ import {
   getBooks,
   getBookLoans,
   requestBookLoan,
-  evaluateLoanStatus
+  evaluateLoanStatus,
+  renewBookLoan
 } from "@/lib/books"
 import { type StudentProfile } from "@/lib/store"
 
@@ -111,6 +112,17 @@ export function StudentBooksView({ profile }: Props) {
       alert(`Não foi possível reservar o livro: ${err.message}`)
     } finally {
       setReservingBookId(null)
+    }
+  }
+
+  async function handleRenew(loanId: string) {
+    if (!confirm("Tem certeza que deseja renovar este empréstimo por mais 5 dias? A renovação só pode ser feita uma vez.")) return
+    try {
+      await renewBookLoan(loanId)
+      await loadData()
+      alert("Empréstimo renovado com sucesso!")
+    } catch (err: any) {
+      alert(`Não foi possível renovar: ${err.message}`)
     }
   }
 
@@ -236,6 +248,26 @@ export function StudentBooksView({ profile }: Props) {
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-muted text-muted-foreground">
                             ⚪ Devolvido em {new Date(loan.returnedAt!).toLocaleDateString("pt-BR")}
                           </span>
+                        )}
+                        
+                        {(status === "active" || status === "late") && !loan.renewed && (
+                          <div className="mt-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => handleRenew(loan.id)}
+                              className="h-7 text-[10px] font-semibold gap-1 border-blue-500/40 text-blue-600 hover:bg-blue-500/10"
+                            >
+                              <Calendar className="h-3 w-3" /> Renovar (+5 dias)
+                            </Button>
+                          </div>
+                        )}
+                        {(status === "active" || status === "late") && loan.renewed && (
+                          <div className="mt-2">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold bg-blue-500/10 text-blue-600 border border-blue-500/20">
+                              <Calendar className="h-2.5 w-2.5" /> Já renovado (1x)
+                            </span>
+                          </div>
                         )}
                       </div>
                     </div>
