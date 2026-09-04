@@ -5,7 +5,7 @@ import {
   Users, FileText, BookOpen, Settings, BarChart3, Download, LogOut,
   Plus, Pencil, Trash2, Eye, EyeOff, Trophy, CheckCircle2, Link2, FileCheck,
   ShieldCheck, Loader2, DollarSign, MessageSquare, CalendarCheck, GraduationCap, XCircle, ArrowLeft, Building2, UserCircle, Briefcase, Send, PlaySquare, CalendarDays, KeyRound, Save,
-  Menu, ChevronRight, Archive, ArchiveRestore, Sparkles, Calculator, Activity, MonitorPlay
+  Menu, ChevronRight, Archive, ArchiveRestore, Sparkles, Calculator, Activity, MonitorPlay, BookCopy
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -70,6 +70,7 @@ const SubmissionsTab = dynamic(() => import("./admin/tabs/SubmissionsTab").then(
 const AssessmentsTab = dynamic(() => import("./admin/tabs/AssessmentsTab").then(m => m.AssessmentsTab), { loading: LoadingFallback })
 const SettingsTab = dynamic(() => import("./admin/tabs/SettingsTab").then(m => m.SettingsTab), { loading: LoadingFallback })
 const UsageDashboard = dynamic(() => import("@/components/usage-dashboard").then(m => m.UsageDashboard), { loading: LoadingFallback })
+const BookManager = dynamic(() => import("@/components/admin/book-manager").then(m => m.BookManager), { loading: LoadingFallback })
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -86,7 +87,7 @@ function formatTime(s: number) {
   return `${m}m${sec.toString().padStart(2, "0")}s`
 }
 
-type Tab = "overview" | "students" | "grades" | "submissions" | "questions" | "assessments" | "challenges" | "professors" | "semesters" | "class_schedules" | "materials" | "financial" | "settings" | "chat" | "attendance" | "classes" | "institutional" | "grade_config" | "usage_logs" | "ead"
+type Tab = "overview" | "students" | "grades" | "submissions" | "questions" | "assessments" | "challenges" | "professors" | "semesters" | "class_schedules" | "materials" | "financial" | "settings" | "chat" | "attendance" | "classes" | "institutional" | "grade_config" | "usage_logs" | "ead" | "book_loans"
 
 interface Props {
   onLogout: () => void
@@ -196,7 +197,7 @@ export function AdminDashboard({ onLogout }: Props) {
       {
         title: "Avaliações",
         items: [
-          { id: "questions", label: "Banco de Questões", icon: <BookOpen className="h-4 w-4" />, masterOnly: true },
+          { id: "questions", label: "Banco de Questões", icon: <BookOpen className="h-4 w-4" /> },
           { id: "assessments", label: "Provas", icon: <FileText className="h-4 w-4" /> },
           { id: "challenges", label: "Missões Semanais", icon: <Sparkles className="h-4 w-4" /> },
           { id: "submissions", label: "Respostas de Provas", icon: <CheckCircle2 className="h-4 w-4" /> },
@@ -206,6 +207,7 @@ export function AdminDashboard({ onLogout }: Props) {
         title: "Recursos",
         items: [
           { id: "materials", label: "Biblioteca (PDFs)", icon: <BookOpen className="h-4 w-4" /> },
+          { id: "book_loans", label: "Locação de Livros", icon: <BookCopy className="h-4 w-4" /> },
           { id: "semesters", label: "Grade Curricular", icon: <GraduationCap className="h-4 w-4" /> },
           { id: "class_schedules", label: "Quadro de Horários", icon: <CalendarDays className="h-4 w-4" />, masterOnly: true },
         ]
@@ -432,7 +434,12 @@ export function AdminDashboard({ onLogout }: Props) {
             <LoadingFallback />
           ) : (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-              {tab === "overview" && <OverviewTab poloFilter={isMaster ? selectedPoloId : undefined} />}
+              {tab === "overview" && (
+                <OverviewTab
+                  poloFilter={isMaster ? selectedPoloId : undefined}
+                  onSelectTab={(t) => setTab(t as Tab)}
+                />
+              )}
               {tab === "students" && <StudentManager isMaster={isMaster} poloFilter={isMaster ? selectedPoloId : undefined} />}
               {tab === "grades" && <GradesManager isMaster={isMaster} poloFilter={isMaster ? selectedPoloId : undefined} />}
               {tab === "submissions" && <SubmissionsTab isMaster={isMaster} poloFilter={isMaster ? selectedPoloId : undefined} />}
@@ -450,6 +457,7 @@ export function AdminDashboard({ onLogout }: Props) {
               {tab === "financial" && <FinancialDashboard poloFilter={isMaster ? selectedPoloId : undefined} />}
               {tab === "professors" && isMaster && <ProfessorManager />}
               {tab === "institutional" && <InstitutionalManager />}
+              {tab === "book_loans" && <BookManager isMaster={isMaster} poloFilter={isMaster ? selectedPoloId : undefined} />}
               {tab === "grade_config" && isMaster && <GradeConfig />}
               {tab === "usage_logs" && isMaster && <UsageDashboard />}
             </div>

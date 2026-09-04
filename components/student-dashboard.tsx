@@ -3,7 +3,7 @@ import {
     LogOut, BookOpen, Clock, FileText, Loader2, ArrowLeft,
     CalendarDays, MessageSquare, CheckCircle2,
     Users, Menu, GraduationCap, Home, AlertCircle,
-    Library, BookOpenCheck, ChevronRight, User, X, Sparkles, MonitorPlay
+    Library, BookOpenCheck, ChevronRight, User, X, Sparkles, MonitorPlay, BookMarked
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -30,6 +30,7 @@ const LoadingFallback = () => (
   </div>
 )
 
+const StudentBooksView = dynamic(() => import("@/components/student/student-books-view").then(m => m.StudentBooksView), { loading: LoadingFallback })
 const FinancialStudentView = dynamic(() => import("@/components/financial-student-view").then(m => m.FinancialStudentView), { loading: LoadingFallback })
 const StudentChatView = dynamic(() => import("@/components/student-chat-view").then(m => m.StudentChatView), { loading: LoadingFallback })
 const StudentGradesView = dynamic(() => import("@/components/student-grades-view").then(m => m.StudentGradesView), { loading: LoadingFallback })
@@ -56,7 +57,7 @@ interface Props {
     onLogout: () => void
 }
 
-type Tab = "overview" | "class-info" | "curriculum" | "materials" | "grades" | "exams" | "journey" | "financial" | "chat" | "perfil" | "ead"
+type Tab = "overview" | "class-info" | "curriculum" | "materials" | "grades" | "exams" | "journey" | "financial" | "chat" | "perfil" | "ead" | "books"
 
 export function StudentDashboard({ session, onBack, onLogout }: Props) {
     const [profile, setProfile] = useState<StudentProfile | null>(null)
@@ -193,6 +194,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
         { id: "curriculum", label: "Grade Curricular", icon: CalendarDays },
         { id: "ead", label: "Aulas Online", icon: MonitorPlay },
         { id: "materials", label: "Materiais EAD", icon: Library },
+        { id: "books", label: "Biblioteca & Livros", icon: BookMarked },
         { id: "exams", label: "Avaliações", icon: BookOpenCheck },
         { id: "grades", label: "Boletim e Notas", icon: FileText },
         { id: "financial", label: "Financeiro", icon: Clock },
@@ -416,6 +418,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                             {tab === "curriculum" && <CurriculumTab semesters={semesters} disciplines={disciplines} />}
                             {tab === "ead" && <EadPlayer myDisciplineIds={myDisciplineIds} studentId={profile.id} studentName={profile.name} />}
                             {tab === "materials" && <MaterialsTab filteredMaterials={filteredMaterials} disciplines={disciplines} />}
+                            {tab === "books" && <StudentBooksView profile={profile} />}
                             {tab === "exams" && <StudentAssessmentView studentId={profile.id} studentName={profile.name} studentEmail={session?.email || ""} studentDoc={profile.cpf} />}
                             {tab === "grades" && <StudentGradesView studentId={profile.id} studentEmail={session?.email || ""} studentDoc={profile.cpf} />}
                             {tab === "financial" && <FinancialStudentView studentId={profile.id} />}

@@ -12,7 +12,12 @@ import {
 } from "@/lib/store"
 import { printOverviewPDF } from "@/lib/pdf"
 
-export function OverviewTab({ poloFilter }: { poloFilter?: string }) {
+interface OverviewTabProps {
+  poloFilter?: string
+  onSelectTab?: (tab: string) => void
+}
+
+export function OverviewTab({ poloFilter, onSelectTab }: OverviewTabProps) {
   const [assessments, setAssessments] = useState<Assessment[]>([])
   const [submissions, setSubmissions] = useState<StudentSubmission[]>([])
   const [questions, setQuestions] = useState<Question[]>([])
@@ -96,15 +101,24 @@ export function OverviewTab({ poloFilter }: { poloFilter?: string }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Questões no Banco", value: questions.length, icon: <BookOpen className="h-5 w-5" />, color: "text-orange" },
-          { label: "Provas Criadas", value: assessments.length, icon: <FileText className="h-5 w-5" />, color: "text-navy" },
-          { label: "Total de Disciplinas", value: disciplines.length, icon: <GraduationCap className="h-5 w-5" />, color: "text-purple-600" },
-          { label: "Média Global (Banco)", value: totalStudents > 0 ? `${avgScore}%` : "N/A", icon: <BarChart3 className="h-5 w-5" />, color: "text-primary" },
-        ].map(({ label, value, icon, color }) => (
-          <div key={label} className="bg-card border border-border/50 rounded-2xl p-6 hover-lift premium-shadow group">
+          { label: "Questões no Banco", value: questions.length, icon: <BookOpen className="h-5 w-5" />, color: "text-orange", tab: "questions" },
+          { label: "Provas Criadas", value: assessments.length, icon: <FileText className="h-5 w-5" />, color: "text-navy", tab: "assessments" },
+          { label: "Total de Disciplinas", value: disciplines.length, icon: <GraduationCap className="h-5 w-5" />, color: "text-purple-600", tab: "questions" },
+          { label: "Média Global (Banco)", value: totalStudents > 0 ? `${avgScore}%` : "N/A", icon: <BarChart3 className="h-5 w-5" />, color: "text-primary", tab: "submissions" },
+        ].map(({ label, value, icon, color, tab: targetTab }) => (
+          <div
+            key={label}
+            onClick={() => onSelectTab && targetTab && onSelectTab(targetTab)}
+            className={`bg-card border border-border/50 rounded-2xl p-6 hover-lift premium-shadow group ${
+              onSelectTab ? "cursor-pointer transition-all hover:border-primary/40 active:scale-[0.99]" : ""
+            }`}
+          >
             <div className={`${color} mb-4 p-3 rounded-xl bg-muted group-hover:bg-white transition-colors w-12 h-12 flex items-center justify-center`}>{icon}</div>
             <div className="text-3xl font-bold text-foreground tracking-tight">{value}</div>
-            <div className="text-sm font-medium text-muted-foreground mt-1">{label}</div>
+            <div className="text-sm font-medium text-muted-foreground mt-1 flex items-center justify-between">
+              <span>{label}</span>
+              {onSelectTab && <span className="text-[10px] opacity-0 group-hover:opacity-80 text-primary font-semibold transition-opacity">Acessar →</span>}
+            </div>
           </div>
         ))}
       </div>
