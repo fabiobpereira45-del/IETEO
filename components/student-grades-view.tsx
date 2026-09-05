@@ -165,25 +165,64 @@ export function StudentGradesView({ studentId, studentEmail, studentDoc }: Props
                                 const isApproved = avg >= 7.0;
 
                             return (
-                                <div key={grade.id} className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                                <div key={grade.id} className={`bg-card border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow ${
+                                    grade.isPublic && !isApproved ? 'border-red-300 bg-red-50/30' : 'border-border'
+                                }`}>
                                     <div className="flex flex-col md:flex-row justify-between gap-4">
                                         <div className="space-y-1">
-                                            <h4 className="font-bold text-lg text-foreground">{disc?.name || "Disciplina Geral"}</h4>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <h4 className="font-bold text-lg text-foreground">{disc?.name || "Disciplina Geral"}</h4>
+                                                {grade.isPublic && !isApproved && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-tighter animate-pulse">
+                                                        ⚠️ REPROVADO
+                                                    </span>
+                                                )}
+                                                {grade.isPublic && isApproved && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-black uppercase tracking-tighter">
+                                                        ✔️ APROVADO
+                                                    </span>
+                                                )}
+                                            </div>
                                             <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Semestre: {semesters.find(s => s.id === disc?.semesterId)?.name || "N/A"}</p>
                                         </div>
 
-                                        <div className="flex items-center gap-4 bg-muted/50 p-3 rounded-xl border border-border">
+                                        <div className={`flex items-center gap-4 p-3 rounded-xl border ${
+                                            grade.isPublic && !isApproved ? 'bg-red-100/50 border-red-200' : 'bg-muted/50 border-border'
+                                        }`}>
                                             <div className="text-right">
-                                                <div className="text-[10px] uppercase font-bold text-muted-foreground">{grade.isPublic ? (isApproved ? "APROVADO" : "EM ANÁLISE") : "Média Final"}</div>
-                                                <div className={`text-2xl font-black ${grade.isPublic ? (isApproved ? 'text-green-600' : 'text-amber-600') : 'text-muted-foreground opacity-50'}`}>
+                                                <div className="text-[10px] uppercase font-bold text-muted-foreground">{grade.isPublic ? (isApproved ? "MÉDIA FINAL" : "MÉDIA FINAL") : "Média Final"}</div>
+                                                <div className={`text-2xl font-black ${
+                                                    grade.isPublic 
+                                                        ? (isApproved ? 'text-green-600' : 'text-red-600') 
+                                                        : 'text-muted-foreground opacity-50'
+                                                }`}>
                                                     {grade.isPublic ? avg.toFixed(2) : "--"}
                                                 </div>
                                             </div>
-                                            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${grade.isPublic ? (isApproved ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-700') : 'bg-muted text-muted-foreground'}`}>
-                                                {grade.isPublic ? (isApproved ? <CheckCircle2 className="h-6 w-6" /> : <Award className="h-6 w-6" />) : <Clock className="h-6 w-6" />}
+                                            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                                                grade.isPublic 
+                                                    ? (isApproved ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600') 
+                                                    : 'bg-muted text-muted-foreground'
+                                            }`}>
+                                                {grade.isPublic 
+                                                    ? (isApproved ? <CheckCircle2 className="h-6 w-6" /> : <Award className="h-6 w-6" />) 
+                                                    : <Clock className="h-6 w-6" />}
                                             </div>
                                         </div>
                                     </div>
+
+                                    {/* Alerta de recuperação */}
+                                    {grade.isPublic && !isApproved && (
+                                        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+                                            <div className="mt-0.5 h-5 w-5 bg-red-500 rounded-full flex items-center justify-center shrink-0">
+                                                <span className="text-white text-[10px] font-black">!</span>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-bold text-red-800">Você foi reprovado nesta disciplina</p>
+                                                <p className="text-[11px] text-red-700 mt-0.5">Sua média final ({avg.toFixed(2)}) está abaixo da mínima exigida (7.0). Entre em contato com a secretaria ou fique atento à abertura da Prova de Recuperação.</p>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
                                         {[

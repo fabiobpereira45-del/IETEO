@@ -13,6 +13,9 @@ import {
   getQuestionsByDiscipline,
   getDisciplines,
   getSubmissionByEmailAndAssessment,
+  getStudentGrades,
+  getGradeSettings,
+  calculateGlobalAverage,
   type Assessment,
   type Question,
   type Discipline,
@@ -108,6 +111,51 @@ export function StudentLogin({ onLogin, onResult, onBack, preloadedAssessmentId 
     if (!isQuery && submitted) {
       setError("Este e-mail já foi utilizado. Para consultar sua nota, clique em 'Ver Resultado Anterior'.")
       setLoading(false); return
+    }
+
+    // ── Validação para Prova Privada (Recuperação) ──────────────
+    if (!isQuery && assessment.modality === "private") {
+      try {
+        const grades = await getStudentGrades();
+        const settings = await getGradeSettings();
+        
+        if (!settings) {
+          setError("Configurações de notas não carregadas. Tente novamente.");
+          setLoading(false); return;
+        }
+
+        const cleanEmail = trimEmail.toLowerCase();
+        const cleanName = trimName.toLowerCase();
+        
+        // Identificar a nota do aluno na mesma disciplina
+        const studentGrade = grades.find(g => {
+            const iden = g.studentIdentifier ? g.studentIdentifier.toLowerCase() : "";
+            const nome = g.studentName ? g.studentName.toLowerCase() : "";
+            
+            const matchUser = (iden === cleanEmail) || 
+                              (iden.replace(/\\D/g, '') === cleanEmail.replace(/\\D/g, '') && iden.replace(/\\D/g, '').length > 0) ||
+                              (nome === cleanName);
+            
+            return matchUser && g.disciplineId === assessment.disciplineId;
+        });
+
+        if (!studentGrade) {
+          setError("Você não possui nota registrada nesta disciplina para fazer a prova de recuperação.");
+          setLoading(false); return;
+        }
+
+        const avgStr = calculateGlobalAverage(studentGrade, settings);
+        const isPassing = parseFloat(avgStr) >= 7.0;
+
+        if (isPassing) {
+          setError("Você já está aprovado nesta disciplina (Média ≥ 7.0) e não precisa fazer esta prova de recuperação.");
+          setLoading(false); return;
+        }
+      } catch (err: any) {
+        console.error("Erro ao validar prova de recuperação:", err);
+        setError("Erro ao validar notas para a recuperação.");
+        setLoading(false); return;
+      }
     }
 
     // ── Ver resultado: fetch submission and show result directly ──────────────

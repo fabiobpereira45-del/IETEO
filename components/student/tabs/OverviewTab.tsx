@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { AlertCircle, Clock, CheckCircle2, Library, FileText, BookOpenCheck, MessageSquare, Star } from "lucide-react"
+import { AlertCircle, Clock, CheckCircle2, Library, FileText, BookOpenCheck, CreditCard, Star } from "lucide-react"
 import type { StudentProfile, FinancialCharge, Discipline } from "@/lib/store"
 import { cn } from "@/lib/utils"
 
@@ -65,23 +65,6 @@ export function OverviewTab({ profile, charges, disciplines, myClass, onTabChang
                 Bem-vindo de volta, {profile.name.split(' ')[0]}. Sua jornada teológica está em andamento.
               </p>
             </div>
-            <div className="flex gap-4">
-              <Button className="text-white font-bold rounded-2xl h-12 px-8 shadow-lg transition-all hover:scale-105" style={{ backgroundColor: '#b45309' }} onClick={() => onTabChange("curriculum")}>
-                Ver Grade
-              </Button>
-              <Button variant="ghost" className="text-white hover:bg-white/10 font-bold rounded-2xl h-12 px-8" onClick={() => onTabChange("materials")}>
-                Materiais
-              </Button>
-              {profile.status === 'active' && (
-                <Button 
-                    variant="outline" 
-                    className="hidden lg:flex border-white/30 text-white hover:bg-white/10 font-bold rounded-2xl h-12 px-8 gap-2" 
-                    onClick={() => printEnrollmentCertificatePDF(profile, myClass?.name || 'Teologia Ministerial')}
-                >
-                    <FileText className="h-4 w-4" /> Comprovante
-                </Button>
-              )}
-            </div>
           </div>
         </div>
         <div className="bg-white border border-border/50 shadow-sm rounded-3xl p-8 flex flex-col items-center justify-center text-center space-y-4 relative overflow-hidden group">
@@ -135,9 +118,9 @@ export function OverviewTab({ profile, charges, disciplines, myClass, onTabChang
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
           { id: "materials", label: "Materiais", sub: "Apostilas e PDFs", icon: Library, color: "text-blue-600", bg: "bg-blue-50" },
-          { id: "grades", label: "Boletim", sub: "Notas e Frequência", icon: FileText, color: "text-amber-600", bg: "bg-amber-50" },
+          { id: "grades", label: "Histórico de Notas", sub: "Boletim e Frequência", icon: FileText, color: "text-amber-600", bg: "bg-amber-50" },
           { id: "exams", label: "Avaliações", sub: "Provas disponíveis", icon: BookOpenCheck, color: "text-green-600", bg: "bg-green-50" },
-          { id: "chat", label: "Suporte", sub: "Dúvidas e Chat", icon: MessageSquare, color: "text-purple-600", bg: "bg-purple-50" },
+          { id: "financial", label: "Financeiro", sub: "Mensalidades e pagamentos", icon: CreditCard, color: "text-violet-600", bg: "bg-violet-50" },
         ].map((card) => (
           <button key={card.id} onClick={() => onTabChange(card.id as Tab)} className="bg-white border border-border/50 rounded-2xl p-6 shadow-sm hover:shadow-xl hover:border-primary/20 transition-all text-left flex flex-col group">
             <div className={cn("p-2 rounded-xl mb-4 w-10 h-10 flex items-center justify-center transition-transform group-hover:scale-110", card.bg, card.color)}>

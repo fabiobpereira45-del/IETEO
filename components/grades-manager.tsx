@@ -122,6 +122,7 @@ export function GradesManager({ isMaster, poloFilter }: { isMaster: boolean, pol
     const [classes, setClasses] = useState<ClassRoom[]>([])
     const [selectedClassId, setSelectedClassId] = useState<string>("all")
     const [selectedDisciplineId, setSelectedDisciplineId] = useState<string>("all")
+    const [statusFilter, setStatusFilter] = useState<"all" | "approved" | "failed">("all")
     const [searchTerm, setSearchTerm] = useState("")
     const [releasing, setReleasing] = useState(false)
     const [gradeSettings, setGradeSettings] = useState<GradeSettings | null>(null)
@@ -218,7 +219,18 @@ export function GradesManager({ isMaster, poloFilter }: { isMaster: boolean, pol
             allFiltered = allFiltered.filter(g => g.disciplineId === selectedDisciplineId);
         }
 
-        // 3. Alphabetical Sort (Locked as requested)
+        // 3. Filter by Status (Approved / Failed)
+        if (statusFilter !== "all" && gradeSettings) {
+            allFiltered = allFiltered.filter(g => {
+                const avgStr = calculateGlobalAverage(g, gradeSettings);
+                const isPassing = parseFloat(avgStr) >= 7.0;
+                if (statusFilter === "approved") return isPassing;
+                if (statusFilter === "failed") return !isPassing;
+                return true;
+            });
+        }
+
+        // 4. Alphabetical Sort (Locked as requested)
         allFiltered.sort((a, b) => a.studentName.localeCompare(b.studentName));
 
         // 4. Split into sections and filter by Class
@@ -249,7 +261,7 @@ export function GradesManager({ isMaster, poloFilter }: { isMaster: boolean, pol
         });
 
         return { matriculados, publicos };
-    }, [grades, searchTerm, selectedDisciplineId, selectedClassId, studentMap]);
+    }, [grades, searchTerm, selectedDisciplineId, statusFilter, gradeSettings, selectedClassId, studentMap]);
 
     // 3. Pagination Logic
     const paginatedMatriculados = useMemo(() => {
@@ -435,6 +447,22 @@ export function GradesManager({ isMaster, poloFilter }: { isMaster: boolean, pol
                             >
                                 <option value="all">Todas as Disciplinas</option>
                                 {disciplines.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                            </select>
+                        </div>
+
+                        <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-lg border border-border/50">
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Status:</span>
+                            <select
+                                className="bg-transparent border-none text-xs font-bold focus:ring-0 cursor-pointer text-foreground"
+                                value={statusFilter}
+                                onChange={(e) => {
+                                    setStatusFilter(e.target.value as any);
+                                    setCurrentPage(1);
+                                }}
+                            >
+                                <option value="all">Todos os Status</option>
+                                <option value="approved">Aprovados</option>
+                                <option value="failed">Reprovados</option>
                             </select>
                         </div>
 
