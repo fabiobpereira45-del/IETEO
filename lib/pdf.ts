@@ -2160,3 +2160,306 @@ export function printDisciplineQuestionsPDF({
 
   openAndPrintHTML(html, 900, 700)
 }
+
+// ─── BOLETIM INDIVIDUAL DO ALUNO ─────────────────────────────────────────────
+
+export interface StudentBoletimData {
+  student: {
+    name: string
+    enrollment_number: string
+    cpf?: string
+    email?: string
+    phone?: string
+    class_name?: string
+    modality?: string
+    status?: string
+    avatar_url?: string | null
+  }
+  grades: StudentGrade[]
+  disciplines: { id: string; name: string; semesterId?: string | null; semesterName?: string; professorName?: string | null }[]
+  semesters: { id: string; name: string; order: number }[]
+  gradeSettings: GradeSettings
+}
+
+export function printStudentBoletimPDF(data: StudentBoletimData): void {
+  const { student, grades, disciplines, semesters, gradeSettings } = data
+  const issueDate = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+  const issueTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+  // Sort semesters
+  const sortedSemesters = [...semesters].sort((a, b) => a.order - b.order)
+
+  // Calculate global stats
+  const publicGrades = grades.filter(g => g.isPublic)
+  const totalDisciplines = grades.length
+  const approvedCount = publicGrades.filter(g => parseFloat(calculateGlobalAverage(g, gradeSettings)) >= 7.0).length
+  const failedCount = publicGrades.filter(g => parseFloat(calculateGlobalAverage(g, gradeSettings)) < 7.0).length
+  const pendingCount = grades.filter(g => !g.isPublic).length
+
+  const allAvgs = publicGrades.map(g => parseFloat(calculateGlobalAverage(g, gradeSettings))).filter(n => !isNaN(n))
+  const globalAvg = allAvgs.length > 0 ? (allAvgs.reduce((a, b) => a + b, 0) / allAvgs.length) : 0
+
+  const isAllApproved = publicGrades.length > 0 && failedCount === 0 && pendingCount === 0
+  const statusLabel = isAllApproved ? 'APROVADO(A) EM TODAS AS DISCIPLINAS' : failedCount > 0 ? `REPROVADO(A) EM ${failedCount} DISCIPLINA(S)` : 'EM CURSO'
+  const statusColor = isAllApproved ? '#16a34a' : failedCount > 0 ? '#dc2626' : '#d97706'
+  const statusBg = isAllApproved ? '#dcfce7' : failedCount > 0 ? '#fee2e2' : '#fef3c7'
+
+  // Build discipline rows grouped by semester
+  const semesterSections = sortedSemesters.map(sem => {
+    const semGrades = grades.filter(g => {
+      const disc = disciplines.find(d => d.id === g.disciplineId)
+      return disc?.semesterId === sem.id
+    })
+    if (semGrades.length === 0) return ''
+
+    const rows = semGrades.map(g => {
+      const disc = disciplines.find(d => d.id === g.disciplineId)
+      const avgStr = g.isPublic ? calculateGlobalAverage(g, gradeSettings) : null
+      const avg = avgStr ? parseFloat(avgStr) : null
+      const isApproved = avg !== null && avg >= 7.0
+      const barWidth = avg !== null ? Math.min(Math.round((avg / 10) * 100), 100) : 0
+      const barColor = avg === null ? '#94a3b8' : avg >= 7 ? '#16a34a' : avg >= 5 ? '#d97706' : '#dc2626'
+      const rowBg = avg !== null && !isApproved && g.isPublic ? '#fff5f5' : '#fff'
+
+      return `
+        <tr style="background:${rowBg};border-bottom:1px solid #f1f5f9;">
+          <td style="padding:12px 16px;font-size:13px;font-weight:600;color:#1e293b;">${disc?.name || 'Disciplina Geral'}</td>
+          <td style="padding:12px 10px;font-size:12px;text-align:center;color:#64748b;">${disc?.professorName || '—'}</td>
+          <td style="padding:12px 10px;text-align:center;">
+            <span style="display:inline-block;padding:2px 8px;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:700;border-radius:4px;">${g.attendanceScore.toFixed(1)}</span>
+          </td>
+          <td style="padding:12px 10px;text-align:center;">
+            <span style="display:inline-block;padding:2px 8px;background:#f8fafc;color:#334155;font-size:11px;font-weight:700;border-radius:4px;">${g.isPublic ? g.examGrade.toFixed(1) : '🔒'}</span>
+          </td>
+          <td style="padding:12px 10px;text-align:center;">
+            ${g.worksGrade > 0 ? `<span style="display:inline-block;padding:2px 8px;background:#f8fafc;color:#334155;font-size:11px;font-weight:700;border-radius:4px;">${g.worksGrade.toFixed(1)}</span>` : '<span style="color:#cbd5e1;font-size:11px;">—</span>'}
+          </td>
+          <td style="padding:12px 10px;min-width:120px;">
+            ${avg !== null ? `
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div style="flex:1;height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;">
+                  <div style="width:${barWidth}%;height:100%;background:${barColor};border-radius:3px;"></div>
+                </div>
+                <span style="font-size:12px;font-weight:800;color:${barColor};min-width:32px;">${avg.toFixed(1)}</span>
+              </div>
+            ` : '<span style="font-size:11px;color:#94a3b8;font-style:italic;">Aguardando</span>'}
+          </td>
+          <td style="padding:12px 10px;text-align:center;">
+            ${avg !== null
+              ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;background:${isApproved ? '#dcfce7' : '#fee2e2'};color:${isApproved ? '#166534' : '#991b1b'};">${isApproved ? '✓ Aprovado' : '✗ Reprovado'}</span>`
+              : `<span style="display:inline-flex;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:800;text-transform:uppercase;background:#fef3c7;color:#92400e;">Em Curso</span>`
+            }
+          </td>
+        </tr>
+      `
+    }).join('')
+
+    return `
+      <div style="margin-bottom:24px;">
+        <div style="background:#1e3a5f;color:#fff;padding:8px 16px;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;border-radius:6px 6px 0 0;">${sem.name}</div>
+        <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 6px 6px;overflow:hidden;">
+          <thead>
+            <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
+              <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">Disciplina</th>
+              <th style="padding:10px;text-align:center;font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">Professor(a)</th>
+              <th style="padding:10px;text-align:center;font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.5px;">Presença</th>
+              <th style="padding:10px;text-align:center;font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">Prova</th>
+              <th style="padding:10px;text-align:center;font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">Trabalhos</th>
+              <th style="padding:10px;text-align:center;font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">Média Final</th>
+              <th style="padding:10px;text-align:center;font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">Situação</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `
+  }).join('')
+
+  // Disciplines without a semester
+  const unsortedGrades = grades.filter(g => {
+    const disc = disciplines.find(d => d.id === g.disciplineId)
+    return !disc?.semesterId || !semesters.find(s => s.id === disc.semesterId)
+  })
+  const unsortedRows = unsortedGrades.map(g => {
+    const disc = disciplines.find(d => d.id === g.disciplineId)
+    const avgStr = g.isPublic ? calculateGlobalAverage(g, gradeSettings) : null
+    const avg = avgStr ? parseFloat(avgStr) : null
+    const isApproved = avg !== null && avg >= 7.0
+    const barWidth = avg !== null ? Math.min(Math.round((avg / 10) * 100), 100) : 0
+    const barColor = avg === null ? '#94a3b8' : avg >= 7 ? '#16a34a' : avg >= 5 ? '#d97706' : '#dc2626'
+    const rowBg = avg !== null && !isApproved && g.isPublic ? '#fff5f5' : '#fff'
+
+    return `
+      <tr style="background:${rowBg};border-bottom:1px solid #f1f5f9;">
+        <td style="padding:12px 16px;font-size:13px;font-weight:600;color:#1e293b;">${disc?.name || 'Disciplina Geral'}</td>
+        <td style="padding:12px 10px;font-size:12px;text-align:center;color:#64748b;">${disc?.professorName || '—'}</td>
+        <td style="padding:12px 10px;text-align:center;"><span style="font-size:11px;font-weight:700;">${g.attendanceScore.toFixed(1)}</span></td>
+        <td style="padding:12px 10px;text-align:center;"><span style="font-size:11px;font-weight:700;">${g.isPublic ? g.examGrade.toFixed(1) : '🔒'}</span></td>
+        <td style="padding:12px 10px;text-align:center;">${g.worksGrade > 0 ? g.worksGrade.toFixed(1) : '—'}</td>
+        <td style="padding:12px 10px;min-width:120px;">
+          ${avg !== null ? `
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="flex:1;height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;">
+                <div style="width:${barWidth}%;height:100%;background:${barColor};border-radius:3px;"></div>
+              </div>
+              <span style="font-size:12px;font-weight:800;color:${barColor};min-width:32px;">${avg.toFixed(1)}</span>
+            </div>
+          ` : '<span style="font-size:11px;color:#94a3b8;font-style:italic;">Aguardando</span>'}
+        </td>
+        <td style="padding:12px 10px;text-align:center;">
+          ${avg !== null
+            ? `<span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:800;background:${isApproved ? '#dcfce7' : '#fee2e2'};color:${isApproved ? '#166534' : '#991b1b'};">${isApproved ? '✓ Aprovado' : '✗ Reprovado'}</span>`
+            : `<span style="padding:3px 10px;border-radius:20px;font-size:10px;font-weight:800;background:#fef3c7;color:#92400e;">Em Curso</span>`
+          }
+        </td>
+      </tr>
+    `
+  }).join('')
+
+  const unsortedSection = unsortedGrades.length > 0 ? `
+    <div style="margin-bottom:24px;">
+      <div style="background:#475569;color:#fff;padding:8px 16px;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;border-radius:6px 6px 0 0;">Outras Disciplinas</div>
+      <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 6px 6px;overflow:hidden;">
+        <thead>
+          <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
+            <th style="padding:10px 16px;text-align:left;font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;">Disciplina</th>
+            <th style="padding:10px;text-align:center;font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;">Professor(a)</th>
+            <th style="padding:10px;text-align:center;font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;">Presença</th>
+            <th style="padding:10px;text-align:center;font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;">Prova</th>
+            <th style="padding:10px;text-align:center;font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;">Trabalhos</th>
+            <th style="padding:10px;text-align:center;font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;">Média Final</th>
+            <th style="padding:10px;text-align:center;font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;">Situação</th>
+          </tr>
+        </thead>
+        <tbody>${unsortedRows}</tbody>
+      </table>
+    </div>
+  ` : ''
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Boletim Acadêmico — ${student.name}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; background: #f1f5f9; }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .no-print { display: none; }
+      .page-container { box-shadow: none; margin: 0; border-radius: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div style="max-width:900px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.12);">
+
+    <!-- ── HEADER INSTITUCIONAL ── -->
+    <div style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 60%,#1e4080 100%);padding:40px 48px;position:relative;overflow:hidden;">
+      <div style="position:absolute;top:-40px;right:-40px;width:200px;height:200px;border-radius:50%;background:rgba(180,83,9,.15);"></div>
+      <div style="position:absolute;bottom:-60px;left:60px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.04);"></div>
+
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1;">
+        <div>
+          <div style="font-size:10px;font-weight:800;color:#f97316;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;">Instituto de Ensino Teológico</div>
+          <h1 style="font-size:32px;font-weight:900;color:#fff;letter-spacing:-0.5px;line-height:1.1;margin-bottom:4px;">BOLETIM ACADÊMICO</h1>
+          <div style="font-size:13px;color:rgba(255,255,255,.6);font-weight:500;">Declaração Oficial de Desempenho Escolar</div>
+        </div>
+        <div style="text-align:right;color:rgba(255,255,255,.7);font-size:11px;">
+          <div>Emitido em</div>
+          <div style="font-size:14px;font-weight:700;color:#fff;">${issueDate}</div>
+          <div style="margin-top:2px;">${issueTime}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── DADOS DO ALUNO ── -->
+    <div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:28px 48px;">
+      <div style="display:flex;align-items:center;gap:24px;">
+        ${student.avatar_url
+          ? `<img src="${student.avatar_url}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid #e2e8f0;flex-shrink:0;" alt="${student.name}" onerror="this.style.display='none'" />`
+          : `<div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#1e3a5f,#2563eb);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <span style="font-size:28px;font-weight:900;color:#fff;">${student.name.charAt(0).toUpperCase()}</span>
+            </div>`
+        }
+        <div style="flex:1;">
+          <h2 style="font-size:22px;font-weight:800;color:#0f172a;margin-bottom:6px;">${student.name}</h2>
+          <div style="display:flex;flex-wrap:wrap;gap:16px;">
+            <div style="font-size:12px;color:#64748b;"><span style="font-weight:700;color:#334155;">Matrícula:</span> ${student.enrollment_number}</div>
+            ${student.cpf ? `<div style="font-size:12px;color:#64748b;"><span style="font-weight:700;color:#334155;">CPF:</span> ${student.cpf}</div>` : ''}
+            ${student.class_name ? `<div style="font-size:12px;color:#64748b;"><span style="font-weight:700;color:#334155;">Turma:</span> ${student.class_name}</div>` : ''}
+            ${student.modality ? `<div style="font-size:12px;color:#64748b;"><span style="font-weight:700;color:#334155;">Modalidade:</span> ${student.modality}</div>` : ''}
+          </div>
+        </div>
+        <div style="text-align:center;padding:16px 24px;border-radius:12px;background:${statusBg};border:2px solid ${statusColor}20;min-width:180px;">
+          <div style="font-size:10px;font-weight:700;color:${statusColor};text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Situação Geral</div>
+          <div style="font-size:12px;font-weight:900;color:${statusColor};line-height:1.2;">${statusLabel}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── KPIs ── -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:1px solid #e2e8f0;">
+      ${[
+        { label: 'Total de Disciplinas', value: totalDisciplines, color: '#1e3a5f', sub: 'registradas' },
+        { label: 'Aprovadas', value: approvedCount, color: '#16a34a', sub: 'com média ≥ 7.0' },
+        { label: 'Reprovadas', value: failedCount, color: '#dc2626', sub: 'com média < 7.0' },
+        { label: 'Média Geral', value: allAvgs.length > 0 ? globalAvg.toFixed(2) : '—', color: globalAvg >= 7 ? '#16a34a' : globalAvg >= 5 ? '#d97706' : '#dc2626', sub: 'das disciplinas liberadas' },
+      ].map((kpi, i) => `
+        <div style="padding:20px 24px;text-align:center;${i < 3 ? 'border-right:1px solid #e2e8f0;' : ''}">
+          <div style="font-size:28px;font-weight:900;color:${kpi.color};">${kpi.value}</div>
+          <div style="font-size:11px;font-weight:700;color:#334155;text-transform:uppercase;letter-spacing:.5px;margin-top:4px;">${kpi.label}</div>
+          <div style="font-size:10px;color:#94a3b8;margin-top:2px;">${kpi.sub}</div>
+        </div>
+      `).join('')}
+    </div>
+
+    <!-- ── TABELA DE NOTAS ── -->
+    <div style="padding:32px 48px;">
+      <h3 style="font-size:16px;font-weight:800;color:#0f172a;margin-bottom:20px;display:flex;align-items:center;gap:8px;">
+        <span style="display:inline-block;width:4px;height:20px;background:#1e3a5f;border-radius:2px;"></span>
+        Histórico de Notas por Disciplina
+      </h3>
+      ${semesterSections}
+      ${unsortedSection}
+      ${grades.length === 0 ? '<p style="text-align:center;color:#94a3b8;font-style:italic;padding:40px;">Nenhuma nota lançada para este aluno.</p>' : ''}
+    </div>
+
+    <!-- ── OBSERVAÇÕES / LEGENDA ── -->
+    <div style="margin:0 48px;padding:16px 20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:32px;">
+      <div style="font-size:10px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Legenda e Critérios de Avaliação</div>
+      <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:11px;color:#475569;">
+        <div><strong>Presença:</strong> Cada presença registrada = 2,5 pts</div>
+        <div><strong>Aprovação:</strong> Média Final ≥ 7,0</div>
+        <div><strong>🔒 Prova bloqueada:</strong> Aguardando liberação pelo professor</div>
+        <div><strong>Fórmula:</strong> ${gradeSettings.divisor > 1 ? `Soma das notas ÷ ${gradeSettings.divisor}` : 'Ponderação por pesos configurados'}</div>
+      </div>
+    </div>
+
+    <!-- ── ASSINATURA / RODAPÉ ── -->
+    <div style="background:#f8fafc;border-top:2px solid #e2e8f0;padding:32px 48px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:40px;">
+        <div style="text-align:center;flex:1;">
+          <div style="border-top:1px solid #334155;padding-top:10px;font-size:11px;color:#64748b;">Secretaria Acadêmica</div>
+          <div style="font-size:10px;color:#94a3b8;margin-top:2px;">Instituto de Ensino Teológico — IETEO</div>
+        </div>
+        <div style="text-align:center;flex:1;">
+          <div style="border-top:1px solid #334155;padding-top:10px;font-size:11px;color:#64748b;">Coordenação Pedagógica</div>
+          <div style="font-size:10px;color:#94a3b8;margin-top:2px;">Homologado pelo Sistema</div>
+        </div>
+        <div style="text-align:center;flex:1;">
+          <div style="border-top:1px solid #334155;padding-top:10px;font-size:11px;color:#64748b;">${student.name}</div>
+          <div style="font-size:10px;color:#94a3b8;margin-top:2px;">Aluno(a) — Ciente do Boletim</div>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:24px;font-size:10px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:16px;">
+        Documento gerado pelo Sistema de Gestão Acadêmica IETEO · ${issueDate} · Matrícula: ${student.enrollment_number}
+        <br/>Este documento tem validade oficial somente quando acompanhado de carimbo e assinatura da secretaria.
+      </div>
+    </div>
+  </div>
+</body>
+</html>`
+
+  openAndPrintHTML(html, 960, 820)
+}

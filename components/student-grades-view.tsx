@@ -1,18 +1,21 @@
 import { useEffect, useState } from "react"
-import { FileText, Award, CalendarCheck, Loader2, Calculator, CheckCircle2, Clock } from "lucide-react"
+import { FileText, Award, CalendarCheck, Loader2, Calculator, CheckCircle2, Clock, Download } from "lucide-react"
 import {
-    type Discipline, type Semester, type StudentSubmission, type Attendance, type Assessment, type StudentGrade,
+    type Discipline, type Semester, type StudentSubmission, type Attendance, type Assessment, type StudentGrade, type StudentProfile,
     getDisciplines, getSemesters, getSubmissions, getAttendances, getAssessments, getStudentGrades, getStudentAttendances,
-    getGradeSettings, calculateGlobalAverage, type GradeSettings
+    getGradeSettings, calculateGlobalAverage, type GradeSettings, getClasses
 } from "@/lib/store"
+import { printStudentBoletimPDF } from "@/lib/pdf"
+import { Button } from "@/components/ui/button"
 
 interface Props {
     studentId: string
     studentEmail: string
     studentDoc?: string
+    studentProfile?: StudentProfile | null
 }
 
-export function StudentGradesView({ studentId, studentEmail, studentDoc }: Props) {
+export function StudentGradesView({ studentId, studentEmail, studentDoc, studentProfile }: Props) {
     const [disciplines, setDisciplines] = useState<Discipline[]>([])
     const [semesters, setSemesters] = useState<Semester[]>([])
     const [officialGrades, setOfficialGrades] = useState<StudentGrade[]>([])
@@ -118,11 +121,38 @@ export function StudentGradesView({ studentId, studentEmail, studentDoc }: Props
                     <h3 className="text-xl font-bold text-foreground">Meu Desempenho Oficial</h3>
                     <p className="text-sm text-muted-foreground">Aqui você encontra as notas finais lançadas e validadas pela secretaria e professores.</p>
                 </div>
-                <div className="flex gap-4">
+                <div className="flex items-center gap-4">
                     <div className="text-center">
                         <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest mb-1">Disciplinas</div>
                         <div className="text-2xl font-black text-primary">{officialGrades.length}</div>
                     </div>
+                    {officialGrades.length > 0 && gradeSettings && (
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-2 border-primary text-primary hover:bg-primary/10 h-9 font-bold"
+                            onClick={() => {
+                                const classes: any[] = []
+                                printStudentBoletimPDF({
+                                    student: {
+                                        name: studentProfile?.name || 'Aluno(a)',
+                                        enrollment_number: studentProfile?.enrollment_number || studentId,
+                                        cpf: studentProfile?.cpf,
+                                        email: studentProfile?.email || studentEmail,
+                                        class_name: undefined,
+                                        modality: studentProfile?.modality || undefined,
+                                        avatar_url: studentProfile?.avatar_url,
+                                    },
+                                    grades: officialGrades,
+                                    disciplines,
+                                    semesters,
+                                    gradeSettings,
+                                })
+                            }}
+                        >
+                            <Download className="h-4 w-4" /> Baixar Boletim PDF
+                        </Button>
+                    )}
                 </div>
             </div>
 
