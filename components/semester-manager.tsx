@@ -36,12 +36,14 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
     const [disciplines, setDisciplines] = useState<Discipline[]>([])
     const [professors, setProfessors] = useState<ProfessorAccount[]>([])
     const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+    const [activeModality, setActiveModality] = useState<string>("presencial")
 
     // Semester modal
     const [semModal, setSemModal] = useState(false)
     const [editingSem, setEditingSem] = useState<Semester | null>(null)
     const [semName, setSemName] = useState("")
     const [semOrder, setSemOrder] = useState("")
+    const [semModality, setSemModality] = useState<string>("presencial")
     const [selectedPoolDiscs, setSelectedPoolDiscs] = useState<Set<string>>(new Set())
     const [deleteSemId, setDeleteSemId] = useState<string | null>(null)
 
@@ -76,6 +78,9 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
     // Pool = disciplines not linked to any semester
     const poolDiscs = useMemo(() => disciplines.filter(d => !d.semesterId), [disciplines])
 
+    // Semesters filtered by active modality
+    const filteredSemesters = useMemo(() => semesters.filter(s => (s.modality || 'presencial') === activeModality), [semesters, activeModality])
+
     // Filtered pool for search
     const filteredPool = useMemo(() => {
         if (!discSearch.trim()) return poolDiscs
@@ -93,10 +98,10 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
         if (!semName.trim() || !semOrder.trim()) return
         let semId = ""
         if (editingSem) {
-            await updateSemester(editingSem.id, { name: semName.trim(), order: parseInt(semOrder, 10) })
+            await updateSemester(editingSem.id, { name: semName.trim(), order: parseInt(semOrder, 10), modality: semModality })
             semId = editingSem.id
         } else {
-            const newSem = await addSemester(semName.trim(), parseInt(semOrder, 10))
+            const newSem = await addSemester(semName.trim(), parseInt(semOrder, 10), undefined, semModality)
             semId = newSem.id
         }
 
@@ -278,13 +283,32 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
                     <p className="text-sm text-muted-foreground">
                         Organize por semestre e dia da semana — a mesma disciplina pode aparecer em dias diferentes
                     </p>
+                    <div className="flex gap-1 mt-3 bg-muted rounded-lg p-1 w-fit">
+                        {[
+                            { key: "presencial", label: "Presencial" },
+                            { key: "semi_presencial", label: "Semipresencial / Online" },
+                        ].map(opt => (
+                            <button
+                                key={opt.key}
+                                className={cn(
+                                    "px-4 py-1.5 text-xs font-semibold rounded-md transition-all",
+                                    activeModality === opt.key
+                                        ? "bg-primary text-primary-foreground shadow-sm"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-background"
+                                )}
+                                onClick={() => setActiveModality(opt.key)}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => printCurriculumPDF(semesters, disciplines)} className="border-primary text-primary hover:bg-primary/10">
+                    <Button variant="outline" onClick={() => printCurriculumPDF(filteredSemesters, disciplines)} className="border-primary text-primary hover:bg-primary/10">
                         <Download className="h-4 w-4 mr-2" /> Exportar PDF
                     </Button>
                     <Button variant="outline" onClick={() => {
-                        setEditingSem(null); setSemName(""); setSemOrder(String(semesters.length + 1)); setSelectedPoolDiscs(new Set()); setSemModal(true)
+                        setEditingSem(null); setSemName(""); setSemOrder(String(semesters.length + 1)); setSemModality(activeModality); setSelectedPoolDiscs(new Set()); setSemModal(true)
                     }}>
                         <CalendarDays className="h-4 w-4 mr-2" /> Novo Semestre
                     </Button>
@@ -300,13 +324,13 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
                     <div className="border border-dashed border-border rounded-2xl p-12 text-center text-muted-foreground">
                         <CalendarDays className="h-10 w-10 mx-auto opacity-30 mb-3" />
                         <p className="text-sm">Nenhum semestre criado ainda.</p>
-                        <Button size="sm" variant="outline" className="mt-4" onClick={() => { setEditingSem(null); setSemName(""); setSemOrder("1"); setSemModal(true) }}>
+                        <Button size="sm" variant="outline" className="mt-4" onClick={() => { setEditingSem(null); setSemName(""); setSemOrder("1"); setSemModality(activeModality); setSemModal(true) }}>
                             <Plus className="h-3.5 w-3.5 mr-1.5" /> Criar primeiro semestre
                         </Button>
                     </div>
                 )}
 
-                {semesters.map(sem => {
+                {filteredSemesters.map(sem => {
                     const semDiscs = disciplines.filter(d => d.semesterId === sem.id)
 
                     return (
@@ -341,7 +365,7 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
                                     <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-primary gap-1" onClick={() => openNewDisc(sem.id)}>
                                         <Plus className="h-3.5 w-3.5" /> Disciplina
                                     </Button>
-                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { setEditingSem(sem); setSemName(sem.name); setSemOrder(String(sem.order)); setSelectedPoolDiscs(new Set()); setSemModal(true) }}>
+                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { setEditingSem(sem); setSemName(sem.name); setSemOrder(String(sem.order)); setSemModality(sem.modality || 'presencial'); setSelectedPoolDiscs(new Set()); setSemModal(true) }}>
                                         <Pencil className="h-3.5 w-3.5" />
                                     </Button>
                                     {isMaster && (
@@ -490,6 +514,16 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
                         <div className="flex flex-col gap-1.5">
                             <Label>Ordem de exibição *</Label>
                             <Input type="number" min={1} value={semOrder} onChange={e => setSemOrder(e.target.value)} placeholder="Ex: 1" />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <Label>Modalidade</Label>
+                            <Select value={semModality} onValueChange={setSemModality}>
+                                <SelectTrigger><SelectValue placeholder="Selecione a modalidade" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="presencial">Presencial</SelectItem>
+                                    <SelectItem value="semi_presencial">Semipresencial / Online</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         {poolDiscs.length > 0 && (

@@ -7,7 +7,7 @@ export { triggerN8nWebhook }
 export type QuestionType = "multiple-choice" | "true-false" | "discursive" | "incorrect-alternative" | "fill-in-the-blank" | "matching"
 export interface Choice { id: string; text: string }
 export interface MatchingPair { id: string; left: string; right: string }
-export interface Semester { id: string; name: string; order: number; shift?: string; isConcluded?: boolean; createdAt: string }
+export interface Semester { id: string; name: string; order: number; shift?: string; modality?: string; isConcluded?: boolean; createdAt: string }
 export interface Discipline { id: string; name: string; description?: string | null; semesterId?: string | null; semesterOrder?: number; semesterName?: string; professorName?: string | null; dayOfWeek?: string | null; shift?: string | null; order: number; applicationMonth?: string | null; applicationYear?: string | null; isConcluded?: boolean; createdAt: string }
 export interface StudyMaterial { id: string; disciplineId: string; title: string; description?: string; fileUrl: string; createdAt: string }
 export interface FinancialSettings { 
@@ -425,7 +425,7 @@ export function saveDraftAnswers(answers: StudentAnswer[]): void { writeLocal(KE
 
 // DB Mappers
 // DB Mappers
-function mapSemester(row: any): Semester { return { id: row.id, name: row.name, order: row.order, shift: row.shift || undefined, isConcluded: !!row.is_concluded, createdAt: row.created_at } }
+function mapSemester(row: any): Semester { return { id: row.id, name: row.name, order: row.order, shift: row.shift || undefined, modality: row.modality || 'presencial', isConcluded: !!row.is_concluded, createdAt: row.created_at } }
 function mapStudyMaterial(row: any): StudyMaterial { return { id: row.id, disciplineId: row.discipline_id, title: row.title, description: row.description || undefined, fileUrl: row.file_url, createdAt: row.created_at } }
 function mapDiscipline(row: any): Discipline { return { id: row.id, name: row.name, description: row.description || undefined, semesterId: row.semester_id || undefined, professorName: row.professor_name || undefined, dayOfWeek: row.day_of_week || undefined, shift: row.shift || undefined, order: Number(row.order || 0), applicationMonth: row.application_month, applicationYear: row.application_year, isConcluded: !!row.is_concluded, createdAt: row.created_at } }
 function mapQuestion(row: any): Question {
@@ -1023,19 +1023,20 @@ export async function getSemesters(): Promise<Semester[]> {
   return (data || []).map(mapSemester)
 }
 
-export async function addSemester(name: string, order: number, shift?: string): Promise<Semester> {
-  const s = { name, order, shift: shift || null, is_concluded: false, created_at: new Date().toISOString() }
+export async function addSemester(name: string, order: number, shift?: string, modality?: string): Promise<Semester> {
+  const s = { name, order, shift: shift || null, modality: modality || 'presencial', is_concluded: false, created_at: new Date().toISOString() }
   const supabase = createClient()
   const { data, error } = await supabase.from('semesters').insert(s).select().single()
   if (error) throw new Error(error.message)
   return mapSemester(data)
 }
-export async function updateSemester(id: string, data: Partial<Pick<Semester, "name" | "order" | "shift" | "isConcluded">>): Promise<void> {
+export async function updateSemester(id: string, data: Partial<Pick<Semester, "name" | "order" | "shift" | "modality" | "isConcluded">>): Promise<void> {
   const supabase = createClient()
   const updatePayload: any = {}
   if (data.name !== undefined) updatePayload.name = data.name
   if (data.order !== undefined) updatePayload.order = data.order
   if (data.shift !== undefined) updatePayload.shift = data.shift || null
+  if (data.modality !== undefined) updatePayload.modality = data.modality || 'presencial'
   if (data.isConcluded !== undefined) updatePayload.is_concluded = data.isConcluded
 
   const { error, count } = await supabase.from('semesters').update(updatePayload).eq('id', id).select('id', { count: 'exact' })
