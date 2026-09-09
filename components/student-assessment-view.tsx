@@ -6,14 +6,19 @@ import { AssessmentResult } from "@/components/assessment-result"
 import {
     getAssessments,
     getDisciplines,
+    getStudentGrades,
+    getGradeSettings,
+    calculateGlobalAverage,
     type Assessment,
     type StudentSubmission,
     type Discipline,
-    type StudentSession
+    type StudentSession,
+    type StudentGrade,
+    type GradeSettings,
 } from "@/lib/store"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
-import { BookOpenCheck, CheckCircle2, ArrowRight, Loader2, CalendarDays, Lock, FileText } from "lucide-react"
+import { BookOpenCheck, CheckCircle2, ArrowRight, Loader2, CalendarDays, Lock, FileText, ShieldAlert } from "lucide-react"
 
 interface Props {
     studentId: string
@@ -28,6 +33,8 @@ export function StudentAssessmentView({ studentId, studentName, studentEmail, st
     const [assessments, setAssessments] = useState<Assessment[]>([])
     const [disciplines, setDisciplines] = useState<Discipline[]>([])
     const [submissions, setSubmissions] = useState<StudentSubmission[]>([])
+    const [studentGrades, setStudentGrades] = useState<StudentGrade[]>([])
+    const [gradeSettings, setGradeSettings] = useState<GradeSettings | null>(null)
 
     const [loading, setLoading] = useState(true)
     const [viewState, setViewState] = useState<ViewState>("list")
@@ -40,7 +47,12 @@ export function StudentAssessmentView({ studentId, studentName, studentEmail, st
         async function loadData() {
             setLoading(true)
             try {
-                const [a, d] = await Promise.all([getAssessments(), getDisciplines()])
+                const [a, d, allGrades, settings] = await Promise.all([
+                    getAssessments(),
+                    getDisciplines(),
+                    getStudentGrades(),
+                    getGradeSettings(),
+                ])
 
                 // Fetch submissions for this student's ID (Strict Isolation)
                 const { data: subsData } = await supabase
@@ -63,9 +75,22 @@ export function StudentAssessmentView({ studentId, studentName, studentEmail, st
                     createdAt: row.created_at,
                 }))
 
+                // Filter official grades for this student
+                const myGrades = allGrades.filter(g => {
+                    const idMatch = !!(studentId && (g.studentId === studentId || g.student_id === studentId))
+                    const cleanDoc = studentDoc?.replace(/\D/g, '') || ""
+                    const cleanIdentifier = g.studentIdentifier?.replace(/\D/g, '') || ""
+                    const docMatch = !!(cleanDoc && cleanIdentifier && cleanDoc === cleanIdentifier)
+                    const emailMatch = !!(g.studentIdentifier && studentEmail && g.studentIdentifier.toLowerCase().trim() === studentEmail.toLowerCase().trim())
+                    const rawIdentMatch = !!(g.studentIdentifier && (g.studentIdentifier === studentDoc || g.studentIdentifier === studentId))
+                    return idMatch || docMatch || emailMatch || rawIdentMatch
+                })
+
                 setAssessments(a.filter(ass => ass.isPublished))
                 setDisciplines(d)
                 setSubmissions(subs)
+                setStudentGrades(myGrades)
+                setGradeSettings(settings)
             } catch (err) {
                 console.error("Error loading assessments", err)
             } finally {
@@ -74,6 +99,28 @@ export function StudentAssessmentView({ studentId, studentName, studentEmail, st
         }
         loadData()
     }, [studentId, studentEmail, supabase])
+
+    /**
+     * Computes a student's average for a given discipline.
+     * Returns null if no official grade record exists for this discipline.
+     */
+    const getAverageForDiscipline = (disciplineId: string): number | null => {
+        if (!gradeSettings) return null
+        const grade = studentGrades.find(g => g.disciplineId === disciplineId)
+        if (!grade) return null
+        return parseFloat(calculateGlobalAverage(grade, gradeSettings))
+    }
+
+    /**
+     * Resolves whether a Final Exam is accessible to the current student.
+     * Returns: "available" | "blocked_approved" | "blocked_no_grade"
+     */
+    const getFinalExamStatus = (ass: Assessment): "available" | "blocked_approved" | "blocked_no_grade" => {
+        const avg = getAverageForDiscipline(ass.disciplineId)
+        if (avg === null) return "blocked_no_grade"
+        if (avg >= 7.0) return "blocked_approved"
+        return "available"
+    }
 
     const handleStart = (ass: Assessment) => {
         setSelectedAssessment(ass)
@@ -87,7 +134,6 @@ export function StudentAssessmentView({ studentId, studentName, studentEmail, st
     }
 
     const handleCompleteTest = (sub: StudentSubmission) => {
-        // Add to local state and show result
         setSubmissions(prev => [...prev.filter(s => s.id !== sub.id), sub])
         setSelectedSubmission(sub)
         setViewState("result")
@@ -166,16 +212,37 @@ export function StudentAssessmentView({ studentId, studentName, studentEmail, st
                         const isClosed = (ass.closeAt && new Date(ass.closeAt) < now)
                         const isTakeable = isOpen && !isClosed
 
+                        // Final exam access control
+                        const finalExamStatus = ass.isFinalExam ? getFinalExamStatus(ass) : null
+                        const isFinalExamBlocked = finalExamStatus === "blocked_approved" || finalExamStatus === "blocked_no_grade"
+
                         return (
-                            <div key={ass.id} className="bg-card border border-border rounded-xl p-5 shadow-sm hover:border-accent/40 transition-colors flex flex-col h-full">
+                            <div key={ass.id} className={`bg-card border rounded-xl p-5 shadow-sm transition-colors flex flex-col h-full ${
+                                ass.isFinalExam
+                                    ? isFinalExamBlocked
+                                        ? "border-muted/60 opacity-75"
+                                        : "border-amber-300 hover:border-amber-400"
+                                    : "border-border hover:border-accent/40"
+                            }`}>
                                 <div className="flex items-start justify-between gap-3 mb-4">
                                     <div className="flex-1 min-w-0">
-                                        <h4 className="font-bold text-foreground text-lg line-clamp-2 leading-tight mb-1">{ass.title}</h4>
+                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                            <h4 className="font-bold text-foreground text-lg line-clamp-2 leading-tight">{ass.title}</h4>
+                                            {ass.isFinalExam && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black uppercase tracking-tighter shrink-0">
+                                                    <ShieldAlert className="h-3 w-3" /> Prova Final
+                                                </span>
+                                            )}
+                                        </div>
                                         <p className="text-sm text-accent font-medium">{disc?.name ?? "Geral"} • Prof. {ass.professor}</p>
                                     </div>
                                     {sub ? (
                                         <div className="bg-green-100 text-green-700 p-2 rounded-full shrink-0" title="Prova Realizada">
                                             <CheckCircle2 className="h-5 w-5" />
+                                        </div>
+                                    ) : isFinalExamBlocked ? (
+                                        <div className="bg-muted text-muted-foreground p-2 rounded-full shrink-0" title="Prova Bloqueada">
+                                            <Lock className="h-5 w-5" />
                                         </div>
                                     ) : !isTakeable ? (
                                         <div className="bg-muted text-muted-foreground p-2 rounded-full shrink-0" title="Prova Fechada">
@@ -194,6 +261,30 @@ export function StudentAssessmentView({ studentId, studentName, studentEmail, st
                                     )}
                                 </div>
 
+                                {/* Final Exam info block */}
+                                {ass.isFinalExam && !sub && (
+                                    <div className={`mb-3 p-3 rounded-xl border text-[11px] font-medium flex items-start gap-2 ${
+                                        finalExamStatus === "blocked_approved"
+                                            ? "bg-green-50 border-green-200 text-green-800"
+                                            : finalExamStatus === "blocked_no_grade"
+                                            ? "bg-muted/50 border-border text-muted-foreground"
+                                            : "bg-amber-50 border-amber-200 text-amber-800"
+                                    }`}>
+                                        <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
+                                        <span>
+                                            {finalExamStatus === "blocked_approved" && (
+                                                <>Você foi <strong>aprovado(a)</strong> nesta disciplina (média {getAverageForDiscipline(ass.disciplineId)?.toFixed(2)}). A Prova Final está disponível apenas para alunos com média abaixo de 7.0.</>
+                                            )}
+                                            {finalExamStatus === "blocked_no_grade" && (
+                                                <>Aguardando lançamento de nota pelo professor. A Prova Final será liberada após a confirmação da sua média.</>
+                                            )}
+                                            {finalExamStatus === "available" && (
+                                                <>Sua média atual ({getAverageForDiscipline(ass.disciplineId)?.toFixed(2)}) está abaixo do mínimo (7.0). Você tem acesso à Prova Final de Recuperação.</>
+                                            )}
+                                        </span>
+                                    </div>
+                                )}
+
                                 <div className="mt-auto pt-4 border-t border-border/50">
                                     {sub ? (
                                         <Button
@@ -204,12 +295,17 @@ export function StudentAssessmentView({ studentId, studentName, studentEmail, st
                                             <span>Ver Resultado</span>
                                             <ArrowRight className="h-4 w-4 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                                         </Button>
+                                    ) : isFinalExamBlocked ? (
+                                        <Button variant="secondary" disabled className="w-full">
+                                            <Lock className="h-4 w-4 mr-2" />
+                                            {finalExamStatus === "blocked_approved" ? "Aprovado — Prova Final Indisponível" : "Aguardando Lançamento de Nota"}
+                                        </Button>
                                     ) : isTakeable ? (
                                         <Button
-                                            className="w-full justify-between bg-accent hover:bg-accent/90 text-accent-foreground group"
+                                            className={`w-full justify-between group ${ass.isFinalExam ? "bg-amber-600 hover:bg-amber-500 text-white" : "bg-accent hover:bg-accent/90 text-accent-foreground"}`}
                                             onClick={() => handleStart(ass)}
                                         >
-                                            <span className="font-bold">Fazer Prova</span>
+                                            <span className="font-bold">{ass.isFinalExam ? "Fazer Prova Final" : "Fazer Prova"}</span>
                                             <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                                         </Button>
                                     ) : (

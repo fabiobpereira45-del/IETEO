@@ -485,11 +485,12 @@ export function BookManager({ isMaster, poloFilter, professorInfo }: Props) {
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos os Status</SelectItem>
-                  <SelectItem value="late">🔴 Em Atraso (&gt; 7 dias)</SelectItem>
-                  <SelectItem value="active">🟢 Em Andamento</SelectItem>
-                  <SelectItem value="reserved">🟡 Reserva Solicitada</SelectItem>
-                  <SelectItem value="returned">⚪ Devolvidos</SelectItem>
+<SelectItem value="all">Todos os Status</SelectItem>
+                <SelectItem value="late">🔴 Em Atraso (&gt; 7 dias)</SelectItem>
+                <SelectItem value="active">🟢 Em Andamento</SelectItem>
+                <SelectItem value="reserved">🟡 Reserva Solicitada</SelectItem>
+                <SelectItem value="returned">⚪ Devolvidos</SelectItem>
+                <SelectItem value="cancelled">⚫ Cancelados</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -798,10 +799,13 @@ export function BookManager({ isMaster, poloFilter, professorInfo }: Props) {
               isProfessor={true}
               profile={{
                 id: professorInfo.id,
+                auth_user_id: professorInfo.id,
                 name: professorInfo.name,
                 email: professorInfo.email,
                 phone: "",
                 cpf: "",
+                enrollment_number: professorInfo.id,
+                status: "active",
                 polo_id: poloFilter === "all" ? null : poloFilter || null,
                 created_at: new Date().toISOString()
               }} 

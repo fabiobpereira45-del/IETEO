@@ -19,7 +19,7 @@ export interface Book {
   createdAt: string
 }
 
-export type LoanStatus = "reserved" | "active" | "returned" | "late"
+export type LoanStatus = "reserved" | "active" | "returned" | "late" | "cancelled"
 
 export interface BookLoan {
   id: string
@@ -41,6 +41,9 @@ export interface BookLoan {
   notes?: string
   registeredBy?: string
   renewed?: boolean
+  cancelledAt?: string | null
+  cancelledBy?: "student" | "admin" | null
+  cancelReason?: string | null
 }
 
 // ─── Default Theological Categories ──────────────────────────────────────────
@@ -182,6 +185,10 @@ export function evaluateLoanStatus(loan: BookLoan): {
 } {
   if (loan.status === "returned") {
     return { isOverdue: false, daysRemaining: 0, daysOverdue: 0, status: "returned" }
+  }
+
+  if (loan.status === "cancelled") {
+    return { isOverdue: false, daysRemaining: 0, daysOverdue: 0, status: "cancelled" }
   }
 
   if (loan.status === "reserved" && !loan.borrowedAt) {
@@ -390,7 +397,10 @@ export async function getBookLoans(filter?: {
         status: l.status,
         notes: l.notes,
         registeredBy: l.registered_by,
-        renewed: l.renewed
+        renewed: l.renewed,
+        cancelledAt: l.cancelled_at ?? null,
+        cancelledBy: l.cancelled_by ?? null,
+        cancelReason: l.cancel_reason ?? null
       }))
     } else {
       loans = getLocalLoans()
@@ -575,15 +585,72 @@ export async function returnBookLoan(loanId: string): Promise<BookLoan> {
 }
 
 export async function cancelBookLoan(loanId: string): Promise<void> {
-  const localLoans = getLocalLoans().filter(l => l.id !== loanId)
+  // Soft-cancel: preserva histórico para o filtro "Cancelados"
+  const now = new Date().toISOString()
+  const localLoans = getLocalLoans()
+  const loan = localLoans.find(l => l.id === loanId)
+  if (loan) {
+    loan.status = "cancelled"
+    loan.cancelledAt = now
+    loan.cancelledBy = "admin"
+    saveLocalLoans(localLoans)
+  } else {
+    saveLocalLoans(localLoans.filter(l => l.id !== loanId))
+  }
+
+  try {
+    const supabase = createClient()
+    const { error } = await supabase.from("book_loans").update({
+      status: "cancelled",
+      cancelled_at: now,
+      cancelled_by: "admin"
+    }).eq("id", loanId)
+    // Fallback para bancos antigos sem as colunas de cancelamento: tenta só status
+    if (error && /cancelled/i.test(error.message)) {
+      await supabase.from("book_loans").update({ status: "cancelled" }).eq("id", loanId)
+    }
+  } catch {
+    // ignore
+  }
+}
+
+export async function cancelMyReservation(loanId: string, studentId: string): Promise<BookLoan> {
+  const localLoans = getLocalLoans()
+  const loan = localLoans.find(l => l.id === loanId)
+
+  if (!loan) {
+    throw new Error("Reserva não encontrada.")
+  }
+
+  if (loan.studentId !== studentId) {
+    throw new Error("Você só pode cancelar suas próprias reservas.")
+  }
+
+  if (loan.status !== "reserved") {
+    throw new Error("Esta reserva já foi processada e não pode mais ser cancelada pelo aluno.")
+  }
+
+  const now = new Date().toISOString()
+  loan.status = "cancelled"
+  loan.cancelledAt = now
+  loan.cancelledBy = "student"
   saveLocalLoans(localLoans)
 
   try {
     const supabase = createClient()
-    await supabase.from("book_loans").delete().eq("id", loanId)
+    const { error } = await supabase.from("book_loans").update({
+      status: "cancelled",
+      cancelled_at: now,
+      cancelled_by: "student"
+    }).eq("id", loanId)
+    if (error && /cancelled/i.test(error.message)) {
+      await supabase.from("book_loans").update({ status: "cancelled" }).eq("id", loanId)
+    }
   } catch {
-    // ignore
+    // ignore — local já foi atualizado
   }
+
+  return { ...loan }
 }
 
 export async function renewBookLoan(loanId: string): Promise<BookLoan> {

@@ -15,7 +15,8 @@ import {
   Sparkles,
   ArrowRight,
   ShieldCheck,
-  Check
+  Check,
+  XCircle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -34,7 +35,8 @@ import {
   getBookLoans,
   requestBookLoan,
   evaluateLoanStatus,
-  renewBookLoan
+  renewBookLoan,
+  cancelMyReservation
 } from "@/lib/books"
 import { type StudentProfile } from "@/lib/store"
 
@@ -49,6 +51,7 @@ export function StudentBooksView({ profile, isProfessor }: Props) {
   const [loading, setLoading] = useState(true)
   const [reservingBookId, setReservingBookId] = useState<string | null>(null)
   const [reserveSuccessBookTitle, setReserveSuccessBookTitle] = useState<string | null>(null)
+  const [cancellingLoanId, setCancellingLoanId] = useState<string | null>(null)
 
   // Filtros
   const [search, setSearch] = useState("")
@@ -124,6 +127,25 @@ export function StudentBooksView({ profile, isProfessor }: Props) {
       alert("Empréstimo renovado com sucesso!")
     } catch (err: any) {
       alert(`Não foi possível renovar: ${err.message}`)
+    }
+  }
+
+  async function handleCancelMyReservation(loan: BookLoan) {
+    if (loan.status !== "reserved") {
+      alert("Esta reserva já foi liberada e não pode ser cancelada pelo aluno.")
+      return
+    }
+    if (!confirm(`Deseja realmente cancelar a reserva de "${loan.bookTitle}"? O livro será liberado para outros alunos.`)) return
+
+    setCancellingLoanId(loan.id)
+    try {
+      await cancelMyReservation(loan.id, profile.id)
+      await loadData()
+      alert("Reserva cancelada com sucesso.")
+    } catch (err: any) {
+      alert(`Não foi possível cancelar a reserva: ${err.message}`)
+    } finally {
+      setCancellingLoanId(null)
     }
   }
 
@@ -218,9 +240,35 @@ export function StudentBooksView({ profile, isProfessor }: Props) {
 
                       <div className="mt-2 text-xs">
                         {status === "reserved" && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                            🟡 Aguardando Retirada Física no Polo
-                          </span>
+                          <div className="space-y-1.5">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                              🟡 Aguardando Retirada Física no Polo
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleCancelMyReservation(loan)}
+                              disabled={cancellingLoanId === loan.id}
+                              className="h-7 text-[10px] font-semibold gap-1 border-red-500/40 text-red-600 hover:bg-red-500/10 disabled:opacity-50"
+                            >
+                              <XCircle className="h-3 w-3" />
+                              {cancellingLoanId === loan.id ? "Cancelando..." : "Cancelar minha reserva"}
+                            </Button>
+                          </div>
+                        )}
+
+                        {status === "cancelled" && (
+                          <div className="space-y-1">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-semibold bg-slate-500/10 text-slate-600 dark:text-slate-300 border border-slate-500/20">
+                              ⚫ Reserva cancelada
+                              {loan.cancelledAt
+                                ? ` em ${new Date(loan.cancelledAt).toLocaleDateString("pt-BR")}`
+                                : ""}
+                            </span>
+                            {loan.cancelledBy === "student" && (
+                              <p className="text-[10px] text-muted-foreground">Cancelada pelo próprio aluno.</p>
+                            )}
+                          </div>
                         )}
 
                         {status === "active" && (

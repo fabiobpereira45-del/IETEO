@@ -39,14 +39,21 @@ CREATE TABLE IF NOT EXISTS public.book_loans (
     borrowed_at TIMESTAMPTZ,
     due_date TIMESTAMPTZ,
     returned_at TIMESTAMPTZ,
-    status TEXT NOT NULL DEFAULT 'reserved', -- 'reserved', 'active', 'returned', 'late'
+    status TEXT NOT NULL DEFAULT 'reserved', -- 'reserved', 'active', 'returned', 'late', 'cancelled'
     notes TEXT,
     registered_by TEXT,
-    renewed BOOLEAN DEFAULT false
+    renewed BOOLEAN DEFAULT false,
+    cancelled_at TIMESTAMPTZ,
+    cancelled_by TEXT, -- 'student' | 'admin'
+    cancel_reason TEXT
 );
 
 -- Note: Se você já rodou o script, execute:
 -- ALTER TABLE public.book_loans ADD COLUMN IF NOT EXISTS renewed BOOLEAN DEFAULT false;
+-- ALTER TABLE public.book_loans ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
+-- ALTER TABLE public.book_loans ADD COLUMN IF NOT EXISTS cancelled_by TEXT;
+-- ALTER TABLE public.book_loans ADD COLUMN IF NOT EXISTS cancel_reason TEXT;
+-- ALTER TABLE public.book_loans DROP CONSTRAINT IF EXISTS book_loans_status_check; -- (caso exista CHECK)
 
 -- Índices para consultas rápidas
 CREATE INDEX IF NOT EXISTS idx_books_category ON public.books (category);

@@ -193,18 +193,26 @@ export function StudentGradesView({ studentId, studentEmail, studentDoc, student
                                 const disc = disciplines.find(d => d.id === grade.disciplineId)
                                 const avg = parseFloat(calculateAverage(grade))
                                 const isApproved = avg >= 7.0;
+                                // A discipline is "ongoing" if not concluded AND exam grade not yet recorded
+                                const isOngoing = disc?.isConcluded !== true && grade.examGrade === 0;
 
                             return (
                                 <div key={grade.id} className={`bg-card border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow ${
-                                    grade.isPublic && !isApproved ? 'border-red-300 bg-red-50/30' : 'border-border'
+                                    grade.isPublic && !isApproved && !isOngoing ? 'border-red-300 bg-red-50/30' : 'border-border'
                                 }`}>
                                     <div className="flex flex-col md:flex-row justify-between gap-4">
                                         <div className="space-y-1">
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <h4 className="font-bold text-lg text-foreground">{disc?.name || "Disciplina Geral"}</h4>
-                                                {grade.isPublic && !isApproved && (
+                                                {/* Status badge */}
+                                                {grade.isPublic && !isApproved && !isOngoing && (
                                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-tighter animate-pulse">
                                                         ⚠️ REPROVADO
+                                                    </span>
+                                                )}
+                                                {grade.isPublic && !isApproved && isOngoing && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-black uppercase tracking-tighter">
+                                                        🔵 Em Andamento
                                                     </span>
                                                 )}
                                                 {grade.isPublic && isApproved && (
@@ -217,13 +225,13 @@ export function StudentGradesView({ studentId, studentEmail, studentDoc, student
                                         </div>
 
                                         <div className={`flex items-center gap-4 p-3 rounded-xl border ${
-                                            grade.isPublic && !isApproved ? 'bg-red-100/50 border-red-200' : 'bg-muted/50 border-border'
+                                            grade.isPublic && !isApproved && !isOngoing ? 'bg-red-100/50 border-red-200' : 'bg-muted/50 border-border'
                                         }`}>
                                             <div className="text-right">
                                                 <div className="text-[10px] uppercase font-bold text-muted-foreground">{grade.isPublic ? (isApproved ? "MÉDIA FINAL" : "MÉDIA FINAL") : "Média Final"}</div>
                                                 <div className={`text-2xl font-black ${
                                                     grade.isPublic 
-                                                        ? (isApproved ? 'text-green-600' : 'text-red-600') 
+                                                        ? (isApproved ? 'text-green-600' : isOngoing ? 'text-blue-600' : 'text-red-600') 
                                                         : 'text-muted-foreground opacity-50'
                                                 }`}>
                                                     {grade.isPublic ? avg.toFixed(2) : "--"}
@@ -231,7 +239,7 @@ export function StudentGradesView({ studentId, studentEmail, studentDoc, student
                                             </div>
                                             <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
                                                 grade.isPublic 
-                                                    ? (isApproved ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600') 
+                                                    ? (isApproved ? 'bg-green-100 text-green-600' : isOngoing ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600') 
                                                     : 'bg-muted text-muted-foreground'
                                             }`}>
                                                 {grade.isPublic 
@@ -241,8 +249,8 @@ export function StudentGradesView({ studentId, studentEmail, studentDoc, student
                                         </div>
                                     </div>
 
-                                    {/* Alerta de recuperação */}
-                                    {grade.isPublic && !isApproved && (
+                                    {/* Alerta de recuperação — só exibir se disciplina concluída e reprovado */}
+                                    {grade.isPublic && !isApproved && !isOngoing && (
                                         <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
                                             <div className="mt-0.5 h-5 w-5 bg-red-500 rounded-full flex items-center justify-center shrink-0">
                                                 <span className="text-white text-[10px] font-black">!</span>
@@ -250,6 +258,18 @@ export function StudentGradesView({ studentId, studentEmail, studentDoc, student
                                             <div>
                                                 <p className="text-xs font-bold text-red-800">Você foi reprovado nesta disciplina</p>
                                                 <p className="text-[11px] text-red-700 mt-0.5">Sua média final ({avg.toFixed(2)}) está abaixo da mínima exigida (7.0). Entre em contato com a secretaria ou fique atento à abertura da Prova de Recuperação.</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {/* Aviso de disciplina em andamento */}
+                                    {grade.isPublic && !isApproved && isOngoing && (
+                                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-3">
+                                            <div className="mt-0.5 h-5 w-5 bg-blue-500 rounded-full flex items-center justify-center shrink-0">
+                                                <Clock className="h-3 w-3 text-white" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-bold text-blue-800">Disciplina em andamento</p>
+                                                <p className="text-[11px] text-blue-700 mt-0.5">A nota da prova ainda não foi lançada pelo professor. O status final será definido após o encerramento da disciplina.</p>
                                             </div>
                                         </div>
                                     )}

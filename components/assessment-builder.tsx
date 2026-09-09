@@ -6,7 +6,7 @@ import {
   Plus, Pencil, Trash2, Eye, EyeOff, Trophy, Clock, CheckCircle2,
   ShieldCheck, Sparkles, AlertCircle, ChevronRight, ChevronLeft, Shuffle, Check, ListChecks, Search, HelpCircle, Variable,
   ArrowUp, ArrowDown, RefreshCw, List, Globe, Lock, Loader2, Image as ImageIcon,
-  GraduationCap, Layout, PenTool, CheckCircle, Smartphone
+  GraduationCap, Layout, PenTool, CheckCircle, Smartphone, ShieldAlert
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -64,6 +64,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
   const [logoBase64, setLogoBase64] = useState("")
   const [rules, setRules] = useState("")
   const [modality, setModality] = useState<"public" | "private">("public")
+  const [isFinalExam, setIsFinalExam] = useState(false)
 
   // Step 2: Architecture
   const [formats, setFormats] = useState<QuestionType[]>(["multiple-choice"])
@@ -92,6 +93,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
         setLogoBase64(assessment.logoBase64 ?? "")
         setRules(assessment.rules ?? "")
         setModality(assessment.modality ?? "public")
+        setIsFinalExam(assessment.isFinalExam ?? false)
         setPointsPerQuestion(assessment.pointsPerQuestion)
         setTimeLimitMinutes(assessment.timeLimitMinutes ?? 0)
         setQuestionCount(assessment.questionIds.length)
@@ -104,6 +106,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
         setLogoBase64("")
         setRules("")
         setModality("public")
+        setIsFinalExam(false)
         setFormats(["multiple-choice"])
         setQuestionCount(10)
         setPointsPerQuestion(1)
@@ -179,6 +182,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
         pointsPerQuestion,
         totalPoints,
         modality,
+        isFinalExam,
         timeLimitMinutes: timeLimitMinutes > 0 ? timeLimitMinutes : null,
         shuffleVariants,
       }
@@ -334,6 +338,59 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
                          </div>
                        </button>
                     </div>
+                 </div>
+
+                 {/* Tipo de Avaliação: Prova Final de Recuperação */}
+                 <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                      <ShieldAlert className="h-3 w-3" /> Tipo de Avaliação
+                    </Label>
+                    <button
+                      type="button"
+                      onClick={() => setIsFinalExam(!isFinalExam)}
+                      className={cn(
+                        "w-full flex items-center gap-4 p-5 rounded-[1.5rem] border-2 transition-all text-left",
+                        isFinalExam
+                          ? "border-amber-500 bg-amber-500/5 ring-4 ring-amber-500/5"
+                          : "border-border hover:border-amber-400/40"
+                      )}
+                    >
+                      <div className={cn(
+                        "h-12 w-12 rounded-2xl flex items-center justify-center transition-all shrink-0",
+                        isFinalExam ? "bg-amber-500 text-white" : "bg-muted text-muted-foreground"
+                      )}>
+                        <ShieldAlert className="h-6 w-6" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <p className="font-bold text-sm">
+                            {isFinalExam ? "✦ Prova Final de Recuperação" : "Prova Ordinária"}
+                          </p>
+                          <div className={cn(
+                            "h-6 w-11 rounded-full transition-all flex items-center px-1 shrink-0",
+                            isFinalExam ? "bg-amber-500" : "bg-muted"
+                          )}>
+                            <div className={cn(
+                              "h-4 w-4 rounded-full bg-white shadow-md transition-all",
+                              isFinalExam ? "translate-x-5" : "translate-x-0"
+                            )} />
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground font-medium mt-1 uppercase tracking-wider">
+                          {isFinalExam
+                            ? "Acesso restrito: somente alunos com média abaixo de 7.0"
+                            : "Disponível para todos os alunos matriculados"}
+                        </p>
+                      </div>
+                    </button>
+                    {isFinalExam && (
+                      <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800">
+                        <ShieldAlert className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />
+                        <p className="text-[11px] font-medium leading-relaxed">
+                          <strong>Prova Final ativada.</strong> Alunos com média ≥ 7.0 verão esta prova como <em>bloqueada</em> no portal. Apenas alunos com média inferior terão acesso. Se o aluno ainda não tiver nota lançada no boletim, o acesso também será bloqueado até o lançamento pelo professor.
+                        </p>
+                      </div>
+                    )}
                  </div>
 
                  <div className="space-y-2">

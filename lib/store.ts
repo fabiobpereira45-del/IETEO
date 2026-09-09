@@ -46,7 +46,7 @@ export interface FinancialCharge {
 }
 export interface Expense { id: string; description: string; amount: number; category: string; dueDate: string; status: "pending" | "paid" | "cancelled"; paidAt?: string; createdAt: string; }
 export interface Question { id: string; disciplineId: string; type: QuestionType; text: string; choices: Choice[]; pairs?: MatchingPair[]; correctAnswer: string; points: number; createdAt: string }
-export interface Assessment { id: string; title: string; disciplineId: string; professor: string; institution: string; questionIds: string[]; pointsPerQuestion: number; totalPoints: number; openAt: string | null; closeAt: string | null; isPublished: boolean; archived: boolean; shuffleVariants?: boolean; timeLimitMinutes?: number | null; logoBase64?: string; rules?: string; releaseResults?: boolean; modality?: "public" | "private"; createdAt: string }
+export interface Assessment { id: string; title: string; disciplineId: string; professor: string; institution: string; questionIds: string[]; pointsPerQuestion: number; totalPoints: number; openAt: string | null; closeAt: string | null; isPublished: boolean; archived: boolean; shuffleVariants?: boolean; timeLimitMinutes?: number | null; logoBase64?: string; rules?: string; releaseResults?: boolean; modality?: "public" | "private"; isFinalExam?: boolean; createdAt: string }
 export interface StudentAnswer { questionId: string; answer: string }
 export interface StudentSubmission { id: string; assessmentId: string; studentId: string; studentName: string; studentEmail: string; answers: StudentAnswer[]; score: number; totalPoints: number; percentage: number; submittedAt: string; timeElapsedSeconds: number; focusLostCount?: number }
 export interface ProfessorAccount { id: string; name: string; email: string; passwordHash: string; role: "master" | "professor" | "secretary"; avatar_url?: string | null; bio?: string | null; createdAt: string; active?: boolean }
@@ -457,6 +457,7 @@ function mapAssessment(row: any): Assessment {
     rules: row.rules,
     releaseResults: row.release_results,
     modality: cleanModality,
+    isFinalExam: row.is_final_exam ?? false,
     createdAt: row.created_at
   }
 }
@@ -1634,9 +1635,15 @@ export async function getActiveAssessment(assessmentId?: string): Promise<Assess
 }
 export async function addAssessment(data: Omit<Assessment, "id" | "createdAt" | "releaseResults" | "archived">): Promise<Assessment> {
   const a = { ...data, id: uid(), createdAt: new Date().toISOString(), releaseResults: false, archived: false }
-  const dbData = { id: a.id, title: a.title, discipline_id: a.disciplineId, professor: a.professor, institution: a.institution, question_ids: a.questionIds, points_per_question: a.pointsPerQuestion, total_points: a.totalPoints, open_at: a.openAt, close_at: a.closeAt, is_published: a.isPublished, shuffle_variants: a.shuffleVariants, time_limit_minutes: a.timeLimitMinutes, logo_base64: a.logoBase64, rules: a.rules, release_results: a.releaseResults, modality: a.modality ?? "public", created_at: a.createdAt }
+  const dbData = { id: a.id, title: a.title, discipline_id: a.disciplineId, professor: a.professor, institution: a.institution, question_ids: a.questionIds, points_per_question: a.pointsPerQuestion, total_points: a.totalPoints, open_at: a.openAt, close_at: a.closeAt, is_published: a.isPublished, shuffle_variants: a.shuffleVariants, time_limit_minutes: a.timeLimitMinutes, logo_base64: a.logoBase64, rules: a.rules, release_results: a.releaseResults, modality: a.modality ?? "public", is_final_exam: a.isFinalExam ?? false, created_at: a.createdAt }
   const supabase = createClient()
-  const { error } = await supabase.from('assessments').insert(dbData)
+  let { error } = await supabase.from('assessments').insert(dbData)
+  // Fallback para bancos ainda sem a coluna is_final_exam
+  if (error && /is_final_exam/i.test(error.message)) {
+    const { is_final_exam: _omit, ...dbFallback } = dbData as any
+    const retry = await supabase.from('assessments').insert(dbFallback)
+    error = retry.error
+  }
   if (error) throw new Error(error.message)
   return a
 }
@@ -1657,6 +1664,7 @@ export async function updateAssessment(id: string, data: Partial<Omit<Assessment
   if (data.rules !== undefined) dbData.rules = data.rules
   if (data.releaseResults !== undefined) dbData.release_results = data.releaseResults
   if (data.timeLimitMinutes !== undefined) dbData.time_limit_minutes = data.timeLimitMinutes
+  if (data.isFinalExam !== undefined) dbData.is_final_exam = data.isFinalExam
 
   const supabase = createClient()
 
@@ -1670,7 +1678,16 @@ export async function updateAssessment(id: string, data: Partial<Omit<Assessment
     dbData.modality = newArchived ? `${newModalityBase}_archived` : newModalityBase
   }
   const { error } = await supabase.from('assessments').update(dbData).eq('id', id)
-  if (error) throw new Error(error.message)
+  if (error) {
+    // Fallback para bancos ainda sem a coluna is_final_exam
+    if (/is_final_exam/i.test(error.message) && 'is_final_exam' in dbData) {
+      delete (dbData as any).is_final_exam
+      const retry = await supabase.from('assessments').update(dbData).eq('id', id)
+      if (retry.error) throw new Error(retry.error.message)
+    } else {
+      throw new Error(error.message)
+    }
+  }
 
   // Trigger n8n if published
   if (data.isPublished === true) {
