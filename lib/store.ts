@@ -2918,17 +2918,41 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
   const supabase = createClient()
 
   // 1. Get Student and their Class
-  const { data: student } = await supabase.from('students').select('class_id, created_at').eq('id', studentId).single()
+  const { data: student } = await supabase.from('students').select('class_id, created_at, modality').eq('id', studentId).single()
   if (!student) return
 
-  // 2. Get All Semesters and All Curriculum Disciplines
+  // Determine modality: if student has modality, or get class modality
+  let studentModality: string = student.modality || 'presencial'
+  if (student.class_id) {
+    const { data: cls } = await supabase
+      .from('classes')
+      .select('id, modality')
+      .eq('id', student.class_id)
+      .maybeSingle()
+    if (cls?.modality) {
+      studentModality = cls.modality
+    }
+  }
+
+  // Normalize modality for semesters: 'presencial' vs 'semi_presencial' (online maps to semi_presencial semesters)
+  const semesterModality = (studentModality === 'online' || studentModality === 'semi_presencial') 
+    ? 'semi_presencial' 
+    : 'presencial'
+
+  // 2. Get Semesters and All Curriculum Disciplines for this modality
   const [semestersResult, disciplinesResult] = await Promise.all([
-    supabase.from('semesters').select('*').order('order', { ascending: true }),
+    supabase.from('semesters').select('*').eq('modality', semesterModality).order('order', { ascending: true }),
     supabase.from('disciplines').select('*')
   ])
 
   const semesters = semestersResult.data || []
-  const currDisciplines = (disciplinesResult.data || []).map(mapDiscipline)
+  const semesterIds = new Set(semesters.map((s: any) => s.id))
+  
+  // Filter disciplines strictly to this modality's semesters
+  const currDisciplines = (disciplinesResult.data || [])
+    .filter((d: any) => d.semester_id && semesterIds.has(d.semester_id))
+    .map(mapDiscipline)
+
   if (currDisciplines.length === 0) return
 
   const monthMap: Record<string, number> = {
@@ -2952,21 +2976,20 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
   const settings = await getFinancialSettings()
   if (!settings) return
 
-  const isOnline = student.modality === 'online'
+  const isOnline = studentModality === 'online'
   const activeEnrollmentFee = isOnline ? (settings.enrollmentFeeOnline ?? settings.enrollmentFee) : settings.enrollmentFee
   const activeMonthlyFee = isOnline ? (settings.monthlyFeeOnline ?? settings.monthlyFee) : settings.monthlyFee
 
   const charges = []
 
   // 4. Add Enrollment Fee (Taxa de Matrícula) - ALWAYS FIRST
-  // Use a date slightly before any possible discipline to force it to the top
   const enrollmentDate = new Date(student.created_at || Date.now())
   enrollmentDate.setHours(0, 0, 0, 0)
 
   charges.push({
     student_id: studentId,
     type: 'enrollment',
-    description: isOnline ? 'Taxa de Matrícula (Online)' : 'Taxa de Matrícula (Presencial)',
+    description: isOnline ? 'Taxa de Matrícula (Online)' : 'Taxa de Matrícula',
     amount: activeEnrollmentFee,
     due_date: enrollmentDate.toISOString().split('T')[0],
     status: 'pending',
@@ -2974,7 +2997,7 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
   })
 
   // 5. Add Discipline-based Monthly Fees (Exactly 18)
-  disciplines.forEach((disp: any, index: number) => {
+  disciplines.forEach((disp: any) => {
     let year = parseInt(disp.applicationYear || "2026")
     let monthNum = 1
 
@@ -2986,11 +3009,7 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
       }
     }
 
-    // Ensure due date is at least the next day or in correct sequence
     const dueDate = new Date(year, monthNum - 1, 10)
-
-    // Safety check: if due date ends up being before enrollment date,
-    // we still keep it but the ordering in UI will be clarified by creation order too
 
     charges.push({
       student_id: studentId,
@@ -3004,30 +3023,78 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
     })
   })
 
-  // 6. Bulk Sync Logic (Fixing divergence)
-  // Get existing charges to preserve "paid" ones
+  // 6. Reconcile charges preserving paid, bolsa100, bolsa50, and isento
   const { data: existing } = await supabase.from('financial_charges')
-    .select('id, description, status, amount, type')
+    .select('*')
     .eq('student_id', studentId)
     .neq('type', 'expense')
 
-  // Identify charges to insert or update
-  const finalCharges = charges.filter(nc => {
-    // Check if this specific charge is already paid
-    if (nc.type === 'enrollment') {
-      return !(existing || []).some((ex: any) => ex.type === 'enrollment' && ex.status === 'paid')
+  const preservedStatuses = ['paid', 'bolsa100', 'bolsa50', 'isento']
+  const norm = (s: string) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+
+  const finalCharges: any[] = []
+  const handledExistingIds = new Set<string>()
+  const toDeleteIds = new Set<string>()
+
+  for (const nc of charges) {
+    const matches = (existing || []).filter((ex: any) => {
+      if (handledExistingIds.has(ex.id)) return false
+      if (nc.type === 'enrollment' && ex.type === 'enrollment') return true
+      if (nc.type === 'monthly' && ex.type === 'monthly') {
+        if (ex.discipline_id && ex.discipline_id === nc.discipline_id) return true
+        if (norm(ex.description) === norm(nc.description)) return true
+      }
+      return false
+    })
+
+    if (matches.length > 0) {
+      const paidMatch = matches.find((m: any) => m.status === 'paid')
+      const bolsaMatch = matches.find((m: any) => m.status === 'bolsa100' || m.status === 'bolsa50' || m.status === 'isento')
+      const chosen = paidMatch || bolsaMatch || matches[0]
+
+      handledExistingIds.add(chosen.id)
+
+      if (preservedStatuses.includes(chosen.status)) {
+        // Keep existing paid/bolsa, update due_date and discipline_id so sorting aligns with grade
+        await supabase.from('financial_charges').update({
+          due_date: nc.due_date,
+          discipline_id: nc.discipline_id,
+          description: nc.description
+        }).eq('id', chosen.id)
+      } else {
+        // Update pending charge to canonical due_date, discipline_id and description
+        await supabase.from('financial_charges').update({
+          due_date: nc.due_date,
+          amount: nc.amount,
+          discipline_id: nc.discipline_id,
+          description: nc.description
+        }).eq('id', chosen.id)
+      }
+
+      // Mark the other duplicate matches to be deleted (if not paid)
+      matches.forEach((m: any) => {
+        if (m.id !== chosen.id && m.status !== 'paid') {
+          toDeleteIds.add(m.id)
+        }
+      })
+    } else {
+      finalCharges.push(nc)
     }
-    return !(existing || []).some((ex: any) => ex.description === nc.description && ex.status === 'paid')
+  }
+
+  // Delete leftover unhandled charges that are NOT preserved (duplicate EAD or rogue charges)
+  (existing || []).forEach((ex: any) => {
+    if (!handledExistingIds.has(ex.id) && ex.status !== 'paid') {
+      toDeleteIds.add(ex.id)
+    }
   })
 
-  // Clean up ALL non-paid charges to ensure the new list is exactly 18+1
-  await supabase.from('financial_charges')
-    .delete()
-    .eq('student_id', studentId)
-    .neq('type', 'expense')
-    .neq('status', 'paid')
+  if (toDeleteIds.size > 0) {
+    const deleteIds = Array.from(toDeleteIds)
+    await supabase.from('financial_charges').delete().in('id', deleteIds)
+  }
 
-  // Insert the missing/updated charges
+  // Insert any missing canonical charges
   if (finalCharges.length > 0) {
     const { error } = await supabase.from('financial_charges').insert(finalCharges)
     if (error) throw new Error(error.message)

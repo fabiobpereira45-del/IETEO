@@ -87,8 +87,11 @@ export function FinancialManager({ onRefresh, month, year, scope, poloFilter }: 
     const [searchName, setSearchName] = useState("")
     const [searchEnrollment, setSearchEnrollment] = useState("")
     const [searchClass, setSearchClass] = useState("all")
+    const [searchDiscipline, setSearchDiscipline] = useState("all")
     const [searchBolsa, setSearchBolsa] = useState("all")
     const [allClasses, setAllClasses] = useState<any[]>([])
+    const [allDisciplines, setAllDisciplines] = useState<any[]>([])
+    const [disciplinesForClass, setDisciplinesForClass] = useState<any[]>([])
 
     // Calculate totals for selected class for the current period
     const { classProjected, classRealized } = (function() {
@@ -117,6 +120,12 @@ export function FinancialManager({ onRefresh, month, year, scope, poloFilter }: 
     const [settleDate, setSettleDate] = useState(new Date().toISOString().split('T')[0])
     const [settleMethod, setSettleMethod] = useState<"pix" | "cartao" | "dinheiro">("pix")
 
+    // Bulk Discount State
+    const [bulkDiscountModal, setBulkDiscountModal] = useState(false)
+    const [bulkDiscountClass, setBulkDiscountClass] = useState("all")
+    const [bulkDiscountAmount, setBulkDiscountAmount] = useState("")
+    const [bulkDiscountLoading, setBulkDiscountLoading] = useState(false)
+
     const supabase = createClient()
 
     async function fetchAllStudents() {
@@ -126,20 +135,48 @@ export function FinancialManager({ onRefresh, month, year, scope, poloFilter }: 
 
     async function load() {
         setLoading(true)
-        const [c, s, config, { data: classesData }] = await Promise.all([
+        const [c, s, config, { data: classesData }, disciplinesData, schedulesData] = await Promise.all([
             getFinancialCharges(undefined, poloFilter),
             fetchAllStudents(),
             getFinancialSettings(),
-            supabase.from('classes').select('*').order('name')
+            supabase.from('classes').select('*').order('name'),
+            supabase.from('disciplines').select('*'),
+            supabase.from('class_schedules').select('*')
         ])
         setCharges(c)
         setStudents(s)
         setSettings(config)
         setAllClasses(classesData || [])
+        setAllDisciplines(disciplinesData.data || [])
         setLoading(false)
     }
 
     useEffect(() => { load() }, [poloFilter])
+
+    // Update disciplines when class filter changes
+    useEffect(() => {
+        if (searchClass === "all") {
+            setDisciplinesForClass(allDisciplines)
+        } else {
+            // Get disciplines for the selected class via class_schedules
+            const fetchDisciplinesForClass = async () => {
+                const { data: schedules } = await supabase
+                    .from('class_schedules')
+                    .select('discipline_id')
+                    .eq('class_id', searchClass)
+                
+                if (schedules && schedules.length > 0) {
+                    const disciplineIds = [...new Set(schedules.map((s: any) => s.discipline_id))]
+                    const filtered = allDisciplines.filter(d => disciplineIds.includes(d.id))
+                    setDisciplinesForClass(filtered)
+                } else {
+                    setDisciplinesForClass([])
+                }
+            }
+            fetchDisciplinesForClass()
+        }
+        setSearchDiscipline("all")
+    }, [searchClass, allDisciplines])
 
     // Auto-fill amount based on type and settings
     useEffect(() => {
@@ -364,18 +401,85 @@ export function FinancialManager({ onRefresh, month, year, scope, poloFilter }: 
         }
     }
 
+    async function handleBulkDiscount() {
+        if (!bulkDiscountClass || !bulkDiscountAmount || parseFloat(bulkDiscountAmount) <= 0) {
+            toast.error("Selecione uma turma e informe um valor de desconto válido.")
+            return
+        }
+
+        const discountValue = parseFloat(bulkDiscountAmount)
+        setBulkDiscountLoading(true)
+        
+        try {
+            // Get students from the selected class
+            const classStudents = students.filter(s => s.class_id === bulkDiscountClass)
+            if (classStudents.length === 0) {
+                toast.error("Nenhum aluno encontrado nesta turma.")
+                return
+            }
+
+            const classStudentIds = classStudents.map(s => s.id)
+            
+            // Get pending charges for these students
+            const pendingCharges = charges.filter(c => 
+                classStudentIds.includes(c.studentId || '') && 
+                (c.status === 'pending' || c.status === 'late') &&
+                c.type !== 'expense'
+            )
+
+            if (pendingCharges.length === 0) {
+                toast.error("Nenhuma cobrança pendente encontrada para esta turma.")
+                return
+            }
+
+            // Confirm action
+            const confirmed = confirm(
+                `Aplicar desconto de R$ ${discountValue.toFixed(2)} em ${pendingCharges.length} cobrança(s) pendente(s) da turma selecionada?\n\n` +
+                `Alunos afetados: ${classStudents.length}\n` +
+                `Valor total do desconto: R$ ${(discountValue * pendingCharges.length).toFixed(2)}`
+            )
+            
+            if (!confirmed) return
+
+            // Apply discount to each charge by reducing the amount
+            for (const charge of pendingCharges) {
+                const newAmount = Math.max(0, charge.amount - discountValue)
+                await updateFinancialCharge(charge.id, { amount: newAmount })
+            }
+
+            toast.success(`Desconto de R$ ${discountValue.toFixed(2)} aplicado em ${pendingCharges.length} cobrança(s)!`)
+            setBulkDiscountModal(false)
+            setBulkDiscountAmount("")
+            setBulkDiscountClass("all")
+            await load()
+            onRefresh?.()
+        } catch (e: any) {
+            toast.error("Erro ao aplicar desconto: " + e.message)
+        } finally {
+            setBulkDiscountLoading(false)
+        }
+    }
+
     async function handleBulkSync() {
-        if (!confirm("Isso irá apagar TODAS as cobranças pendentes e gerar novas baseadas na grade curricular para TODOS os alunos ativos. Prosseguir?")) return
+        const targetStudents = searchClass === "all" 
+            ? students 
+            : students.filter(s => s.class_id === searchClass);
+        const className = searchClass === "all" 
+            ? "TODOS os alunos ativos" 
+            : `os alunos da turma "${allClasses.find(c => c.id === searchClass)?.name || 'selecionada'}"`;
+
+        if (!confirm(`Isso irá sincronizar o financeiro com a grade curricular para ${className} (${targetStudents.length} alunos).\n\nCobranças já pagas e bolsas serão PRESERVADAS intactas.\nProsseguir?`)) return
+
         setIsGenerating(true)
         try {
-            for (const s of students) {
+            for (const s of targetStudents) {
                 await syncStudentTuitionByDisciplines(s.id)
             }
-            alert("Financeiro sincronizado para todos os alunos!")
+            toast.success(`Financeiro sincronizado com sucesso para ${targetStudents.length} aluno(s)!`)
             load()
             onRefresh?.()
         } catch (e: any) {
-            alert("Erro no processamento em lote: " + e.message)
+            toast.error("Erro no processamento: " + e.message)
         } finally {
             setIsGenerating(false)
         }
@@ -411,8 +515,11 @@ export function FinancialManager({ onRefresh, month, year, scope, poloFilter }: 
                     }}>
                         <Plus className="h-3 w-3 mr-1" /> Nova Cobrança
                     </Button>
+                    <Button variant="outline" size="sm" onClick={() => setBulkDiscountModal(true)} className="border-purple-500 text-purple-600 hover:bg-purple-50">
+                        <DollarSign className="h-3 w-3 mr-1" /> Desconto em Lote
+                    </Button>
                     <Button variant="outline" size="sm" onClick={handleBulkSync} disabled={isGenerating} className="border-orange-500 text-orange-600 hover:bg-orange-50">
-                        <Zap className="h-3 w-3 mr-1" /> Sincronizar Tudo
+                        <Zap className="h-3 w-3 mr-1" /> {searchClass === "all" ? "Sincronizar Tudo" : "Sincronizar Turma"}
                     </Button>
                     <Button variant="outline" size="sm" onClick={handleTriggerReminders} disabled={saving} className="border-accent text-accent">
                         <Zap className="h-3 w-3 mr-1" /> Lembretes
@@ -421,7 +528,7 @@ export function FinancialManager({ onRefresh, month, year, scope, poloFilter }: 
             </div>
 
             {/* Filters */}
-            <div className="bg-card border border-border shadow-sm rounded-xl p-4 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div className="bg-card border border-border shadow-sm rounded-xl p-4 grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                 <div className="space-y-1.5">
                     <Label className="text-xs font-bold uppercase text-muted-foreground">Nome do Aluno</Label>
                     <Input 
@@ -467,6 +574,20 @@ export function FinancialManager({ onRefresh, month, year, scope, poloFilter }: 
                     )}
                 </div>
                 <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Disciplina</Label>
+                    <Select value={searchDiscipline} onValueChange={setSearchDiscipline}>
+                        <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Todas as Disciplinas" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todas as Disciplinas</SelectItem>
+                            {disciplinesForClass.map(d => (
+                                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-1.5">
                     <Label className="text-xs font-bold uppercase text-muted-foreground">Tipo de Aluno</Label>
                     <Select value={searchBolsa} onValueChange={setSearchBolsa}>
                         <SelectTrigger className="h-9">
@@ -486,6 +607,7 @@ export function FinancialManager({ onRefresh, month, year, scope, poloFilter }: 
                         setSearchName("")
                         setSearchEnrollment("")
                         setSearchClass("all")
+                        setSearchDiscipline("all")
                         setSearchBolsa("all")
                     }}>
                         Limpar
@@ -517,7 +639,12 @@ export function FinancialManager({ onRefresh, month, year, scope, poloFilter }: 
                                         c.dueDate < new Date().toISOString().split('T')[0]
                                     ) : true
                                 )
-                                return matchName && matchEnroll && matchClass && matchBolsa
+                                // Filter by discipline if selected
+                                const matchDiscipline = searchDiscipline === "all" || charges.some(c => 
+                                    c.studentId === s.id && 
+                                    c.disciplineId === searchDiscipline
+                                )
+                                return matchName && matchEnroll && matchClass && matchBolsa && matchDiscipline
                             }).length} Alunos Filtrados
                         </span>
                     </div>
@@ -554,7 +681,12 @@ export function FinancialManager({ onRefresh, month, year, scope, poloFilter }: 
                                             c.dueDate < new Date().toISOString().split('T')[0]
                                         ) : true
                                     )
-                                    return matchName && matchEnroll && matchClass && matchBolsa
+                                    // Filter by discipline if selected
+                                    const matchDiscipline = searchDiscipline === "all" || charges.some(c => 
+                                        c.studentId === s.id && 
+                                        c.disciplineId === searchDiscipline
+                                    )
+                                    return matchName && matchEnroll && matchClass && matchBolsa && matchDiscipline
                                 })
                                 .map(s => {
                                     const studentCharges = charges.filter(c => c.studentId === s.id)
@@ -699,7 +831,10 @@ export function FinancialManager({ onRefresh, month, year, scope, poloFilter }: 
                                     {charges.filter(c => c.studentId === selectedStudent?.id).sort((a,b) => {
                                         if (a.type === 'enrollment' && b.type !== 'enrollment') return -1;
                                         if (b.type === 'enrollment' && a.type !== 'enrollment') return 1;
-                                        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+                                        const timeA = new Date(a.dueDate).getTime();
+                                        const timeB = new Date(b.dueDate).getTime();
+                                        if (timeA !== timeB) return timeA - timeB;
+                                        return (a.description || "").localeCompare(b.description || "");
                                     }).map(c => (
                                         <tr key={c.id} className="hover:bg-muted/30 transition-colors">
                                             <td className="px-4 py-4">
@@ -971,6 +1106,89 @@ export function FinancialManager({ onRefresh, month, year, scope, poloFilter }: 
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Bulk Discount Modal */}
+            <Dialog open={bulkDiscountModal} onOpenChange={setBulkDiscountModal}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Aplicar Desconto em Lote por Turma</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-4 py-4">
+                        <div className="bg-purple-50 border border-purple-200 p-4 rounded-xl">
+                            <p className="text-xs text-purple-700 font-medium">
+                                O desconto será aplicado em <strong>TODAS</strong> as cobranças pendentes dos alunos da turma selecionada.
+                                As cobranças de outras turmas não serão afetadas.
+                            </p>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                            <Label>Selecionar Turma</Label>
+                            <Select value={bulkDiscountClass} onValueChange={setBulkDiscountClass}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecione a turma" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todas as Turmas</SelectItem>
+                                    {allClasses.map(c => (
+                                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                            <Label>Valor do Desconto (R$)</Label>
+                            <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="Ex: 50.00"
+                                value={bulkDiscountAmount}
+                                onChange={e => setBulkDiscountAmount(e.target.value)}
+                            />
+                            <p className="text-[10px] text-muted-foreground">
+                                Este valor será subtraído de cada cobrança pendente dos alunos da turma.
+                            </p>
+                        </div>
+
+                        {bulkDiscountClass !== "all" && bulkDiscountAmount && parseFloat(bulkDiscountAmount) > 0 && (
+                            <div className="bg-muted/50 p-3 rounded-lg border border-border/50">
+                                <p className="text-xs font-bold text-foreground mb-1">Pré-visualização:</p>
+                                <p className="text-xs text-muted-foreground">
+                                    Alunos na turma: <span className="font-bold">{students.filter(s => s.class_id === bulkDiscountClass).length}</span>
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    Cobranças pendentes: <span className="font-bold">
+                                        {charges.filter(c => 
+                                            students.filter(s => s.class_id === bulkDiscountClass).map(s => s.id).includes(c.studentId || '') && 
+                                            (c.status === 'pending' || c.status === 'late') &&
+                                            c.type !== 'expense'
+                                        ).length}
+                                    </span>
+                                </p>
+                                <p className="text-xs text-purple-600 font-bold mt-1">
+                                    Desconto total: R$ {(parseFloat(bulkDiscountAmount) * charges.filter(c => 
+                                        students.filter(s => s.class_id === bulkDiscountClass).map(s => s.id).includes(c.studentId || '') && 
+                                        (c.status === 'pending' || c.status === 'late') &&
+                                        c.type !== 'expense'
+                                    ).length).toFixed(2)}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setBulkDiscountModal(false)}>Cancelar</Button>
+                        <Button 
+                            onClick={handleBulkDiscount} 
+                            disabled={bulkDiscountLoading || bulkDiscountClass === "all" || !bulkDiscountAmount}
+                            className="bg-purple-600 hover:bg-purple-700 text-white"
+                        >
+                            {bulkDiscountLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <DollarSign className="h-4 w-4 mr-2" />}
+                            Aplicar Desconto
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
         </div>
     )

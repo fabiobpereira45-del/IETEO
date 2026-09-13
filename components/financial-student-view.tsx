@@ -110,7 +110,14 @@ export function FinancialStudentView({ studentId }: Props) {
         return <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
     }
 
-    const sortedCharges = [...charges].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+    const sortedCharges = [...charges].sort((a, b) => {
+        if (a.type === 'enrollment' && b.type !== 'enrollment') return -1;
+        if (b.type === 'enrollment' && a.type !== 'enrollment') return 1;
+        const timeA = new Date(a.dueDate).getTime();
+        const timeB = new Date(b.dueDate).getTime();
+        if (timeA !== timeB) return timeA - timeB;
+        return (a.description || "").localeCompare(b.description || "");
+    })
     const hasPendingOrLate = sortedCharges.some(c => c.status === 'pending' || c.status === 'late')
     const pendingCharges = sortedCharges.filter(c => c.status === 'pending' || c.status === 'late')
 
