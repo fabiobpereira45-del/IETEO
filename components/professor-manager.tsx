@@ -3,24 +3,25 @@
 import { useEffect, useState } from "react"
 import {
   Plus, Pencil, Trash2, ShieldCheck, User, Eye, EyeOff, X, Check, CheckCircle2, XCircle, Download,
+  BookOpen, Link2, Share2, Copy, Sparkles, ExternalLink, Search, Layers, Loader2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
-  type ProfessorAccount, type Discipline, type ProfessorDiscipline,
-  getProfessorAccounts, addProfessorAccount, updateProfessorAccount, deleteProfessorAccount,
-  getDisciplines, getProfessorDisciplines, getAllProfessorDisciplines, linkProfessorToDiscipline, unlinkProfessorFromDiscipline,
-  MASTER_CREDENTIALS,
-} from "@/lib/store"
-import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
-import { BookOpen, Link2, Unlink } from "lucide-react"
+import {
+  type ProfessorAccount, type Discipline, type ProfessorDiscipline, type Semester,
+  getProfessorAccounts, addProfessorAccount, updateProfessorAccount, deleteProfessorAccount,
+  getDisciplines, getSemesters, getProfessorDisciplines, getAllProfessorDisciplines,
+  setProfessorFamiliarDisciplines, MASTER_CREDENTIALS,
+} from "@/lib/store"
 import { printProfessorsPDF } from "@/lib/pdf"
 
 // ─── Form ─────────────────────────────────────────────────────────────────────
@@ -141,13 +142,23 @@ function ProfessorForm({
 
 export function ProfessorManager() {
   const [accounts, setAccounts] = useState<ProfessorAccount[]>([])
+  const [disciplines, setDisciplines] = useState<Discipline[]>([])
+  const [profDisciplines, setProfDisciplines] = useState<ProfessorDiscipline[]>([])
   const [adding, setAdding] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [linkProfId, setLinkProfId] = useState<string | null>(null)
+  const [affinityProfId, setAffinityProfId] = useState<string | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   async function refresh() {
-    setAccounts(await getProfessorAccounts())
+    const [accs, discs, pDiscs] = await Promise.all([
+      getProfessorAccounts(),
+      getDisciplines(),
+      getAllProfessorDisciplines(),
+    ])
+    setAccounts(accs)
+    setDisciplines(discs)
+    setProfDisciplines(pDiscs)
   }
 
   useEffect(() => { refresh() }, [])
@@ -159,7 +170,6 @@ export function ProfessorManager() {
 
     try {
       setAdding(false)
-      // Call our API route to use the Service Role Key
       const res = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -176,8 +186,6 @@ export function ProfessorManager() {
         alert("Erro ao criar professor no Supabase: " + (err.error || "Desconhecido"))
       }
 
-      // We still save locally for UI rendering if needed, or rely purely on Supabase.
-      // Keeping local sync for compatibility with existing app flow:
       await addProfessorAccount({
         name: data.name,
         email: data.email,
@@ -222,6 +230,16 @@ export function ProfessorManager() {
     }
   }
 
+  function handleCopyShareLink(id: string) {
+    const origin = typeof window !== "undefined" ? window.location.origin : ""
+    const url = `${origin}/professor/formulario?id=${encodeURIComponent(id)}`
+    navigator.clipboard.writeText(url)
+    setCopiedId(id)
+    setTimeout(() => {
+      setCopiedId(null)
+    }, 2500)
+  }
+
   return (
     <div className="flex flex-col gap-5">
       {/* Master account (readonly) */}
@@ -247,9 +265,14 @@ export function ProfessorManager() {
       {/* Other professors */}
       <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            Professores cadastrados
-          </h3>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              Professores cadastrados
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Consulte e gerencie as disciplinas de afinidade/familiaridade de cada professor
+            </p>
+          </div>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={async () => {
               const [p, a, d] = await Promise.all([getProfessorAccounts(), getAllProfessorDisciplines(), getDisciplines()])
@@ -282,92 +305,166 @@ export function ProfessorManager() {
             <p className="text-xs mt-1">Clique em "Adicionar professor" para começar.</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
-            {accounts.map((account) => (
-              <div key={account.id}>
-                {editingId === account.id ? (
-                  <div className="border border-border rounded-lg p-4 bg-muted/30">
-                    <p className="text-sm font-semibold text-foreground mb-4">Editar professor</p>
-                    <ProfessorForm
-                      isEdit
-                      initial={{
-                        name: account.name,
-                        email: account.email,
-                        password: "",
-                        role: account.role,
-                      }}
-                      onSave={(data) => handleEdit(account.id, data)}
-                      onCancel={() => setEditingId(null)}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-muted/40 transition-colors group">
-                    <div className={`h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0 ${account.role === "master" ? "bg-primary/20" : "bg-muted"
-                      }`}>
-                      {account.role === "master"
-                        ? <ShieldCheck className="h-4 w-4 text-primary" />
-                        : <User className="h-4 w-4 text-muted-foreground" />
-                      }
+          <div className="flex flex-col gap-3">
+            {accounts.map((account) => {
+              const familiarDisciplines = profDisciplines
+                .filter(pd => pd.professorId === account.id)
+                .map(pd => disciplines.find(d => d.id === pd.disciplineId))
+                .filter(Boolean) as Discipline[]
+
+              return (
+                <div key={account.id}>
+                  {editingId === account.id ? (
+                    <div className="border border-border rounded-lg p-4 bg-muted/30">
+                      <p className="text-sm font-semibold text-foreground mb-4">Editar professor</p>
+                      <ProfessorForm
+                        isEdit
+                        initial={{
+                          name: account.name,
+                          email: account.email,
+                          password: "",
+                          role: account.role,
+                        }}
+                        onSave={(data) => handleEdit(account.id, data)}
+                        onCancel={() => setEditingId(null)}
+                      />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium truncate ${account.active === false ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{account.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{account.email}</p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${account.active === false
-                        ? "bg-destructive/10 text-destructive"
-                        : "bg-green-500/10 text-green-600"
+                  ) : (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl p-3.5 border border-border bg-card hover:bg-muted/30 transition-all">
+                      <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+                        <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 sm:mt-0 ${
+                          account.role === "master" ? "bg-primary/20" : "bg-muted"
                         }`}>
-                        {account.active === false ? "Inativo" : "Ativo"}
-                      </span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${account.role === "master"
-                        ? "bg-primary/15 text-primary"
-                        : account.role === "secretary"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-muted text-muted-foreground"
-                        }`}>
-                        {account.role === "master" ? "Master" : account.role === "secretary" ? "Secretário(a)" : "Professor"}
-                      </span>
+                          {account.role === "master"
+                            ? <ShieldCheck className="h-5 w-5 text-primary" />
+                            : <User className="h-5 w-5 text-muted-foreground" />
+                          }
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className={`text-sm font-bold truncate ${account.active === false ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                              {account.name}
+                            </p>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${account.active === false
+                              ? "bg-destructive/10 text-destructive"
+                              : "bg-green-500/10 text-green-600"
+                            }`}>
+                              {account.active === false ? "Inativo" : "Ativo"}
+                            </span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${account.role === "master"
+                              ? "bg-primary/15 text-primary"
+                              : account.role === "secretary"
+                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                              : "bg-muted text-muted-foreground"
+                            }`}>
+                              {account.role === "master" ? "Master" : account.role === "secretary" ? "Secretário(a)" : "Professor"}
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-muted-foreground truncate">{account.email}</p>
+
+                          {/* Familiar Disciplines Badges */}
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            <span className="text-[11px] text-muted-foreground font-semibold flex items-center gap-1 mr-0.5">
+                              <BookOpen className="h-3 w-3 text-primary" /> Afinidades ({familiarDisciplines.length}):
+                            </span>
+                            {familiarDisciplines.length > 0 ? (
+                              familiarDisciplines.map(d => (
+                                <span 
+                                  key={d.id} 
+                                  className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-md font-medium"
+                                  title={d.description || d.name}
+                                >
+                                  {d.name}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-[11px] text-muted-foreground italic">
+                                Nenhuma disciplina indicada ainda
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-1.5 self-end sm:self-center flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50 w-full sm:w-auto justify-end">
+                        {/* Copy Link Button */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={`h-8 px-2.5 text-xs font-medium gap-1.5 transition-all ${
+                            copiedId === account.id 
+                              ? "bg-green-500/10 text-green-600 border-green-500/30" 
+                              : "text-foreground hover:bg-primary/10 hover:text-primary"
+                          }`}
+                          onClick={() => handleCopyShareLink(account.id)}
+                          title="Copiar link do formulário para enviar ao professor"
+                        >
+                          {copiedId === account.id ? (
+                            <>
+                              <Check className="h-3.5 w-3.5 text-green-600" />
+                              <span className="text-green-600 font-semibold">Copiado!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Share2 className="h-3.5 w-3.5 text-primary" />
+                              <span>Link do Formulário</span>
+                            </>
+                          )}
+                        </Button>
+
+                        {/* Affinity Modal Trigger */}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 px-2 text-primary hover:bg-primary/10"
+                          onClick={() => setAffinityProfId(account.id)}
+                          title="Consultar / Indicar Disciplinas de Afinidade"
+                        >
+                          <Sparkles className="h-4 w-4 mr-1 text-primary" />
+                          <span className="text-xs">Afinidades</span>
+                        </Button>
+
+                        {/* Active/Inactive Toggle */}
+                        <Button
+                          size="sm" variant="ghost" className={`h-8 w-8 p-0 ${account.active === false ? 'text-green-600 hover:bg-green-50' : 'text-amber-600 hover:bg-amber-50'}`}
+                          onClick={() => handleEdit(account.id, { ...account, active: account.active === false ? true : false, password: "" })}
+                          title={account.active === false ? "Ativar" : "Desativar"}
+                        >
+                          {account.active === false ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                        </Button>
+
+                        {/* Edit Button */}
+                        <Button
+                          size="sm" variant="ghost" className="h-8 w-8 p-0"
+                          onClick={() => { setEditingId(account.id); setAdding(false) }}
+                          title="Editar"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+
+                        {/* Delete Button */}
+                        <Button
+                          size="sm" variant="ghost"
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setDeleteId(account.id)}
+                          title="Excluir"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                      <Button
-                        size="sm" variant="ghost" className={`h-7 w-7 p-0 ${account.active === false ? 'text-green-600 hover:bg-green-50' : 'text-amber-600 hover:bg-amber-50'}`}
-                        onClick={() => handleEdit(account.id, { ...account, active: account.active === false ? true : false, password: "" })}
-                        title={account.active === false ? "Ativar" : "Desativar"}
-                      >
-                        {account.active === false ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-                      </Button>
-                      <Button
-                        size="sm" variant="ghost" className="h-7 w-7 p-0 text-primary hover:bg-primary/10"
-                        onClick={() => setLinkProfId(account.id)}
-                        title="Vincular Disciplinas"
-                      >
-                        <Link2 className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        size="sm" variant="ghost" className="h-7 w-7 p-0"
-                        onClick={() => { setEditingId(account.id); setAdding(false) }}
-                        title="Editar"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        size="sm" variant="ghost"
-                        className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => setDeleteId(account.id)}
-                        title="Excluir"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
 
+      {/* Delete confirmation dialog */}
       <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -388,13 +485,29 @@ export function ProfessorManager() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={!!linkProfId} onOpenChange={(o) => !o && setLinkProfId(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Vincular Disciplinas - {accounts.find(a => a.id === linkProfId)?.name}</DialogTitle>
+      {/* Disciplines Affinity Dialog */}
+      <Dialog open={!!affinityProfId} onOpenChange={(o) => !o && setAffinityProfId(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0">
+          <DialogHeader className="p-6 pb-2 border-b border-border">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              <DialogTitle className="text-lg">
+                Disciplinas de Afinidade — {accounts.find(a => a.id === affinityProfId)?.name}
+              </DialogTitle>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Registro para consulta pedagógica. Marque as disciplinas com as quais o professor possui familiaridade.
+            </p>
           </DialogHeader>
-          <div className="py-4">
-            <ProfessorDisciplineManager professorId={linkProfId!} />
+
+          <div className="flex-1 overflow-y-auto p-6 pt-4">
+            {affinityProfId && (
+              <ProfessorDisciplineManager 
+                professorId={affinityProfId} 
+                professorName={accounts.find(a => a.id === affinityProfId)?.name || "Professor"}
+                onSaved={() => refresh()} 
+              />
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -402,83 +515,247 @@ export function ProfessorManager() {
   )
 }
 
-function ProfessorDisciplineManager({ professorId }: { professorId: string }) {
+function ProfessorDisciplineManager({ 
+  professorId, 
+  professorName,
+  onSaved 
+}: { 
+  professorId: string
+  professorName: string
+  onSaved?: () => void 
+}) {
+  const [semesters, setSemesters] = useState<Semester[]>([])
   const [disciplines, setDisciplines] = useState<Discipline[]>([])
-  const [linkedIds, setLinkedIds] = useState<string[]>([])
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [search, setSearch] = useState("")
 
-  async function refresh() {
+  async function loadData() {
     setLoading(true)
-    const [all, linked] = await Promise.all([
+    const [allDiscs, allSems, linked] = await Promise.all([
       getDisciplines(),
+      getSemesters(),
       getProfessorDisciplines(professorId)
     ])
-    setDisciplines(all)
-    setLinkedIds(linked.map(l => l.disciplineId))
+    setDisciplines(allDiscs.sort((a, b) => (a.order || 0) - (b.order || 0)))
+    setSemesters(allSems.sort((a, b) => (a.order || 0) - (b.order || 0)))
+    setSelectedIds(linked.map(l => l.disciplineId))
     setLoading(false)
   }
 
   useEffect(() => {
-    refresh()
+    loadData()
   }, [professorId])
 
-  async function toggleLink(disciplineId: string) {
-    const isLinked = linkedIds.includes(disciplineId)
-    try {
-      if (isLinked) {
-        await unlinkProfessorFromDiscipline(professorId, disciplineId)
-      } else {
-        await linkProfessorToDiscipline(professorId, disciplineId)
-      }
-      await refresh()
-    } catch (e: any) {
-      alert("Erro ao alterar vínculo: " + e.message)
+  function toggleDiscipline(disciplineId: string) {
+    setSelectedIds(prev => 
+      prev.includes(disciplineId) ? prev.filter(id => id !== disciplineId) : [...prev, disciplineId]
+    )
+  }
+
+  function toggleSemester(semesterId: string) {
+    const semDiscs = disciplines.filter(d => d.semesterId === semesterId)
+    const semIds = semDiscs.map(d => d.id)
+    const allSelected = semIds.every(id => selectedIds.includes(id))
+
+    if (allSelected) {
+      setSelectedIds(prev => prev.filter(id => !semIds.includes(id)))
+    } else {
+      setSelectedIds(prev => Array.from(new Set([...prev, ...semIds])))
     }
   }
 
-  if (loading) return <div className="flex justify-center p-8 text-muted-foreground"><ShieldCheck className="h-6 w-6 animate-spin mr-2" /> Carregando...</div>
+  async function handleSave() {
+    try {
+      setSaving(true)
+      await setProfessorFamiliarDisciplines(professorId, selectedIds)
+      if (onSaved) onSaved()
+      alert("Afinidades do professor atualizadas com sucesso!")
+    } catch (e: any) {
+      alert("Erro ao salvar: " + e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function handleCopyFormLink() {
+    const origin = typeof window !== "undefined" ? window.location.origin : ""
+    const url = `${origin}/professor/formulario?id=${encodeURIComponent(professorId)}`
+    navigator.clipboard.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2500)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-muted-foreground gap-2">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <span className="text-sm">Carregando disciplinas...</span>
+      </div>
+    )
+  }
+
+  const filteredDisciplines = disciplines.filter(d => 
+    d.name.toLowerCase().includes(search.toLowerCase()) ||
+    (d.description && d.description.toLowerCase().includes(search.toLowerCase()))
+  )
+
+  const grouped = semesters.map(sem => ({
+    semester: sem,
+    disciplines: filteredDisciplines.filter(d => d.semesterId === sem.id)
+  })).filter(g => g.disciplines.length > 0)
+
+  const unassigned = filteredDisciplines.filter(d => !d.semesterId)
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground mb-4">Selecione as disciplinas que este professor leciona. Ele terá acesso a estas salas no painel dele.</p>
-      
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[400px] overflow-y-auto pr-2">
-        {disciplines.length === 0 ? (
-          <p className="col-span-2 text-center text-muted-foreground py-8">Nenhuma disciplina cadastrada na grade curricular.</p>
-        ) : (
-          disciplines.map(d => {
-            const isLinked = linkedIds.includes(d.id)
-            return (
-              <div 
-                key={d.id} 
-                className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                  isLinked 
-                  ? "bg-primary/5 border-primary/30" 
-                  : "bg-background border-border hover:bg-muted/50"
-                }`}
-              >
-                <div className="flex-1 min-w-0 pr-2">
-                   <p className="text-sm font-semibold text-foreground leading-tight whitespace-normal break-words">{d.name}</p>
-                   {d.professorName && (
-                     <p className="text-[10px] text-muted-foreground">Original: {d.professorName}</p>
-                   )}
-                </div>
-                <Button 
-                  size="sm" 
-                  variant={isLinked ? "destructive" : "default"}
-                  className="h-8 px-2"
-                  onClick={() => toggleLink(d.id)}
+      {/* Share Box Helper */}
+      <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="space-y-0.5">
+          <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+            <Share2 className="h-3.5 w-3.5 text-primary" /> Link de autoindicação do professor
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            Envie este link para o professor <strong>{professorName}</strong> preencher suas próprias disciplinas.
+          </p>
+        </div>
+
+        <Button 
+          type="button" 
+          size="sm" 
+          variant="outline" 
+          onClick={handleCopyFormLink}
+          className={`h-8 text-xs font-semibold gap-1.5 ${copied ? "bg-green-500/10 text-green-600 border-green-500/30" : "border-primary/40 text-primary hover:bg-primary/10"}`}
+        >
+          {copied ? (
+            <>
+              <Check className="h-3.5 w-3.5" /> Link Copiado!
+            </>
+          ) : (
+            <>
+              <Copy className="h-3.5 w-3.5" /> Copiar Link do Formulário
+            </>
+          )}
+        </Button>
+      </div>
+
+      {/* Search and Summary */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="relative flex-1">
+          <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input 
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Filtrar por nome da disciplina..."
+            className="pl-9 h-9 text-xs"
+          />
+        </div>
+        <Badge variant="secondary" className="text-xs py-1 px-3">
+          {selectedIds.length} selecionada{selectedIds.length === 1 ? "" : "s"}
+        </Badge>
+      </div>
+
+      {/* Disciplines Grouped */}
+      <div className="space-y-4 max-h-[380px] overflow-y-auto pr-1">
+        {grouped.map(({ semester, disciplines: semDiscs }) => {
+          const allSelected = semDiscs.every(d => selectedIds.includes(d.id))
+          const count = semDiscs.filter(d => selectedIds.includes(d.id)).length
+
+          return (
+            <div key={semester.id} className="border border-border rounded-xl p-3.5 bg-muted/20 space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Layers className="h-3.5 w-3.5 text-primary" /> {semester.name} ({count}/{semDiscs.length})
+                </span>
+                <button
+                  type="button"
+                  onClick={() => toggleSemester(semester.id)}
+                  className="text-[11px] font-semibold text-primary hover:underline"
                 >
-                  {isLinked ? (
-                    <><Unlink className="h-3 w-3 mr-1" /> Remover</>
-                  ) : (
-                    <><Link2 className="h-3 w-3 mr-1" /> Vincular</>
-                  )}
-                </Button>
+                  {allSelected ? "Desmarcar todas" : "Marcar todas"}
+                </button>
               </div>
-            )
-          })
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {semDiscs.map(d => {
+                  const isSelected = selectedIds.includes(d.id)
+                  return (
+                    <div
+                      key={d.id}
+                      onClick={() => toggleDiscipline(d.id)}
+                      className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer select-none transition-all text-xs ${
+                        isSelected 
+                          ? "bg-primary/10 border-primary text-primary font-semibold" 
+                          : "bg-background border-border hover:bg-muted/50 text-foreground"
+                      }`}
+                    >
+                      <span className="truncate pr-2">{d.name}</span>
+                      <div className={`h-4 w-4 rounded border flex items-center justify-center flex-shrink-0 ${
+                        isSelected ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/40 bg-background"
+                      }`}>
+                        {isSelected && <Check className="h-3 w-3" />}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+
+        {unassigned.length > 0 && (
+          <div className="border border-border rounded-xl p-3.5 bg-muted/20 space-y-3">
+            <span className="text-xs font-bold text-foreground">Outras Disciplinas</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {unassigned.map(d => {
+                const isSelected = selectedIds.includes(d.id)
+                return (
+                  <div
+                    key={d.id}
+                    onClick={() => toggleDiscipline(d.id)}
+                    className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer select-none transition-all text-xs ${
+                      isSelected 
+                        ? "bg-primary/10 border-primary text-primary font-semibold" 
+                        : "bg-background border-border hover:bg-muted/50 text-foreground"
+                    }`}
+                  >
+                    <span className="truncate pr-2">{d.name}</span>
+                    <div className={`h-4 w-4 rounded border flex items-center justify-center flex-shrink-0 ${
+                      isSelected ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/40 bg-background"
+                    }`}>
+                      {isSelected && <Check className="h-3 w-3" />}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         )}
+      </div>
+
+      {/* Save Button Footer */}
+      <div className="flex items-center justify-between pt-3 border-t border-border">
+        <span className="text-xs text-muted-foreground">
+          {selectedIds.length} disciplina{selectedIds.length === 1 ? "" : "s"} selecionada{selectedIds.length === 1 ? "" : "s"} para {professorName}
+        </span>
+        <Button 
+          type="button" 
+          onClick={handleSave} 
+          disabled={saving}
+          className="font-semibold text-xs h-9 px-4"
+        >
+          {saving ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Salvando...
+            </>
+          ) : (
+            <>
+              <Check className="h-3.5 w-3.5 mr-1.5" /> Salvar Afinidades
+            </>
+          )}
+        </Button>
       </div>
     </div>
   )

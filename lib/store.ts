@@ -1124,6 +1124,31 @@ export async function getAllProfessorDisciplines(): Promise<ProfessorDiscipline[
   return (data || []).map(mapProfessorDiscipline)
 }
 
+export async function setProfessorFamiliarDisciplines(professorId: string, disciplineIds: string[]): Promise<void> {
+  const supabase = createClient()
+  
+  // Remove existing links for this professor
+  await supabase.from('professor_disciplines').delete().eq('professor_id', professorId)
+
+  // Insert new links
+  if (disciplineIds && disciplineIds.length > 0) {
+    const rows = disciplineIds.map(disciplineId => ({
+      professor_id: professorId,
+      discipline_id: disciplineId,
+      created_at: new Date().toISOString()
+    }))
+    const { error } = await supabase.from('professor_disciplines').insert(rows)
+    if (error) throw new Error(error.message)
+  }
+}
+
+export async function getProfessorAccountById(id: string): Promise<ProfessorAccount | null> {
+  const supabase = createClient()
+  const { data, error } = await supabase.from('professor_accounts').select('*').eq('id', id).maybeSingle()
+  if (error || !data) return null
+  return mapProfessor(data)
+}
+
 // ─── Challenges ─────────────────────────────────────────────────────────────
 
 export async function getChallenges(disciplineId?: string): Promise<Challenge[]> {
@@ -1451,6 +1476,12 @@ export async function addDiscipline(
 }
 
 export async function updateDiscipline(id: string, data: Partial<Pick<Discipline, "name" | "description" | "semesterId" | "professorName" | "dayOfWeek" | "shift" | "order" | "applicationMonth" | "applicationYear" | "isConcluded">>): Promise<void> {
+  const supabase = createClient()
+
+  // 1. Fetch current discipline data before update
+  const { data: currentDisc } = await supabase.from('disciplines').select('*').eq('id', id).maybeSingle()
+  const oldName = currentDisc?.name
+
   const updateData: any = {}
   if (data.name !== undefined) updateData.name = data.name
   if (data.description !== undefined) updateData.description = data.description || null
@@ -1463,12 +1494,53 @@ export async function updateDiscipline(id: string, data: Partial<Pick<Discipline
   if (data.applicationYear !== undefined) updateData.application_year = data.applicationYear || null
   if (data.isConcluded !== undefined) updateData.is_concluded = data.isConcluded
 
-  const supabase = createClient()
   const { error, count } = await supabase.from('disciplines').update(updateData).eq('id', id).select('id', { count: 'exact' })
 
   if (error) {
     console.error("Error updating discipline:", error)
     throw new Error(`Falha ao atualizar disciplina: ${error.message}`)
+  }
+
+  // 2. If month, year, or name changed, propagate automatically to financial_charges
+  const newName = data.name !== undefined ? data.name : currentDisc?.name
+  const finalMonth = data.applicationMonth !== undefined ? data.applicationMonth : currentDisc?.application_month
+  const finalYear = data.applicationYear !== undefined ? data.applicationYear : currentDisc?.application_year
+
+  if (finalMonth && finalYear) {
+    const monthMap: Record<string, number> = {
+      'Jan': 1, 'Fev': 2, 'Mar': 3, 'Abr': 4, 'Mai': 5, 'Jun': 6,
+      'Jul': 7, 'Ago': 8, 'Set': 9, 'Out': 10, 'Nov': 11, 'Dez': 12
+    }
+    let monthNum = 1
+    if (monthMap[finalMonth]) {
+      monthNum = monthMap[finalMonth]
+    } else {
+      monthNum = parseInt(finalMonth) || 1
+    }
+    const year = parseInt(finalYear || "2026")
+    const newDueDate = new Date(year, monthNum - 1, 10).toISOString().split('T')[0]
+
+    const chargeUpdate: any = {
+      due_date: newDueDate,
+      discipline_id: id
+    }
+    if (newName) {
+      chargeUpdate.description = `Mensalidade: ${newName}`
+    }
+
+    // Update by discipline_id
+    await supabase.from('financial_charges')
+      .update(chargeUpdate)
+      .eq('discipline_id', id)
+      .eq('type', 'monthly')
+
+    // Also update any legacy charges matched by old name if oldName exists
+    if (oldName) {
+      await supabase.from('financial_charges')
+        .update(chargeUpdate)
+        .eq('description', `Mensalidade: ${oldName}`)
+        .eq('type', 'monthly')
+    }
   }
 
   console.log(`Discipline ${id} updated status. Rows affected: ${count}`)
