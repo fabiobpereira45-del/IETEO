@@ -148,7 +148,7 @@ export function ProfessorManager() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [affinityProfId, setAffinityProfId] = useState<string | null>(null)
-  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [copiedGlobal, setCopiedGlobal] = useState(false)
 
   async function refresh() {
     const [accs, discs, pDiscs] = await Promise.all([
@@ -230,13 +230,13 @@ export function ProfessorManager() {
     }
   }
 
-  function handleCopyShareLink(id: string) {
+  function handleCopyGlobalLink() {
     const origin = typeof window !== "undefined" ? window.location.origin : ""
-    const url = `${origin}/professor/formulario?id=${encodeURIComponent(id)}`
+    const url = `${origin}/professor/formulario`
     navigator.clipboard.writeText(url)
-    setCopiedId(id)
+    setCopiedGlobal(true)
     setTimeout(() => {
-      setCopiedId(null)
+      setCopiedGlobal(false)
     }, 2500)
   }
 
@@ -259,6 +259,57 @@ export function ProfessorManager() {
           <span className="text-xs bg-primary/15 text-primary px-2.5 py-1 rounded-full font-semibold flex-shrink-0">
             Master
           </span>
+        </div>
+      </div>
+
+      {/* Link Único de Afinidades Docentes */}
+      <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-card border border-primary/25 rounded-xl p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
+        <div className="space-y-1 max-w-xl">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-semibold">
+            <Sparkles className="h-3.5 w-3.5" /> Link Único para Professores
+          </div>
+          <h3 className="text-sm sm:text-base font-bold text-foreground">
+            Formulário Geral de Afinidades Docentes
+          </h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Envie este <strong>link único</strong> para todos os professores. Na página, cada docente seleciona seu próprio nome e indica as disciplinas de seu interesse.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto flex-shrink-0">
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleCopyGlobalLink}
+            className={`text-xs font-semibold gap-1.5 transition-all ${
+              copiedGlobal 
+                ? "bg-green-600 hover:bg-green-700 text-white" 
+                : "bg-primary text-primary-foreground hover:bg-primary/90"
+            }`}
+          >
+            {copiedGlobal ? (
+              <>
+                <Check className="h-3.5 w-3.5" /> Link Copiado!
+              </>
+            ) : (
+              <>
+                <Copy className="h-3.5 w-3.5" /> Copiar Link Único
+              </>
+            )}
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            asChild
+            className="text-xs font-medium border-border hover:bg-muted"
+          >
+            <a href="/professor/formulario" target="_blank" rel="noopener noreferrer" className="gap-1.5 inline-flex items-center">
+              <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+              Abrir Formulário
+            </a>
+          </Button>
         </div>
       </div>
 
@@ -390,31 +441,6 @@ export function ProfessorManager() {
 
                       {/* Action buttons */}
                       <div className="flex items-center gap-1.5 self-end sm:self-center flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50 w-full sm:w-auto justify-end">
-                        {/* Copy Link Button */}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={`h-8 px-2.5 text-xs font-medium gap-1.5 transition-all ${
-                            copiedId === account.id 
-                              ? "bg-green-500/10 text-green-600 border-green-500/30" 
-                              : "text-foreground hover:bg-primary/10 hover:text-primary"
-                          }`}
-                          onClick={() => handleCopyShareLink(account.id)}
-                          title="Copiar link do formulário para enviar ao professor"
-                        >
-                          {copiedId === account.id ? (
-                            <>
-                              <Check className="h-3.5 w-3.5 text-green-600" />
-                              <span className="text-green-600 font-semibold">Copiado!</span>
-                            </>
-                          ) : (
-                            <>
-                              <Share2 className="h-3.5 w-3.5 text-primary" />
-                              <span>Link do Formulário</span>
-                            </>
-                          )}
-                        </Button>
-
                         {/* Affinity Modal Trigger */}
                         <Button
                           size="sm"
@@ -580,9 +606,9 @@ function ProfessorDisciplineManager({
     }
   }
 
-  function handleCopyFormLink() {
+  function handleCopyGlobalLink() {
     const origin = typeof window !== "undefined" ? window.location.origin : ""
-    const url = `${origin}/professor/formulario?id=${encodeURIComponent(professorId)}`
+    const url = `${origin}/professor/formulario`
     navigator.clipboard.writeText(url)
     setCopied(true)
     setTimeout(() => setCopied(false), 2500)
@@ -615,10 +641,10 @@ function ProfessorDisciplineManager({
       <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="space-y-0.5">
           <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-            <Share2 className="h-3.5 w-3.5 text-primary" /> Link de autoindicação do professor
+            <Sparkles className="h-3.5 w-3.5 text-primary" /> Mapeamento de afinidades
           </p>
           <p className="text-[11px] text-muted-foreground">
-            Envie este link para o professor <strong>{professorName}</strong> preencher suas próprias disciplinas.
+            Você pode indicar as afinidades de <strong>{professorName}</strong> aqui, ou o docente pode preenchê-las pelo link único geral de professores.
           </p>
         </div>
 
@@ -626,7 +652,7 @@ function ProfessorDisciplineManager({
           type="button" 
           size="sm" 
           variant="outline" 
-          onClick={handleCopyFormLink}
+          onClick={handleCopyGlobalLink}
           className={`h-8 text-xs font-semibold gap-1.5 ${copied ? "bg-green-500/10 text-green-600 border-green-500/30" : "border-primary/40 text-primary hover:bg-primary/10"}`}
         >
           {copied ? (
@@ -635,7 +661,7 @@ function ProfessorDisciplineManager({
             </>
           ) : (
             <>
-              <Copy className="h-3.5 w-3.5" /> Copiar Link do Formulário
+              <Copy className="h-3.5 w-3.5" /> Copiar Link Geral
             </>
           )}
         </Button>
