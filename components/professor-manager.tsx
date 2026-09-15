@@ -358,10 +358,13 @@ export function ProfessorManager() {
         ) : (
           <div className="flex flex-col gap-3">
             {accounts.map((account) => {
-              const familiarDisciplines = profDisciplines
+              const familiarRaw = profDisciplines
                 .filter(pd => pd.professorId === account.id)
                 .map(pd => disciplines.find(d => d.id === pd.disciplineId))
                 .filter(Boolean) as Discipline[]
+              const familiarDisciplines = Array.from(
+                new Map(familiarRaw.map(d => [d.name.trim().toLowerCase(), d])).values()
+              )
 
               return (
                 <div key={account.id}>
@@ -565,9 +568,49 @@ function ProfessorDisciplineManager({
       getSemesters(),
       getProfessorDisciplines(professorId)
     ])
-    setDisciplines(allDiscs.sort((a, b) => (a.order || 0) - (b.order || 0)))
-    setSemesters(allSems.sort((a, b) => (a.order || 0) - (b.order || 0)))
-    setSelectedIds(linked.map(l => l.disciplineId))
+
+    const presencialSems = (allSems || [])
+      .filter(s => (s.modality || "presencial") === "presencial")
+      .sort((a, b) => (a.order || 0) - (b.order || 0))
+
+    const presencialSemIds = new Set(presencialSems.map(s => s.id))
+
+    const presencialDiscsRaw = (allDiscs || [])
+      .filter(d => d.semesterId && presencialSemIds.has(d.semesterId))
+      .sort((a, b) => (a.order || 0) - (b.order || 0))
+
+    const seenNames = new Set<string>()
+    const presencialDiscs: Discipline[] = []
+    for (const disc of presencialDiscsRaw) {
+      const norm = disc.name.trim().toLowerCase()
+      if (!seenNames.has(norm)) {
+        seenNames.add(norm)
+        presencialDiscs.push(disc)
+      }
+    }
+
+    setDisciplines(presencialDiscs)
+    setSemesters(presencialSems)
+
+    // Mapear IDs salvos para disciplinas presenciais
+    const linkedIds = linked.map(l => l.disciplineId)
+    const validSelected = new Set<string>()
+    linkedIds.forEach(id => {
+      const direct = presencialDiscs.find(d => d.id === id)
+      if (direct) {
+        validSelected.add(direct.id)
+      } else {
+        const raw = (allDiscs || []).find(d => d.id === id)
+        if (raw) {
+          const match = presencialDiscs.find(
+            pd => pd.name.trim().toLowerCase() === raw.name.trim().toLowerCase()
+          )
+          if (match) validSelected.add(match.id)
+        }
+      }
+    })
+
+    setSelectedIds(Array.from(validSelected))
     setLoading(false)
   }
 

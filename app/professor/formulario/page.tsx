@@ -48,6 +48,7 @@ function ProfessorFormContent() {
 
   const [semesters, setSemesters] = useState<Semester[]>([])
   const [disciplines, setDisciplines] = useState<Discipline[]>([])
+  const [allDisciplinesList, setAllDisciplinesList] = useState<Discipline[]>([])
   const [selectedDisciplineIds, setSelectedDisciplineIds] = useState<string[]>([])
   const [disciplineSearch, setDisciplineSearch] = useState("")
 
@@ -66,9 +67,33 @@ function ProfessorFormContent() {
           .filter(p => p.active !== false)
           .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
 
+        // Exibir apenas semestres do modo presencial
+        const presencialSemesters = (semList || [])
+          .filter(s => (s.modality || "presencial") === "presencial")
+          .sort((a, b) => (a.order || 0) - (b.order || 0))
+
+        const presencialSemIds = new Set(presencialSemesters.map(s => s.id))
+
+        // Exibir apenas as disciplinas da grade presencial (sem repetições)
+        const presencialDisciplinesRaw = (discList || [])
+          .filter(d => d.semesterId && presencialSemIds.has(d.semesterId))
+          .sort((a, b) => (a.order || 0) - (b.order || 0))
+
+        // Garantir unicidade estrita por nome
+        const seenNames = new Set<string>()
+        const presencialDisciplines: Discipline[] = []
+        for (const disc of presencialDisciplinesRaw) {
+          const norm = disc.name.trim().toLowerCase()
+          if (!seenNames.has(norm)) {
+            seenNames.add(norm)
+            presencialDisciplines.push(disc)
+          }
+        }
+
         setProfessors(activeProfs)
-        setSemesters(semList.sort((a, b) => (a.order || 0) - (b.order || 0)))
-        setDisciplines(discList.sort((a, b) => (a.order || 0) - (b.order || 0)))
+        setSemesters(presencialSemesters)
+        setDisciplines(presencialDisciplines)
+        setAllDisciplinesList(discList || [])
 
         // Pre-select if initialProfId is valid
         if (initialProfId && activeProfs.some(p => p.id === initialProfId)) {
@@ -76,7 +101,23 @@ function ProfessorFormContent() {
           try {
             setLoadingDisciplines(true)
             const profDiscs = await getProfessorDisciplines(initialProfId)
-            setSelectedDisciplineIds(profDiscs.map(pd => pd.disciplineId))
+            const linkedIds = profDiscs.map(pd => pd.disciplineId)
+            const validSelectedIds = new Set<string>()
+            linkedIds.forEach(id => {
+              const direct = presencialDisciplines.find(d => d.id === id)
+              if (direct) {
+                validSelectedIds.add(direct.id)
+              } else {
+                const raw = (discList || []).find(d => d.id === id)
+                if (raw) {
+                  const match = presencialDisciplines.find(
+                    pd => pd.name.trim().toLowerCase() === raw.name.trim().toLowerCase()
+                  )
+                  if (match) validSelectedIds.add(match.id)
+                }
+              }
+            })
+            setSelectedDisciplineIds(Array.from(validSelectedIds))
           } catch (e) {
             console.error("Erro ao carregar afinidades iniciais:", e)
           } finally {
@@ -107,7 +148,23 @@ function ProfessorFormContent() {
     try {
       setLoadingDisciplines(true)
       const profDiscs = await getProfessorDisciplines(profId)
-      setSelectedDisciplineIds(profDiscs.map(pd => pd.disciplineId))
+      const linkedIds = profDiscs.map(pd => pd.disciplineId)
+      const validSelectedIds = new Set<string>()
+      linkedIds.forEach(id => {
+        const direct = disciplines.find(d => d.id === id)
+        if (direct) {
+          validSelectedIds.add(direct.id)
+        } else {
+          const raw = allDisciplinesList.find(d => d.id === id)
+          if (raw) {
+            const match = disciplines.find(
+              pd => pd.name.trim().toLowerCase() === raw.name.trim().toLowerCase()
+            )
+            if (match) validSelectedIds.add(match.id)
+          }
+        }
+      })
+      setSelectedDisciplineIds(Array.from(validSelectedIds))
     } catch (err) {
       console.error("Erro ao buscar afinidades do professor:", err)
     } finally {
@@ -382,7 +439,7 @@ function ProfessorFormContent() {
                   </div>
 
                   <div className="text-xs text-muted-foreground text-right sm:text-left self-center font-medium">
-                    Total na grade: {disciplines.length} disciplinas
+                    Total na grade presencial: {disciplines.length} disciplinas
                   </div>
                 </div>
 
