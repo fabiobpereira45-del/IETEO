@@ -162,7 +162,25 @@ export function StudentBooksView({ profile, isProfessor }: Props) {
             Locação Gratuita de Livros para {isProfessor ? "Professores" : "Alunos"}
           </h2>
           <p className="text-sm text-slate-300 leading-relaxed">
-            Aprofunde seus estudos teológicos com o acervo impresso do IETEO. Você pode retirar livros gratuitamente por até <strong>7 dias corridos</strong> para estudar na sua casa. Solicite a reserva aqui e retire com o coordenador no seu polo.
+            Aprofunde seus estudos teológicos com o acervo impresso do IETEO. Retire livros gratuitamente por até <strong>7 dias corridos</strong>. O serviço é exclusivo para retirada presencial na <strong>sede do Polo Salvador</strong>.
+          </p>
+        </div>
+      </div>
+
+      {/* 📍 AVISO: RETIRADA PRESENCIAL OBRIGATÓRIA - POLO SALVADOR */}
+      <div className="rounded-2xl border-2 border-amber-400/60 bg-amber-50 dark:bg-amber-950/30 p-4 flex items-start gap-4 shadow-sm">
+        <div className="p-2.5 bg-amber-500 text-white rounded-xl shrink-0 shadow-md">
+          <Building2 className="h-5 w-5" />
+        </div>
+        <div className="space-y-1">
+          <h4 className="font-bold text-sm text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+            📍 Serviço disponível apenas para retirada presencial
+          </h4>
+          <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+            As locações de livros são exclusivas para alunos que possam{" "}
+            <strong>retirar fisicamente os exemplares na sede do Polo Salvador</strong>. Somente solicite
+            a reserva se você tiver disponibilidade de comparecer presencialmente. Em caso de dúvidas,
+            entre em contato com a coordenação do polo antes de reservar.
           </p>
         </div>
       </div>
