@@ -24,7 +24,7 @@ import {
 import {
     type Semester, type Discipline, type ProfessorAccount,
     getSemesters, addSemester, updateSemester, deleteSemester,
-    getDisciplines, updateDiscipline, addDiscipline, deleteDiscipline,
+    getDisciplines, updateDiscipline, updateDisciplineOrder, addDiscipline, deleteDiscipline,
     getProfessorAccounts, MASTER_CREDENTIALS
 } from "@/lib/store"
 import { printCurriculumPDF } from "@/lib/pdf"
@@ -193,55 +193,57 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
     // ── Unlink = remove from semester, send back to pool ──────────────────────
     async function handleUnlinkDisc(id: string) {
         try {
+            // Optimistic update
+            setDisciplines(prev => prev.map(d => d.id === id ? { ...d, semesterId: undefined } : d))
+            setUnlinkDiscId(null)
             await updateDiscipline(id, { semesterId: null })
-            setUnlinkDiscId(null); load()
         } catch (err: any) {
             alert(`Erro ao desvincular: ${err.message}`)
+            load()
         }
     }
 
     // ── Permanent delete (from pool only) ─────────────────────────────────────
     async function handleDeleteDisc(id: string) {
         try {
-            await deleteDiscipline(id); setDeleteDiscId(null); load()
+            setDisciplines(prev => prev.filter(d => d.id !== id))
+            setDeleteDiscId(null)
+            await deleteDiscipline(id)
         } catch (err: any) {
             alert(`Erro ao excluir: ${err.message}`)
+            load()
         }
     }
 
-    async function handleMoveDisc(disc: Discipline, direction: 'up' | 'down', semDiscs: Discipline[]) {
+    async function handleMoveDisc(disc: Discipline, direction: 'up' | 'down', currentSemDiscs: Discipline[]) {
         try {
-            const idx = semDiscs.findIndex(d => d.id === disc.id)
+            const sortedSemDiscs = [...currentSemDiscs].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+            const idx = sortedSemDiscs.findIndex(d => d.id === disc.id)
+            if (idx === -1) return
             if (direction === 'up' && idx === 0) return
-            if (direction === 'down' && idx === semDiscs.length - 1) return
+            if (direction === 'down' && idx === sortedSemDiscs.length - 1) return
 
             const targetIdx = direction === 'up' ? idx - 1 : idx + 1
-            const otherDisc = semDiscs[targetIdx]
+            const newSorted = [...sortedSemDiscs]
+            const [movedItem] = newSorted.splice(idx, 1)
+            newSorted.splice(targetIdx, 0, movedItem)
 
-            // Swap order
-            const currentOrder = disc.order
-            const targetOrder = otherDisc.order
+            const orderUpdates = newSorted.map((d, i) => ({
+                id: d.id,
+                order: i * 10
+            }))
 
-            // Optimistic update
+            // Instant optimistic update
+            const orderMap = new Map(orderUpdates.map(u => [u.id, u.order]))
             setDisciplines(prev => prev.map(d => {
-                if (d.id === disc.id) return { ...d, order: targetOrder }
-                if (d.id === otherDisc.id) return { ...d, order: currentOrder }
+                if (orderMap.has(d.id)) {
+                    return { ...d, order: orderMap.get(d.id)! }
+                }
                 return d
             }))
 
-            if (currentOrder === targetOrder) {
-                await Promise.all(semDiscs.map((d, i) => {
-                    let newOrder = i * 10
-                    if (i === idx) newOrder = targetIdx * 10
-                    if (i === targetIdx) newOrder = idx * 10
-                    return updateDiscipline(d.id, { order: newOrder })
-                }))
-            } else {
-                await updateDiscipline(disc.id, { order: targetOrder })
-                await updateDiscipline(otherDisc.id, { order: currentOrder })
-            }
-
-            load()
+            // Batch background update to Supabase
+            await updateDisciplineOrder(orderUpdates)
         } catch (err: any) {
             alert(`Erro ao mover: ${err.message}`)
             load()
@@ -331,7 +333,9 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
                 )}
 
                 {filteredSemesters.map(sem => {
-                    const semDiscs = disciplines.filter(d => d.semesterId === sem.id)
+                    const semDiscs = disciplines
+                        .filter(d => d.semesterId === sem.id)
+                        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
 
                     return (
                         <div key={sem.id} className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">

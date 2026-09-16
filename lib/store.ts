@@ -1496,12 +1496,17 @@ export async function addDiscipline(
   return mapDiscipline(data)
 }
 
+export async function updateDisciplineOrder(items: { id: string; order: number }[]): Promise<void> {
+  const supabase = createClient()
+  await Promise.all(
+    items.map(item =>
+      supabase.from('disciplines').update({ order: item.order }).eq('id', item.id)
+    )
+  )
+}
+
 export async function updateDiscipline(id: string, data: Partial<Pick<Discipline, "name" | "description" | "semesterId" | "professorName" | "dayOfWeek" | "shift" | "order" | "applicationMonth" | "applicationYear" | "isConcluded">>): Promise<void> {
   const supabase = createClient()
-
-  // 1. Fetch current discipline data before update
-  const { data: currentDisc } = await supabase.from('disciplines').select('*').eq('id', id).maybeSingle()
-  const oldName = currentDisc?.name
 
   const updateData: any = {}
   if (data.name !== undefined) updateData.name = data.name
@@ -1522,44 +1527,40 @@ export async function updateDiscipline(id: string, data: Partial<Pick<Discipline
     throw new Error(`Falha ao atualizar disciplina: ${error.message}`)
   }
 
-  // 2. If month, year, or name changed, propagate automatically to financial_charges
-  const newName = data.name !== undefined ? data.name : currentDisc?.name
-  const finalMonth = data.applicationMonth !== undefined ? data.applicationMonth : currentDisc?.application_month
-  const finalYear = data.applicationYear !== undefined ? data.applicationYear : currentDisc?.application_year
+  // Only check/propagate financial charges IF name, month, or year was explicitly changed
+  const hasFinancialRelevantChange = data.name !== undefined || data.applicationMonth !== undefined || data.applicationYear !== undefined
+  if (hasFinancialRelevantChange) {
+    const { data: currentDisc } = await supabase.from('disciplines').select('name, application_month, application_year').eq('id', id).maybeSingle()
+    const newName = data.name !== undefined ? data.name : currentDisc?.name
+    const finalMonth = data.applicationMonth !== undefined ? data.applicationMonth : currentDisc?.application_month
+    const finalYear = data.applicationYear !== undefined ? data.applicationYear : currentDisc?.application_year
 
-  if (finalMonth && finalYear) {
-    const monthMap: Record<string, number> = {
-      'Jan': 1, 'Fev': 2, 'Mar': 3, 'Abr': 4, 'Mai': 5, 'Jun': 6,
-      'Jul': 7, 'Ago': 8, 'Set': 9, 'Out': 10, 'Nov': 11, 'Dez': 12
-    }
-    let monthNum = 1
-    if (monthMap[finalMonth]) {
-      monthNum = monthMap[finalMonth]
-    } else {
-      monthNum = parseInt(finalMonth) || 1
-    }
-    const year = parseInt(finalYear || "2026")
-    const newDueDate = new Date(year, monthNum - 1, 10).toISOString().split('T')[0]
+    if (finalMonth && finalYear) {
+      const monthMap: Record<string, number> = {
+        'Jan': 1, 'Fev': 2, 'Mar': 3, 'Abr': 4, 'Mai': 5, 'Jun': 6,
+        'Jul': 7, 'Ago': 8, 'Set': 9, 'Out': 10, 'Nov': 11, 'Dez': 12
+      }
+      let monthNum = 1
+      if (monthMap[finalMonth]) {
+        monthNum = monthMap[finalMonth]
+      } else {
+        monthNum = parseInt(finalMonth) || 1
+      }
+      const year = parseInt(finalYear || "2026")
+      const newDueDate = new Date(year, monthNum - 1, 10).toISOString().split('T')[0]
 
-    const chargeUpdate: any = {
-      due_date: newDueDate,
-      discipline_id: id
-    }
-    if (newName) {
-      chargeUpdate.description = `Mensalidade: ${newName}`
-    }
+      const chargeUpdate: any = {
+        due_date: newDueDate,
+        discipline_id: id
+      }
+      if (newName) {
+        chargeUpdate.description = `Mensalidade: ${newName}`
+      }
 
-    // Update by discipline_id
-    await supabase.from('financial_charges')
-      .update(chargeUpdate)
-      .eq('discipline_id', id)
-      .eq('type', 'monthly')
-
-    // Also update any legacy charges matched by old name if oldName exists
-    if (oldName) {
+      // Update by discipline_id
       await supabase.from('financial_charges')
         .update(chargeUpdate)
-        .eq('description', `Mensalidade: ${oldName}`)
+        .eq('discipline_id', id)
         .eq('type', 'monthly')
     }
   }
