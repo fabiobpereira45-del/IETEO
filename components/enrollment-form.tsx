@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { X, ChevronRight, ChevronLeft, User, Phone, MapPin, Church, BookOpen, CreditCard, QrCode, Loader2, CheckCircle2, AlertCircle, Copy, MessageCircle, Clock, GraduationCap, ArrowRight } from "lucide-react"
+import { X, ChevronRight, ChevronLeft, User, Phone, MapPin, Church, BookOpen, CreditCard, QrCode, Loader2, CheckCircle2, AlertCircle, Copy, MessageCircle, Clock, GraduationCap, ArrowRight, Mail, Calendar } from "lucide-react"
 import { getClasses, getFinancialSettings, getClassSchedules, type ClassRoom, type FinancialSettings, type ClassSchedule, POLOS } from "@/lib/store"
 import { usePolo } from "@/lib/polo-context"
 import {
@@ -27,15 +27,29 @@ type PayMethod = "pix" | "card" | null
 
 interface FormData {
     name: string
+    email: string
     cpf: string
+    birthDate: string
     phone: string
+    cep: string
     address: string
     church: string
     pastor: string
     classId: string
 }
 
-const EMPTY_FORM: FormData = { name: "", cpf: "", phone: "", address: "", church: "", pastor: "", classId: "" }
+const EMPTY_FORM: FormData = {
+    name: "",
+    email: "",
+    cpf: "",
+    birthDate: "",
+    phone: "",
+    cep: "",
+    address: "",
+    church: "",
+    pastor: "",
+    classId: ""
+}
 
 function formatCPF(v: string) {
     return v.replace(/\D/g, "").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2").slice(0, 14)
@@ -54,6 +68,7 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
 
     const [payMethod, setPayMethod] = useState<PayMethod>(null)
     const [loading, setLoading] = useState(true)
+    const [loadingCep, setLoadingCep] = useState(false)
 
     // Pix state
     const [pixCopied, setPixCopied] = useState(false)
@@ -70,6 +85,36 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
     const [selectedModality, setSelectedModality] = useState<"presencial" | "semi_presencial" | "online" | "">("")
     const [selectedPoloId, setSelectedPoloId] = useState<string>(polo?.id || "polo-tancredo-neves")
     const [showConfirmModal, setShowConfirmModal] = useState(false)
+
+    async function handleCepChange(val: string) {
+        const masked = val.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 9)
+        setForm(f => ({ ...f, cep: masked }))
+
+        const clean = val.replace(/\D/g, '')
+        if (clean.length === 8) {
+            setLoadingCep(true)
+            try {
+                const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`)
+                const data = await res.json()
+                if (!data.erro) {
+                    const addressParts = [
+                        data.logradouro,
+                        data.bairro,
+                        `${data.localidade} - ${data.uf}`
+                    ].filter(Boolean).join(", ")
+                    
+                    setForm(f => ({
+                        ...f,
+                        address: addressParts
+                    }))
+                }
+            } catch (err) {
+                console.error("Erro ao buscar CEP:", err)
+            } finally {
+                setLoadingCep(false)
+            }
+        }
+    }
 
     const selectedClass = classes.find(c => c.id === form.classId)
 
@@ -120,7 +165,7 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
         load()
     }, [])
 
-    const isPersonalValid = form.name.trim() && form.cpf.length >= 14 && form.phone.length >= 14 && form.address.trim() && form.church.trim() && form.pastor.trim()
+    const isPersonalValid = form.name.trim() && form.email.trim().includes('@') && form.cpf.replace(/\D/g, '').length === 11 && form.birthDate.trim() && form.phone.trim().length >= 14 && form.address.trim() && form.church.trim() && form.pastor.trim()
     const isClassValid = !!form.classId
 
     async function handleCreateEnrollment() {
@@ -309,35 +354,145 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                     {loading ? (
                         <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 text-accent animate-spin" /></div>
                     ) : step === "personal" ? (
-                        <div className="space-y-4">
+                        <div className="space-y-3.5">
                             <h3 className="font-semibold text-foreground flex items-center gap-2"><User className="h-4 w-4 text-accent" /> Dados Pessoais</h3>
-                            {[
-                                { label: "Nome Completo *", key: "name", icon: User, placeholder: "Seu nome completo", type: "text" },
-                                { label: "CPF *", key: "cpf", icon: User, placeholder: "000.000.000-00", type: "text" },
-                                { label: "Telefone/WhatsApp *", key: "phone", icon: Phone, placeholder: "(00) 00000-0000", type: "tel" },
-                                { label: "Endereço Completo *", key: "address", icon: MapPin, placeholder: "Rua, número, bairro, cidade", type: "text" },
-                                { label: "Nome da Igreja *", key: "church", icon: Church, placeholder: "Nome da sua congregação", type: "text" },
-                                { label: "Nome do Pastor *", key: "pastor", icon: User, placeholder: "Nome do pastor responsável", type: "text" },
-                            ].map(({ label, key, icon: Icon, placeholder, type }) => (
-                                <div key={key}>
-                                    <label className="text-xs font-semibold text-muted-foreground block mb-1">{label}</label>
+
+                            {/* Nome Completo */}
+                            <div>
+                                <label className="text-xs font-semibold text-muted-foreground block mb-1">Nome Completo *</label>
+                                <div className="relative">
+                                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <input
+                                        type="text"
+                                        className="w-full border border-input rounded-xl pl-9 pr-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent"
+                                        placeholder="Seu nome completo"
+                                        value={form.name}
+                                        onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* E-mail */}
+                            <div>
+                                <label className="text-xs font-semibold text-muted-foreground block mb-1">E-mail *</label>
+                                <div className="relative">
+                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <input
+                                        type="email"
+                                        className="w-full border border-input rounded-xl pl-9 pr-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent"
+                                        placeholder="seuemail@exemplo.com"
+                                        value={form.email}
+                                        onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* CPF e Data de Nascimento */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground block mb-1">CPF *</label>
                                     <div className="relative">
-                                        <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                         <input
-                                            type={type}
-                                            className="w-full border border-input rounded-xl pl-9 pr-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent"
-                                            placeholder={placeholder}
-                                            value={form[key as keyof FormData]}
-                                            onChange={e => {
-                                                let val = e.target.value
-                                                if (key === "cpf") val = formatCPF(val)
-                                                if (key === "phone") val = formatPhone(val)
-                                                setForm(f => ({ ...f, [key]: val }))
-                                            }}
+                                            type="text"
+                                            className="w-full border border-input rounded-xl pl-9 pr-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent"
+                                            placeholder="000.000.000-00"
+                                            value={form.cpf}
+                                            onChange={e => setForm(f => ({ ...f, cpf: formatCPF(e.target.value) }))}
                                         />
                                     </div>
                                 </div>
-                            ))}
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Data de Nascimento *</label>
+                                    <div className="relative">
+                                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <input
+                                            type="date"
+                                            className="w-full border border-input rounded-xl pl-9 pr-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent"
+                                            value={form.birthDate}
+                                            onChange={e => setForm(f => ({ ...f, birthDate: e.target.value }))}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Telefone/WhatsApp e CEP */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Telefone/WhatsApp *</label>
+                                    <div className="relative">
+                                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <input
+                                            type="tel"
+                                            className="w-full border border-input rounded-xl pl-9 pr-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent"
+                                            placeholder="(00) 00000-0000"
+                                            value={form.phone}
+                                            onChange={e => setForm(f => ({ ...f, phone: formatPhone(e.target.value) }))}
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground block mb-1">CEP *</label>
+                                    <div className="relative">
+                                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <input
+                                            type="text"
+                                            className="w-full border border-input rounded-xl pl-9 pr-8 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent"
+                                            placeholder="00000-000"
+                                            value={form.cep}
+                                            onChange={e => handleCepChange(e.target.value)}
+                                        />
+                                        {loadingCep && (
+                                            <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-accent animate-spin" />
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Endereço Residencial */}
+                            <div>
+                                <label className="text-xs font-semibold text-muted-foreground block mb-1">Endereço Residencial (Rua, Número, Bairro) *</label>
+                                <div className="relative">
+                                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <input
+                                        type="text"
+                                        className="w-full border border-input rounded-xl pl-9 pr-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent"
+                                        placeholder="Ex: Av. Principal, 123, Centro - Salvador/BA"
+                                        value={form.address}
+                                        onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Igreja e Pastor */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Nome da Igreja *</label>
+                                    <div className="relative">
+                                        <Church className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <input
+                                            type="text"
+                                            className="w-full border border-input rounded-xl pl-9 pr-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent"
+                                            placeholder="Sua congregação"
+                                            value={form.church}
+                                            onChange={e => setForm(f => ({ ...f, church: e.target.value }))}
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Nome do Pastor *</label>
+                                    <div className="relative">
+                                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <input
+                                            type="text"
+                                            className="w-full border border-input rounded-xl pl-9 pr-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-accent"
+                                            placeholder="Pastor responsável"
+                                            value={form.pastor}
+                                            onChange={e => setForm(f => ({ ...f, pastor: e.target.value }))}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     ) : step === "class" ? (
                         <div className="space-y-4">

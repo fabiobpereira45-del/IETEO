@@ -5,10 +5,10 @@ import { triggerN8nWebhook } from "@/lib/n8n"
 export async function POST(req: Request) {
     try {
         const body = await req.json()
-        const { name, cpf, phone, address, church, pastor, classId, amount, poloId, modality } = body
+        const { name, cpf, phone, address, church, pastor, classId, amount, poloId, modality, email, birthDate, cep } = body
 
         if (!name || !cpf || !phone || !address || !church || !pastor) {
-            return NextResponse.json({ error: "Todos os campos são obrigatórios." }, { status: 400 })
+            return NextResponse.json({ error: "Todos os campos obrigatórios devem ser preenchidos." }, { status: 400 })
         }
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
         // Generate enrollment number
         const enrollmentNumber = `IETEO-${Date.now().toString().slice(-8)}`
         const cleanCpf = cpf.replace(/\D/g, '')
-        const email = `${cleanCpf}@student.ieteo.com`
+        const studentEmail = (email && email.trim()) ? email.trim().toLowerCase() : `${cleanCpf}@student.ieteo.com`
 
         // Create Auth User
         let authUserId: string | undefined
@@ -56,17 +56,17 @@ export async function POST(req: Request) {
         const nameUC = (name || "").toUpperCase().trim()
 
         const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-            email,
-            password: "123456", // Senha padrão para evitar confusão
+            email: studentEmail,
+            password: "123456", // Senha padrão para primeiro acesso
             email_confirm: true,
-            user_metadata: { name: nameUC, type: 'student' }
+            user_metadata: { name: nameUC, type: 'student', birth_date: birthDate, cep }
         })
 
         if (authError) {
             if (authError.message === 'User already registered' || authError.code === 'email_exists') {
                 // If user exists, fetch their ID
                 const { data: users } = await supabase.auth.admin.listUsers()
-                const existingUser = users?.users.find(u => u.email === email)
+                const existingUser = users?.users.find(u => u.email === studentEmail)
                 authUserId = existingUser?.id
             } else {
                 console.error("Erro ao criar usuário Auth:", authError)
@@ -76,24 +76,37 @@ export async function POST(req: Request) {
         }
 
         // Create student record with status 'pending' (awaiting payment)
-        const { data: student, error: studentErr } = await supabase
+        const studentPayload: any = {
+            auth_user_id: authUserId,
+            name: nameUC,
+            cpf: cleanCpf,
+            email: studentEmail,
+            enrollment_number: enrollmentNumber,
+            phone: phone.trim(),
+            address: address.trim(),
+            church: church.trim(),
+            pastor_name: pastor.trim(),
+            class_id: classId || null,
+            polo_id: poloId || 'polo-tancredo-neves',
+            modality: modality || 'presencial',
+            status: 'pending'
+        }
+        if (birthDate) studentPayload.birth_date = birthDate
+        if (cep) studentPayload.cep = cep
+
+        let { data: student, error: studentErr } = await supabase
             .from('students')
-            .insert({
-                auth_user_id: authUserId,
-                name: nameUC,
-                cpf: cleanCpf,
-                enrollment_number: enrollmentNumber,
-                phone: phone.trim(),
-                address: address.trim(),
-                church: church.trim(),
-                pastor_name: pastor.trim(),
-                class_id: classId || null,
-                polo_id: poloId || 'polo-tancredo-neves',
-                modality: modality || 'presencial',
-                status: 'pending'
-            })
+            .insert(studentPayload)
             .select()
             .single()
+
+        if (studentErr && (studentErr.message.includes('column') || studentErr.message.includes('birth_date') || studentErr.message.includes('cep'))) {
+            delete studentPayload.birth_date
+            delete studentPayload.cep
+            const retry = await supabase.from('students').insert(studentPayload).select().single()
+            student = retry.data
+            studentErr = retry.error
+        }
 
         if (studentErr) {
             console.error("Erro ao criar aluno:", studentErr)

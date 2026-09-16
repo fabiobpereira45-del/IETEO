@@ -40,8 +40,11 @@ function EnrollmentContent() {
     
     const [form, setForm] = useState({
         name: "",
+        email: "",
         cpf: "",
+        birthDate: "",
         phone: "",
+        cep: "",
         address: "",
         church: "",
         pastor: "",
@@ -49,6 +52,7 @@ function EnrollmentContent() {
         amount: 120 // Initial default, will be updated by settings
     })
 
+    const [loadingCep, setLoadingCep] = useState(false)
     const [payMethod, setPayMethod] = useState<"pix" | "card" | null>(null)
     const [submitting, setSubmitting] = useState(false)
     const [success, setSuccess] = useState<{ enrollmentNumber: string; studentId: string } | null>(null)
@@ -59,6 +63,36 @@ function EnrollmentContent() {
     const [enrolledChargeId, setEnrolledChargeId] = useState<string | null>(null)
     const [isPaidLater, setIsPaidLater] = useState(false)
     const [showConfirmModal, setShowConfirmModal] = useState(false)
+
+    async function handleCepChange(val: string) {
+        const masked = val.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 9)
+        setForm(prev => ({ ...prev, cep: masked }))
+
+        const clean = val.replace(/\D/g, '')
+        if (clean.length === 8) {
+            setLoadingCep(true)
+            try {
+                const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`)
+                const data = await res.json()
+                if (!data.erro) {
+                    const addressParts = [
+                        data.logradouro,
+                        data.bairro,
+                        `${data.localidade} - ${data.uf}`
+                    ].filter(Boolean).join(", ")
+                    
+                    setForm(prev => ({
+                        ...prev,
+                        address: addressParts
+                    }))
+                }
+            } catch (err) {
+                console.error("Erro ao buscar CEP:", err)
+            } finally {
+                setLoadingCep(false)
+            }
+        }
+    }
 
     const selectedClass = classes.find(c => c.id === form.classId)
 
@@ -125,7 +159,7 @@ function EnrollmentContent() {
         return () => window.removeEventListener("beforeunload", handleBeforeUnload)
     }, [success, form.name, form.cpf])
 
-    const isPersonalValid = form.name.trim() && form.cpf.replace(/\D/g, '').length === 11 && form.phone.trim() && form.address.trim() && form.church.trim() && form.pastor.trim()
+    const isPersonalValid = form.name.trim() && form.email.trim().includes('@') && form.cpf.replace(/\D/g, '').length === 11 && form.birthDate.trim() && form.phone.trim() && form.address.trim() && form.church.trim() && form.pastor.trim()
 
     async function handleCreateEnrollment() {
         if (submitting) return
@@ -262,7 +296,7 @@ function EnrollmentContent() {
                         <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="md:col-span-2 space-y-1.5">
-                                    <label className="text-xs font-bold text-muted-foreground uppercase ml-1">Nome Completo</label>
+                                    <label className="text-xs font-bold text-muted-foreground uppercase ml-1">Nome Completo *</label>
                                     <input
                                         required
                                         className="w-full bg-muted/30 border border-border rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent transition-all"
@@ -271,28 +305,73 @@ function EnrollmentContent() {
                                         onChange={e => setForm({ ...form, name: e.target.value })}
                                     />
                                 </div>
+
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-muted-foreground uppercase ml-1">CPF</label>
+                                    <label className="text-xs font-bold text-muted-foreground uppercase ml-1">E-mail *</label>
                                     <input
                                         required
+                                        type="email"
                                         className="w-full bg-muted/30 border border-border rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent transition-all"
-                                        placeholder="000.000.000-00"
-                                        value={form.cpf}
-                                        onChange={e => setForm({ ...form, cpf: e.target.value })}
+                                        placeholder="seuemail@exemplo.com"
+                                        value={form.email}
+                                        onChange={e => setForm({ ...form, email: e.target.value })}
                                     />
                                 </div>
+
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-muted-foreground uppercase ml-1">WhatsApp / Telefone</label>
+                                    <label className="text-xs font-bold text-muted-foreground uppercase ml-1">WhatsApp / Telefone *</label>
                                     <input
                                         required
                                         className="w-full bg-muted/30 border border-border rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                                         placeholder="(00) 00000-0000"
                                         value={form.phone}
-                                        onChange={e => setForm({ ...form, phone: e.target.value })}
+                                        onChange={e => {
+                                            const v = e.target.value.replace(/\D/g, "").replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2").slice(0, 15)
+                                            setForm({ ...form, phone: v })
+                                        }}
                                     />
                                 </div>
-                                <div className="md:col-span-2 space-y-1.5">
-                                    <label className="text-xs font-bold text-muted-foreground uppercase ml-1">Endereço Residencial</label>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-muted-foreground uppercase ml-1">CPF *</label>
+                                    <input
+                                        required
+                                        className="w-full bg-muted/30 border border-border rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                                        placeholder="000.000.000-00"
+                                        value={form.cpf}
+                                        onChange={e => {
+                                            const v = e.target.value.replace(/\D/g, "").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2").slice(0, 14)
+                                            setForm({ ...form, cpf: v })
+                                        }}
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-muted-foreground uppercase ml-1">Data de Nascimento *</label>
+                                    <input
+                                        required
+                                        type="date"
+                                        className="w-full bg-muted/30 border border-border rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                                        value={form.birthDate}
+                                        onChange={e => setForm({ ...form, birthDate: e.target.value })}
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-xs font-bold text-muted-foreground uppercase ml-1">CEP (Auto Preenche)</label>
+                                        {loadingCep && <span className="text-[10px] text-accent flex items-center gap-1 font-semibold"><Loader2 className="h-3 w-3 animate-spin" /> Buscando...</span>}
+                                    </div>
+                                    <input
+                                        className="w-full bg-muted/30 border border-border rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                                        placeholder="00000-000"
+                                        value={form.cep}
+                                        onChange={e => handleCepChange(e.target.value)}
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-muted-foreground uppercase ml-1">Endereço Residencial *</label>
                                     <input
                                         required
                                         className="w-full bg-muted/30 border border-border rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent transition-all"
@@ -301,8 +380,9 @@ function EnrollmentContent() {
                                         onChange={e => setForm({ ...form, address: e.target.value })}
                                     />
                                 </div>
+
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-muted-foreground uppercase ml-1">Igreja</label>
+                                    <label className="text-xs font-bold text-muted-foreground uppercase ml-1">Igreja *</label>
                                     <input
                                         required
                                         className="w-full bg-muted/30 border border-border rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent transition-all"
@@ -311,8 +391,9 @@ function EnrollmentContent() {
                                         onChange={e => setForm({ ...form, church: e.target.value })}
                                     />
                                 </div>
+
                                 <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-muted-foreground uppercase ml-1">Pastor</label>
+                                    <label className="text-xs font-bold text-muted-foreground uppercase ml-1">Pastor *</label>
                                     <input
                                         required
                                         className="w-full bg-muted/30 border border-border rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent transition-all"
