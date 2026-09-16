@@ -1,13 +1,21 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { X, ChevronRight, ChevronLeft, User, Phone, MapPin, Church, BookOpen, CreditCard, QrCode, Loader2, CheckCircle2, AlertCircle, Copy, MessageCircle, Clock } from "lucide-react"
-import { getClasses, getFinancialSettings, getClassSchedules, type ClassRoom, type FinancialSettings, type ClassSchedule } from "@/lib/store"
+import { X, ChevronRight, ChevronLeft, User, Phone, MapPin, Church, BookOpen, CreditCard, QrCode, Loader2, CheckCircle2, AlertCircle, Copy, MessageCircle, Clock, GraduationCap, ArrowRight } from "lucide-react"
+import { getClasses, getFinancialSettings, getClassSchedules, type ClassRoom, type FinancialSettings, type ClassSchedule, POLOS } from "@/lib/store"
 import { usePolo } from "@/lib/polo-context"
 import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter
+} from "@/components/ui/dialog"
 
 interface EnrollmentFormProps {
     onClose: () => void
@@ -60,11 +68,49 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
     const [exitConfirmOpen, setExitConfirmOpen] = useState(false)
     const [isPaidLater, setIsPaidLater] = useState(false)
     const [selectedModality, setSelectedModality] = useState<"presencial" | "semi_presencial" | "online" | "">("")
+    const [selectedPoloId, setSelectedPoloId] = useState<string>(polo?.id || "polo-tancredo-neves")
+    const [showConfirmModal, setShowConfirmModal] = useState(false)
+
+    const selectedClass = classes.find(c => c.id === form.classId)
+
+    function getModalidadeLabel(c?: ClassRoom) {
+        if (!c) return "Online / EAD"
+        if (c.modality === "presencial") return "Presencial"
+        if (c.modality === "semi_presencial") return "Semipresencial"
+        if (c.modality === "online") return "100% Online (EAD)"
+        if (c.name.toLowerCase().includes("online") || c.shift === "ead") return "100% Online (EAD)"
+        if (c.name.toLowerCase().includes("semi")) return "Semipresencial"
+        return "Presencial"
+    }
+
+    function getPoloLabel(c?: ClassRoom) {
+        if (!c) return "Geral (EAD / Online)"
+        if (c.poloId) {
+            const p = POLOS.find(p => p.id === c.poloId)
+            if (p) return `${p.name} (${p.city})`
+            if (c.poloId === 'polo-chapada') return "Polo Chapada (Chapada Diamantina - BA)"
+            if (c.poloId === 'polo-tancredo-neves') return "Polo Salvador (Salvador - BA)"
+        }
+        if (c.modality === 'online' || c.shift === 'ead' || c.name.toLowerCase().includes('online')) {
+            return "EAD / Online (Acesso Global)"
+        }
+        return "Polo Salvador (Sede)"
+    }
+
+    function getScheduleLabel(c?: ClassRoom) {
+        if (!c) return "Aulas gravadas / flexível"
+        const day = c.dayOfWeek ? ({
+            monday: "Segunda", tuesday: "Terça", wednesday: "Quarta",
+            thursday: "Quinta", friday: "Sexta", saturday: "Sábado"
+        }[c.dayOfWeek] || c.dayOfWeek) : (c.shift === 'ead' ? 'Online / Flexível' : 'Dia a definir')
+        const shift = ({ morning: "Manhã", afternoon: "Tarde", evening: "Noite", ead: "EAD/Online" }[c.shift] || c.shift)
+        return `${day} • Turno: ${shift}`
+    }
 
     useEffect(() => {
         async function load() {
             const [cls, fin, scheds] = await Promise.all([
-                getClasses(polo?.id), getFinancialSettings(), getClassSchedules(polo?.id)
+                getClasses('all'), getFinancialSettings(), getClassSchedules('all')
             ])
             setClasses(cls)
             setSchedules(scheds)
@@ -72,7 +118,7 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
             setLoading(false)
         }
         load()
-    }, [polo?.id])
+    }, [])
 
     const isPersonalValid = form.name.trim() && form.cpf.length >= 14 && form.phone.length >= 14 && form.address.trim() && form.church.trim() && form.pastor.trim()
     const isClassValid = !!form.classId
@@ -86,10 +132,12 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                 ? (settings?.enrollmentFeeOnline ?? settings?.enrollmentFee ?? 60) 
                 : (settings?.enrollmentFee ?? 60)
 
+            const finalPoloId = selectedPoloId || polo?.id || "polo-tancredo-neves"
+
             const res = await fetch("/api/enrollment/create", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...form, amount: currentEnrollmentFee, poloId: polo?.id, modality: selectedModality || "presencial" })
+                body: JSON.stringify({ ...form, amount: currentEnrollmentFee, poloId: finalPoloId, modality: selectedModality || "presencial" })
             })
             const body = await res.json()
             if (!res.ok) throw new Error(body.error || "Erro ao criar matrícula")
@@ -295,6 +343,32 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                         <div className="space-y-4">
                             <h3 className="font-semibold text-foreground flex items-center gap-2"><BookOpen className="h-4 w-4 text-accent" /> Escolha sua Turma</h3>
                             
+                            {/* Seleção do Polo */}
+                            <div className="mb-3">
+                                <label className="text-xs font-semibold text-muted-foreground block mb-2">Selecione o Polo de Ensino</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {POLOS.map(p => (
+                                        <button
+                                            key={p.id}
+                                            type="button"
+                                            onClick={() => {
+                                                setSelectedPoloId(p.id)
+                                                setForm(f => ({ ...f, classId: "" }))
+                                            }}
+                                            className={`py-2 px-3 rounded-xl border text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                                                selectedPoloId === p.id
+                                                    ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                                                    : 'border-border bg-background hover:border-primary/50 text-foreground'
+                                            }`}
+                                        >
+                                            <MapPin className="h-3.5 w-3.5 shrink-0" />
+                                            <span className="truncate">{p.name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Seleção da Modalidade */}
                             <div className="mb-4">
                                 <label className="text-xs font-semibold text-muted-foreground block mb-2">Selecione a Modalidade Desejada</label>
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -305,6 +379,7 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                                     ].map(mod => (
                                         <button
                                             key={mod.id}
+                                            type="button"
                                             onClick={() => { setSelectedModality(mod.id as any); setForm(f => ({ ...f, classId: "" })) }}
                                             className={`py-2 px-3 rounded-xl border text-sm font-medium transition-all ${selectedModality === mod.id ? 'border-accent bg-accent text-accent-foreground shadow-sm' : 'border-border bg-background hover:border-accent/50 text-foreground'}`}
                                         >
@@ -314,64 +389,95 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                                 </div>
                             </div>
 
-                            {selectedModality && classes.filter(c => (c.modality || "presencial") === selectedModality).length === 0 ? (
-                                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
-                                    <AlertCircle className="h-4 w-4 inline mr-2" />Nenhuma turma disponível nesta modalidade.
-                                </div>
-                            ) : !selectedModality ? (
-                                <div className="bg-muted border border-border rounded-xl p-4 text-sm text-muted-foreground text-center">
-                                    Selecione uma modalidade acima para ver as turmas disponíveis.
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {classes.filter(c => (c.modality || "presencial") === selectedModality).map(c => (
-                                        <button
-                                            key={c.id}
-                                            onClick={() => setForm(f => ({ ...f, classId: c.id }))}
-                                            className={`w-full text-left rounded-xl border-2 p-4 transition-all ${form.classId === c.id ? "border-accent bg-accent/5" : "border-border hover:border-accent/50"}`}
-                                        >
-                                            <div className="flex items-center justify-between">
-                                                <div>
-                                                    <p className="font-semibold text-sm">{c.name}</p>
-                                                    <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5">
-                                                        <p>
-                                                            {{ morning: "Manhã", afternoon: "Tarde", evening: "Noite", ead: "EAD/Online" }[c.shift]}
-                                                        </p>
-                                                        {schedules.filter(s => s.classId === c.id).length > 0 ? (
-                                                            <div className="flex flex-col gap-0.5">
-                                                                {schedules.filter(s => s.classId === c.id).map(s => (
-                                                                    <p key={s.id} className="text-[10px] font-medium text-primary/80 uppercase tracking-tight">
+                            {(() => {
+                                const filteredClasses = classes.filter(c => {
+                                    const cModality = c.modality || "presencial"
+                                    if (selectedModality && cModality !== selectedModality) return false
+
+                                    if (selectedModality === "online") {
+                                        if (c.poloId && c.poloId !== selectedPoloId) return false
+                                        return true
+                                    }
+
+                                    if (c.poloId) {
+                                        if (c.poloId !== selectedPoloId) return false
+                                    } else {
+                                        if (selectedPoloId !== "polo-tancredo-neves") return false
+                                    }
+
+                                    return true
+                                })
+
+                                if (selectedModality && filteredClasses.length === 0) {
+                                    const currentPoloName = POLOS.find(p => p.id === selectedPoloId)?.name || "Polo selecionado"
+                                    return (
+                                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700">
+                                            <AlertCircle className="h-4 w-4 inline mr-2" />
+                                            Nenhuma turma disponível no {currentPoloName} para esta modalidade.
+                                        </div>
+                                    )
+                                }
+
+                                if (!selectedModality) {
+                                    return (
+                                        <div className="bg-muted border border-border rounded-xl p-4 text-sm text-muted-foreground text-center">
+                                            Selecione uma modalidade acima para ver as turmas disponíveis.
+                                        </div>
+                                    )
+                                }
+
+                                return (
+                                    <div className="space-y-3">
+                                        {filteredClasses.map(c => (
+                                            <button
+                                                key={c.id}
+                                                type="button"
+                                                onClick={() => setForm(f => ({ ...f, classId: c.id }))}
+                                                className={`w-full text-left rounded-xl border-2 p-4 transition-all ${form.classId === c.id ? "border-accent bg-accent/5 ring-2 ring-accent/20" : "border-border hover:border-accent/50"}`}
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className="font-semibold text-sm">{c.name}</p>
+                                                        <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5">
+                                                            <p>
+                                                                {{ morning: "Manhã", afternoon: "Tarde", evening: "Noite", ead: "EAD/Online" }[c.shift]}
+                                                            </p>
+                                                            {schedules.filter(s => s.classId === c.id).length > 0 ? (
+                                                                <div className="flex flex-col gap-0.5">
+                                                                    {schedules.filter(s => s.classId === c.id).map(s => (
+                                                                        <p key={s.id} className="text-[10px] font-medium text-primary/80 uppercase tracking-tight">
+                                                                            {{
+                                                                                segunda: "Segunda", terca: "Terça", quarta: "Quarta",
+                                                                                quinta: "Quinta", sexta: "Sexta", sabado: "Sábado"
+                                                                            }[s.dayOfWeek] || s.dayOfWeek} • {s.timeStart.substring(0, 5)} - {s.timeEnd.substring(0, 5)}
+                                                                        </p>
+                                                                    ))}
+                                                                </div>
+                                                            ) : (
+                                                                c.dayOfWeek && (
+                                                                    <p className="text-[10px] uppercase">
                                                                         {{
-                                                                            segunda: "Segunda", terca: "Terça", quarta: "Quarta",
-                                                                            quinta: "Quinta", sexta: "Sexta", sabado: "Sábado"
-                                                                        }[s.dayOfWeek] || s.dayOfWeek} • {s.timeStart.substring(0, 5)} - {s.timeEnd.substring(0, 5)}
+                                                                            monday: "Segunda", tuesday: "Terça", wednesday: "Quarta",
+                                                                            thursday: "Quinta", friday: "Sexta", saturday: "Sábado"
+                                                                        }[c.dayOfWeek] || c.dayOfWeek}
                                                                     </p>
-                                                                ))}
-                                                            </div>
-                                                        ) : (
-                                                            c.dayOfWeek && (
-                                                                <p className="text-[10px] uppercase">
-                                                                    {{
-                                                                        monday: "Segunda", tuesday: "Terça", wednesday: "Quarta",
-                                                                        thursday: "Quinta", friday: "Sexta", saturday: "Sábado"
-                                                                    }[c.dayOfWeek] || c.dayOfWeek}
-                                                                </p>
-                                                            )
-                                                        )}
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className={`text-sm font-bold ${c.maxStudents - (c.studentCount || 0) <= 5 ? "text-destructive" : "text-accent"}`}>
+                                                            {Math.max(0, c.maxStudents - (c.studentCount || 0))} vagas restantes
+                                                        </p>
+                                                        {form.classId === c.id && <CheckCircle2 className="h-4 w-4 text-green-500 ml-auto mt-1" />}
+                                                        {c.maxStudents - (c.studentCount || 0) <= 0 && <span className="text-[10px] font-bold text-destructive uppercase">Esgotado</span>}
                                                     </div>
                                                 </div>
-                                                <div className="text-right">
-                                                    <p className={`text-sm font-bold ${c.maxStudents - (c.studentCount || 0) <= 5 ? "text-destructive" : "text-accent"}`}>
-                                                        {Math.max(0, c.maxStudents - (c.studentCount || 0))} vagas restantes
-                                                    </p>
-                                                    {form.classId === c.id && <CheckCircle2 className="h-4 w-4 text-green-500 ml-auto mt-1" />}
-                                                    {c.maxStudents - (c.studentCount || 0) <= 0 && <span className="text-[10px] font-bold text-destructive uppercase">Esgotado</span>}
-                                                </div>
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )
+                            })()}
                         </div>
                     ) : (
                         <div className="space-y-4">
@@ -613,7 +719,13 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                         )}
                         {step !== "payment" && (
                             <button
-                                onClick={() => setStep(step === "personal" ? "class" : "payment")}
+                                onClick={() => {
+                                    if (step === "personal") {
+                                        setStep("class")
+                                    } else if (step === "class") {
+                                        setShowConfirmModal(true)
+                                    }
+                                }}
                                 disabled={(step === "personal" && !isPersonalValid) || (step === "class" && !isClassValid)}
                                 className="flex-1 flex items-center justify-center gap-2 bg-accent text-accent-foreground font-bold rounded-xl py-3 text-sm disabled:opacity-50 hover:bg-accent/90 transition-colors"
                             >
@@ -623,6 +735,97 @@ export function EnrollmentForm({ onClose, onSuccess }: EnrollmentFormProps) {
                     </div>
                 )}
             </div>
+
+            {/* Modal de Confirmação de Turma */}
+            <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+                <DialogContent className="sm:max-w-md rounded-3xl p-6 border border-border shadow-2xl bg-card">
+                    <DialogHeader className="text-left space-y-2">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                <GraduationCap className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <DialogTitle className="text-lg font-bold">Confirmação de Turma</DialogTitle>
+                                <DialogDescription className="text-xs text-muted-foreground">
+                                    Confira os dados da sua turma antes de continuar para o pagamento:
+                                </DialogDescription>
+                            </div>
+                        </div>
+                    </DialogHeader>
+
+                    {selectedClass && (
+                        <div className="bg-muted/30 border border-border rounded-2xl p-4 space-y-3.5 my-1">
+                            {/* Turma */}
+                            <div className="flex items-start gap-3">
+                                <div className="p-2 rounded-xl bg-background border border-border text-foreground mt-0.5 shrink-0">
+                                    <GraduationCap className="h-4 w-4 text-primary" />
+                                </div>
+                                <div className="min-w-0">
+                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Turma Selecionada</span>
+                                    <p className="text-sm font-bold text-foreground truncate">{selectedClass.name}</p>
+                                </div>
+                            </div>
+
+                            {/* Polo */}
+                            <div className="flex items-start gap-3">
+                                <div className="p-2 rounded-xl bg-background border border-border text-foreground mt-0.5 shrink-0">
+                                    <MapPin className="h-4 w-4 text-red-500" />
+                                </div>
+                                <div className="min-w-0">
+                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Polo de Ensino</span>
+                                    <p className="text-sm font-semibold text-foreground">{getPoloLabel(selectedClass)}</p>
+                                </div>
+                            </div>
+
+                            {/* Modalidade */}
+                            <div className="flex items-start gap-3">
+                                <div className="p-2 rounded-xl bg-background border border-border text-foreground mt-0.5 shrink-0">
+                                    <BookOpen className="h-4 w-4 text-blue-500" />
+                                </div>
+                                <div className="min-w-0">
+                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Modalidade</span>
+                                    <p className="text-sm font-semibold text-foreground">{getModalidadeLabel(selectedClass)}</p>
+                                </div>
+                            </div>
+
+                            {/* Horário / Dia */}
+                            <div className="flex items-start gap-3">
+                                <div className="p-2 rounded-xl bg-background border border-border text-foreground mt-0.5 shrink-0">
+                                    <Clock className="h-4 w-4 text-amber-500" />
+                                </div>
+                                <div className="min-w-0">
+                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Dia e Horário</span>
+                                    <p className="text-sm font-semibold text-foreground">{getScheduleLabel(selectedClass)}</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <p className="text-xs text-center text-muted-foreground pt-1">
+                        Deseja confirmar e continuar ou prefere trocar de turma?
+                    </p>
+
+                    <DialogFooter className="flex flex-col sm:flex-row gap-2.5 pt-2">
+                        <button
+                            type="button"
+                            onClick={() => setShowConfirmModal(false)}
+                            className="flex-1 px-4 py-3 rounded-xl border border-border bg-muted/60 text-foreground font-semibold text-sm hover:bg-muted transition-colors text-center"
+                        >
+                            Trocar de Turma
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setShowConfirmModal(false)
+                                setStep('payment')
+                            }}
+                            className="flex-1 px-4 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-md hover:bg-primary/90 transition-all flex items-center justify-center gap-1.5"
+                        >
+                            Continuar <ArrowRight className="h-4 w-4" />
+                        </button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <AlertDialog open={exitConfirmOpen} onOpenChange={setExitConfirmOpen}>
                 <AlertDialogContent>
