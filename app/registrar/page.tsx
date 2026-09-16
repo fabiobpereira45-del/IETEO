@@ -2,8 +2,16 @@
 
 import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
-import { GraduationCap, Users, Calendar, Clock, CheckCircle2, AlertCircle, Loader2, ArrowRight, ShieldCheck, MessageCircle, QrCode, CreditCard } from "lucide-react"
-import { getPublicClasses, getFinancialSettings, type ClassRoom, type FinancialSettings } from "@/lib/store"
+import { GraduationCap, Users, Calendar, Clock, CheckCircle2, AlertCircle, Loader2, ArrowRight, ShieldCheck, MessageCircle, QrCode, CreditCard, MapPin, BookOpen } from "lucide-react"
+import { getPublicClasses, getFinancialSettings, type ClassRoom, type FinancialSettings, POLOS } from "@/lib/store"
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter
+} from "@/components/ui/dialog"
 
 const SHIFT_LABEL: Record<string, string> = {
     morning: "Manhã",
@@ -50,6 +58,40 @@ function EnrollmentContent() {
     const [pixCopied, setPixCopied] = useState(false)
     const [enrolledChargeId, setEnrolledChargeId] = useState<string | null>(null)
     const [isPaidLater, setIsPaidLater] = useState(false)
+    const [showConfirmModal, setShowConfirmModal] = useState(false)
+
+    const selectedClass = classes.find(c => c.id === form.classId)
+
+    function getModalidadeLabel(c?: ClassRoom) {
+        if (!c) return "Online / EAD"
+        if (c.modality === "presencial") return "Presencial"
+        if (c.modality === "semi_presencial") return "Semipresencial"
+        if (c.modality === "online") return "100% Online (EAD)"
+        if (c.name.toLowerCase().includes("online") || c.shift === "ead") return "100% Online (EAD)"
+        if (c.name.toLowerCase().includes("semi")) return "Semipresencial"
+        return "Presencial"
+    }
+
+    function getPoloLabel(c?: ClassRoom) {
+        if (!c) return "Geral (EAD / Online)"
+        if (c.poloId) {
+            const polo = POLOS.find(p => p.id === c.poloId)
+            if (polo) return `${polo.name} (${polo.city})`
+            if (c.poloId === 'polo-chapada') return "Polo Chapada (Chapada Diamantina - BA)"
+            if (c.poloId === 'polo-tancredo-neves') return "Polo Salvador (Salvador - BA)"
+        }
+        if (c.modality === 'online' || c.shift === 'ead' || c.name.toLowerCase().includes('online')) {
+            return "EAD / Online (Acesso Global)"
+        }
+        return "Polo Salvador (Sede)"
+    }
+
+    function getScheduleLabel(c?: ClassRoom) {
+        if (!c) return "Aulas gravadas / flexível"
+        const day = DAY_LABEL[c.dayOfWeek || ''] || (c.shift === 'ead' ? 'Online / Flexível' : 'Dia a definir')
+        const shift = SHIFT_LABEL[c.shift] || c.shift || 'Turno Geral'
+        return `${day} • Turno: ${shift}`
+    }
 
     useEffect(() => {
         async function load() {
@@ -347,13 +389,104 @@ function EnrollmentContent() {
                                     Voltar
                                 </button>
                                 <button
-                                    onClick={() => setStep('payment')}
+                                    onClick={() => setShowConfirmModal(true)}
                                     disabled={!form.classId}
                                     className="flex-[2] bg-primary text-primary-foreground font-bold py-4 rounded-2xl transition-all shadow-xl disabled:opacity-50"
                                 >
                                     Avançar para Pagamento
                                 </button>
                             </div>
+
+                            {/* Modal de Confirmação de Turma */}
+                            <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+                                <DialogContent className="sm:max-w-md rounded-3xl p-6 border border-border shadow-2xl bg-card">
+                                    <DialogHeader className="text-left space-y-2">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                                <GraduationCap className="h-5 w-5" />
+                                            </div>
+                                            <div>
+                                                <DialogTitle className="text-lg font-bold">Confirmação de Turma</DialogTitle>
+                                                <DialogDescription className="text-xs text-muted-foreground">
+                                                    Confira os dados da sua turma antes de continuar para o pagamento:
+                                                </DialogDescription>
+                                            </div>
+                                        </div>
+                                    </DialogHeader>
+
+                                    {selectedClass && (
+                                        <div className="bg-muted/30 border border-border rounded-2xl p-4 space-y-3.5 my-1">
+                                            {/* Turma */}
+                                            <div className="flex items-start gap-3">
+                                                <div className="p-2 rounded-xl bg-background border border-border text-foreground mt-0.5 shrink-0">
+                                                    <GraduationCap className="h-4 w-4 text-primary" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Turma Selecionada</span>
+                                                    <p className="text-sm font-bold text-foreground truncate">{selectedClass.name}</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Polo */}
+                                            <div className="flex items-start gap-3">
+                                                <div className="p-2 rounded-xl bg-background border border-border text-foreground mt-0.5 shrink-0">
+                                                    <MapPin className="h-4 w-4 text-red-500" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Polo de Ensino</span>
+                                                    <p className="text-sm font-semibold text-foreground">{getPoloLabel(selectedClass)}</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Modalidade */}
+                                            <div className="flex items-start gap-3">
+                                                <div className="p-2 rounded-xl bg-background border border-border text-foreground mt-0.5 shrink-0">
+                                                    <BookOpen className="h-4 w-4 text-blue-500" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Modalidade</span>
+                                                    <p className="text-sm font-semibold text-foreground">{getModalidadeLabel(selectedClass)}</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Horário / Dia */}
+                                            <div className="flex items-start gap-3">
+                                                <div className="p-2 rounded-xl bg-background border border-border text-foreground mt-0.5 shrink-0">
+                                                    <Clock className="h-4 w-4 text-amber-500" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Dia e Horário</span>
+                                                    <p className="text-sm font-semibold text-foreground">{getScheduleLabel(selectedClass)}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <p className="text-xs text-center text-muted-foreground pt-1">
+                                        Deseja confirmar e continuar ou prefere trocar de turma?
+                                    </p>
+
+                                    <DialogFooter className="flex flex-col sm:flex-row gap-2.5 pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowConfirmModal(false)}
+                                            className="flex-1 px-4 py-3 rounded-xl border border-border bg-muted/60 text-foreground font-semibold text-sm hover:bg-muted transition-colors text-center"
+                                        >
+                                            Trocar de Turma
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowConfirmModal(false)
+                                                setStep('payment')
+                                            }}
+                                            className="flex-1 px-4 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-md hover:bg-primary/90 transition-all flex items-center justify-center gap-1.5"
+                                        >
+                                            Continuar <ArrowRight className="h-4 w-4" />
+                                        </button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
                         </div>
                     )}
 
