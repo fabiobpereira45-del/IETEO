@@ -1125,20 +1125,41 @@ export async function getAllProfessorDisciplines(): Promise<ProfessorDiscipline[
 }
 
 export async function setProfessorFamiliarDisciplines(professorId: string, disciplineIds: string[]): Promise<void> {
-  const supabase = createClient()
-  
-  // Remove existing links for this professor
-  await supabase.from('professor_disciplines').delete().eq('professor_id', professorId)
+  try {
+    const res = await fetch('/api/professor/disciplines', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ professorId, disciplineIds })
+    })
 
-  // Insert new links
-  if (disciplineIds && disciplineIds.length > 0) {
-    const rows = disciplineIds.map(disciplineId => ({
-      professor_id: professorId,
-      discipline_id: disciplineId,
-      created_at: new Date().toISOString()
-    }))
-    const { error } = await supabase.from('professor_disciplines').insert(rows)
-    if (error) throw new Error(error.message)
+    if (res.ok) {
+      const data = await res.json()
+      if (data.success) return
+      throw new Error(data.error || "Erro ao salvar preferências")
+    }
+
+    const errData = await res.json().catch(() => ({}))
+    throw new Error(errData.error || `Erro HTTP ${res.status}`)
+  } catch (apiError: any) {
+    console.warn("Tentando fallback direto ao Supabase:", apiError?.message)
+    const supabase = createClient()
+    
+    // Remove existing links for this professor
+    const { error: delError } = await supabase.from('professor_disciplines').delete().eq('professor_id', professorId)
+    if (delError) {
+      console.error("Erro no delete direto:", delError)
+    }
+
+    // Insert new links
+    if (disciplineIds && disciplineIds.length > 0) {
+      const rows = disciplineIds.map(disciplineId => ({
+        professor_id: professorId,
+        discipline_id: disciplineId,
+        created_at: new Date().toISOString()
+      }))
+      const { error } = await supabase.from('professor_disciplines').insert(rows)
+      if (error) throw new Error(error.message || apiError.message)
+    }
   }
 }
 
@@ -3052,7 +3073,7 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
   const activeEnrollmentFee = isOnline ? (settings.enrollmentFeeOnline ?? settings.enrollmentFee) : settings.enrollmentFee
   const activeMonthlyFee = isOnline ? (settings.monthlyFeeOnline ?? settings.monthlyFee) : settings.monthlyFee
 
-  const charges = []
+  const charges: any[] = []
 
   // 4. Add Enrollment Fee (Taxa de Matrícula) - ALWAYS FIRST
   const enrollmentDate = new Date(student.created_at || Date.now())
