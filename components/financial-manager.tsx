@@ -409,33 +409,36 @@ export function FinancialManager({ onRefresh, month, year, scope, poloFilter }: 
 
         const discountValue = parseFloat(bulkDiscountAmount)
         setBulkDiscountLoading(true)
-        
+
         try {
-            // Get students from the selected class
-            const classStudents = students.filter(s => s.class_id === bulkDiscountClass)
-            if (classStudents.length === 0) {
-                toast.error("Nenhum aluno encontrado nesta turma.")
+            // Get affected students: either everyone currently in scope (respects the polo filter
+            // already applied to `charges`), or just the selected turma.
+            const affectedStudentIds = bulkDiscountClass === "all"
+                ? new Set(students.map(s => s.id))
+                : new Set(students.filter(s => s.class_id === bulkDiscountClass).map(s => s.id))
+
+            if (affectedStudentIds.size === 0) {
+                toast.error("Nenhum aluno encontrado para este filtro.")
                 return
             }
 
-            const classStudentIds = classStudents.map(s => s.id)
-            
             // Get pending charges for these students
-            const pendingCharges = charges.filter(c => 
-                classStudentIds.includes(c.studentId || '') && 
+            const pendingCharges = charges.filter(c =>
+                affectedStudentIds.has(c.studentId || '') &&
                 (c.status === 'pending' || c.status === 'late') &&
                 c.type !== 'expense'
             )
 
             if (pendingCharges.length === 0) {
-                toast.error("Nenhuma cobrança pendente encontrada para esta turma.")
+                toast.error("Nenhuma cobrança pendente encontrada para este filtro.")
                 return
             }
 
             // Confirm action
+            const scopeLabel = bulkDiscountClass === "all" ? "TODAS as turmas" : "a turma selecionada"
             const confirmed = confirm(
-                `Aplicar desconto de R$ ${discountValue.toFixed(2)} em ${pendingCharges.length} cobrança(s) pendente(s) da turma selecionada?\n\n` +
-                `Alunos afetados: ${classStudents.length}\n` +
+                `Aplicar desconto de R$ ${discountValue.toFixed(2)} em ${pendingCharges.length} cobrança(s) pendente(s) de ${scopeLabel}?\n\n` +
+                `Alunos afetados: ${affectedStudentIds.size}\n` +
                 `Valor total do desconto: R$ ${(discountValue * pendingCharges.length).toFixed(2)}`
             )
             
@@ -1151,36 +1154,36 @@ export function FinancialManager({ onRefresh, month, year, scope, poloFilter }: 
                             </p>
                         </div>
 
-                        {bulkDiscountClass !== "all" && bulkDiscountAmount && parseFloat(bulkDiscountAmount) > 0 && (
-                            <div className="bg-muted/50 p-3 rounded-lg border border-border/50">
-                                <p className="text-xs font-bold text-foreground mb-1">Pré-visualização:</p>
-                                <p className="text-xs text-muted-foreground">
-                                    Alunos na turma: <span className="font-bold">{students.filter(s => s.class_id === bulkDiscountClass).length}</span>
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                    Cobranças pendentes: <span className="font-bold">
-                                        {charges.filter(c => 
-                                            students.filter(s => s.class_id === bulkDiscountClass).map(s => s.id).includes(c.studentId || '') && 
-                                            (c.status === 'pending' || c.status === 'late') &&
-                                            c.type !== 'expense'
-                                        ).length}
-                                    </span>
-                                </p>
-                                <p className="text-xs text-purple-600 font-bold mt-1">
-                                    Desconto total: R$ {(parseFloat(bulkDiscountAmount) * charges.filter(c => 
-                                        students.filter(s => s.class_id === bulkDiscountClass).map(s => s.id).includes(c.studentId || '') && 
-                                        (c.status === 'pending' || c.status === 'late') &&
-                                        c.type !== 'expense'
-                                    ).length).toFixed(2)}
-                                </p>
-                            </div>
-                        )}
+                        {bulkDiscountAmount && parseFloat(bulkDiscountAmount) > 0 && (() => {
+                            const previewStudentIds = bulkDiscountClass === "all"
+                                ? new Set(students.map(s => s.id))
+                                : new Set(students.filter(s => s.class_id === bulkDiscountClass).map(s => s.id))
+                            const previewCharges = charges.filter(c =>
+                                previewStudentIds.has(c.studentId || '') &&
+                                (c.status === 'pending' || c.status === 'late') &&
+                                c.type !== 'expense'
+                            )
+                            return (
+                                <div className="bg-muted/50 p-3 rounded-lg border border-border/50">
+                                    <p className="text-xs font-bold text-foreground mb-1">Pré-visualização:</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Alunos no filtro: <span className="font-bold">{previewStudentIds.size}</span>
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Cobranças pendentes: <span className="font-bold">{previewCharges.length}</span>
+                                    </p>
+                                    <p className="text-xs text-purple-600 font-bold mt-1">
+                                        Desconto total: R$ {(parseFloat(bulkDiscountAmount) * previewCharges.length).toFixed(2)}
+                                    </p>
+                                </div>
+                            )
+                        })()}
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setBulkDiscountModal(false)}>Cancelar</Button>
-                        <Button 
-                            onClick={handleBulkDiscount} 
-                            disabled={bulkDiscountLoading || bulkDiscountClass === "all" || !bulkDiscountAmount}
+                        <Button
+                            onClick={handleBulkDiscount}
+                            disabled={bulkDiscountLoading || !bulkDiscountAmount}
                             className="bg-purple-600 hover:bg-purple-700 text-white"
                         >
                             {bulkDiscountLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <DollarSign className="h-4 w-4 mr-2" />}
