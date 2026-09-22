@@ -3100,9 +3100,10 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
   const settings = await getFinancialSettings()
   if (!settings) return
 
-  const isOnline = studentModality === 'online'
-  const activeEnrollmentFee = isOnline ? (settings.enrollmentFeeOnline ?? settings.enrollmentFee) : settings.enrollmentFee
-  const activeMonthlyFee = isOnline ? (settings.monthlyFeeOnline ?? settings.monthlyFee) : settings.monthlyFee
+  // Chapada's grade uses the "online" fee tier; every other polo uses the base fee.
+  const isChapadaPricing = student.polo_id === 'polo-chapada' || studentModality === 'online'
+  const activeEnrollmentFee = isChapadaPricing ? (settings.enrollmentFeeOnline ?? settings.enrollmentFee) : settings.enrollmentFee
+  const activeMonthlyFee = isChapadaPricing ? (settings.monthlyFeeOnline ?? settings.monthlyFee) : settings.monthlyFee
 
   const charges: any[] = []
 
