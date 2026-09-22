@@ -7,8 +7,8 @@ export { triggerN8nWebhook }
 export type QuestionType = "multiple-choice" | "true-false" | "discursive" | "incorrect-alternative" | "fill-in-the-blank" | "matching"
 export interface Choice { id: string; text: string }
 export interface MatchingPair { id: string; left: string; right: string }
-export interface Semester { id: string; name: string; order: number; shift?: string; modality?: string; isConcluded?: boolean; createdAt: string }
-export interface Discipline { id: string; name: string; description?: string | null; semesterId?: string | null; semesterOrder?: number; semesterName?: string; professorName?: string | null; dayOfWeek?: string | null; shift?: string | null; order: number; applicationMonth?: string | null; applicationYear?: string | null; isConcluded?: boolean; createdAt: string }
+export interface Semester { id: string; name: string; order: number; shift?: string; modality?: string; poloId?: string | null; isConcluded?: boolean; createdAt: string }
+export interface Discipline { id: string; name: string; description?: string | null; semesterId?: string | null; semesterOrder?: number; semesterName?: string; poloId?: string | null; professorName?: string | null; dayOfWeek?: string | null; shift?: string | null; order: number; applicationMonth?: string | null; applicationYear?: string | null; isConcluded?: boolean; createdAt: string }
 export interface StudyMaterial { id: string; disciplineId: string; title: string; description?: string; fileUrl: string; createdAt: string }
 export interface FinancialSettings { 
   id: string; 
@@ -425,9 +425,9 @@ export function saveDraftAnswers(answers: StudentAnswer[]): void { writeLocal(KE
 
 // DB Mappers
 // DB Mappers
-function mapSemester(row: any): Semester { return { id: row.id, name: row.name, order: row.order, shift: row.shift || undefined, modality: row.modality || 'presencial', isConcluded: !!row.is_concluded, createdAt: row.created_at } }
+function mapSemester(row: any): Semester { return { id: row.id, name: row.name, order: row.order, shift: row.shift || undefined, modality: row.modality || 'presencial', poloId: row.polo_id ?? null, isConcluded: !!row.is_concluded, createdAt: row.created_at } }
 function mapStudyMaterial(row: any): StudyMaterial { return { id: row.id, disciplineId: row.discipline_id, title: row.title, description: row.description || undefined, fileUrl: row.file_url, createdAt: row.created_at } }
-function mapDiscipline(row: any): Discipline { return { id: row.id, name: row.name, description: row.description || undefined, semesterId: row.semester_id || undefined, professorName: row.professor_name || undefined, dayOfWeek: row.day_of_week || undefined, shift: row.shift || undefined, order: Number(row.order || 0), applicationMonth: row.application_month, applicationYear: row.application_year, isConcluded: !!row.is_concluded, createdAt: row.created_at } }
+function mapDiscipline(row: any): Discipline { return { id: row.id, name: row.name, description: row.description || undefined, semesterId: row.semester_id || undefined, poloId: row.polo_id ?? null, professorName: row.professor_name || undefined, dayOfWeek: row.day_of_week || undefined, shift: row.shift || undefined, order: Number(row.order || 0), applicationMonth: row.application_month, applicationYear: row.application_year, isConcluded: !!row.is_concluded, createdAt: row.created_at } }
 function mapQuestion(row: any): Question {
   const choices = Array.isArray(row.choices) ? row.choices : (row.choices?.options || [])
   const pairs = row.pairs || row.choices?.matchingPairs || undefined
@@ -1023,26 +1023,30 @@ export async function getSemesters(): Promise<Semester[]> {
   return (data || []).map(mapSemester)
 }
 
-export async function addSemester(name: string, order: number, shift?: string, modality?: string): Promise<Semester> {
-  const s = { name, order, shift: shift || null, modality: modality || 'presencial', is_concluded: false, created_at: new Date().toISOString() }
+export async function addSemester(name: string, order: number, shift?: string, modality?: string, poloId?: string | null): Promise<Semester> {
+  const s = { name, order, shift: shift || null, modality: modality || 'presencial', polo_id: poloId || null, is_concluded: false, created_at: new Date().toISOString() }
   const supabase = createClient()
   const { data, error } = await supabase.from('semesters').insert(s).select().single()
   if (error) throw new Error(error.message)
   return mapSemester(data)
 }
-export async function updateSemester(id: string, data: Partial<Pick<Semester, "name" | "order" | "shift" | "modality" | "isConcluded">>): Promise<void> {
+export async function updateSemester(id: string, data: Partial<Pick<Semester, "name" | "order" | "shift" | "modality" | "poloId" | "isConcluded">>): Promise<void> {
   const supabase = createClient()
   const updatePayload: any = {}
   if (data.name !== undefined) updatePayload.name = data.name
   if (data.order !== undefined) updatePayload.order = data.order
   if (data.shift !== undefined) updatePayload.shift = data.shift || null
   if (data.modality !== undefined) updatePayload.modality = data.modality || 'presencial'
+  if (data.poloId !== undefined) updatePayload.polo_id = data.poloId || null
   if (data.isConcluded !== undefined) updatePayload.is_concluded = data.isConcluded
 
   const { error, count } = await supabase.from('semesters').update(updatePayload).eq('id', id).select('id', { count: 'exact' })
   if (error) {
     console.error("Error updating semester:", error)
     throw new Error(`Falha ao atualizar semestre: ${error.message}`)
+  }
+  if (data.poloId !== undefined) {
+    await supabase.from('disciplines').update({ polo_id: data.poloId || null }).eq('semester_id', id)
   }
   console.log(`Semester ${id} updated status. Rows affected: ${count}`)
 }
@@ -1472,11 +1476,18 @@ export async function addDiscipline(
   applicationYear?: string | null,
   isConcluded?: boolean
 ): Promise<Discipline> {
+  const supabase = createClient()
+  let poloId: string | null = null
+  if (semesterId) {
+    const { data: sem } = await supabase.from('semesters').select('polo_id').eq('id', semesterId).maybeSingle()
+    poloId = sem?.polo_id ?? null
+  }
   const d = {
     id: uid(),
     name,
     description: description || null,
     semester_id: semesterId || null,
+    polo_id: poloId,
     professor_name: professorName || null,
     day_of_week: dayOfWeek || null,
     shift: shift || null,
@@ -1486,7 +1497,6 @@ export async function addDiscipline(
     is_concluded: isConcluded || false,
     created_at: new Date().toISOString()
   }
-  const supabase = createClient()
   const { data, error } = await supabase.from('disciplines').insert(d).select().single()
   if (error) {
     console.error("Error adding discipline:", error)
@@ -1511,7 +1521,15 @@ export async function updateDiscipline(id: string, data: Partial<Pick<Discipline
   const updateData: any = {}
   if (data.name !== undefined) updateData.name = data.name
   if (data.description !== undefined) updateData.description = data.description || null
-  if (data.semesterId !== undefined) updateData.semester_id = data.semesterId || null
+  if (data.semesterId !== undefined) {
+    updateData.semester_id = data.semesterId || null
+    if (data.semesterId) {
+      const { data: sem } = await supabase.from('semesters').select('polo_id').eq('id', data.semesterId).maybeSingle()
+      updateData.polo_id = sem?.polo_id ?? null
+    } else {
+      updateData.polo_id = null
+    }
+  }
   if (data.professorName !== undefined) updateData.professor_name = data.professorName || null
   if (data.dayOfWeek !== undefined) updateData.day_of_week = data.dayOfWeek || null
   if (data.shift !== undefined) updateData.shift = data.shift || null
@@ -3012,7 +3030,7 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
   const supabase = createClient()
 
   // 1. Get Student and their Class
-  const { data: student } = await supabase.from('students').select('class_id, created_at, modality').eq('id', studentId).single()
+  const { data: student } = await supabase.from('students').select('class_id, created_at, modality, polo_id').eq('id', studentId).single()
   if (!student) return
 
   // Determine modality: if student has modality, or get class modality
@@ -3029,8 +3047,8 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
   }
 
   // Normalize modality for semesters: 'presencial' vs 'semi_presencial' (online maps to semi_presencial semesters)
-  const semesterModality = (studentModality === 'online' || studentModality === 'semi_presencial') 
-    ? 'semi_presencial' 
+  const semesterModality = (studentModality === 'online' || studentModality === 'semi_presencial')
+    ? 'semi_presencial'
     : 'presencial'
 
   // 2. Get Semesters and All Curriculum Disciplines for this modality
@@ -3039,7 +3057,19 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
     supabase.from('disciplines').select('*')
   ])
 
-  const semesters = semestersResult.data || []
+  let semesters = semestersResult.data || []
+  // Restrict to the student's own polo when semesters carry a polo_id, so a student
+  // from one polo (e.g. Salvador) never inherits tuition from another polo's grade (e.g. Chapada).
+  if (student.polo_id) {
+    const ownPoloSemesters = semesters.filter((s: any) => s.polo_id === student.polo_id)
+    if (ownPoloSemesters.length > 0) {
+      semesters = ownPoloSemesters
+    } else {
+      // No semester explicitly tagged for this polo yet: fall back to untagged ones only,
+      // never to another polo's tagged grade.
+      semesters = semesters.filter((s: any) => !s.polo_id)
+    }
+  }
   const semesterIds = new Set(semesters.map((s: any) => s.id))
   
   // Filter disciplines strictly to this modality's semesters
@@ -3124,7 +3154,14 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
     .neq('type', 'expense')
 
   const preservedStatuses = ['paid', 'bolsa100', 'bolsa50', 'isento']
-  const norm = (s: string) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+  // Disciplines renamed between grades (e.g. EAD grade vs presencial grade) that refer to the same course.
+  const DESCRIPTION_SYNONYMS: Record<string, string> = {
+    'evangelismo e missoes': 'evangelismo e missiologia',
+  }
+  const norm = (s: string) => {
+    const base = (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+    return DESCRIPTION_SYNONYMS[base] || base
+  }
 
   const finalCharges: any[] = []
   const handledExistingIds = new Set<string>()

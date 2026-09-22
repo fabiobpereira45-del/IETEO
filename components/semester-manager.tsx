@@ -25,7 +25,7 @@ import {
     type Semester, type Discipline, type ProfessorAccount,
     getSemesters, addSemester, updateSemester, deleteSemester,
     getDisciplines, updateDiscipline, updateDisciplineOrder, addDiscipline, deleteDiscipline,
-    getProfessorAccounts, MASTER_CREDENTIALS
+    getProfessorAccounts, MASTER_CREDENTIALS, POLOS
 } from "@/lib/store"
 import { printCurriculumPDF } from "@/lib/pdf"
 
@@ -44,6 +44,7 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
     const [semName, setSemName] = useState("")
     const [semOrder, setSemOrder] = useState("")
     const [semModality, setSemModality] = useState<string>("presencial")
+    const [semPoloId, setSemPoloId] = useState<string>(POLOS[0]?.id || "")
     const [selectedPoolDiscs, setSelectedPoolDiscs] = useState<Set<string>>(new Set())
     const [deleteSemId, setDeleteSemId] = useState<string | null>(null)
 
@@ -98,10 +99,10 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
         if (!semName.trim() || !semOrder.trim()) return
         let semId = ""
         if (editingSem) {
-            await updateSemester(editingSem.id, { name: semName.trim(), order: parseInt(semOrder, 10), modality: semModality })
+            await updateSemester(editingSem.id, { name: semName.trim(), order: parseInt(semOrder, 10), modality: semModality, poloId: semPoloId })
             semId = editingSem.id
         } else {
-            const newSem = await addSemester(semName.trim(), parseInt(semOrder, 10), undefined, semModality)
+            const newSem = await addSemester(semName.trim(), parseInt(semOrder, 10), undefined, semModality, semPoloId)
             semId = newSem.id
         }
 
@@ -310,7 +311,7 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
                         <Download className="h-4 w-4 mr-2" /> Exportar PDF
                     </Button>
                     <Button variant="outline" onClick={() => {
-                        setEditingSem(null); setSemName(""); setSemOrder(String(semesters.length + 1)); setSemModality(activeModality); setSelectedPoolDiscs(new Set()); setSemModal(true)
+                        setEditingSem(null); setSemName(""); setSemOrder(String(semesters.length + 1)); setSemModality(activeModality); setSemPoloId(POLOS[0]?.id || ""); setSelectedPoolDiscs(new Set()); setSemModal(true)
                     }}>
                         <CalendarDays className="h-4 w-4 mr-2" /> Novo Semestre
                     </Button>
@@ -369,7 +370,7 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
                                     <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-primary gap-1" onClick={() => openNewDisc(sem.id)}>
                                         <Plus className="h-3.5 w-3.5" /> Disciplina
                                     </Button>
-                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { setEditingSem(sem); setSemName(sem.name); setSemOrder(String(sem.order)); setSemModality(sem.modality || 'presencial'); setSelectedPoolDiscs(new Set()); setSemModal(true) }}>
+                                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { setEditingSem(sem); setSemName(sem.name); setSemOrder(String(sem.order)); setSemModality(sem.modality || 'presencial'); setSemPoloId(sem.poloId || POLOS[0]?.id || ""); setSelectedPoolDiscs(new Set()); setSemModal(true) }}>
                                         <Pencil className="h-3.5 w-3.5" />
                                     </Button>
                                     {isMaster && (
@@ -528,6 +529,16 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
                                     <SelectItem value="semi_presencial">Semipresencial / Online</SelectItem>
                                 </SelectContent>
                             </Select>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <Label>Polo *</Label>
+                            <Select value={semPoloId} onValueChange={setSemPoloId}>
+                                <SelectTrigger><SelectValue placeholder="Selecione o polo" /></SelectTrigger>
+                                <SelectContent>
+                                    {POLOS.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">Disciplinas deste semestre só geram mensalidade para alunos matriculados neste polo.</p>
                         </div>
 
                         {poolDiscs.length > 0 && (
