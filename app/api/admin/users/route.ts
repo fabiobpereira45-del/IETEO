@@ -47,7 +47,7 @@ export async function PATCH(request: Request) {
         if (!targetId && email) {
             const { data: { users }, error } = await supabase.auth.admin.listUsers()
             if (error) throw error
-            const user = users.find(u => u.email === email)
+            const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase())
             if (user) {
                 targetId = user.id
             } else {

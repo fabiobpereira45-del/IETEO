@@ -2021,21 +2021,28 @@ export async function updateProfessorAccount(id: string, data: Partial<Pick<Prof
     if (current) syncEmail = current.email
   }
 
-  // Sync with Supabase Auth if password, name, or role is updated
+  // Sync with Supabase Auth if password, name, or role is updated.
+  // Best-effort only: not every professor has a matching Supabase Auth user (many use the
+  // custom professor_accounts login), so a sync failure here must not block saving the
+  // actual profile data below.
   if (syncEmail && (data.password || data.name || data.role)) {
-    const res = await fetch("/api/admin/users", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: syncEmail,
-        password: data.password,
-        name: data.name,
-        role: data.role
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: syncEmail,
+          password: data.password,
+          name: data.name,
+          role: data.role
+        })
       })
-    })
-    if (!res.ok) {
-      const err = await res.json()
-      throw new Error("Erro de sincronização S-Auth: " + (err.error || res.statusText))
+      if (!res.ok) {
+        const err = await res.json()
+        console.warn("Sincronização Auth falhou (perfil salvo mesmo assim):", err)
+      }
+    } catch (e) {
+      console.warn("Sincronização Auth falhou (perfil salvo mesmo assim):", e)
     }
   }
 
