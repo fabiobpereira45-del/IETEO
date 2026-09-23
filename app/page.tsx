@@ -12,6 +12,11 @@ import { EnrollmentForm } from "@/components/enrollment-form"
 import { GradeViewer } from "@/components/grade-viewer"
 import { InstitutionalManager } from "@/components/institutional-manager"
 import { PoloSelector } from "@/components/polo-selector"
+import { HighlightsCarousel, type HighlightSlide } from "@/components/landing/highlights-carousel"
+import { CurriculumHighlight } from "@/components/landing/curriculum-highlight"
+import { ProfessorsShowcase } from "@/components/landing/professors-showcase"
+import { TestimonialsSection } from "@/components/landing/testimonials-section"
+import { ScrollReveal } from "@/components/landing/scroll-reveal"
 import { usePolo } from "@/lib/polo-context"
 import {
   getStudentSession,
@@ -23,7 +28,7 @@ import {
   type FinancialSettings,
   getAvailableSlots,
 } from "@/lib/store"
-import { BookOpen, GraduationCap, ClipboardList, User } from "lucide-react"
+import { BookOpen, GraduationCap, ClipboardList, User, Users, MessageSquareQuote } from "lucide-react"
 
 type View = "polo-select" | "landing" | "public-exam-login" | "student-portal-login" | "student-assessment" | "student-result" | "professor-login" | "admin" | "student-dashboard"
 
@@ -237,6 +242,54 @@ export default function HomePage() {
               </div>
             </div>
 
+            {/* Highlights Carousel */}
+            <ScrollReveal>
+              <HighlightsCarousel
+                slides={[
+                  {
+                    id: "matricula",
+                    eyebrow: "Matrículas Abertas",
+                    title: "Comece sua formação teológica agora",
+                    description: `${availableSlots !== null ? `${availableSlots} vagas restantes` : "Vagas limitadas"} para presencial e EAD. Garanta a sua.`,
+                    cta: "Fazer Matrícula",
+                    icon: ClipboardList,
+                    gradient: "bg-gradient-to-br from-[#450a0a] to-[#991b1b]",
+                    onClick: () => setShowEnroll(true),
+                  },
+                  {
+                    id: "grade",
+                    eyebrow: "Grade Curricular",
+                    title: "18 disciplinas, 3 semestres, formação completa",
+                    description: "Veja todas as matérias, cronograma e modalidades disponíveis antes de se matricular.",
+                    cta: "Ver Grade Curricular",
+                    icon: BookOpen,
+                    gradient: "bg-gradient-to-br from-[#1a0606] to-[#450a0a]",
+                    onClick: () => setShowGrade(true),
+                  },
+                  {
+                    id: "professores",
+                    eyebrow: "Corpo Docente",
+                    title: "Aprenda com quem vive a Palavra",
+                    description: "Conheça os professores que vão te acompanhar em cada etapa do curso.",
+                    cta: "Conhecer Professores",
+                    icon: Users,
+                    gradient: "bg-gradient-to-br from-[#7f1d1d] to-[#450a0a]",
+                    onClick: () => document.getElementById("professores")?.scrollIntoView({ behavior: "smooth" }),
+                  },
+                  {
+                    id: "depoimentos",
+                    eyebrow: "Depoimentos",
+                    title: "Veja o que nossos alunos dizem",
+                    description: "Histórias reais de quem está transformando conhecimento em ministério.",
+                    cta: "Ver Depoimentos",
+                    icon: MessageSquareQuote,
+                    gradient: "bg-gradient-to-br from-[#2d0606] to-[#7f1d1d]",
+                    onClick: () => document.getElementById("depoimentos")?.scrollIntoView({ behavior: "smooth" }),
+                  },
+                ]}
+              />
+            </ScrollReveal>
+
             {/* Action Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Matrícula */}
@@ -299,6 +352,21 @@ export default function HomePage() {
                   </div>
                 </button>
               )}
+            </div>
+
+            {/* Grade Curricular em Destaque */}
+            <ScrollReveal>
+              <CurriculumHighlight onViewGrade={() => setShowGrade(true)} />
+            </ScrollReveal>
+
+            {/* Professores */}
+            <div id="professores" className="scroll-mt-24">
+              <ProfessorsShowcase />
+            </div>
+
+            {/* Depoimentos */}
+            <div id="depoimentos" className="scroll-mt-24">
+              <TestimonialsSection />
             </div>
 
             {/* Inclusão Institucional */}

@@ -3114,7 +3114,7 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
   charges.push({
     student_id: studentId,
     type: 'enrollment',
-    description: isOnline ? 'Taxa de Matrícula (Online)' : 'Taxa de Matrícula',
+    description: studentModality === 'online' ? 'Taxa de Matrícula (Online)' : 'Taxa de Matrícula',
     amount: activeEnrollmentFee,
     due_date: enrollmentDate.toISOString().split('T')[0],
     status: 'pending',
