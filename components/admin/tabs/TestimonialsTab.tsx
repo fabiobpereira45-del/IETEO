@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Loader2, Plus, Pencil, Trash2, Quote, EyeOff, Eye, ArrowUp, ArrowDown, Camera, X } from "lucide-react"
+import { Loader2, Plus, Pencil, Trash2, Quote, EyeOff, Eye, ArrowUp, ArrowDown, Camera, X, Link2, Check, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -128,6 +128,16 @@ export function TestimonialsTab() {
     load()
   }
 
+  const [linkCopied, setLinkCopied] = useState(false)
+  function copyLink() {
+    const url = `${window.location.origin}/depoimento`
+    navigator.clipboard.writeText(url).then(() => {
+      setLinkCopied(true)
+      toast.success("Link copiado!")
+      setTimeout(() => setLinkCopied(false), 2000)
+    })
+  }
+
   async function move(t: Testimonial, dir: -1 | 1) {
     const sorted = [...items].sort((a, b) => a.order - b.order)
     const idx = sorted.findIndex((x) => x.id === t.id)
@@ -154,7 +164,19 @@ export function TestimonialsTab() {
             Gerencie os depoimentos exibidos na página inicial. Foto é opcional — sem ela, aparece um avatar com as iniciais.
           </p>
         </div>
-        <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Novo Depoimento</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={copyLink} className="gap-2">
+            {linkCopied ? <Check className="h-4 w-4 text-emerald-600" /> : <Link2 className="h-4 w-4" />}
+            {linkCopied ? "Link copiado!" : "Copiar link para alunos"}
+          </Button>
+          <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Novo Depoimento</Button>
+        </div>
+      </div>
+
+      <div className="rounded-xl bg-accent/5 border border-accent/20 p-4 text-sm text-muted-foreground">
+        Compartilhe o link acima com os alunos (WhatsApp, e-mail etc). Eles preenchem o depoimento e a foto (opcional)
+        num formulário simples, sem precisar de login. Toda submissão cai aqui como <strong>"Aguardando revisão"</strong> —
+        você decide se publica.
       </div>
 
       {items.length === 0 ? (
@@ -179,7 +201,9 @@ export function TestimonialsTab() {
                   <p className="text-xs text-muted-foreground truncate">{[t.role, t.polo].filter(Boolean).join(" • ")}</p>
                 </div>
                 {!t.isPublished && (
-                  <span className="text-[10px] uppercase font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full shrink-0">Oculto</span>
+                  <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full shrink-0">
+                    <Clock className="h-3 w-3" /> Aguardando revisão
+                  </span>
                 )}
               </div>
               <p className="text-sm text-muted-foreground italic line-clamp-3">"{t.quote}"</p>
