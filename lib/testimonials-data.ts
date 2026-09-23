@@ -7,6 +7,9 @@ export type Testimonial = {
   role: string
   polo: string
   quote: string
+  // Opcional: URL de uma foto do aluno (ex: link do Supabase Storage ou qualquer imagem pública).
+  // Se não informar, o card mostra um avatar com as iniciais do nome.
+  photoUrl?: string
 }
 
 export const TESTIMONIALS: Testimonial[] = [
@@ -17,6 +20,7 @@ export const TESTIMONIALS: Testimonial[] = [
     polo: "Polo Salvador",
     quote:
       "Substitua por um depoimento real: como o curso tem ajudado na sua caminhada e no seu ministério.",
+    photoUrl: undefined,
   },
   {
     id: "t2",
@@ -25,6 +29,7 @@ export const TESTIMONIALS: Testimonial[] = [
     polo: "Polo Chapada",
     quote:
       "Substitua por um depoimento real: o que mais chamou atenção na estrutura das aulas e dos professores.",
+    photoUrl: undefined,
   },
   {
     id: "t3",
@@ -33,5 +38,6 @@ export const TESTIMONIALS: Testimonial[] = [
     polo: "Polo Salvador",
     quote:
       "Substitua por um depoimento real: como a formação teológica impactou seu serviço na igreja.",
+    photoUrl: undefined,
   },
 ]

@@ -63,6 +63,7 @@ export interface AttendanceLock {
   lockedAt: string
 }
 export interface BoardMember { id: string; name: string; role: string; category: string; avatar_url?: string | null; createdAt: string; }
+export interface Testimonial { id: string; name: string; role?: string; polo?: string; quote: string; photoUrl?: string | null; isPublished: boolean; order: number; createdAt: string; }
 export interface ProfessorDiscipline { id: string; professorId: string; disciplineId: string; createdAt: string; }
 export interface ClassRoom { id: string; name: string; shift: "morning" | "afternoon" | "evening" | "ead"; dayOfWeek?: string; maxStudents: number; studentCount?: number; createdAt: string; modality?: "presencial" | "semi_presencial" | "online"; poloId?: string | null; }
 export interface ClassSchedule { id: string; classId: string; disciplineId: string; professorName: string; dayOfWeek: string; timeStart: string; timeEnd: string; lessonsCount: number; workload: number; startDate?: string; endDate?: string; createdAt: string; }
@@ -593,6 +594,7 @@ function mapStudentGrade(row: any): StudentGrade {
   }
 }
 function mapBoardMember(row: any): BoardMember { return { id: row.id, name: row.name, role: row.role, category: row.category, avatar_url: row.avatar_url, createdAt: row.created_at } }
+function mapTestimonial(row: any): Testimonial { return { id: row.id, name: row.name, role: row.role || undefined, polo: row.polo || undefined, quote: row.quote, photoUrl: row.photo_url ?? null, isPublished: row.is_published ?? true, order: Number(row.order || 0), createdAt: row.created_at } }
 function mapProfessorDiscipline(row: any): ProfessorDiscipline { return { id: row.id, professorId: row.professor_id, disciplineId: row.discipline_id, createdAt: row.created_at } }
 function mapChallenge(row: any): Challenge {
   return {
@@ -1463,6 +1465,54 @@ export async function getBoardMembers(): Promise<BoardMember[]> {
   const supabase = createClient()
   const { data } = await supabase.from('board_members').select('*').order('category', { ascending: false })
   return (data || []).map(mapBoardMember)
+}
+
+export async function getTestimonials(publishedOnly: boolean = true): Promise<Testimonial[]> {
+  const supabase = createClient()
+  let query = supabase.from('testimonials').select('*').order('order', { ascending: true })
+  if (publishedOnly) query = query.eq('is_published', true)
+  const { data, error } = await query
+  if (error) {
+    console.warn("Erro ao buscar depoimentos:", error.message)
+    return []
+  }
+  return (data || []).map(mapTestimonial)
+}
+
+export async function addTestimonial(data: {
+  name: string; role?: string; polo?: string; quote: string; photoUrl?: string | null; isPublished?: boolean; order?: number
+}): Promise<Testimonial> {
+  const supabase = createClient()
+  const row = {
+    name: data.name, role: data.role || null, polo: data.polo || null, quote: data.quote,
+    photo_url: data.photoUrl || null, is_published: data.isPublished ?? true, order: data.order ?? 0,
+    created_at: new Date().toISOString(),
+  }
+  const { data: inserted, error } = await supabase.from('testimonials').insert(row).select().single()
+  if (error) throw new Error(error.message)
+  return mapTestimonial(inserted)
+}
+
+export async function updateTestimonial(id: string, data: Partial<{
+  name: string; role: string; polo: string; quote: string; photoUrl: string | null; isPublished: boolean; order: number
+}>): Promise<void> {
+  const supabase = createClient()
+  const updateData: any = {}
+  if (data.name !== undefined) updateData.name = data.name
+  if (data.role !== undefined) updateData.role = data.role || null
+  if (data.polo !== undefined) updateData.polo = data.polo || null
+  if (data.quote !== undefined) updateData.quote = data.quote
+  if (data.photoUrl !== undefined) updateData.photo_url = data.photoUrl
+  if (data.isPublished !== undefined) updateData.is_published = data.isPublished
+  if (data.order !== undefined) updateData.order = data.order
+  const { error } = await supabase.from('testimonials').update(updateData).eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+export async function deleteTestimonial(id: string): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase.from('testimonials').delete().eq('id', id)
+  if (error) throw new Error(error.message)
 }
 export async function addDiscipline(
   name: string,
@@ -2877,7 +2927,7 @@ export async function syncAllAttendanceScores(): Promise<void> {
 
 // ─── Profile / Avatar Management ──────────────────────────────────────────
 
-export async function uploadAvatar(file: File, userId: string, folder: 'students' | 'professors' | 'board'): Promise<string> {
+export async function uploadAvatar(file: File, userId: string, folder: 'students' | 'professors' | 'board' | 'testimonials'): Promise<string> {
   const supabase = createClient()
   const fileExt = file.name.split('.').pop()
   const fileName = `${userId}-${Math.random().toString(36).slice(2)}.${fileExt}`

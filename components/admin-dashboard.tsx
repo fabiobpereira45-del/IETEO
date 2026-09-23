@@ -5,7 +5,7 @@ import {
   Users, FileText, BookOpen, Settings, BarChart3, Download, LogOut,
   Plus, Pencil, Trash2, Eye, EyeOff, Trophy, CheckCircle2, Link2, FileCheck,
   ShieldCheck, Loader2, DollarSign, MessageSquare, CalendarCheck, GraduationCap, XCircle, ArrowLeft, Building2, UserCircle, Briefcase, Send, PlaySquare, CalendarDays, KeyRound, Save,
-  Menu, ChevronRight, Archive, ArchiveRestore, Sparkles, Calculator, Activity, MonitorPlay, BookCopy
+  Menu, ChevronRight, Archive, ArchiveRestore, Sparkles, Calculator, Activity, MonitorPlay, BookCopy, MessageSquareQuote
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -69,6 +69,7 @@ const OverviewTab = dynamic(() => import("./admin/tabs/OverviewTab").then(m => m
 const SubmissionsTab = dynamic(() => import("./admin/tabs/SubmissionsTab").then(m => m.SubmissionsTab), { loading: LoadingFallback })
 const AssessmentsTab = dynamic(() => import("./admin/tabs/AssessmentsTab").then(m => m.AssessmentsTab), { loading: LoadingFallback })
 const SettingsTab = dynamic(() => import("./admin/tabs/SettingsTab").then(m => m.SettingsTab), { loading: LoadingFallback })
+const TestimonialsTab = dynamic(() => import("./admin/tabs/TestimonialsTab").then(m => m.TestimonialsTab), { loading: LoadingFallback })
 const UsageDashboard = dynamic(() => import("@/components/usage-dashboard").then(m => m.UsageDashboard), { loading: LoadingFallback })
 const BookManager = dynamic(() => import("@/components/admin/book-manager").then(m => m.BookManager), { loading: LoadingFallback })
 
@@ -87,7 +88,7 @@ function formatTime(s: number) {
   return `${m}m${sec.toString().padStart(2, "0")}s`
 }
 
-type Tab = "overview" | "students" | "grades" | "submissions" | "questions" | "assessments" | "challenges" | "professors" | "semesters" | "class_schedules" | "materials" | "financial" | "settings" | "chat" | "attendance" | "classes" | "institutional" | "grade_config" | "usage_logs" | "ead" | "book_loans"
+type Tab = "overview" | "students" | "grades" | "submissions" | "questions" | "assessments" | "challenges" | "professors" | "semesters" | "class_schedules" | "materials" | "financial" | "settings" | "chat" | "attendance" | "classes" | "institutional" | "testimonials" | "grade_config" | "usage_logs" | "ead" | "book_loans"
 
 interface Props {
   onLogout: () => void
@@ -182,6 +183,7 @@ export function AdminDashboard({ onLogout }: Props) {
         title: "Institucional",
         items: [
           { id: "institutional", label: "Quem Somos / Missão", icon: <Building2 className="h-4 w-4" /> },
+          { id: "testimonials", label: "Depoimentos", icon: <MessageSquareQuote className="h-4 w-4" />, masterOnly: true },
         ]
       },
       {
@@ -457,6 +459,7 @@ export function AdminDashboard({ onLogout }: Props) {
               {tab === "financial" && <FinancialDashboard poloFilter={isMaster ? selectedPoloId : undefined} />}
               {tab === "professors" && isMaster && <ProfessorManager />}
               {tab === "institutional" && <InstitutionalManager />}
+              {tab === "testimonials" && <TestimonialsTab />}
               {tab === "book_loans" && <BookManager isMaster={isMaster} poloFilter={isMaster ? selectedPoloId : undefined} professorInfo={{ id: session?.professorId || "prof-0", name: username || "Professor", email: userEmail }} />}
               {tab === "grade_config" && isMaster && <GradeConfig />}
               {tab === "usage_logs" && isMaster && <UsageDashboard />}
