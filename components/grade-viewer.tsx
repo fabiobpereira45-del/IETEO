@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { X, BookOpen, Users, Clock, ChevronDown, ChevronUp, Calendar, DollarSign, Wallet } from "lucide-react"
 import { getClasses, getSemesters, getDisciplines, getFinancialSettings, getClassSchedules, type ClassRoom, type Semester, type Discipline, type FinancialSettings, type ClassSchedule } from "@/lib/store"
+import { usePolo } from "@/lib/polo-context"
 
 const SHIFT_LABEL: Record<string, string> = {
     morning: "Manhã",
@@ -25,6 +26,7 @@ interface GradeViewerProps {
 }
 
 export function GradeViewer({ onClose }: GradeViewerProps) {
+    const { polo } = usePolo()
     const [classes, setClasses] = useState<ClassRoom[]>([])
     const [semesters, setSemesters] = useState<Semester[]>([])
     const [disciplines, setDisciplines] = useState<Discipline[]>([])
@@ -38,16 +40,20 @@ export function GradeViewer({ onClose }: GradeViewerProps) {
             const [cls, sems, discs, fin, scheds] = await Promise.all([
                 getClasses(), getSemesters(), getDisciplines(), getFinancialSettings(), getClassSchedules()
             ])
-            setClasses(cls)
-            setSemesters(sems)
+            // Show only the grade and turmas of the currently selected polo, so visitors
+            // don't see near-identical semester groups duplicated across polos.
+            const scopedSems = polo?.id ? sems.filter(s => !s.poloId || s.poloId === polo.id) : sems
+            const scopedClasses = polo?.id ? cls.filter(c => !c.poloId || c.poloId === polo.id) : cls
+            setClasses(scopedClasses)
+            setSemesters(scopedSems)
             setDisciplines(discs)
             setFinancial(fin)
             setSchedules(scheds)
-            if (sems.length > 0) setOpenSem(sems[0].id)
+            if (scopedSems.length > 0) setOpenSem(scopedSems[0].id)
             setLoading(false)
         }
         load()
-    }, [])
+    }, [polo?.id])
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
