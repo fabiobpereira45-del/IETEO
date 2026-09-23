@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import {
     type FinancialCharge, type StudentProfile, type FinancialSettings, type Assessment,
-    getFinancialCharges, addFinancialCharge, updateFinancialChargeStatus, deleteFinancialCharge, updateFinancialCharge, updateFinancialChargesStatusBatch,
+    getFinancialCharges, addFinancialCharge, updateFinancialChargeStatus, deleteFinancialCharge, updateFinancialCharge,
     getFinancialSettings, updateFinancialSettings, getAssessments, triggerN8nWebhook,
     syncStudentTuitionByDisciplines, settleFinancialCharge, reverseFinancialCharge
 } from "@/lib/store"
@@ -796,8 +796,10 @@ export function FinancialManager({ onRefresh, month, year, scope, poloFilter }: 
                                         setIsGenerating(true)
                                         try {
                                             const newStatus = type === "100" ? "bolsa100" : "bolsa50"
-                                            const stChargeIds = stCharges.map(c => c.id)
-                                            await updateFinancialChargesStatusBatch(stChargeIds, newStatus)
+                                            await Promise.all(stCharges.map(c => updateFinancialCharge(c.id, {
+                                                status: newStatus,
+                                                amount: type === "100" ? 0 : Math.round((c.amount / 2) * 100) / 100,
+                                            })))
                                             await load()
                                             onRefresh?.()
                                             toast.success(`Bolsas de ${type}% aplicadas com sucesso!`)
