@@ -29,6 +29,16 @@ export const metadata: Metadata = {
   description: "Sistema de Avaliação Teológica do IETEO",
   generator: "v0.app",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/icon.png", sizes: "512x512", type: "image/png" },
+      { url: "/favicon.ico", sizes: "32x32", type: "image/x-icon" },
+    ],
+    apple: [
+      { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    shortcut: ["/favicon.ico"],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
