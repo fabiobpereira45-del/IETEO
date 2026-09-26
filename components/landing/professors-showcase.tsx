@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { GraduationCap } from "lucide-react"
-import { getProfessorAccounts, type ProfessorAccount } from "@/lib/store"
+import { getProfessorAccounts, getAllProfessorDisciplines, getDisciplines, type ProfessorAccount } from "@/lib/store"
 import { ScrollReveal } from "@/components/landing/scroll-reveal"
 
 function initials(name: string) {
@@ -17,11 +17,24 @@ function initials(name: string) {
 
 export function ProfessorsShowcase() {
   const [professors, setProfessors] = useState<ProfessorAccount[]>([])
+  const [subjectsByProfessor, setSubjectsByProfessor] = useState<Record<string, string[]>>({})
 
   useEffect(() => {
-    getProfessorAccounts().then((list) => {
-      setProfessors(list.filter((p) => p.role === "professor" && p.active !== false))
-    })
+    Promise.all([getProfessorAccounts(), getAllProfessorDisciplines(), getDisciplines()]).then(
+      ([profs, links, discs]) => {
+        // Every professor account is shown, regardless of whether they filled in a bio.
+        setProfessors(profs.filter((p) => p.role === "professor" && p.active !== false))
+
+        const discNameById = Object.fromEntries(discs.map((d) => [d.id, d.name]))
+        const map: Record<string, string[]> = {}
+        links.forEach((link) => {
+          const name = discNameById[link.disciplineId]
+          if (!name) return
+          ;(map[link.professorId] ||= []).push(name)
+        })
+        setSubjectsByProfessor(map)
+      }
+    )
   }, [])
 
   if (professors.length === 0) return null
@@ -41,27 +54,34 @@ export function ProfessorsShowcase() {
       </ScrollReveal>
 
       <div className="flex gap-5 overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-3 lg:grid-cols-4 md:overflow-visible snap-x snap-mandatory">
-        {professors.map((prof, i) => (
-          <ScrollReveal key={prof.id} delay={i * 80} className="shrink-0 w-[220px] md:w-auto snap-start">
-            <div className="group rounded-2xl border-2 border-border bg-card p-5 text-center shadow-md hover:shadow-xl hover:border-accent/40 hover:-translate-y-1 transition-all h-full flex flex-col items-center">
-              <div className="relative mb-4">
-                <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-accent/20 bg-primary flex items-center justify-center text-primary-foreground font-black text-xl">
-                  {prof.avatar_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={prof.avatar_url} alt={prof.name} className="w-full h-full object-cover" />
-                  ) : (
-                    initials(prof.name)
-                  )}
+        {professors.map((prof, i) => {
+          // Fall back to the disciplines they teach when there's no written bio yet,
+          // so every professor card shows something meaningful about them.
+          const subjects = subjectsByProfessor[prof.id] || []
+          const description = prof.bio || (subjects.length > 0 ? `Ministra: ${subjects.join(", ")}` : null)
+
+          return (
+            <ScrollReveal key={prof.id} delay={i * 80} className="shrink-0 w-[220px] md:w-auto snap-start">
+              <div className="group rounded-2xl border-2 border-border bg-card p-5 text-center shadow-md hover:shadow-xl hover:border-accent/40 hover:-translate-y-1 transition-all h-full flex flex-col items-center">
+                <div className="relative mb-4">
+                  <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-accent/20 bg-primary flex items-center justify-center text-primary-foreground font-black text-xl">
+                    {prof.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={prof.avatar_url} alt={prof.name} className="w-full h-full object-cover" />
+                    ) : (
+                      initials(prof.name)
+                    )}
+                  </div>
+                  <GraduationCap className="absolute -bottom-1 -right-1 h-6 w-6 text-accent bg-card rounded-full p-1 border-2 border-card" />
                 </div>
-                <GraduationCap className="absolute -bottom-1 -right-1 h-6 w-6 text-accent bg-card rounded-full p-1 border-2 border-card" />
+                <h3 className="font-bold text-foreground leading-tight">{prof.name}</h3>
+                {description && (
+                  <p className="text-xs text-muted-foreground mt-2 line-clamp-3">{description}</p>
+                )}
               </div>
-              <h3 className="font-bold text-foreground leading-tight">{prof.name}</h3>
-              {prof.bio && (
-                <p className="text-xs text-muted-foreground mt-2 line-clamp-3">{prof.bio}</p>
-              )}
-            </div>
-          </ScrollReveal>
-        ))}
+            </ScrollReveal>
+          )
+        })}
       </div>
     </div>
   )
