@@ -22,8 +22,9 @@ export function ProfessorsShowcase() {
   useEffect(() => {
     Promise.all([getProfessorAccounts(), getAllProfessorDisciplines(), getDisciplines()]).then(
       ([profs, links, discs]) => {
-        // Every professor account is shown, regardless of whether they filled in a bio.
-        setProfessors(profs.filter((p) => p.role === "professor" && p.active !== false))
+        // Every account in the "Professores" admin menu is shown here, regardless of role
+        // (professor or master) — the role is an access-level distinction, not a teaching one.
+        setProfessors(profs.filter((p) => p.active !== false))
 
         const discNameById = Object.fromEntries(discs.map((d) => [d.id, d.name]))
         const map: Record<string, string[]> = {}
