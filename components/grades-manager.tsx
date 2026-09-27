@@ -62,6 +62,14 @@ const GradeRow = memo(({
                             {grade.examGrade.toFixed(1)} pts
                         </span>
                     </div>
+                    {!!grade.participationBonus && (
+                        <div className="flex flex-col gap-1">
+                            <span className="text-[9px] font-black uppercase text-amber-600 tracking-tighter">Pontos Extras</span>
+                            <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 shadow-sm">
+                                +{grade.participationBonus.toFixed(1)} pts
+                            </span>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -75,7 +83,7 @@ const GradeRow = memo(({
                         {average}
                     </div>
                     <div className="text-[9px] text-muted-foreground font-medium mt-1 uppercase tracking-tighter">
-                        (Pres + Prova) / 2
+                        (Pres + Prova) / 2{!!grade.participationBonus && " + Extra"}
                     </div>
                 </div>
 
@@ -612,6 +620,10 @@ export function GradesManager({ isMaster, poloFilter }: { isMaster: boolean, pol
                                 <div className="space-y-1.5">
                                     <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Nota de Prova</Label>
                                     <Input type="number" step="0.1" value={formData.examGrade} onChange={(e) => setFormData({ ...formData, examGrade: e.target.value })} />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] font-bold uppercase tracking-wider text-amber-600">Pontos Extras</Label>
+                                    <Input type="number" step="0.1" value={formData.participationBonus} onChange={(e) => setFormData({ ...formData, participationBonus: e.target.value })} placeholder="Somado direto à média" className="border-amber-300 focus-visible:ring-amber-400" />
                                 </div>
                             </div>
                         </div>

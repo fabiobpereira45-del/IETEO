@@ -158,9 +158,10 @@ export function ClassInfoTab({ myClass, classmates, mySchedules, disciplines, of
                                     const adjustedPresence = divisor > 1 ? (presencePoints * divisor) : presencePoints
                                     
                                     const totalGrade = grade ? (
-                                        (grade.examGrade || 0) + (grade.worksGrade || 0) + (grade.seminarGrade || 0) + (grade.participationBonus || 0) + adjustedPresence
+                                        (grade.examGrade || 0) + (grade.worksGrade || 0) + (grade.seminarGrade || 0) + adjustedPresence
                                     ) : 0
-                                    const average = grade ? Math.min(totalGrade / divisor, 10.0) : null
+                                    // Pontos Extras (participationBonus) não é dividido: soma direto na média final.
+                                    const average = grade ? Math.min((totalGrade / divisor) + (grade.participationBonus || 0), 10.0) : null
                                     
                                     const isCurrentMonth = disc?.description?.toLowerCase().includes(new Date().toLocaleString('pt-br', { month: 'long' }).toLowerCase())
                                     if (isCurrentMonth) return null // Skip as it's already in the highlight section

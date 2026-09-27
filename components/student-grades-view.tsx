@@ -279,7 +279,7 @@ export function StudentGradesView({ studentId, studentEmail, studentDoc, student
                                             { label: "Presença", val: grade.attendanceScore, isSecret: false, color: "text-blue-600" },
                                             { label: "Prova", val: grade.examGrade, isSecret: !grade.isPublic, color: "text-primary" },
                                             { label: "Trabalhos", val: grade.worksGrade, isSecret: false, color: "text-foreground" },
-                                            { label: "Testes/Outros", val: (grade.seminarGrade || 0) + (grade.participationBonus || 0), isSecret: false, color: "text-foreground" },
+                                            { label: "Pontos Extras", val: grade.participationBonus, isSecret: false, color: "text-amber-600" },
                                         ].map(item => (
                                             <div key={item.label} className={`bg-background border border-border rounded-lg p-3 text-center ${item.isSecret ? 'opacity-60 bg-muted/20' : ''}`}>
                                                 <div className="text-[10px] text-muted-foreground font-bold uppercase mb-1">{item.label}</div>

@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Plus, Trash2, Pencil, Save, X, Users, Clock, GraduationCap, Loader2, Calendar, Link, Check, Copy } from "lucide-react"
-import { getClasses, addClass, updateClass, deleteClass, getStudents, POLOS, type ClassRoom, type StudentProfile } from "@/lib/store"
+import { Plus, Trash2, Pencil, Save, X, Users, Clock, GraduationCap, Loader2, Calendar, Link, Check, Copy, BookOpen } from "lucide-react"
+import { getClasses, addClass, updateClass, deleteClass, getStudents, POLOS, backfillClassCurriculumFromGlobalGrade, type ClassRoom, type StudentProfile } from "@/lib/store"
+import { ClassCurriculumManager } from "@/components/class-curriculum-manager"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 
@@ -156,6 +157,8 @@ export function ClassManager({ poloFilter }: { poloFilter?: string }) {
     const [saving, setSaving] = useState(false)
     const [editingId, setEditingId] = useState<string | null>(null)
     const [showNew, setShowNew] = useState(false)
+    const [curriculumClass, setCurriculumClass] = useState<ClassRoom | null>(null)
+    const [migrating, setMigrating] = useState(false)
     const initialPolo = (poloFilter && poloFilter !== "all") ? poloFilter : "polo-tancredo-neves"
     const [form, setForm] = useState<FormState>({ ...EMPTY_FORM, poloId: initialPolo })
     const [editForm, setEditForm] = useState<FormState>({ ...EMPTY_FORM, poloId: initialPolo })
@@ -238,6 +241,22 @@ export function ClassManager({ poloFilter }: { poloFilter?: string }) {
         setShowNew(false)
     }
 
+    async function handleMigrateExistingClasses() {
+        if (!confirm("Isso cria a grade curricular própria de cada turma que ainda não tem uma, copiando a grade global atual (mesma sequência que já gera as mensalidades hoje). Turmas que já têm grade própria não são alteradas. Continuar?")) return
+        setMigrating(true)
+        try {
+            const results = await backfillClassCurriculumFromGlobalGrade()
+            const migrated = results.filter(r => r.inserted > 0)
+            alert(migrated.length > 0
+                ? `Grade criada para ${migrated.length} turma(s):\n${migrated.map(r => `${r.className}: ${r.inserted} disciplina(s)`).join("\n")}`
+                : "Todas as turmas já têm grade própria cadastrada.")
+        } catch (err: any) {
+            alert("Erro ao migrar turmas: " + err.message)
+        } finally {
+            setMigrating(false)
+        }
+    }
+
     async function copyLink(classId: string) {
         const url = `${window.location.origin}/registrar?classId=${classId}`
         await navigator.clipboard.writeText(url)
@@ -291,12 +310,22 @@ export function ClassManager({ poloFilter }: { poloFilter?: string }) {
                     </h2>
                     <p className="text-sm text-muted-foreground">Gerencie turmas, dias e vagas disponíveis</p>
                 </div>
-                <button
-                    onClick={() => { setShowNew(true); setEditingId(null) }}
-                    className="flex items-center gap-2 bg-accent text-accent-foreground font-bold px-4 py-2 rounded-xl hover:bg-accent/90 transition-colors text-sm"
-                >
-                    <Plus className="h-4 w-4" /> Nova Turma
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={handleMigrateExistingClasses}
+                        disabled={migrating}
+                        title="Cria a grade própria das turmas que ainda não têm, copiando a grade global atual"
+                        className="flex items-center gap-2 bg-primary/10 text-primary font-bold px-4 py-2 rounded-xl hover:bg-primary/20 transition-colors text-sm disabled:opacity-60"
+                    >
+                        {migrating ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookOpen className="h-4 w-4" />} Migrar Grade das Turmas
+                    </button>
+                    <button
+                        onClick={() => { setShowNew(true); setEditingId(null) }}
+                        className="flex items-center gap-2 bg-accent text-accent-foreground font-bold px-4 py-2 rounded-xl hover:bg-accent/90 transition-colors text-sm"
+                    >
+                        <Plus className="h-4 w-4" /> Nova Turma
+                    </button>
+                </div>
             </div>
 
             {showNew && (
@@ -386,6 +415,9 @@ export function ClassManager({ poloFilter }: { poloFilter?: string }) {
                                         <button onClick={() => copyLink(c.id)} className="p-2 rounded-lg border border-accent/30 bg-accent/5 hover:bg-accent/10 transition-colors" title="Copiar Link de Matrícula">
                                             <Link className="h-4 w-4 text-accent" />
                                         </button>
+                                        <button onClick={() => setCurriculumClass(c)} className="p-2 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors" title="Grade Curricular da Turma">
+                                            <BookOpen className="h-4 w-4 text-primary" />
+                                        </button>
                                         <button onClick={() => startEdit(c)} className="p-2 rounded-lg border border-border hover:bg-muted transition-colors" title="Editar">
                                             <Pencil className="h-4 w-4 text-muted-foreground" />
                                         </button>
@@ -420,6 +452,10 @@ export function ClassManager({ poloFilter }: { poloFilter?: string }) {
                         </div>
                     )})}
                 </div>
+            )}
+
+            {curriculumClass && (
+                <ClassCurriculumManager classRoom={curriculumClass} onClose={() => setCurriculumClass(null)} />
             )}
         </div>
     )

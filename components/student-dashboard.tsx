@@ -10,7 +10,7 @@ import {
     type StudentSession, type StudentProfile, getStudentProfileAuth, logoutStudentAuth,
     type Semester, type Discipline, type StudyMaterial, type FinancialCharge, type ClassRoom, type ClassSchedule,
     getSemesters, getDisciplines, getStudyMaterials, getFinancialCharges, getClasses, getClassSchedules,
-    getClassmates, getStudentGrades, type StudentGrade, syncStudentGrades
+    getClassmates, getStudentGrades, type StudentGrade, syncStudentGrades, getClassCurriculum
 } from "@/lib/store"
 import { StudentAuth } from "@/components/student-auth"
 import { AvatarUpload } from "@/components/avatar-upload"
@@ -70,6 +70,8 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
 
     const [semesters, setSemesters] = useState<Semester[]>([])
     const [disciplines, setDisciplines] = useState<Discipline[]>([])
+    const [curriculumSemesters, setCurriculumSemesters] = useState<Semester[]>([])
+    const [curriculumDisciplines, setCurriculumDisciplines] = useState<Discipline[]>([])
     const [materials, setMaterials] = useState<StudyMaterial[]>([])
     const [charges, setCharges] = useState<FinancialCharge[]>([])
     const [myClass, setMyClass] = useState<ClassRoom | null>(null)
@@ -111,6 +113,8 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
             ])
             setSemesters(s)
             setDisciplines(d)
+            setCurriculumSemesters(s)
+            setCurriculumDisciplines(d)
             setMaterials(m)
             setCharges(c)
 
@@ -124,6 +128,28 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                 if (foundClass) setMyClass(foundClass)
                 const classSchedules = sch.filter(sh => sh.classId === p.class_id)
                 setMySchedules(classSchedules)
+
+                // Grade curricular própria da turma: se a turma já tiver grade cadastrada,
+                // ela substitui a grade global só na aba "Grade Curricular" (que fica como modelo/fallback).
+                const curriculumItems = await getClassCurriculum(p.class_id)
+                if (curriculumItems.length > 0) {
+                    const disciplineById = new Map<string, Discipline>(d.map(disc => [disc.id, disc]))
+                    const classDisciplines: Discipline[] = []
+                    curriculumItems.forEach((item, idx) => {
+                        const disc = disciplineById.get(item.disciplineId)
+                        if (!disc) return
+                        classDisciplines.push({
+                            ...disc,
+                            semesterId: "class-curriculum",
+                            applicationMonth: item.applicationMonth ?? disc.applicationMonth,
+                            applicationYear: item.applicationYear ?? disc.applicationYear,
+                            isConcluded: item.isConcluded ?? disc.isConcluded,
+                            order: idx,
+                        })
+                    })
+                    setCurriculumSemesters([{ id: "class-curriculum", name: foundClass?.name || "Minha Turma", order: 0, isConcluded: false, createdAt: new Date().toISOString() }])
+                    setCurriculumDisciplines(classDisciplines)
+                }
 
                 const [members, grades] = await Promise.all([
                     getClassmates(p.class_id),
@@ -415,7 +441,7 @@ export function StudentDashboard({ session, onBack, onLogout }: Props) {
                                 </div>
                             )}
                             {tab === "class-info" && <ClassInfoTab myClass={myClass} classmates={classmates} mySchedules={mySchedules} disciplines={disciplines} officialGrades={officialGrades} />}
-                            {tab === "curriculum" && <CurriculumTab semesters={semesters} disciplines={disciplines} />}
+                            {tab === "curriculum" && <CurriculumTab semesters={curriculumSemesters} disciplines={curriculumDisciplines} />}
                             {tab === "ead" && <EadPlayer myDisciplineIds={myDisciplineIds} studentId={profile.id} studentName={profile.name} />}
                             {tab === "materials" && <MaterialsTab filteredMaterials={filteredMaterials} disciplines={disciplines} />}
                             {tab === "books" && <StudentBooksView profile={profile} />}

@@ -67,6 +67,7 @@ export interface Testimonial { id: string; name: string; role?: string; polo?: s
 export interface ProfessorDiscipline { id: string; professorId: string; disciplineId: string; createdAt: string; }
 export interface ClassRoom { id: string; name: string; shift: "morning" | "afternoon" | "evening" | "ead"; dayOfWeek?: string; maxStudents: number; studentCount?: number; createdAt: string; modality?: "presencial" | "semi_presencial" | "online"; poloId?: string | null; }
 export interface ClassSchedule { id: string; classId: string; disciplineId: string; professorName: string; dayOfWeek: string; timeStart: string; timeEnd: string; lessonsCount: number; workload: number; startDate?: string; endDate?: string; createdAt: string; }
+export interface ClassCurriculumItem { id: string; classId: string; disciplineId: string; order: number; applicationMonth?: string | null; applicationYear?: string | null; isConcluded?: boolean; professorName?: string | null; createdAt: string; }
 export interface StudentGrade {
   id: string;
   studentId?: string;       // Unique ID for security isolation
@@ -575,6 +576,7 @@ function mapAttendance(row: any): Attendance {
   }
 }
 function mapClassSchedule(row: any): ClassSchedule { return { id: row.id, classId: row.class_id, disciplineId: row.discipline_id, professorName: row.professor_name, dayOfWeek: row.day_of_week, timeStart: row.time_start, timeEnd: row.time_end, lessonsCount: Number(row.lessons_count || 1), workload: Number(row.workload || 0), startDate: row.start_date || undefined, endDate: row.end_date || undefined, createdAt: row.created_at } }
+function mapClassCurriculumItem(row: any): ClassCurriculumItem { return { id: row.id, classId: row.class_id, disciplineId: row.discipline_id, order: Number(row.order || 0), applicationMonth: row.application_month || undefined, applicationYear: row.application_year || undefined, isConcluded: !!row.is_concluded, professorName: row.professor_name || undefined, createdAt: row.created_at } }
 function mapStudentGrade(row: any): StudentGrade {
   return {
     id: row.id,
@@ -2244,6 +2246,128 @@ export async function deleteClassSchedule(id: string): Promise<void> {
   await supabase.from('class_schedules').delete().eq('id', id)
 }
 
+// ─── Grade Curricular por Turma (class_curriculum) ──────────────────────────
+// Cada turma tem sua própria sequência de disciplinas (do catálogo em `disciplines`)
+// com mês/ano específicos, usada pelo financeiro para gerar as mensalidades.
+
+export async function getClassCurriculum(classId: string): Promise<ClassCurriculumItem[]> {
+  const supabase = createClient()
+  const { data } = await supabase.from('class_curriculum').select('*').eq('class_id', classId).order('order', { ascending: true })
+  return (data || []).map(mapClassCurriculumItem)
+}
+
+export async function saveClassCurriculumItem(item: Omit<ClassCurriculumItem, 'id' | 'createdAt'>, id?: string): Promise<void> {
+  const supabase = createClient()
+  const dbData: any = {
+    class_id: item.classId,
+    discipline_id: item.disciplineId,
+    order: item.order,
+    application_month: item.applicationMonth || null,
+    application_year: item.applicationYear || null,
+    is_concluded: item.isConcluded || false,
+    professor_name: item.professorName || null,
+  }
+  if (id) {
+    const { error } = await supabase.from('class_curriculum').update(dbData).eq('id', id)
+    if (error) throw new Error(error.message)
+  } else {
+    const { error } = await supabase.from('class_curriculum').insert({ ...dbData, created_at: new Date().toISOString() })
+    if (error) throw new Error(error.message)
+  }
+}
+
+export async function deleteClassCurriculumItem(id: string): Promise<void> {
+  const supabase = createClient()
+  await supabase.from('class_curriculum').delete().eq('id', id)
+}
+
+export async function reorderClassCurriculum(orderedItemIds: string[]): Promise<void> {
+  const supabase = createClient()
+  await Promise.all(orderedItemIds.map((id, index) =>
+    supabase.from('class_curriculum').update({ order: index }).eq('id', id)
+  ))
+}
+
+// Resolve a grade "global" atual (mesma lógica antes usada por syncStudentTuitionByDisciplines),
+// usada como modelo/base pelo botão "Copiar da grade global" e como fallback para turmas que
+// ainda não têm grade própria cadastrada em class_curriculum.
+async function resolveGlobalGradeDisciplines(modality: string, poloId?: string | null): Promise<Discipline[]> {
+  const supabase = createClient()
+  const semesterModality = (modality === 'online' || modality === 'semi_presencial') ? 'semi_presencial' : 'presencial'
+
+  const [semestersResult, disciplinesResult] = await Promise.all([
+    supabase.from('semesters').select('*').eq('modality', semesterModality).order('order', { ascending: true }),
+    supabase.from('disciplines').select('*')
+  ])
+
+  let semesters = semestersResult.data || []
+  if (poloId) {
+    const ownPoloSemesters = semesters.filter((s: any) => s.polo_id === poloId)
+    semesters = ownPoloSemesters.length > 0 ? ownPoloSemesters : semesters.filter((s: any) => !s.polo_id)
+  }
+  const semesterIds = new Set(semesters.map((s: any) => s.id))
+
+  const disciplines = (disciplinesResult.data || [])
+    .filter((d: any) => d.semester_id && semesterIds.has(d.semester_id))
+    .map(mapDiscipline)
+    .sort((a: any, b: any) => {
+      const semA = semesters.find((s: any) => s.id === a.semesterId)
+      const semB = semesters.find((s: any) => s.id === b.semesterId)
+      const semOrderA = semA?.order ?? 999
+      const semOrderB = semB?.order ?? 999
+      if (semOrderA !== semOrderB) return semOrderA - semOrderB
+      return a.order - b.order
+    })
+
+  return disciplines
+}
+
+// Copia a grade global atual (por modalidade/polo) para a grade própria de uma turma.
+// Usado tanto pelo botão "Copiar da grade global" na UI quanto pela migração inicial das turmas já existentes.
+export async function copyGlobalGradeToClass(classId: string): Promise<number> {
+  const supabase = createClient()
+  const { data: cls } = await supabase.from('classes').select('modality, polo_id').eq('id', classId).maybeSingle()
+  if (!cls) throw new Error('Turma não encontrada.')
+
+  const disciplines = await resolveGlobalGradeDisciplines(cls.modality || 'presencial', cls.polo_id)
+  if (disciplines.length === 0) return 0
+
+  const { data: existing } = await supabase.from('class_curriculum').select('discipline_id').eq('class_id', classId)
+  const existingIds = new Set((existing || []).map((r: any) => r.discipline_id))
+
+  const rows = disciplines
+    .filter(d => !existingIds.has(d.id))
+    .map((d, index) => ({
+      class_id: classId,
+      discipline_id: d.id,
+      order: existingIds.size + index,
+      application_month: d.applicationMonth || null,
+      application_year: d.applicationYear || null,
+      is_concluded: d.isConcluded || false,
+      created_at: new Date().toISOString()
+    }))
+
+  if (rows.length === 0) return 0
+  const { error } = await supabase.from('class_curriculum').insert(rows)
+  if (error) throw new Error(error.message)
+  return rows.length
+}
+
+// Migração de conveniência: copia a grade global para TODAS as turmas que ainda não têm
+// nenhuma linha em class_curriculum. Roda uma única vez a partir de um botão admin.
+export async function backfillClassCurriculumFromGlobalGrade(): Promise<{ classId: string; className: string; inserted: number }[]> {
+  const supabase = createClient()
+  const { data: classes } = await supabase.from('classes').select('id, name')
+  const results: { classId: string; className: string; inserted: number }[] = []
+  for (const c of (classes || [])) {
+    const { count } = await supabase.from('class_curriculum').select('id', { count: 'exact', head: true }).eq('class_id', c.id)
+    if (count && count > 0) continue
+    const inserted = await copyGlobalGradeToClass(c.id)
+    results.push({ classId: c.id, className: c.name, inserted })
+  }
+  return results
+}
+
 export async function getStudents(poloId?: string): Promise<StudentProfile[]> {
   const supabase = createClient()
   let query = supabase
@@ -2845,12 +2969,14 @@ export async function blockAllGrades(classId?: string): Promise<void> {
 }
 
 export function calculateGlobalAverage(grade: StudentGrade, settings: GradeSettings): string {
-  // Institutional Rule: (Attendance Score + Exam Grade) / 2
+  // Institutional Rule: (Attendance Score + Exam Grade) / 2 + Pontos Extras
   // Attendance Score is already calculated as (Presences * 2.5) capped at 10.0
+  // Pontos Extras (participationBonus) is NOT divided: it is added directly to the final average.
   const exam = (grade.examGrade || 0)
   const presence = (grade.attendanceScore || 0)
-  
-  const avg = (presence + exam) / 2
+  const extra = (grade.participationBonus || 0)
+
+  const avg = (presence + exam) / 2 + extra
   return Math.min(avg, 10.0).toFixed(2)
 }
 
@@ -3104,55 +3230,40 @@ export async function syncStudentTuitionByDisciplines(studentId: string): Promis
     }
   }
 
-  // Normalize modality for semesters: 'presencial' vs 'semi_presencial' (online maps to semi_presencial semesters)
-  const semesterModality = (studentModality === 'online' || studentModality === 'semi_presencial')
-    ? 'semi_presencial'
-    : 'presencial'
-
-  // 2. Get Semesters and All Curriculum Disciplines for this modality
-  const [semestersResult, disciplinesResult] = await Promise.all([
-    supabase.from('semesters').select('*').eq('modality', semesterModality).order('order', { ascending: true }),
-    supabase.from('disciplines').select('*')
-  ])
-
-  let semesters = semestersResult.data || []
-  // Restrict to the student's own polo when semesters carry a polo_id, so a student
-  // from one polo (e.g. Salvador) never inherits tuition from another polo's grade (e.g. Chapada).
-  if (student.polo_id) {
-    const ownPoloSemesters = semesters.filter((s: any) => s.polo_id === student.polo_id)
-    if (ownPoloSemesters.length > 0) {
-      semesters = ownPoloSemesters
-    } else {
-      // No semester explicitly tagged for this polo yet: fall back to untagged ones only,
-      // never to another polo's tagged grade.
-      semesters = semesters.filter((s: any) => !s.polo_id)
+  // 2. Grade curricular: cada turma tem sua própria sequência de disciplinas/meses
+  // (class_curriculum). Turmas que ainda não têm grade própria cadastrada caem no
+  // fallback da grade global por modalidade, para não quebrar cobranças já existentes.
+  let disciplines: Discipline[] = []
+  if (student.class_id) {
+    const curriculumItems = await getClassCurriculum(student.class_id)
+    if (curriculumItems.length > 0) {
+      const { data: allDisciplineRows } = await supabase.from('disciplines').select('*')
+      const disciplineById = new Map<string, Discipline>((allDisciplineRows || []).map((d: any) => [d.id, mapDiscipline(d)]))
+      disciplines = curriculumItems
+        .map(item => {
+          const disc = disciplineById.get(item.disciplineId)
+          if (!disc) return null
+          return {
+            ...disc,
+            applicationMonth: item.applicationMonth ?? disc.applicationMonth,
+            applicationYear: item.applicationYear ?? disc.applicationYear,
+            isConcluded: item.isConcluded ?? disc.isConcluded,
+          } as Discipline
+        })
+        .filter((d): d is Discipline => !!d)
     }
   }
-  const semesterIds = new Set(semesters.map((s: any) => s.id))
-  
-  // Filter disciplines strictly to this modality's semesters
-  const currDisciplines = (disciplinesResult.data || [])
-    .filter((d: any) => d.semester_id && semesterIds.has(d.semester_id))
-    .map(mapDiscipline)
 
-  if (currDisciplines.length === 0) return
+  if (disciplines.length === 0) {
+    disciplines = await resolveGlobalGradeDisciplines(studentModality, student.polo_id)
+  }
+
+  if (disciplines.length === 0) return
 
   const monthMap: Record<string, number> = {
     'Jan': 1, 'Fev': 2, 'Mar': 3, 'Abr': 4, 'Mai': 5, 'Jun': 6,
     'Jul': 7, 'Ago': 8, 'Set': 9, 'Out': 10, 'Nov': 11, 'Dez': 12
   }
-
-  // Sort disciplines strictly by Semester Order then Discipline Order
-  const disciplines = currDisciplines
-    .sort((a: any, b: any) => {
-      const semA = semesters.find((s: any) => s.id === a.semesterId)
-      const semB = semesters.find((s: any) => s.id === b.semesterId)
-      const semOrderA = semA?.order ?? 999
-      const semOrderB = semB?.order ?? 999
-
-      if (semOrderA !== semOrderB) return semOrderA - semOrderB
-      return a.order - b.order
-    })
 
   // 3. Get Settings
   const settings = await getFinancialSettings()

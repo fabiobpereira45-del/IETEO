@@ -282,9 +282,12 @@ export function SemesterManager({ isMaster }: { isMaster?: boolean }) {
             {/* Page header */}
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
-                    <h2 className="text-lg font-semibold">Grade Curricular</h2>
+                    <h2 className="text-lg font-semibold">Grade Curricular (Catálogo / Modelo)</h2>
                     <p className="text-sm text-muted-foreground">
-                        Organize por semestre e dia da semana — a mesma disciplina pode aparecer em dias diferentes
+                        Organize por semestre e dia da semana — a mesma disciplina pode aparecer em dias diferentes.
+                    </p>
+                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 mt-2 max-w-xl">
+                        Esta grade é apenas o modelo/catálogo de disciplinas. As mensalidades de cada turma agora seguem a grade própria de cada turma, cadastrada em <strong>Turmas → Grade Curricular da Turma</strong>.
                     </p>
                     <div className="flex gap-1 mt-3 bg-muted rounded-lg p-1 w-fit">
                         {[
