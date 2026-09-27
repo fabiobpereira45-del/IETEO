@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react"
 import {
   Plus, Pencil, Trash2, ShieldCheck, User, Eye, EyeOff, X, Check, CheckCircle2, XCircle, Download,
-  BookOpen, Link2, Share2, Copy, Sparkles, ExternalLink, Search, Layers, Loader2
+  BookOpen, Link2, Share2, Copy, Sparkles, ExternalLink, Search, Layers, Loader2, FileText
 } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -39,11 +40,13 @@ const EMPTY_FORM: FormState = { name: "", email: "", password: "", role: "profes
 function ProfessorForm({
   initial,
   isEdit,
+  canAssignMaster,
   onSave,
   onCancel,
 }: {
   initial?: FormState
   isEdit?: boolean
+  canAssignMaster?: boolean
   onSave: (data: FormState) => void
   onCancel: () => void
 }) {
@@ -116,7 +119,7 @@ function ProfessorForm({
             className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground"
           >
             <option value="professor">Professor</option>
-            <option value="master">Administrador (Master)</option>
+            {canAssignMaster && <option value="master">Administrador (Master)</option>}
             <option value="secretary">Secretário(a)</option>
           </select>
         </div>
@@ -140,7 +143,7 @@ function ProfessorForm({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function ProfessorManager() {
+export function ProfessorManager({ isMaster }: { isMaster?: boolean }) {
   const [accounts, setAccounts] = useState<ProfessorAccount[]>([])
   const [disciplines, setDisciplines] = useState<Discipline[]>([])
   const [profDisciplines, setProfDisciplines] = useState<ProfessorDiscipline[]>([])
@@ -148,6 +151,9 @@ export function ProfessorManager() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [affinityProfId, setAffinityProfId] = useState<string | null>(null)
+  const [bioProfId, setBioProfId] = useState<string | null>(null)
+  const [bioDraft, setBioDraft] = useState("")
+  const [savingBio, setSavingBio] = useState(false)
   const [copiedGlobal, setCopiedGlobal] = useState(false)
 
   async function refresh() {
@@ -238,6 +244,25 @@ export function ProfessorManager() {
     setTimeout(() => {
       setCopiedGlobal(false)
     }, 2500)
+  }
+
+  function openBioEditor(account: ProfessorAccount) {
+    setBioDraft(account.bio || "")
+    setBioProfId(account.id)
+  }
+
+  async function handleSaveBio() {
+    if (!bioProfId) return
+    setSavingBio(true)
+    try {
+      await updateProfessorAccount(bioProfId, { bio: bioDraft.trim() })
+      setBioProfId(null)
+      await refresh()
+    } catch (e: any) {
+      alert("Erro ao salvar bio: " + e.message)
+    } finally {
+      setSavingBio(false)
+    }
   }
 
   return (
@@ -343,6 +368,7 @@ export function ProfessorManager() {
           <div className="border border-border rounded-lg p-4 bg-muted/30">
             <p className="text-sm font-semibold text-foreground mb-4">Novo professor</p>
             <ProfessorForm
+              canAssignMaster={isMaster}
               onSave={handleAdd}
               onCancel={() => setAdding(false)}
             />
@@ -373,6 +399,7 @@ export function ProfessorManager() {
                       <p className="text-sm font-semibold text-foreground mb-4">Editar professor</p>
                       <ProfessorForm
                         isEdit
+                        canAssignMaster={isMaster}
                         initial={{
                           name: account.name,
                           email: account.email,
@@ -444,6 +471,18 @@ export function ProfessorManager() {
 
                       {/* Action buttons */}
                       <div className="flex items-center gap-1.5 self-end sm:self-center flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50 w-full sm:w-auto justify-end">
+                        {/* Bio Modal Trigger — master e secretário podem editar */}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 px-2 text-blue-600 hover:bg-blue-50"
+                          onClick={() => openBioEditor(account)}
+                          title="Adicionar / Editar Biografia"
+                        >
+                          <FileText className="h-4 w-4 mr-1 text-blue-600" />
+                          <span className="text-xs">Bio</span>
+                        </Button>
+
                         {/* Affinity Modal Trigger */}
                         <Button
                           size="sm"
@@ -456,33 +495,39 @@ export function ProfessorManager() {
                           <span className="text-xs">Afinidades</span>
                         </Button>
 
-                        {/* Active/Inactive Toggle */}
-                        <Button
-                          size="sm" variant="ghost" className={`h-8 w-8 p-0 ${account.active === false ? 'text-green-600 hover:bg-green-50' : 'text-amber-600 hover:bg-amber-50'}`}
-                          onClick={() => handleEdit(account.id, { ...account, active: account.active === false ? true : false, password: "" })}
-                          title={account.active === false ? "Ativar" : "Desativar"}
-                        >
-                          {account.active === false ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-                        </Button>
+                        {/* Active/Inactive Toggle — apenas master pode desativar outra conta master */}
+                        {(isMaster || account.role !== "master") && (
+                          <Button
+                            size="sm" variant="ghost" className={`h-8 w-8 p-0 ${account.active === false ? 'text-green-600 hover:bg-green-50' : 'text-amber-600 hover:bg-amber-50'}`}
+                            onClick={() => handleEdit(account.id, { ...account, active: account.active === false ? true : false, password: "" })}
+                            title={account.active === false ? "Ativar" : "Desativar"}
+                          >
+                            {account.active === false ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                          </Button>
+                        )}
 
-                        {/* Edit Button */}
-                        <Button
-                          size="sm" variant="ghost" className="h-8 w-8 p-0"
-                          onClick={() => { setEditingId(account.id); setAdding(false) }}
-                          title="Editar"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                        {/* Edit Button — apenas master pode editar outra conta master */}
+                        {(isMaster || account.role !== "master") && (
+                          <Button
+                            size="sm" variant="ghost" className="h-8 w-8 p-0"
+                            onClick={() => { setEditingId(account.id); setAdding(false) }}
+                            title="Editar"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
 
-                        {/* Delete Button */}
-                        <Button
-                          size="sm" variant="ghost"
-                          className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => setDeleteId(account.id)}
-                          title="Excluir"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {/* Delete Button — exclusivo do master */}
+                        {isMaster && (
+                          <Button
+                            size="sm" variant="ghost"
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => setDeleteId(account.id)}
+                            title="Excluir"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -513,6 +558,38 @@ export function ProfessorManager() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bio Dialog */}
+      <Dialog open={!!bioProfId} onOpenChange={(o) => !o && setBioProfId(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-blue-600" />
+              Biografia — {accounts.find(a => a.id === bioProfId)?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <p className="text-xs text-muted-foreground">
+              Esta biografia é exibida publicamente na vitrine de professores do site.
+            </p>
+            <Textarea
+              value={bioDraft}
+              onChange={(e) => setBioDraft(e.target.value)}
+              placeholder="Escreva uma breve biografia do professor..."
+              rows={6}
+            />
+            <div className="flex justify-end gap-2 pt-1">
+              <Button type="button" variant="ghost" onClick={() => setBioProfId(null)}>
+                <X className="h-4 w-4 mr-1.5" /> Cancelar
+              </Button>
+              <Button type="button" onClick={handleSaveBio} disabled={savingBio}>
+                {savingBio ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Check className="h-4 w-4 mr-1.5" />}
+                Salvar Bio
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Disciplines Affinity Dialog */}
       <Dialog open={!!affinityProfId} onOpenChange={(o) => !o && setAffinityProfId(null)}>

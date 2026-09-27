@@ -28,7 +28,7 @@ function initials(name: string) {
   return name.split(" ").filter(Boolean).slice(0, 2).map((n) => n[0]).join("").toUpperCase()
 }
 
-export function TestimonialsTab() {
+export function TestimonialsTab({ isMaster }: { isMaster?: boolean } = {}) {
   const [items, setItems] = useState<Testimonial[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
@@ -214,7 +214,9 @@ export function TestimonialsTab() {
                   {t.isPublished ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
                 <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600" onClick={() => openEdit(t)} title="Editar"><Pencil className="h-4 w-4" /></Button>
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive ml-auto" onClick={() => setDeleteId(t.id)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
+                {isMaster && (
+                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive ml-auto" onClick={() => setDeleteId(t.id)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
+                )}
               </div>
             </div>
           ))}

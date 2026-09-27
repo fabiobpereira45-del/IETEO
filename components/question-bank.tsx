@@ -725,7 +725,7 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
           </div>
           {selectedDiscipline && (
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-              {selectedQuestions.size > 0 && (
+              {selectedQuestions.size > 0 && isMaster && (
                 <Button
                   size="sm"
                   variant="destructive"
@@ -864,15 +864,17 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => setDeleteQId(q.id)}
-                    aria-label="Excluir questão"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  {isMaster && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setDeleteQId(q.id)}
+                      aria-label="Excluir questão"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}

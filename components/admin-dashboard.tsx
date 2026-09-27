@@ -101,10 +101,7 @@ export function AdminDashboard({ onLogout }: Props) {
   const isMaster = session?.role === "master"
   const isSecretary = session?.role === "secretary"
 
-  const [tab, setTab] = useState<Tab>(() => {
-    if (session?.role === "secretary") return "students"
-    return "overview"
-  })
+  const [tab, setTab] = useState<Tab>("overview")
   const [loading, setLoading] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
@@ -143,24 +140,6 @@ export function AdminDashboard({ onLogout }: Props) {
   }, [supabase.auth, session?.professorId])
 
   const menuGroups = useMemo(() => {
-    if (isSecretary) {
-      return [
-        {
-          title: "Principal",
-          items: [
-            { id: "students", label: "Matricular Alunos", icon: <Users className="h-4 w-4" /> },
-            { id: "attendance", label: "Frequência (Chamadas)", icon: <CalendarCheck className="h-4 w-4" /> },
-          ]
-        },
-        {
-          title: "Administração",
-          items: [
-            { id: "settings", label: "Configurações", icon: <Settings className="h-4 w-4" /> },
-          ]
-        }
-      ]
-    }
-
     return [
       {
         title: "Principal",
@@ -172,10 +151,11 @@ export function AdminDashboard({ onLogout }: Props) {
       {
         title: "Administração",
         items: [
+          // Financeiro é o único item exclusivo do master — o secretário não tem acesso.
           { id: "financial", label: "Financeiro", icon: <DollarSign className="h-4 w-4" />, masterOnly: true },
-          { id: "grade_config", label: "Configuração de Notas", icon: <Calculator className="h-4 w-4" />, masterOnly: true },
-          { id: "professors", label: "Professores", icon: <ShieldCheck className="h-4 w-4" />, masterOnly: true },
-          { id: "usage_logs", label: "Logs de Uso", icon: <Activity className="h-4 w-4" />, masterOnly: true },
+          { id: "grade_config", label: "Configuração de Notas", icon: <Calculator className="h-4 w-4" />, masterOnly: true, secretaryAllowed: true },
+          { id: "professors", label: "Professores", icon: <ShieldCheck className="h-4 w-4" />, masterOnly: true, secretaryAllowed: true },
+          { id: "usage_logs", label: "Logs de Uso", icon: <Activity className="h-4 w-4" />, masterOnly: true, secretaryAllowed: true },
           { id: "settings", label: "Configurações", icon: <Settings className="h-4 w-4" /> },
         ]
       },
@@ -183,7 +163,7 @@ export function AdminDashboard({ onLogout }: Props) {
         title: "Institucional",
         items: [
           { id: "institutional", label: "Quem Somos / Missão", icon: <Building2 className="h-4 w-4" /> },
-          { id: "testimonials", label: "Depoimentos", icon: <MessageSquareQuote className="h-4 w-4" />, masterOnly: true },
+          { id: "testimonials", label: "Depoimentos", icon: <MessageSquareQuote className="h-4 w-4" />, masterOnly: true, secretaryAllowed: true },
         ]
       },
       {
@@ -192,7 +172,7 @@ export function AdminDashboard({ onLogout }: Props) {
           { id: "students", label: "Alunos", icon: <Users className="h-4 w-4" /> },
           { id: "grades", label: "Notas e Diários", icon: <GraduationCap className="h-4 w-4" /> },
           { id: "attendance", label: "Frequência", icon: <CalendarCheck className="h-4 w-4" /> },
-          { id: "classes", label: "Turmas", icon: <Briefcase className="h-4 w-4" />, masterOnly: true },
+          { id: "classes", label: "Turmas", icon: <Briefcase className="h-4 w-4" />, masterOnly: true, secretaryAllowed: true },
           { id: "ead", label: "EAD / Vídeos", icon: <MonitorPlay className="h-4 w-4" /> },
         ]
       },
@@ -211,11 +191,11 @@ export function AdminDashboard({ onLogout }: Props) {
           { id: "materials", label: "Biblioteca (PDFs)", icon: <BookOpen className="h-4 w-4" /> },
           { id: "book_loans", label: "Locação de Livros", icon: <BookCopy className="h-4 w-4" /> },
           { id: "semesters", label: "Grade Curricular", icon: <GraduationCap className="h-4 w-4" /> },
-          { id: "class_schedules", label: "Quadro de Horários", icon: <CalendarDays className="h-4 w-4" />, masterOnly: true },
+          { id: "class_schedules", label: "Quadro de Horários", icon: <CalendarDays className="h-4 w-4" />, masterOnly: true, secretaryAllowed: true },
         ]
       }
     ]
-  }, [isMaster, isSecretary])
+  }, [])
 
 
   const renderNavItem = (item: any) => (
@@ -306,7 +286,7 @@ export function AdminDashboard({ onLogout }: Props) {
         <ScrollArea className="flex-1 min-h-0 px-3">
           <div className="space-y-4 pb-4 pt-2">
             {menuGroups.map((group) => {
-              const visibleItems = group.items.filter(i => !i.masterOnly || isMaster)
+              const visibleItems = group.items.filter((i: any) => !i.masterOnly || isMaster || (isSecretary && i.secretaryAllowed))
               if (visibleItems.length === 0) return null
               return (
                 <div key={group.title} className="space-y-1">
@@ -450,19 +430,19 @@ export function AdminDashboard({ onLogout }: Props) {
               {tab === "settings" && <SettingsTab onLogout={handleLogout} />}
               {tab === "materials" && <StudyMaterialManager />}
               {tab === "semesters" && <SemesterManager isMaster={isMaster} />}
-              {tab === "class_schedules" && isMaster && <ClassScheduleManager poloFilter={isMaster ? selectedPoloId : undefined} />}
+              {tab === "class_schedules" && (isMaster || isSecretary) && <ClassScheduleManager poloFilter={isMaster ? selectedPoloId : undefined} />}
               {tab === "attendance" && <AttendanceManager poloFilter={isMaster ? selectedPoloId : undefined} />}
-              {tab === "classes" && isMaster && <ClassManager poloFilter={isMaster ? selectedPoloId : undefined} />}
+              {tab === "classes" && (isMaster || isSecretary) && <ClassManager poloFilter={isMaster ? selectedPoloId : undefined} />}
               {tab === "ead" && <EadManager />}
               {tab === "challenges" && <ChallengeManager />}
               {tab === "chat" && <ProfessorChatView />}
-              {tab === "financial" && <FinancialDashboard poloFilter={isMaster ? selectedPoloId : undefined} />}
-              {tab === "professors" && isMaster && <ProfessorManager />}
+              {tab === "financial" && isMaster && <FinancialDashboard poloFilter={isMaster ? selectedPoloId : undefined} />}
+              {tab === "professors" && (isMaster || isSecretary) && <ProfessorManager isMaster={isMaster} />}
               {tab === "institutional" && <InstitutionalManager />}
-              {tab === "testimonials" && <TestimonialsTab />}
+              {tab === "testimonials" && <TestimonialsTab isMaster={isMaster} />}
               {tab === "book_loans" && <BookManager isMaster={isMaster} poloFilter={isMaster ? selectedPoloId : undefined} professorInfo={{ id: session?.professorId || "prof-0", name: username || "Professor", email: userEmail }} />}
-              {tab === "grade_config" && isMaster && <GradeConfig />}
-              {tab === "usage_logs" && isMaster && <UsageDashboard />}
+              {tab === "grade_config" && (isMaster || isSecretary) && <GradeConfig />}
+              {tab === "usage_logs" && (isMaster || isSecretary) && <UsageDashboard />}
             </div>
           )}
         </main>

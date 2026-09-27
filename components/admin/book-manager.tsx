@@ -774,15 +774,17 @@ export function BookManager({ isMaster, poloFilter, professorInfo }: Props) {
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
 
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDeleteBook(book.id)}
-                          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                          title="Excluir do catálogo"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        {isMaster && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteBook(book.id)}
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                            title="Excluir do catálogo"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
