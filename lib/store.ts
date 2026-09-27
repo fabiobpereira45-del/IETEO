@@ -1640,6 +1640,7 @@ export async function deleteDiscipline(id: string): Promise<void> {
   // First, delete related entries to avoid foreign key constraints
   await supabase.from('questions').delete().eq('discipline_id', id)
   await supabase.from('study_materials').delete().eq('discipline_id', id)
+  await supabase.from('financial_charges').delete().eq('discipline_id', id)
   const { error } = await supabase.from('disciplines').delete().eq('id', id)
   if (error) throw new Error(error.message)
 }
