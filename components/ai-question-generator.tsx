@@ -211,7 +211,8 @@ ${typesFormatted}
     if (hasCustomMaterial) {
       prompt += `\nIMPORTANTE — ANEXO DE MATERIAL DIDÁTICO DO PROFESSOR:
 Estou enviando em anexo (ou fornecendo o texto de) um material didático próprio (PDF, slides PPTX, apostila Word ou documento de aula).
-Toda a base conceitual, definições doutrinárias, passagens bíblicas citadas e exegese das questões DEVEM SER EXTRAÍDAS ESTRITAMENTE do material fornecido em anexo.\n`
+Toda a base conceitual, definições doutrinárias, passagens bíblicas citadas e exegese das questões DEVEM SER EXTRAÍDAS ESTRITAMENTE do material fornecido em anexo.
+Porém, o material é apenas a FONTE do conteúdo — ele NÃO deve ser mencionado no enunciado das questões.\n`
     }
 
     if (theologicalFocus.trim()) {
@@ -221,6 +222,7 @@ Toda a base conceitual, definições doutrinárias, passagens bíblicas citadas 
 
     prompt += `
 DIRETRIZES DE QUALIDADE ACADÊMICA:
+- ENUNCIADO AUTOSSUFICIENTE (regra obrigatória): é PROIBIDO usar expressões meta-referenciais ao material de origem, tais como "segundo o material", "de acordo com o material", "conforme o texto apresentado", "com base no documento", "segundo a apostila", "conforme o conteúdo estudado" ou variações. Cada enunciado deve fazer sentido sozinho, como numa prova real: pergunte diretamente sobre a doutrina, o fato histórico ou a passagem bíblica. Quando houver necessidade de citar uma fonte, cite a fonte real (autor, obra, concílio, credo ou referência bíblica), nunca "o material".
 - Todas as passagens bíblicas devem incluir referência exata (Livro Capítulo:Versículo).
 - Múltipla Escolha: O enunciado deve ser claro. 4 alternativas (A a D) ou 5 alternativas (A a E), com distratores plausíveis baseados em confusões teológicas ou heresias históricas documentadas.
 - Verdadeiro ou Falso: Afirmações sem ambiguidade com fundamentação teológica clara.

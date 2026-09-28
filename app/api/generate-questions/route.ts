@@ -181,7 +181,8 @@ PADRÕES DE QUALIDADE IETEO:
 1. RIGOR: Use terminologia técnica correta (ex: 'Imputação', 'Substituição Vicária').
 2. BLOOM: Varie os níveis. Nível 1 para fatos, Nível 4+ para análises críticas e comparações.
 3. DISTRATORES: Em múltipla escolha, os erros devem ser heresias históricas plausíveis ou confusões doutrinárias comuns.
-4. REFERÊNCIAS: Sempre fundamente a resposta com versículos e lógica teológica.`
+4. REFERÊNCIAS: Sempre fundamente a resposta com versículos e lógica teológica.
+5. ENUNCIADO AUTOSSUFICIENTE: É PROIBIDO usar expressões meta-referenciais ao material de origem, como "segundo o material", "de acordo com o material", "conforme o texto apresentado", "com base no documento" ou variações. Cada enunciado deve fazer sentido sozinho, como numa prova real: pergunte diretamente sobre a doutrina, o fato histórico ou a passagem bíblica. Quando precisar citar uma fonte, cite a fonte real (autor, obra, concílio, credo ou referência bíblica), nunca "o material".`
 
 
 // ─── Route handler ────────────────────────────────────────────────────────────
@@ -296,7 +297,7 @@ BASE DE CONHECIMENTO OBRIGATÓRIA (Use ÚNICA e EXCLUSIVAMENTE o texto abaixo):
 ---
 ${fileText.substring(0, 40000).replace(/\s+/g, " ")}
 ---
-INSTRUÇÃO: Formule as questões com base neste texto. Se necessário, use temas correlacionados.
+INSTRUÇÃO: Formule as questões com base neste texto, mas NUNCA mencione o material de origem no enunciado (proibido: "segundo o material", "de acordo com o material", "conforme o texto"). O texto é apenas a fonte do conteúdo — os enunciados devem ser autossuficientes. Se necessário, use temas correlacionados.
 ` : `Sem anexo. Use seu conhecimento enciclopédico para o tema "${discipline}".`}
 
 ${sourceDetails ? `FOCO ESPECÍFICO: ${sourceDetails}.` : ""}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef, useCallback } from "react"
+import { useEffect, useState, useRef, useCallback, useMemo } from "react"
 import {
   FileText, BookOpen, Settings, BarChart3, Download, LogOut,
   Plus, Pencil, Trash2, Eye, EyeOff, Trophy, Clock, CheckCircle2,
@@ -140,6 +140,51 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
     setSelectedIds(new Set(picked.map((q) => q.id)))
   }, [availableQuestions, questionCount])
 
+  // Questões exibidas no preview (passo 4), na ordem em que foram selecionadas
+  const previewIds = useMemo(() => {
+    const ids = [...selectedIds]
+    if (ids.length > 0) return ids
+    return availableQuestions.slice(0, questionCount).map((q) => q.id)
+  }, [selectedIds, availableQuestions, questionCount])
+
+  const previewQuestions = useMemo(
+    () => previewIds.map((id) => availableQuestions.find((q) => q.id === id)).filter(Boolean) as Question[],
+    [previewIds, availableQuestions]
+  )
+
+  // Questões do banco que ainda não estão nesta prova — são as sugestões disponíveis
+  const spareQuestions = useMemo(() => {
+    const used = new Set(previewIds)
+    return availableQuestions.filter((q) => !used.has(q.id))
+  }, [previewIds, availableQuestions])
+
+  // Sorteia outro conjunto, priorizando questões que ainda não apareceram
+  const handleSuggestOthers = useCallback(() => {
+    const used = new Set(previewIds)
+    const shuffle = (arr: Question[]) => [...arr].sort(() => Math.random() - 0.5)
+    const pool = [
+      ...shuffle(availableQuestions.filter((q) => !used.has(q.id))),
+      ...shuffle(availableQuestions.filter((q) => used.has(q.id))),
+    ]
+    const picked = pool.slice(0, Math.min(questionCount, pool.length))
+    setSelectedIds(new Set(picked.map((q) => q.id)))
+  }, [availableQuestions, previewIds, questionCount])
+
+  // Substitui uma única questão por outra do banco que ainda não está na prova
+  const handleSwapQuestion = useCallback(
+    (questionId: string) => {
+      const ids = [...previewIds]
+      const idx = ids.indexOf(questionId)
+      if (idx === -1) return
+      const used = new Set(ids)
+      const candidates = availableQuestions.filter((q) => !used.has(q.id))
+      if (candidates.length === 0) return
+      ids[idx] = candidates[Math.floor(Math.random() * candidates.length)].id
+      setSelectedIds(new Set(ids))
+    },
+    [availableQuestions, previewIds]
+  )
+
   const toggleQuestion = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev)
@@ -168,7 +213,8 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
     if (saving) return
     setSaving(true)
     try {
-      const finalIds = [...selectedIds]
+      // Publica exatamente as questões exibidas no preview
+      const finalIds = [...previewIds]
       const totalPoints = finalIds.length * pointsPerQuestion
       const selectedDisc = disciplines.find((d) => d.id === disciplineId)
 
@@ -565,6 +611,31 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
             {/* Step 4: Visualização */}
             {step === 4 && (
               <div className="space-y-6 animate-in zoom-in-95 fade-in duration-500">
+                 {/* Curadoria rápida: sugerir outras questões do banco */}
+                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-[1.5rem] border-2 border-dashed border-primary/25 bg-primary/5">
+                    <div className="flex items-center gap-4">
+                       <div className="h-11 w-11 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                          <ListChecks className="h-5 w-5" />
+                       </div>
+                       <div>
+                          <p className="font-bold text-sm">{previewQuestions.length} questões nesta prova</p>
+                          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                             {spareQuestions.length > 0
+                               ? `${spareQuestions.length} outras disponíveis no banco`
+                               : "Banco esgotado para estes filtros"}
+                          </p>
+                       </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={handleSuggestOthers}
+                      disabled={spareQuestions.length === 0}
+                      className="rounded-xl border-2 px-6 font-black text-[10px] uppercase tracking-[0.15em] shrink-0"
+                    >
+                      <Shuffle className="h-3.5 w-3.5 mr-2" /> Sugerir Outras Questões
+                    </Button>
+                 </div>
+
                  <div className="bg-white rounded-[2rem] shadow-2xl shadow-black/10 text-slate-900 overflow-hidden border border-slate-200">
                     <div className="bg-slate-50 border-b border-slate-200 p-8 flex flex-col items-center text-center gap-4">
                        {logoBase64 && <img src={logoBase64} className="h-20 w-20 object-contain" alt="Logo" />}
@@ -582,25 +653,31 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
                           </div>
                           <div className="space-y-1 text-right">
                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pontuação</p>
-                             <p className="text-sm font-bold">10.0 Pontos Máximos</p>
+                             <p className="text-sm font-bold">{(previewQuestions.length * pointsPerQuestion).toFixed(1)} Pontos Máximos</p>
                           </div>
                        </div>
 
                        <div className="space-y-10">
-                          {(() => {
-                            let previewIds = [...selectedIds]
-                            if (selectionMode === "auto" && previewIds.length === 0) {
-                               previewIds = availableQuestions.slice(0, questionCount).map(q => q.id)
-                            }
-                            const previewQs = previewIds.map(id => availableQuestions.find(q => q.id === id)).filter(Boolean) as Question[]
-                            
-                            return previewQs.map((q, idx) => (
+                          {previewQuestions.map((q, idx) => (
                               <div key={q.id} className="space-y-4">
                                  <div className="flex items-start gap-4">
                                     <span className="h-8 w-8 rounded-xl bg-slate-100 flex items-center justify-center text-sm font-black shrink-0">{idx + 1}</span>
                                     <div className="space-y-4 flex-1">
-                                       <p className="text-base font-serif font-bold text-slate-800 leading-tight">{q.text}</p>
-                                       
+                                       <div className="flex items-start justify-between gap-3">
+                                          <p className="text-base font-serif font-bold text-slate-800 leading-tight">{q.text}</p>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleSwapQuestion(q.id)}
+                                            disabled={spareQuestions.length === 0}
+                                            title={spareQuestions.length === 0
+                                              ? "Não há outras questões no banco para estes filtros"
+                                              : "Trocar por outra questão do banco"}
+                                            className="shrink-0 h-8 w-8 rounded-lg border border-slate-200 text-slate-400 flex items-center justify-center transition-all opacity-60 hover:opacity-100 hover:text-primary hover:border-primary/40 hover:bg-primary/5 disabled:opacity-20 disabled:cursor-not-allowed"
+                                          >
+                                            <RefreshCw className="h-3.5 w-3.5" />
+                                          </button>
+                                       </div>
+
                                        {q.type === 'multiple-choice' && (
                                           <div className="space-y-2">
                                              {q.choices.map((c, ci) => (
@@ -626,8 +703,7 @@ export function AssessmentBuilder({ open, assessment, onClose, onSave }: Props) 
                                     </div>
                                  </div>
                               </div>
-                            ))
-                          })()}
+                          ))}
                        </div>
                     </div>
                  </div>
