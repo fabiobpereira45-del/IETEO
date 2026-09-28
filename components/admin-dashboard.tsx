@@ -425,7 +425,7 @@ export function AdminDashboard({ onLogout }: Props) {
               {tab === "students" && <StudentManager isMaster={isMaster} poloFilter={isMaster ? selectedPoloId : undefined} />}
               {tab === "grades" && <GradesManager isMaster={isMaster} poloFilter={isMaster ? selectedPoloId : undefined} />}
               {tab === "submissions" && <SubmissionsTab isMaster={isMaster} poloFilter={isMaster ? selectedPoloId : undefined} />}
-              {tab === "questions" && <QuestionBank isMaster={isMaster} />}
+              {tab === "questions" && <QuestionBank isMaster={isMaster} canDeleteQuestions={isMaster || isSecretary} />}
               {tab === "assessments" && <AssessmentsTab isMaster={isMaster} poloFilter={isMaster ? selectedPoloId : undefined} />}
               {tab === "settings" && <SettingsTab onLogout={handleLogout} />}
               {tab === "materials" && <StudyMaterialManager />}

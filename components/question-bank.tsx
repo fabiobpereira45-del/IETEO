@@ -527,7 +527,9 @@ function BulkImportModal({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
+// isMaster: libera ações exclusivas do master (excluir disciplina inteira).
+// canDeleteQuestions: libera excluir questões (master e secretário).
+export function QuestionBank({ isMaster, canDeleteQuestions }: { isMaster?: boolean; canDeleteQuestions?: boolean }) {
   const [disciplines, setDisciplines] = useState<Discipline[]>([])
   const [selectedDiscipline, setSelectedDiscipline] = useState<Discipline | null>(null)
   const [questions, setQuestions] = useState<Question[]>([])
@@ -725,7 +727,7 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
           </div>
           {selectedDiscipline && (
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-              {selectedQuestions.size > 0 && isMaster && (
+              {selectedQuestions.size > 0 && canDeleteQuestions && (
                 <Button
                   size="sm"
                   variant="destructive"
@@ -864,7 +866,7 @@ export function QuestionBank({ isMaster }: { isMaster?: boolean }) {
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                  {isMaster && (
+                  {canDeleteQuestions && (
                     <Button
                       size="sm"
                       variant="ghost"
