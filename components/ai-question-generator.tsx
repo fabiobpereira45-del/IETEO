@@ -148,6 +148,59 @@ const AI_PLATFORMS = [
   }
 ]
 
+// ─── Recuperação de JSON truncado ─────────────────────────────────────────────
+// IAs externas costumam cortar a resposta ao atingir o limite de tamanho, deixando
+// o JSON inválido. Em vez de perder tudo, varremos o texto e aproveitamos as
+// questões que já estavam completas, descartando apenas a que ficou pela metade.
+
+const QUESTION_MARKERS = [
+  "choices", "alternativas", "correctAnswer", "respostaCorreta",
+  "gabarito", "explanation", "justificativa", "pairs", "bloomLevel",
+]
+
+function looksLikeQuestion(obj: any): boolean {
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return false
+  if (!(obj.text || obj.pergunta || obj.enunciado)) return false
+  return (
+    QUESTION_MARKERS.some((k) => obj[k] !== undefined) ||
+    typeof obj.type === "string" ||
+    typeof obj.tipo === "string"
+  )
+}
+
+function salvageQuestions(text: string): any[] {
+  const openStack: number[] = []
+  const found: { start: number; end: number; value: any }[] = []
+  let inString = false
+  let escaped = false
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+
+    if (escaped) { escaped = false; continue }
+    if (ch === "\\") { escaped = true; continue }
+    if (ch === '"') { inString = !inString; continue }
+    if (inString) continue
+
+    if (ch === "{") {
+      openStack.push(i)
+    } else if (ch === "}" && openStack.length > 0) {
+      const start = openStack.pop() as number
+      try {
+        found.push({ start, end: i, value: JSON.parse(text.slice(start, i + 1)) })
+      } catch {
+        // Objeto malformado: ignora e segue procurando os próximos
+      }
+    }
+  }
+
+  // Mantém só os objetos de nível mais externo (descarta alternativas aninhadas)
+  const outermost = found.filter(
+    (o) => !found.some((p) => p !== o && p.start < o.start && p.end > o.end)
+  )
+  return outermost.map((o) => o.value).filter(looksLikeQuestion)
+}
+
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
 export function AIQuestionGenerator({ disciplines, onQuestionsAdded, defaultDisciplineId }: Props) {
@@ -170,6 +223,7 @@ export function AIQuestionGenerator({ disciplines, onQuestionsAdded, defaultDisc
   // Estado de Importação / Parser
   const [rawInput, setRawInput] = useState("")
   const [parseError, setParseError] = useState<string | null>(null)
+  const [parseWarning, setParseWarning] = useState<string | null>(null)
   const [parsedQuestions, setParsedQuestions] = useState<ParsedQuestion[]>([])
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set())
   const [saving, setSaving] = useState(false)
@@ -304,6 +358,7 @@ Responda SOMENTE com o JSON contendo as ${count} questões formatadas.`
 
   const handleParseInput = () => {
     setParseError(null)
+    setParseWarning(null)
     setSaveSuccessMessage(null)
 
     if (!rawInput.trim()) {
@@ -341,7 +396,23 @@ Responda SOMENTE com o JSON contendo as ${count} questões formatadas.`
         }
       }
 
-      const parsed = JSON.parse(cleaned)
+      let parsed: any
+      let salvagedCount = 0
+
+      try {
+        parsed = JSON.parse(cleaned)
+      } catch (jsonErr) {
+        // Resposta provavelmente cortada pela IA: aproveita as questões completas
+        const recovered = salvageQuestions(cleaned)
+        if (recovered.length === 0) {
+          throw new Error(
+            "O texto colado está incompleto ou malformado e nenhuma questão completa pôde ser recuperada. Se a resposta da IA foi cortada no meio, peça para ela continuar de onde parou e cole o restante — ou gere menos questões por vez."
+          )
+        }
+        parsed = { questions: recovered }
+        salvagedCount = recovered.length
+      }
+
       let rawList: any[] = []
 
       if (Array.isArray(parsed)) {
@@ -431,6 +502,11 @@ Responda SOMENTE com o JSON contendo as ${count} questões formatadas.`
 
       setParsedQuestions(normalized)
       setSelectedIndices(new Set(normalized.map((_, i) => i)))
+      if (salvagedCount > 0) {
+        setParseWarning(
+          `A resposta da IA foi cortada antes do fim, mas ${salvagedCount} ${salvagedCount === 1 ? "questão completa foi recuperada" : "questões completas foram recuperadas"}. Revise a lista abaixo e, se faltarem questões, peça à IA para continuar de onde parou e cole o restante.`
+        )
+      }
     } catch (err: any) {
       console.error("Erro ao analisar JSON:", err)
       setParseError(`Erro no formato dos dados: ${err.message || "Certifique-se de que o texto colado contém o JSON gerado pela IA."}`)
@@ -921,6 +997,13 @@ Responda SOMENTE com o JSON contendo as ${count} questões formatadas.`
               <div className="flex items-center gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-400 text-xs font-semibold animate-in fade-in">
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 <span>{parseError}</span>
+              </div>
+            )}
+
+            {parseWarning && (
+              <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-700 dark:text-amber-400 text-xs font-semibold animate-in fade-in">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{parseWarning}</span>
               </div>
             )}
 
