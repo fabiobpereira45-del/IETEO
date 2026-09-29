@@ -292,6 +292,23 @@ export default function HomePage() {
 
             {/* Action Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Apresentação do Curso / Landing Page */}
+              <a
+                href="/curso"
+                className="group relative overflow-hidden bg-gradient-to-r from-[#450a0a] via-[#1e1b2e] to-[#0f172a] text-white border-2 border-amber-500/50 rounded-2xl p-6 text-left shadow-lg hover:shadow-xl hover:border-amber-400 hover:scale-[1.01] transition-all sm:col-span-2 flex items-center justify-between"
+              >
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold uppercase tracking-wider mb-2 border border-amber-500/30">
+                    ✦ Matrículas Abertas • R$ 79,99/mês
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black mb-1 text-white">Apresentação do Curso de Teologia</h2>
+                  <p className="text-sm text-slate-300">Veja a grade completa com os 3 semestres, corpo docente e garanta sua vaga.</p>
+                </div>
+                <div className="h-12 w-12 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0 ml-4 group-hover:scale-110 transition-transform">
+                  <BookOpen className="h-6 w-6" />
+                </div>
+              </a>
+
               {/* Matrícula */}
               <button
                 onClick={() => setShowEnroll(true)}

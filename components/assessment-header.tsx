@@ -66,6 +66,14 @@ export function AssessmentHeader({
                 {polo.name.replace("Polo ", "")}
               </button>
             )}
+            <a
+              href="/curso"
+              className="flex items-center gap-1.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1.5 text-xs font-bold hover:bg-amber-500/30 transition-colors shadow-sm"
+              title="Apresentação do Curso & Grade"
+            >
+              <BookOpen className="h-3.5 w-3.5 shrink-0" />
+              <span className="hidden sm:inline">Conhecer o Curso</span>
+            </a>
             {onEnrollClick && (
               <button
                 onClick={onEnrollClick}
