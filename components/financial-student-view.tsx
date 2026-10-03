@@ -132,8 +132,9 @@ export function FinancialStudentView({ studentId }: Props) {
 
             {/* Manual Payment Instructions Modal */}
             {showPayModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-                    <div className="bg-card rounded-2xl shadow-2xl p-6 w-full max-w-md border border-border my-auto">
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 overflow-y-auto overscroll-contain">
+                    <div className="flex min-h-full items-center justify-center p-4">
+                    <div className="bg-card rounded-2xl shadow-2xl p-6 w-full max-w-md border border-border">
                         <div className="flex items-start justify-between mb-4">
                             <div>
                                 <h3 className="text-lg font-bold text-foreground">Como Pagar</h3>
@@ -256,6 +257,7 @@ export function FinancialStudentView({ studentId }: Props) {
                                 <p className="text-[10px] text-muted-foreground mt-2">Aguarde a conferência manual para a baixa no sistema.</p>
                             </div>
                         </div>
+                    </div>
                     </div>
                 </div>
             )}

@@ -1,6 +1,30 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
+// O Asaas recusa a criacao do cliente quando o CPF nao passa nos digitos
+// verificadores. Validamos antes para devolver uma mensagem que o aluno entenda,
+// em vez do erro cru da API.
+function isValidCpf(raw?: string | null): boolean {
+    if (!raw) return false
+    const cpf = String(raw).replace(/\D/g, "")
+    if (cpf.length !== 11) return false
+    // Sequencias repetidas (00000000000, 11111111111...) passam nos digitos
+    // verificadores, mas o Asaas as recusa.
+    if (/^(\d)\1{10}$/.test(cpf)) return false
+
+    let sum = 0
+    for (let i = 0; i < 9; i++) sum += parseInt(cpf[i]) * (10 - i)
+    let d1 = (sum * 10) % 11
+    if (d1 === 10) d1 = 0
+    if (d1 !== parseInt(cpf[9])) return false
+
+    sum = 0
+    for (let i = 0; i < 10; i++) sum += parseInt(cpf[i]) * (11 - i)
+    let d2 = (sum * 10) % 11
+    if (d2 === 10) d2 = 0
+    return d2 === parseInt(cpf[10])
+}
+
 export async function POST(req: Request) {
     try {
         const { chargeId, chargeIds } = await req.json()
@@ -87,10 +111,22 @@ export async function POST(req: Request) {
             .eq('id', charges[0].student_id)
             .single()
 
+        if (!student) {
+            return NextResponse.json({
+                error: "Esta fatura não está vinculada a um aluno. Procure a secretaria para regularizar o cadastro."
+            }, { status: 400 })
+        }
+
+        if (!isValidCpf(student.cpf)) {
+            return NextResponse.json({
+                error: "Não foi possível gerar o Pix porque o CPF do seu cadastro está incompleto ou incorreto. Entre em contato com a secretaria para corrigir o CPF e tente novamente."
+            }, { status: 400 })
+        }
+
         // 5. Find or create an Asaas Customer
         let asaasCustomerId: string | null = null
 
-        const searchRes = await fetch(`${baseUrl}/customers?cpfCnpj=${student?.cpf}`, {
+        const searchRes = await fetch(`${baseUrl}/customers?cpfCnpj=${String(student.cpf).replace(/\D/g, "")}`, {
             headers: { "access_token": config.api_key }
         })
         const searchBody = await searchRes.json()
@@ -102,8 +138,8 @@ export async function POST(req: Request) {
                 method: "POST",
                 headers: { "access_token": config.api_key, "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    name: student?.name || "Aluno IETEO",
-                    cpfCnpj: student?.cpf || "00000000000"
+                    name: student.name || "Aluno IETEO",
+                    cpfCnpj: String(student.cpf).replace(/\D/g, "")
                 })
             })
             const customerBody = await createCustomerRes.json()
