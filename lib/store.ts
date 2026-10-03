@@ -1891,10 +1891,16 @@ export async function getSubmissionsByAssessment(assessmentId: string): Promise<
 export async function saveSubmission(sub: StudentSubmission): Promise<StudentSubmission> {
   const supabase = createClient()
 
+  // student_id é uma coluna uuid. A prova pública identifica o aluno pelo e-mail
+  // digitado, que não é uuid e faria o insert falhar (22P02). Nesse caso gravamos
+  // null — o e-mail continua preservado em student_email.
+  const isUuid = (v?: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ""))
+
   const record = {
     id: sub.id,
     assessment_id: sub.assessmentId,
-    student_id: sub.studentId,
+    student_id: isUuid(sub.studentId) ? sub.studentId : null,
     student_name: sub.studentName,
     student_email: sub.studentEmail,
     answers: sub.answers,

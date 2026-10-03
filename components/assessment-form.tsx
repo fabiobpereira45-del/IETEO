@@ -60,6 +60,8 @@ export function AssessmentForm({ session, onSubmit }: Props) {
   const [answers, setAnswers] = useState<StudentAnswer[]>(() => getDraftAnswers())
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [elapsed, setElapsed] = useState(0)
   const [timeLeft, setTimeLeft] = useState<number | null>(null)
   const [focusLostCount, setFocusLostCount] = useState(0)
@@ -107,7 +109,9 @@ export function AssessmentForm({ session, onSubmit }: Props) {
   }, [session.assessmentId])
 
   const handleFinalize = useCallback(async () => {
-    if (!assessment) return
+    if (!assessment || isSubmitting) return
+    setIsSubmitting(true)
+    setSubmitError(null)
     const elapsedSecs = Math.floor((Date.now() - startedAt.current.getTime()) / 1000)
     const { score, totalPoints, percentage } = calculateScore(answers, questions, assessment.pointsPerQuestion)
 
@@ -125,10 +129,27 @@ export function AssessmentForm({ session, onSubmit }: Props) {
       timeElapsedSeconds: elapsedSecs,
       focusLostCount,
     }
-    await saveSubmission(sub)
+    try {
+      await saveSubmission(sub)
+    } catch (err: any) {
+      // Sem isto a falha passava despercebida: o diálogo fechava e nada acontecia,
+      // levando o aluno a clicar várias vezes achando que o botão não respondia.
+      console.error("Falha ao enviar avaliação:", err)
+      setSubmitError(
+        "Não foi possível enviar sua avaliação. Suas respostas continuam salvas nesta tela. Verifique sua conexão e tente novamente."
+      )
+      // O envio também dispara sozinho quando o tempo acaba; abrir o diálogo
+      // garante que o aluno veja o erro e consiga tentar de novo.
+      setShowConfirm(true)
+      setIsSubmitting(false)
+      return
+    }
+
     clearStudentSession()
+    setShowConfirm(false)
+    setIsSubmitting(false)
     onSubmit(sub)
-  }, [answers, assessment, questions, session, onSubmit, focusLostCount])
+  }, [answers, assessment, questions, session, onSubmit, focusLostCount, isSubmitting])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -617,7 +638,7 @@ export function AssessmentForm({ session, onSubmit }: Props) {
       </div>
 
       {/* Confirm Dialog */}
-      <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
+      <Dialog open={showConfirm} onOpenChange={(o) => { if (!isSubmitting) setShowConfirm(o) }}>
         <DialogContent className="max-w-md rounded-[2rem] border-0 shadow-2xl p-0 overflow-hidden">
           <div className="bg-primary p-8 text-primary-foreground text-center space-y-4">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md">
@@ -638,16 +659,29 @@ export function AssessmentForm({ session, onSubmit }: Props) {
               </div>
             )}
             
+            {submitError && (
+              <div className="flex items-start gap-3 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-sm font-bold mb-4">
+                <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+                {submitError}
+              </div>
+            )}
+
             <div className="flex flex-col gap-3">
-              <Button 
-                onClick={() => { setShowConfirm(false); handleFinalize() }}
-                className="rounded-2xl h-14 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg shadow-primary/20"
+              <Button
+                onClick={handleFinalize}
+                disabled={isSubmitting}
+                className="rounded-2xl h-14 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg shadow-primary/20 disabled:opacity-70"
               >
-                Sim, enviar avaliação
+                {isSubmitting
+                  ? "Enviando..."
+                  : submitError
+                    ? "Tentar enviar novamente"
+                    : "Sim, enviar avaliação"}
               </Button>
-              <Button 
-                variant="ghost" 
-                onClick={() => setShowConfirm(false)} 
+              <Button
+                variant="ghost"
+                onClick={() => setShowConfirm(false)}
+                disabled={isSubmitting}
                 className="rounded-2xl h-14 font-medium text-muted-foreground hover:bg-secondary/50"
               >
                 Não, voltar para revisão
