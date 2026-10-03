@@ -161,7 +161,7 @@ export default function CursoLandingPage() {
             <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
               
               <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs sm:text-sm font-semibold tracking-wide">
-                <Sparkle className="w-4 h-4 text-amber-400 fill-amber-400" />
+                <Sparkles className="w-4 h-4 text-amber-400 fill-amber-400" />
                 <span>Formação Ministerial & Teológica Rigorosa</span>
               </div>
 
@@ -187,11 +187,9 @@ export default function CursoLandingPage() {
                     </div>
                   </div>
                 </div>
-                <div className="text-xs text-slate-300 text-center sm:text-right">
-                  <span className="inline-block px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30 mb-1">
-                    Sem taxa de matrícula oculta
-                  </span>
-                  <div className="text-[11px] text-slate-400">18 disciplinas inclusas em 3 semestres</div>
+                <div className="text-xs text-slate-300 text-center sm:text-right space-y-1">
+                  <div className="text-[11px] text-slate-400">18 mensalidades · R$ 79,99/mês</div>
+                  <div className="text-[11px] text-amber-400/80">+ Taxa de matrícula: R$ 79,99 (única)</div>
                 </div>
               </div>
 
@@ -331,7 +329,7 @@ export default function CursoLandingPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           
           <div className="p-8 rounded-2xl bg-[#0f172a]/70 border border-white/10 hover:border-amber-500/40 transition-all hover:-translate-y-1 shadow-xl relative overflow-hidden group">
             <div className="w-14 h-14 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-6 group-hover:scale-110 transition-transform">
@@ -361,6 +359,30 @@ export default function CursoLandingPage() {
             <p className="text-sm text-slate-400 leading-relaxed">
               Você não apenas aprende teorias, mas desenvolve Homilética prática, Liderança, Evangelismo, Missões e Gestão Eclesiástica para sua congregação.
             </p>
+          </div>
+
+          <div className="p-8 rounded-2xl bg-[#0f172a]/70 border border-white/10 hover:border-amber-500/40 transition-all hover:-translate-y-1 shadow-xl relative overflow-hidden group">
+            <div className="w-14 h-14 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-6 group-hover:scale-110 transition-transform">
+              <BookOpen className="w-7 h-7" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-3">Material Didático Incluso</h3>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              O aluno recebe <strong className="text-amber-300">6 livros físicos</strong>, cada um com 3 disciplinas, contemplando todo o curso. O material é <strong className="text-amber-300">vitalício</strong>: fica definitivamente com o aluno para compor sua biblioteca pessoal.
+            </p>
+          </div>
+
+          <div className="p-8 rounded-2xl bg-[#0f172a]/70 border border-white/10 hover:border-amber-500/40 transition-all hover:-translate-y-1 shadow-xl relative overflow-hidden group">
+            <div className="w-14 h-14 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-6 group-hover:scale-110 transition-transform">
+              <MapPin className="w-7 h-7" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-3">Biblioteca Física — Polo Salvador</h3>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              O Instituto mantém uma <strong className="text-amber-300">biblioteca física</strong> no Polo Salvador, disponível exclusivamente para retirada presencial pelos alunos matriculados neste polo.
+            </p>
+            <div className="mt-4 text-[11px] text-amber-400/70 font-medium flex items-center gap-1.5">
+              <MapPin className="w-3 h-3" />
+              <span>Apenas retirada presencial — Polo Salvador</span>
+            </div>
           </div>
 
         </div>
@@ -415,7 +437,8 @@ export default function CursoLandingPage() {
                 </p>
               </div>
               <div className="shrink-0 bg-amber-500/10 border border-amber-500/30 text-amber-300 px-4 py-2 rounded-xl text-xs font-bold text-center">
-                6 Disciplinas neste Semestre
+                <div>6 Disciplinas neste Semestre</div>
+                <div className="text-[10px] text-amber-400/70 font-medium mt-0.5">+12 nos outros semestres (18 no total)</div>
               </div>
             </div>
 
@@ -564,9 +587,45 @@ export default function CursoLandingPage() {
                   <span className="block text-xs text-slate-400 font-medium">/ ao mês</span>
                 </div>
               </div>
-              <p className="text-xs text-amber-300 font-medium">
+              <p className="text-xs text-amber-300 font-medium mb-4">
                 Sem taxa surpresa • Sem fidelidade abusiva • Acesso a todas as 18 disciplinas
               </p>
+
+              {/* Detalhamento de pagamento */}
+              <div className="bg-[#0a0f1c] border border-white/10 rounded-2xl p-4 text-left space-y-2 text-xs text-slate-400">
+                <div className="font-semibold text-slate-300 text-sm mb-3">Resumo do investimento total:</div>
+                <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                  <span>18 mensalidades de R$ 79,99</span>
+                  <span className="text-white font-bold">R$ 1.439,82</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Taxa de matrícula <span className="text-amber-400/80">(única, não recorrente)</span></span>
+                  <span className="text-white font-bold">R$ 79,99</span>
+                </div>
+                <div className="mt-3 pt-2 border-t border-white/10 text-[11px] text-slate-500 leading-relaxed">
+                  * As mensalidades correspondem às 18 disciplinas distribuídas em 3 semestres (6 disciplinas por semestre). A taxa de matrícula é paga uma única vez no ato da inscrição.
+                </div>
+              </div>
+            </div>
+
+            {/* Material Didático */}
+            <div className="bg-gradient-to-r from-amber-500/10 to-amber-600/5 border border-amber-500/30 rounded-2xl p-5 text-left mt-6">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="font-bold text-white text-sm">Material Didático Incluso</div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Cada aluno recebe <strong className="text-amber-300">6 livros físicos</strong> — um por semestre, com 3 disciplinas cada — cobrindo todo o conteúdo do curso. O material é <strong className="text-amber-300">vitalício</strong>: fica definitivamente com o aluno para compor sua biblioteca pessoal.
+                  </p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <span className="text-[11px] px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/25 text-amber-300 font-medium">6 livros físicos</span>
+                    <span className="text-[11px] px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/25 text-amber-300 font-medium">3 disciplinas por livro</span>
+                    <span className="text-[11px] px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 font-medium">Seu para sempre ✓</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Checklist */}
@@ -581,7 +640,7 @@ export default function CursoLandingPage() {
               </div>
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-amber-400 shrink-0" />
-                <span>Apostilas digitais em PDF</span>
+                <span>6 livros didáticos físicos inclusos</span>
               </div>
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-amber-400 shrink-0" />
